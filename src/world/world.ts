@@ -1975,6 +1975,10 @@ export class World {
           const g = this.roleOf(slot).trophic;
           if (g === 1 && this.config.consumerPhotoScale !== null) demand *= this.config.consumerPhotoScale;
           else if (g === 0 && this.config.producerCaptureScale !== null) demand *= this.config.producerCaptureScale;
+          // Decomposers had NO branch here, so they captured at full demand no
+          // matter what the other two scales were set to. Under `--zero` that
+          // made the decomposer guild the only guild with a live energy input.
+          else if (g === 2 && this.config.decomposerPhotoScale !== null) demand *= this.config.decomposerPhotoScale;
         }
         // Diagnostic: mixotrophic carbon requirement (mixotrophyCarbon).
         // Bare light is not enough for a producer: capturing energy also

@@ -407,6 +407,22 @@ export interface WorldConfig {
    */
   grazeYieldScale: number | null;
   consumerPhotoScale: number | null;
+  /**
+   * Diagnostic: multiplies photosynthesis demand for the DECOMPOSER guild.
+   *
+   * null (default) = declared behaviour, unchanged.
+   *
+   * This knob exists because the guild gate in the photosynthesis path had a
+   * branch for consumers (g===1) and producers (g===0) and NOTHING for
+   * decomposers (g===2), so a decomposer captured at full unzeroed demand no
+   * matter what consumerPhotoScale and producerCaptureScale were set to. Under
+   * the `--zero` flatline preset that left the decomposer guild as the only
+   * guild with a live energy input, which is a flatline that is not flat.
+   *
+   * The same shape as consumerPhotoScale: a dial for magnitude, null for
+   * declared behaviour.
+   */
+  decomposerPhotoScale: number | null;
   consumerBasalScale: number | null;
   producerCaptureScale: number | null;
   /**
@@ -775,6 +791,7 @@ export const DEFAULT_CONFIG: WorldConfig = {
   predationYieldScale: null,
   grazeYieldScale: null,
   consumerPhotoScale: null,
+  decomposerPhotoScale: null,
   consumerBasalScale: null,
   producerCaptureScale: null,
   decomposerFounders: null,

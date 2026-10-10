@@ -125,6 +125,9 @@ for (const arg of process.argv) {
 const ZERO_LIFTABLE = {
   producerCaptureScale: 0,
   consumerPhotoScale: 0,
+  // The guild gate in the photosynthesis path had no decomposer branch, so
+  // this preset previously left decomposer capture live.
+  decomposerPhotoScale: 0,
   basalFoodPerCell: 0,
   nutrientRegen: 0,
   excretionRate: 0,

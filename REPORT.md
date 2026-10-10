@@ -4659,3 +4659,56 @@ is the Owner's call before it is touched. No fix is attempted here and no
 hypothesis is recorded for it yet.
 
 Also still open: the `consumer-yield` arm has not been run.
+
+================================================================================
+DECOMPOSER-CAPTURE DEFECT FOUND AND FIXED — BUT IT WAS NOT THE LEAK
+================================================================================
+
+A REAL defect, found while hunting the leak. A hypothesis, tested, and
+FALSIFIED. Both are recorded because the second is the useful part.
+
+DEFECT (real, fixed). The guild gate in the photosynthesis path handled two of
+three guilds:
+
+    if (g === 1 && consumerPhotoScale   !== null) demand *= consumerPhotoScale;
+    else if (g === 0 && producerCaptureScale !== null) demand *= producerCaptureScale;
+    // no branch for g === 2
+
+A decomposer matched neither condition, so it captured at FULL unzeroed demand
+regardless of what the other two scales were set to. Measured under `--zero`,
+seed 31014, capture by guild = [prod 0, cons 0, **dec 34.52**]. The decomposer
+guild was the only guild with a live energy input in a preset whose entire
+purpose is that 0 means inert. Per the Owner directive only producers receive
+free energy, so this was wrong on both counts.
+
+Fix: new null-default knob `decomposerPhotoScale`, wired into the same gate,
+and set to 0 in the `--zero` preset. Null default means DECLARED behaviour is
+unchanged — verified, parity still exact at 517 -> 778/169/63 and
+24601 -> 597/246/103, so no re-pin. Added to the artefact presence check (C5)
+and the diagnostics screen.
+
+HYPOTHESIS, FALSIFIED. I expected this hole to be the leak: an ungated energy
+input should let decomposers persist under `--zero`. It is not. Re-running
+seed 31014 for 6000 ticks with decomposer capture gated to zero gave
+decomp B/D = 15254/12374 = 1.23 and pop 2973 — BIT-IDENTICAL to before.
+
+The reason is visible in the numbers I should have checked first: 34.52 of
+capture is 0.13% of the 27275 total input. It cannot sustain 2916 organisms.
+The hole was real and is worth closing, but it was not the mechanism.
+
+WHAT IS STILL UNTRACED. Ruled out by inspection as conservative:
+  - death -> detritus returns at most 0.88 * digestion (~57%) of the corpse;
+  - both detritivory paths assimilate a fraction strictly below what they
+    remove, and unassimilated share is dissipated, not returned;
+  - birth debits the parent for the full endowment and spills the overflow,
+    with the newborn buffer cleared BEFORE transfer;
+  - biotic mineralisation converts energy to nutrient under a per-cell cap.
+
+The remaining suspect is the recycle chain detritus -> decomposer ->
+mineralised nutrient -> capture, which can gain at the conversion steps and is
+the only path that closes on itself. That has NOT been traced to a specific
+line, and no fix is attempted on a guess.
+
+STATUS: the flatline arm remains FALSIFIED (4/36 survive). This fix does not
+change that. The origin reference is still not a valid flatline and the
+balance work cannot start on it.

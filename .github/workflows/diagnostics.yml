@@ -127,7 +127,7 @@ jobs:
         run: |
           set -euo pipefail
           missing=0
-          for key in reproSurplusTicks mixotrophyCarbon nutrientCyclic nutrientFloor dormantThreatBlind; do
+          for key in reproSurplusTicks mixotrophyCarbon nutrientCyclic nutrientFloor dormantThreatBlind decomposerPhotoScale; do
             if ! grep -q "$key" tools/diagnostics/evo-sim-poc.html; then
               echo "::error::config key absent from built engine: $key"
               missing=1
