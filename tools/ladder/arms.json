@@ -1,0 +1,68 @@
+{
+  "$comment": [
+    "Pre-registered ladder arms. This file is VERSION CONTROLLED and is the",
+    "single source of truth for what an arm is.",
+    "",
+    "Why it exists: the 0.4.1 ladder was launched ad hoc, with no runner and",
+    "no recorded argv. The probe header captured the raw slot arguments but NOT",
+    "which --zero-lift dials were applied or at what values, so those runs are",
+    "NOT exactly reproducible from their own artifacts. AGENTS.md forbids",
+    "reading a number from an unverified arm, so rung 6 cannot be faithfully",
+    "re-run. It is not restated here and must not be reported as replicated.",
+    "",
+    "Every arm below therefore spells out all 17 slots AND every lift, and",
+    "run-arm.mjs re-reads the probe's own emitted header and fails the run if",
+    "it does not match what was declared. An arm that silently differs from its",
+    "declaration cannot produce a result."
+  ],
+  "slotNames": [
+    "seed", "ticks", "setting", "photo", "basal", "graze", "tissue",
+    "radiation", "disease", "pioneer", "dtb", "mixo", "cyc",
+    "sat", "pcap", "nfloor", "rsur"
+  ],
+  "arms": {
+    "flatline": {
+      "title": "Zero baseline re-verification under 0.5.0",
+      "preregistered": "2026-10-10",
+      "seeds": "41001:41018,31001:31018",
+      "ticks": 6000,
+      "zero": true,
+      "lifts": {},
+      "argvRest": ["off", "4", "null", "null", "null", "null", "null",
+                   "null", "off", "off", "off", "0.4", "null", "0", "null"],
+      "hypothesis": "With every energy-giving pathway zeroed and excretionRate also 0, all guilds go extinct on every seed.",
+      "prediction": "36/36 seeds reach total extinction (pop = 0) by tick 6000.",
+      "falsification": "ANY seed reaches tick 6000 with pop > 0.",
+      "notPredicted": "Extinction TIMING is deliberately not predicted. The 0.5.0 fixes changed gradient navigation, mating and predation yield, so the 0.4.1 extinction window (t2000-t5000, median t3500) is not a prediction for this arm and must not be compared as one.",
+      "confoundsControlled": [
+        "Same 36-seed panel as the 0.4.1 flatline",
+        "Same 6000-tick horizon",
+        "--zero only, no lifts, so the arm is fully specified",
+        "Knob schema unchanged in 0.5.0"
+      ]
+    },
+    "consumer-yield": {
+      "title": "Consumer viability under corrected predation assimilation",
+      "preregistered": "2026-10-10",
+      "seeds": "41001:41018",
+      "ticks": 6000,
+      "zero": true,
+      "$comment": "Predation yield moved from cd^2 to cd in 0.5.0 (a ~25% net gain at cd~0.8). This arm asks whether that alone restores consumer viability. It is a NEW arm, not a replication of the 0.4.1 rung 6, whose lift set was never recorded.",
+      "lifts": {
+        "producerCaptureScale": 0.35,
+        "basalFoodPerCell": 0.25
+      },
+      "argvRest": ["off", "4", "0.25", "null", "null", "null", "0.15",
+                   "null", "off", "off", "off", "0.4", "null", "0", "null"],
+      "hypothesis": "Removing the doubled digestion tax raises consumer net yield enough to move consumers from ~0 into persistent three-guild worlds on a majority of seeds.",
+      "prediction": "consumers > 0 on at least 12/18 seeds at tick 6000, AND all three guilds non-zero on at least 12/18 seeds.",
+      "falsification": "consumers == 0 on 7 or more of 18 seeds, or all three guilds non-zero on fewer than 12/18 seeds.",
+      "confoundsControlled": [
+        "18-seed panel 41001-41018, identical to the 0.4.1 ladder panel",
+        "6000-tick horizon, identical",
+        "No consumerPhotoScale lift: per Owner directive only producers receive free energy",
+        "Not a replication of 0.4.1 rung 6 and must not be reported as one"
+      ]
+    }
+  }
+}

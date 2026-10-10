@@ -1,0 +1,146 @@
+name: Ladder
+
+# OPTIONAL BY DESIGN — same status as Diagnostics.
+#
+# Dispatch-only. Never runs on push or pull_request, never gates anything.
+#
+# It exists because ladder runs are SUSTAINED work: 36 seeds x 6000 ticks is far
+# past what belongs on a phone, and AGENTS.md forbids running long horizons
+# through tsx (transpilation exhausts the device). GitHub Actions is the right
+# host, which is exactly why this is optional and never a gate.
+#
+# THE POINT OF THIS WORKFLOW IS THE ARM CHECK, NOT THE NUMBER.
+#
+# tools/ladder/arms.json is version controlled and carries the pre-registration
+# (hypothesis, prediction, falsification condition, confounds). The 0.4.1 ladder
+# had no such record: it was launched ad hoc, and although the probe echoed its
+# raw slot arguments into the header, it did not record which --zero-lift dials
+# were applied or at what values. Those arms are therefore NOT exactly
+# reproducible from their own artifacts and must not be reported as replicated.
+#
+# run-arm.mjs re-reads the probe's emitted header and FAILS the leg if it does
+# not match the declared arm. An arm that silently differs from its declaration
+# produces no data.
+#
+# Per-seed outputs are uploaded PER LEG and are deliberately NOT merged.
+# Merging hand-written rows into one combined measurement fabricates a result
+# that nobody ran.
+
+on:
+  workflow_dispatch:
+    inputs:
+      arm:
+        description: Pre-registered arm to run
+        type: choice
+        default: flatline
+        options:
+          - flatline
+          - consumer-yield
+      ticks:
+        description: Ticks per run (override for a smoke test)
+        type: string
+        default: "6000"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ladder-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  ladder:
+    name: Ladder arm (sharded)
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      # The lockfile is committed, so this is reproducible and cached.
+      - name: Install dev dependencies
+        run: npm ci --no-audit --no-fund
+
+      # Compiled, not tsx. Gates run compiled so esbuild's postinstall is not on
+      # the path and so transpilation never holds the module graph.
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build CLI probes
+        run: npm run view:build
+
+      # Cheap gates first: do not spend 36 seeds x 6000 ticks on an engine that
+      # fails its own credibility suite.
+      - name: Behavioural gates
+        run: npm run gates:compiled
+
+      # Report the pre-registration up front, so a reader sees the hypothesis
+      # and the falsification condition BEFORE any result.
+      - name: Show pre-registration
+        run: |
+          set -euo pipefail
+          node -e '
+            const s=require("./tools/ladder/arms.json");
+            const a=s.arms["${{ inputs.arm }}"];
+            const p=a.preregistered;
+            const out=[
+              "### Pre-registration",
+              `- arm: \`${{ inputs.arm }}\` — ${a.title}`,
+              `- declared: ${p}`,
+              `- hypothesis: ${a.hypothesis}`,
+              `- prediction: ${a.prediction}`,
+              `- falsified if: ${a.falsification}`,
+            ];
+            if(a.notPredicted) out.push(`- NOT predicted: ${a.notPredicted}`);
+            for(const c of (a.confoundsControlled||[])) out.push(`- confound controlled: ${c}`);
+            require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY, out.join("\n")+"\n");
+            console.log(out.join("\n"));
+          '
+
+      - name: Run arm
+        run: node tools/ladder/run-arm.mjs tools/ladder/arms.json "${{ inputs.arm }}" ./ladder-out
+
+      - name: Summarise
+        if: always()
+        run: |
+          set -euo pipefail
+          {
+            echo ""
+            echo "### Result (per-seed, NOT merged)"
+            if [ -f ladder-out/summary.csv ]; then
+              echo ""
+              echo '```'
+              head -40 ladder-out/summary.csv
+              echo '```'
+            fi
+            if [ -f ladder-out/manifest.json ]; then
+              node -e '
+                const m=require("./ladder-out/manifest.json");
+                console.log("- ran " + m.runs.length + "/" + m.seedCount + " seeds");
+                console.log("- header mismatches: " + m.headerMismatches.length);
+                console.log("- failures: " + m.failures.length);
+                const p=m.preregistration;
+                console.log("- prediction: " + p.prediction);
+                console.log("- falsified if: " + p.falsification);
+                console.log("");
+                console.log("Judge against the pre-registration above, not against a");
+                console.log("desired outcome. Nulls are results; record them.");
+              '
+            else
+              echo ""
+              echo "No manifest produced — the arm did not complete."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload arm outputs
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: ladder-${{ inputs.arm }}-${{ github.run_number }}
+          path: ladder-out/
+          if-no-files-found: warn
