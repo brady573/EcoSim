@@ -10,7 +10,9 @@ questions with evidence:
 2. Is there a hard performance wall that would justify a different execution
    approach (WASM, or something that is not TypeScript)?
 
-It is a **standalone repository** at `/root/DEE-TS-POC/experiment/ts-evolution-poc`
+Upstream: <https://github.com/brady573/EcoSim> (branch `main`).
+
+Locally it lives at `/root/DEE-TS-POC/experiment/ts-evolution-poc`,
 on branch `main`, with its own history. It originated as an untracked directory
 inside the `DEE-TS-POC` worktree of Digital-Evolution-Ecosystem (based at
 `c247dd9`) and was promoted out on 2026-10-10; that base commit is recorded in
