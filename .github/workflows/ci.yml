@@ -58,9 +58,9 @@ jobs:
     timeout-minutes: 15
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: '24'
           # Keyed on package-lock.json; the lockfile is committed, so this is
@@ -95,7 +95,7 @@ jobs:
 
       - name: Upload built engine on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: engine-on-failure
           path: evidence/app/evo-sim-poc.html

@@ -25,8 +25,8 @@
  *
  * Run: tsx src/trace/thresholdsweep.ts [ticks]
  */
-import { World } from '/root/DEE-TS-POC/experiment/ts-evolution-poc/src/world/world.js';
-import { TRAIT } from '/root/DEE-TS-POC/experiment/ts-evolution-poc/src/bio/genome.js';
+import { World } from '../world/world.js';
+import { TRAIT } from '../bio/genome.js';
 
 const TICKS = Number(process.argv[2] ?? 2400);
 const SEEDS = [24601, 777, 1234];

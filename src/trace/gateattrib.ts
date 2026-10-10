@@ -16,11 +16,11 @@
  * formula is replicated here from world.ts:2912; a mismatch would show up as the
  * surplus gate never binding, which the output flags.
  */
-import { World } from '/root/DEE-TS-POC/experiment/ts-evolution-poc/src/world/world.js';
-import { FATAL_DAMAGE } from '/root/DEE-TS-POC/experiment/ts-evolution-poc/src/world/world.js';
-import { TRAIT } from '/root/DEE-TS-POC/experiment/ts-evolution-poc/src/bio/genome.js';
-import { resolveCapacity } from '/root/DEE-TS-POC/experiment/ts-evolution-poc/src/bio/phenotype.js';
-import { TROPHIC } from '/root/DEE-TS-POC/experiment/ts-evolution-poc/src/bio/role.js';
+import { World } from '../world/world.js';
+import { FATAL_DAMAGE } from '../world/world.js';
+import { TRAIT } from '../bio/genome.js';
+import { resolveCapacity } from '../bio/phenotype.js';
+import { TROPHIC } from '../bio/role.js';
 
 const REFERENCE_SIZE = 6.7;
 const REPRO_SURPLUS_TICKS = 90;
