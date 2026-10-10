@@ -4588,3 +4588,74 @@ lever produced three-guild balance") is a statement about 0.4.1 only.
 
 H6 (reproSurplusTicks:10, 18 seeds) remains formally UNRESOLVED and must be
 re-run under 0.5.0 rather than closed against 0.4.1 numbers.
+
+================================================================================
+0.5.0 FLATLINE ARM — PREDICTION FALSIFIED, AND WHAT IT REFRAMES
+================================================================================
+
+Arm `flatline`, pre-registered 2026-10-10, run as ladder run#2 on commit
+7c898d1, engine ts-evo-poc/0.5.0, 36 seeds (41001-41018, 31001-31018),
+6000 ticks, --zero, no lifts, 6 sharded legs.
+
+  declared: 36/36 seeds reach total extinction (pop = 0)
+  falsified if: ANY seed reaches tick 6000 with pop > 0
+
+RESULT: 32/36 extinct, 4/36 SURVIVED. The falsification condition is met. The
+prediction is FALSIFIED, not supported and not "partially supported".
+
+Survivors:
+  seed 31002  P0  C0   D268
+  seed 31003  P1  C0   D279
+  seed 31014  P54 C3   D2916
+  seed 31017  P0  C0   D5
+
+Seed 31014 oscillates rather than settling: pop 200 -> 1121 -> 379 -> 2832 ->
+965 -> 2973 at ticks 1000..6000. `grazeEnergy=0` and `grazeWins=0`, so
+herbivory contributed nothing. This is a boom-bust cycle, not a steady state.
+
+WHAT CHANGED, AND WHY IT MATTERS MORE THAN THE VERDICT
+
+Under 0.4.1 the flatline was 36/36 extinct with decomposer B/D never exceeding
+0.99 across every archived seed (measured range 0.51-0.99). Under 0.5.0 seed
+31014 runs decomposer B/D = 15254/12374 = 1.23 — births ABOVE deaths, with
+every energy-giving pathway zeroed. Decomposers are running an energy-positive
+loop on nothing.
+
+Localization, single-variable, 6000 ticks, seed 31014:
+  - 0.5.0 as shipped:                      decomp B/D = 1.23, pop 2973
+  - 0.5.0 with ONLY the gradient fix reverted: decomp B/D = 0.99, extinct
+
+The gradient fix is the cause. Predation yield and reciprocal mating are not
+implicated.
+
+THE REFRAME, STATED PLAINLY. The 0.4.1 flatline was never evidence that the
+energy accounting is closed. It was evidence that a navigation bug starved
+decomposers of detritus. Decomposition was already energy-positive at the
+margin; the malformed gradient simply kept throughput below replacement, so the
+loop died out with everything else. Correct navigation raised throughput past
+the break-even point and a pre-existing conversion gain became visible.
+
+So the flatline cannot serve as the "no energy in, therefore extinction"
+origin reference. Under correct navigation it is NOT a valid flatline, and the
+18/36 extinction rate is not a regression in engine quality — it is the first
+measurement that the origin reference was resting on a bug.
+
+This also re-opens an earlier conclusion. REPORT.md records excretion as a
+"MEASURED LEAK" that needed zeroing to take the flatline from 17/18 to 18/18.
+That attribution is now doubtful: the leak was real, but it was not the only
+one, and the executor was navigation, not excretion alone.
+
+CONSEQUENCE FOR THE EXPERIMENT. Every ladder rung measured on 0.4.1 was run
+against a world where decomposers were artificially food-limited by a
+navigation bug. Balance verdicts, consumer-viability conclusions, and the
+monoculture findings all describe that world. They are not merely
+"different engine version" from 0.5.0 results — they were drawn from a world
+that could not sustain a decomposer loop at all.
+
+NOT YET DONE. The loop's mechanism is identified as to CAUSE but not as to
+ARITHMETIC: which conversion step returns more than it consumes has not been
+traced. That is a defect hunt, not a knob turn, and per the repo contract it
+is the Owner's call before it is touched. No fix is attempted here and no
+hypothesis is recorded for it yet.
+
+Also still open: the `consumer-yield` arm has not been run.
