@@ -1,4 +1,3 @@
-"use strict";
 /**
  * Deterministic seeded RNG for the experimental evolution engine.
  *
@@ -18,11 +17,8 @@
  * NOT guaranteed bit-identical across engines, so this engine's determinism
  * claim is scoped to "same engine version + same seed". See REPORT.md.
  */
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.Rng = void 0;
-exports.fnv1a = fnv1a;
 /** xoshiro128** PRNG. 128-bit state held in a Uint32Array(4). */
-class Rng {
+export class Rng {
     s = new Uint32Array(4);
     constructor(seed) {
         this.reseed(seed);
@@ -115,12 +111,11 @@ class Rng {
         this.s.set(words);
     }
 }
-exports.Rng = Rng;
 function rotl(x, k) {
     return ((x << k) | (x >>> (32 - k))) >>> 0;
 }
 /** FNV-1a 32-bit string hash, used to turn seed strings into seed words. */
-function fnv1a(str) {
+export function fnv1a(str) {
     let h = 0x811c9dc5;
     for (let i = 0; i < str.length; i++) {
         h ^= str.charCodeAt(i);

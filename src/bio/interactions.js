@@ -1,4 +1,3 @@
-"use strict";
 /**
  * Contested-interaction resolution for the experimental evolution engine.
  *
@@ -26,10 +25,8 @@
  * over time, and no group defence beyond a crowding term. A production model
  * would need all three.
  */
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.InteractionQueue = exports.OUTCOME = exports.INTERACTION = void 0;
-const genome_js_1 = require("./genome.js");
-const phenotype_js_1 = require("./phenotype.js");
+import { TRAIT, TRAIT_COUNT } from './genome.js';
+import { resolveCapacity } from './phenotype.js';
 /** Edible energy per unit prey body mass (arbitrary but self-consistent units). */
 /**
  * Edible energy per unit prey body mass.
@@ -41,7 +38,7 @@ const phenotype_js_1 = require("./phenotype.js");
  * consumer guild.
  */
 const MEAT_YIELD_PER_MASS = 1.6;
-exports.INTERACTION = {
+export const INTERACTION = {
     /** Kill and consume a live organism. */
     PREDATE: 0,
     /** Displace or kill a competitor over contested space. */
@@ -66,12 +63,12 @@ exports.INTERACTION = {
      */
     GRAZE: 4,
 };
-exports.OUTCOME = {
+export const OUTCOME = {
     ATTACKER_WINS: 0,
     DEFENDER_WINS: 1,
     ABANDONED: 2,
 };
-class InteractionQueue {
+export class InteractionQueue {
     cap;
     /** Monotonic identity, stamped at submit time from the store. */
     atkId;
@@ -143,9 +140,11 @@ class InteractionQueue {
         this.cap = cap;
     }
     /**
-     * Record an intent to interact. `stake` is the attacker's committed energy
-     * ceiling and bounds how much can be gained. Callers must submit at most one
-     * request per organism per tick.
+     * Record an intent to interact. `stake` records the attacker's committed
+     * energy ceiling at submit time for diagnostics; the resolver sizes takes
+     * from its own rules (defender holdings for legacy graze, body mass where
+     * converted), not from the stake, so the stake currently bounds nothing.
+     * Callers must submit at most one request per organism per tick.
      */
     submit(store, atkSlot, defSlot, kind, stake) {
         if (atkSlot === defSlot)
@@ -199,7 +198,11 @@ class InteractionQueue {
     // Trophic transfer efficiency, threaded from world config so experiments can
     // bracket predator viability by overshoot without editing source per value.
     // Defaults to the module constant so existing callers are unaffected.
-    meatYield = MEAT_YIELD_PER_MASS) {
+    meatYield = MEAT_YIELD_PER_MASS, 
+    // Plant-tissue yield basis for GRAZE (0 = legacy reserve-fraction
+    // formula). Threaded like meatYield so experiments can bracket herbivore
+    // viability without editing source per value.
+    plantYield = 0) {
         const n = this.size;
         if (n === 0)
             return;
@@ -251,37 +254,37 @@ class InteractionQueue {
             const aid = this.wAtkId[k];
             if (!alive(as) || !alive(ds)) {
                 this.stats.abandoned++;
-                this.record(aid, -1, kind, exports.OUTCOME.ABANDONED, 0, 0, 0);
+                this.record(aid, -1, kind, OUTCOME.ABANDONED, 0, 0, 0);
                 continue;
             }
             const did = store.id[ds];
-            const ao = as * genome_js_1.TRAIT_COUNT;
-            const dop = ds * genome_js_1.TRAIT_COUNT;
+            const ao = as * TRAIT_COUNT;
+            const dop = ds * TRAIT_COUNT;
             const p = store.physical;
             // --- Reciprocal interaction: mating. ---------------------------------
-            if (kind === exports.INTERACTION.MATE) {
+            if (kind === INTERACTION.MATE) {
                 // Both sides consented by mutually detecting; this is reciprocal by
                 // construction, and both sides pay a cost in onMate().
                 onMate(as, ds);
-                this.record(aid, did, kind, exports.OUTCOME.ATTACKER_WINS, 0, 0, 0);
+                this.record(aid, did, kind, OUTCOME.ATTACKER_WINS, 0, 0, 0);
                 continue;
             }
-            const aPower = offensivePower(p, store, ao, as, fatalDamage, rng, p[dop + genome_js_1.TRAIT.SIZE]);
+            const aPower = offensivePower(p, store, ao, as, fatalDamage, rng, p[dop + TRAIT.SIZE]);
             const dPower = defensivePower(p, store, dop, ds, fatalDamage, rng);
             const attackerWins = aPower > dPower;
             let attackerDamage = 0;
             let defenderDamage = 0;
             let delta = 0;
-            if (kind === exports.INTERACTION.PREDATE) {
+            if (kind === INTERACTION.PREDATE) {
                 // Damage scales with the attacker/defender size ratio, so neither a
                 // tiny scavenger nor a giant can ignore body-mass consequences.
-                const ratio = p[ao + genome_js_1.TRAIT.SIZE] / Math.max(0.05, p[dop + genome_js_1.TRAIT.SIZE]);
-                const toxin = p[ao + genome_js_1.TRAIT.TOXIN];
+                const ratio = p[ao + TRAIT.SIZE] / Math.max(0.05, p[dop + TRAIT.SIZE]);
+                const toxin = p[ao + TRAIT.TOXIN];
                 const bite = (16 + toxin * 30) * ratio * (0.65 + dPower * 0.22);
                 if (attackerWins) {
                     defenderDamage = bite;
-                    const digest = p[ao + genome_js_1.TRAIT.DIGESTION_RATE];
-                    const eff = p[ao + genome_js_1.TRAIT.METABOLIC_EFFICIENCY];
+                    const digest = p[ao + TRAIT.DIGESTION_RATE];
+                    const eff = p[ao + TRAIT.METABOLIC_EFFICIENCY];
                     const take = Math.min(0.9, 0.35 + digest * 0.6);
                     // --- Yield is keyed to prey BODY MASS, not prey stored energy ----
                     //
@@ -296,7 +299,7 @@ class InteractionQueue {
                     // This restores the incentive to be large: only a big predator can
                     // exploit big prey, which is what produces size structure in a food
                     // web instead of a flat guild of similar-sized consumers.
-                    const preyMass = Math.pow(p[dop + genome_js_1.TRAIT.SIZE], 1.4);
+                    const preyMass = Math.pow(p[dop + TRAIT.SIZE], 1.4);
                     // Carnivores assimilate prey tissue efficiently, a genuine advantage
                     // over herbivory on fibrous material. Modelled as a higher base than
                     // the detritus pathway uses.
@@ -309,7 +312,7 @@ class InteractionQueue {
                     // Mass-corrected, so intake headroom matches the capacity that gates
                     // breeding and combat. A predator filling more than its real capacity
                     // here would desynchronise the overflow invariant.
-                    const room = Math.max(0, (0, phenotype_js_1.resolveCapacity)(store.phen[as], p[ao + genome_js_1.TRAIT.STORAGE_CAPACITY]) - store.energy[as]);
+                    const room = Math.max(0, resolveCapacity(store.phen[as], p[ao + TRAIT.STORAGE_CAPACITY]) - store.energy[as]);
                     delta = Math.min(gross - unassimilatedShare, room);
                 }
                 else {
@@ -318,9 +321,9 @@ class InteractionQueue {
                 }
                 onPredation(as, ds);
             }
-            else if (kind === exports.INTERACTION.TERRITORIAL) {
+            else if (kind === INTERACTION.TERRITORIAL) {
                 // Cheap, low-yield: the real cost of spacing out.
-                const sizeGap = Math.abs(p[ao + genome_js_1.TRAIT.SIZE] - p[dop + genome_js_1.TRAIT.SIZE]);
+                const sizeGap = Math.abs(p[ao + TRAIT.SIZE] - p[dop + TRAIT.SIZE]);
                 const base = 5 + sizeGap * 2.2;
                 if (attackerWins) {
                     defenderDamage = base;
@@ -334,20 +337,39 @@ class InteractionQueue {
                     onTerritorial(ds, as);
                 }
             }
-            else if (kind === exports.INTERACTION.GRAZE) {
+            else if (kind === INTERACTION.GRAZE) {
                 // Herbivory: the attacker removes a FRACTION of the defender's stored
                 // energy. Resistance is the defender's armour; an armoured producer
                 // resists browsing, which is the coevolutionary counter to herbivory.
-                const armour = p[dop + genome_js_1.TRAIT.ARMOR];
+                const armour = p[dop + TRAIT.ARMOR];
                 const resist = 1 - armour * 0.55;
                 const bite = Math.max(0, resist);
                 if (attackerWins && bite > 0.02) {
-                    const appetite = p[ao + genome_js_1.TRAIT.FEEDING_APPETITE];
-                    const digestRate = p[ao + genome_js_1.TRAIT.DIGESTION_RATE];
+                    const appetite = p[ao + TRAIT.FEEDING_APPETITE];
+                    const digestRate = p[ao + TRAIT.DIGESTION_RATE];
                     // Take a bounded fraction of standing biomass, so grazing is a
                     // renewable yield rather than a one-off kill.
                     const frac = 0.16 * bite * (0.5 + appetite) * (0.4 + digestRate);
-                    delta = store.energy[ds] * Math.min(0.45, frac);
+                    const take = Math.min(0.45, frac);
+                    if (plantYield > 0) {
+                        // Tissue basis (diagnostic): bites scale with victim BODY MASS,
+                        // not its momentary wallet — the same conversion predation
+                        // received above, where reserve-fraction takes left predators with
+                        // no payoff gradient. Effective density stays below meat because
+                        // the take fraction (≤~0.2) and herbivore digestion run well under
+                        // carnivore values. The world-side holdings backstop still caps
+                        // every take, so conservation stays exact.
+                        const eff = p[ao + TRAIT.METABOLIC_EFFICIENCY];
+                        const plantMass = Math.pow(p[dop + TRAIT.SIZE], 1.4);
+                        const herbivoreDigestion = 0.35 + eff * 0.25;
+                        const gross = plantMass * plantYield * take;
+                        const unassimilatedShare = Math.max(0, gross * (1 - herbivoreDigestion));
+                        const room = Math.max(0, resolveCapacity(store.phen[as], p[ao + TRAIT.STORAGE_CAPACITY]) - store.energy[as]);
+                        delta = Math.min(gross - unassimilatedShare, room);
+                    }
+                    else {
+                        delta = store.energy[ds] * take;
+                    }
                     // Overgrazing damages the producer; repeated browsing is lethal.
                     defenderDamage = delta * 0.09 * (2 - bite);
                 }
@@ -372,12 +394,12 @@ class InteractionQueue {
                 }
                 (onGraze ?? (() => { }))(as, ds);
             }
-            else if (kind === exports.INTERACTION.SCAVENGE) {
+            else if (kind === INTERACTION.SCAVENGE) {
                 // Contested access to a carcass; winner gets access, nobody bleeds.
                 if (attackerWins)
                     onScavenge(as, ds);
             }
-            this.record(aid, did, kind, attackerWins ? exports.OUTCOME.ATTACKER_WINS : exports.OUTCOME.DEFENDER_WINS, delta, attackerDamage, defenderDamage);
+            this.record(aid, did, kind, attackerWins ? OUTCOME.ATTACKER_WINS : OUTCOME.DEFENDER_WINS, delta, attackerDamage, defenderDamage);
         }
         this.stats.resolved += m;
         this.totalResolved += m;
@@ -411,22 +433,21 @@ class InteractionQueue {
         this.recordCount++;
     }
 }
-exports.InteractionQueue = InteractionQueue;
 /**
  * Offensive capability from evolved traits and current condition.
  * Larger, more toxic, more aggressive, faster, healthier organisms out-push.
  * Read from the flattened expressed-trait block; no object indirection.
  */
 function offensivePower(p, store, o, slot, fatal, rng, _preySize) {
-    const size = p[o + genome_js_1.TRAIT.SIZE];
-    const toxin = p[o + genome_js_1.TRAIT.TOXIN];
-    const aggression = p[o + genome_js_1.TRAIT.AGGRESSION];
-    const speed = p[o + genome_js_1.TRAIT.SPEED];
-    const burst = p[o + genome_js_1.TRAIT.BURST_POWER];
+    const size = p[o + TRAIT.SIZE];
+    const toxin = p[o + TRAIT.TOXIN];
+    const aggression = p[o + TRAIT.AGGRESSION];
+    const speed = p[o + TRAIT.SPEED];
+    const burst = p[o + TRAIT.BURST_POWER];
     // Mass-corrected, so combat fuel is the same fraction of the same ceiling that
     // breeding uses. Otherwise a large animal fought with a fuel ratio computed
     // against a reserve larger than the one it actually has.
-    const capacity = (0, phenotype_js_1.resolveCapacity)(store.phen[slot], p[o + genome_js_1.TRAIT.STORAGE_CAPACITY]);
+    const capacity = resolveCapacity(store.phen[slot], p[o + TRAIT.STORAGE_CAPACITY]);
     // Condition: an organism near death fights poorly.
     const health = 1 - store.damage[slot] / fatal;
     const fuel = Math.min(1, store.energy[slot] / Math.max(1, capacity));
@@ -449,11 +470,11 @@ function offensivePower(p, store, o, slot, fatal, rng, _preySize) {
 }
 /** Defensive capability: mass, armour, endurance, willingness to stand ground. */
 function defensivePower(p, store, o, slot, fatal, rng) {
-    const size = p[o + genome_js_1.TRAIT.SIZE];
-    const armor = p[o + genome_js_1.TRAIT.ARMOR];
-    const timidity = p[o + genome_js_1.TRAIT.TIMIDITY];
-    const endurance = p[o + genome_js_1.TRAIT.ENDURANCE];
-    const regen = p[o + genome_js_1.TRAIT.REGENERATION];
+    const size = p[o + TRAIT.SIZE];
+    const armor = p[o + TRAIT.ARMOR];
+    const timidity = p[o + TRAIT.TIMIDITY];
+    const endurance = p[o + TRAIT.ENDURANCE];
+    const regen = p[o + TRAIT.REGENERATION];
     const health = 1 - store.damage[slot] / fatal;
     // Timidity reduces fight, which is what lets "run instead of fight" be a
     // strategy that can actually evolve.

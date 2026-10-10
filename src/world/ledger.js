@@ -1,4 +1,3 @@
-"use strict";
 /**
  * Causal resource ledger for the experimental evolution engine.
  *
@@ -25,9 +24,7 @@
  * energy without also recording where it went. Float drift is possible but
  * bounded; the gate tolerates it rather than pretending it cannot exist.
  */
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.Ledger = void 0;
-class Ledger {
+export class Ledger {
     /**
      * Exogenous biomass the founder population starts with. This is an initial
      * condition, not a flux, but the conservation identity still has to account
@@ -301,4 +298,3 @@ class Ledger {
         return s;
     }
 }
-exports.Ledger = Ledger;

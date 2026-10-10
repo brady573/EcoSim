@@ -1,4 +1,3 @@
-"use strict";
 /**
  * Habitat substrate map and the explicit abiotic forcing field.
  *
@@ -24,11 +23,9 @@
  * choice with a visual cost: the map is smooth and banded rather than
  * irregular.
  */
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.HabitatMap = void 0;
-const field_js_1 = require("../core/field.js");
-const rng_js_1 = require("../core/rng.js");
-class HabitatMap {
+import { ScalarField } from '../core/field.js';
+import { Rng } from '../core/rng.js';
+export class HabitatMap {
     cols;
     rows;
     /** Nutrient carrying capacity multiplier per cell. */
@@ -40,13 +37,13 @@ class HabitatMap {
     constructor(cols, rows, seed) {
         this.cols = cols;
         this.rows = rows;
-        this.fertility = new field_js_1.ScalarField('fertility', cols, rows);
-        this.shade = new field_js_1.ScalarField('shade', cols, rows);
-        this.drainage = new field_js_1.ScalarField('drainage', cols, rows);
+        this.fertility = new ScalarField('fertility', cols, rows);
+        this.shade = new ScalarField('shade', cols, rows);
+        this.drainage = new ScalarField('drainage', cols, rows);
         this.generate(seed);
     }
     generate(seed) {
-        const rng = new rng_js_1.Rng(seed);
+        const rng = new Rng(seed);
         // Independent spatial phases per property, so fertility and shade are not
         // correlated by construction.
         const fp = [rng.nextFloat() * 6.283, rng.nextFloat() * 6.283, rng.nextFloat() * 6.283];
@@ -111,4 +108,3 @@ class HabitatMap {
         return { min, max };
     }
 }
-exports.HabitatMap = HabitatMap;

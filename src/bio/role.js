@@ -1,4 +1,3 @@
-"use strict";
 /**
  * Derived ecological role, motility, and life stage.
  *
@@ -34,13 +33,8 @@
  * ontogenies are discontinuous (metamorphosis, instars). That is a known gap,
  * not an oversight.
  */
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.ROLE_EXTENSIONS = exports.ROLE_TRAIT_COUNT = exports.LIFE_STAGE_NAME = exports.LIFE_STAGE = exports.MOTILITY_NAME = exports.MOTILITY = exports.TROPHIC_COUNT = exports.TROPHIC_NAME = exports.TROPHIC = void 0;
-exports.deriveRole = deriveRole;
-exports.developmentalScale = developmentalScale;
-exports.stageDamageFactor = stageDamageFactor;
-const genome_js_1 = require("./genome.js");
-exports.TROPHIC = {
+import { TRAIT, TRAIT_COUNT } from './genome.js';
+export const TROPHIC = {
     /** Autotroph: converts abiotic nutrient + light into biomass. */
     PRODUCER: 0,
     /**
@@ -58,13 +52,13 @@ exports.TROPHIC = {
     /** Sessile heterotroph that mineralises detritus in place. */
     DECOMPOSER: 2,
 };
-exports.TROPHIC_NAME = {
+export const TROPHIC_NAME = {
     0: 'producer',
     1: 'consumer',
     2: 'decomposer',
 };
 /** Number of trophic guilds. Exported so array strides derive from it. */
-exports.TROPHIC_COUNT = 3;
+export const TROPHIC_COUNT = 3;
 /**
  * Motility class.
  *
@@ -72,7 +66,7 @@ exports.TROPHIC_COUNT = 3;
  * a sessile organism can still have a long reach (a polyp's tentacle, a
  * fungus's hyphal front), which is why the two are not the same number.
  */
-exports.MOTILITY = {
+export const MOTILITY = {
     /** Rooted. Cannot translate; can still sense and interact. */
     SESSILE: 0,
     /** Slow crawl / creep. */
@@ -80,17 +74,17 @@ exports.MOTILITY = {
     /** Full locomotion. */
     MOBILE: 2,
 };
-exports.MOTILITY_NAME = {
+export const MOTILITY_NAME = {
     0: 'sessile',
     1: 'creep',
     2: 'mobile',
 };
-exports.LIFE_STAGE = {
+export const LIFE_STAGE = {
     JUVENILE: 0,
     ADULT: 1,
     SENESCENT: 2,
 };
-exports.LIFE_STAGE_NAME = {
+export const LIFE_STAGE_NAME = {
     0: 'juvenile',
     1: 'adult',
     2: 'senescent',
@@ -101,38 +95,38 @@ exports.LIFE_STAGE_NAME = {
  * Takes the flattened expressed-trait block directly so it can be called
  * without materialising a Phenotype object.
  */
-function deriveRole(p, base, age) {
-    const size = p[base + genome_js_1.TRAIT.SIZE];
-    const photo = p[base + genome_js_1.TRAIT.PHOTOSYNTHETIC_RATE];
-    const speed = p[base + genome_js_1.TRAIT.SPEED];
-    const burst = p[base + genome_js_1.TRAIT.BURST_POWER];
-    const toxin = p[base + genome_js_1.TRAIT.TOXIN];
-    const carrion = p[base + genome_js_1.TRAIT.CARRION_AFFINITY];
-    const recalc = p[base + genome_js_1.TRAIT.RECALCITRANT_DIGESTION];
-    const maturityAge = p[base + genome_js_1.TRAIT.MATURITY_AGE];
-    const lifespan = p[base + genome_js_1.TRAIT.LIFESPAN];
-    const vision = p[base + genome_js_1.TRAIT.VISION_RANGE];
-    const limbs = p[base + genome_js_1.TRAIT.MANEUVERABILITY];
+export function deriveRole(p, base, age) {
+    const size = p[base + TRAIT.SIZE];
+    const photo = p[base + TRAIT.PHOTOSYNTHETIC_RATE];
+    const speed = p[base + TRAIT.SPEED];
+    const burst = p[base + TRAIT.BURST_POWER];
+    const toxin = p[base + TRAIT.TOXIN];
+    const carrion = p[base + TRAIT.CARRION_AFFINITY];
+    const recalc = p[base + TRAIT.RECALCITRANT_DIGESTION];
+    const maturityAge = p[base + TRAIT.MATURITY_AGE];
+    const lifespan = p[base + TRAIT.LIFESPAN];
+    const vision = p[base + TRAIT.VISION_RANGE];
+    const limbs = p[base + TRAIT.MANEUVERABILITY];
     // --- Trophic role -------------------------------------------------------
     // Continuous inputs, thresholded only to name the dominant strategy. The
     // thresholds are for READABILITY, not for behaviour: behaviour comes from
     // the utility arbitration in the world, which uses the raw traits.
     let trophic;
     if (photo > 0.34) {
-        trophic = exports.TROPHIC.PRODUCER;
+        trophic = TROPHIC.PRODUCER;
     }
     else if ((recalc > 0.55 || carrion > 0.62) && photo < 0.34 && speed < 2.4) {
         // Sessile structural/carrion specialist: mineralises in place rather than
         // roaming. The niche is defined by what it can DIGEST (recalcitrance) or
         // by carrion specialisation — tested before the consumer fallback so a
         // slow specialist reads as a decomposer whatever else it resembles.
-        trophic = exports.TROPHIC.DECOMPOSER;
+        trophic = TROPHIC.DECOMPOSER;
     }
     else {
         // Every other heterotroph — hunter, grazer, scavenger, opportunist, or any
         // mix — is a CONSUMER. Formerly split three ways; collapsed because the
         // split was readout-only and behaviour never branched on it.
-        trophic = exports.TROPHIC.CONSUMER;
+        trophic = TROPHIC.CONSUMER;
     }
     // --- Motility -----------------------------------------------------------
     // The autotrophy/immobility trade-off. Producers are rooted; how rooted
@@ -140,11 +134,11 @@ function deriveRole(p, base, age) {
     const locomotor = speed * (1 - photo * 0.75) + burst * 0.3 + limbs * 0.8;
     let motility;
     if (locomotor < 1.1 || photo > 0.55)
-        motility = exports.MOTILITY.SESSILE;
+        motility = MOTILITY.SESSILE;
     else if (locomotor < 2.6)
-        motility = exports.MOTILITY.CREEP;
+        motility = MOTILITY.CREEP;
     else
-        motility = exports.MOTILITY.MOBILE;
+        motility = MOTILITY.MOBILE;
     // --- Developmental growth ----------------------------------------------
     // Normalised progress through the juvenile window, then a senescence tail.
     let maturation;
@@ -154,15 +148,15 @@ function deriveRole(p, base, age) {
         maturation = age <= maturityAge ? age / maturityAge : 1;
     let stage;
     if (age <= maturityAge)
-        stage = exports.LIFE_STAGE.JUVENILE;
+        stage = LIFE_STAGE.JUVENILE;
     else if (age > lifespan * 0.78)
-        stage = exports.LIFE_STAGE.SENESCENT;
+        stage = LIFE_STAGE.SENESCENT;
     else
-        stage = exports.LIFE_STAGE.ADULT;
+        stage = LIFE_STAGE.ADULT;
     // --- Reach --------------------------------------------------------------
     // Reach is not locomotion. A sessile organism may still affect something a
     // body-length away; a fast one is not necessarily able to grapple.
-    const reach = Math.sqrt(size) * 1.5 + vision * 0.06 + (trophic === exports.TROPHIC.PRODUCER ? 0 : toxin * 2.2);
+    const reach = Math.sqrt(size) * 1.5 + vision * 0.06 + (trophic === TROPHIC.PRODUCER ? 0 : toxin * 2.2);
     return {
         trophic,
         motility,
@@ -196,21 +190,21 @@ function deriveRole(p, base, age) {
     };
 }
 /** Count of traits, exposed so reports can state model complexity. */
-exports.ROLE_TRAIT_COUNT = genome_js_1.TRAIT_COUNT;
-exports.ROLE_EXTENSIONS = [];
+export const ROLE_TRAIT_COUNT = TRAIT_COUNT;
+export const ROLE_EXTENSIONS = [];
 /** Effective body size for collisions and rendering: grows during development. */
-function developmentalScale(readout, baseHitRadius) {
+export function developmentalScale(readout, baseHitRadius) {
     // Juveniles are ~55% of adult size, reaching full size at maturity. Senescent
     // organisms shrink slightly, which is cheap but visible.
     const grow = 0.55 + 0.45 * readout.maturation;
-    const shrink = readout.stage === exports.LIFE_STAGE.SENESCENT ? 0.92 : 1;
+    const shrink = readout.stage === LIFE_STAGE.SENESCENT ? 0.92 : 1;
     return baseHitRadius * grow * shrink;
 }
 /** Damage multiplier from developmental stage: juveniles cannot fight. */
-function stageDamageFactor(readout) {
-    if (readout.stage === exports.LIFE_STAGE.JUVENILE)
+export function stageDamageFactor(readout) {
+    if (readout.stage === LIFE_STAGE.JUVENILE)
         return 0.25 + 0.75 * readout.maturation;
-    if (readout.stage === exports.LIFE_STAGE.SENESCENT)
+    if (readout.stage === LIFE_STAGE.SENESCENT)
         return 0.72;
     return 1;
 }

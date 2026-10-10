@@ -1,4 +1,3 @@
-"use strict";
 /**
  * World configuration for the experimental evolution engine.
  *
@@ -7,11 +6,7 @@
  * baseline; `WorldConfig` is fully resolved at construction and is safe to
  * serialize, so a benchmark run can record exactly what it ran.
  */
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.DEFAULT_CONFIG = void 0;
-exports.resolveConfig = resolveConfig;
-exports.configFingerprint = configFingerprint;
-exports.DEFAULT_CONFIG = {
+export const DEFAULT_CONFIG = {
     worldW: 4000,
     worldH: 4000,
     fieldCell: 40,
@@ -93,8 +88,23 @@ exports.DEFAULT_CONFIG = {
     // Gain 0 and 1.0 both stay bounded; 1.0 preserves gentle acceleration while
     // 3.0 is unsafe in combination with the drive multiplier. See REPORT.md.
     stressMutagenesis: 1.0,
+    radiation: null,
+    // Pioneer establishment bonus (see field comment). Null = off.
+    pioneerBonus: null,
+    /**
+     * Diagnostic: diseased food fraction (null = off).
+     *
+     * When set to p in (0,1], that fraction of heterotroph biomass meals
+     * (grazed, predated, sediment/suspended-detritus, litter) is diseased and
+     * deals fixed viability damage instead of clean energy. Photosynthesis and
+     * mineral uptake are not food and never roll. Uses the main RNG stream
+     * (knob-on runs diverge from knob-off by stream position; per-config
+     * determinism exact). Rollback: null restores declared behaviour exactly.
+     */
+    foodDisease: null,
     // Trophic transfer efficiency (see field comment). 1.6 = status quo ante.
     meatYieldPerMass: 1.6,
+    plantYieldPerMass: 0,
     // Metapopulation grid: 4x4 patches, and a moderate empty-patch bias. The bias
     // is what turns ordinary far dispersal into directed recolonisation.
     metapopulationPatches: 4,
@@ -126,12 +136,21 @@ exports.DEFAULT_CONFIG = {
     reproActCostScale: null,
     birthTransferScale: null,
     predationYieldScale: null,
+    grazeYieldScale: null,
     consumerPhotoScale: null,
     consumerBasalScale: null,
     producerCaptureScale: null,
     decomposerFounders: null,
     decomposerDormancy: null,
+    dormantThreatBlind: null,
+    reproSurplusTicks: null,
+    // Guild-interdependence pair (see field comments). null = declared.
+    mixotrophyCarbon: null,
+    mixotrophySaturation: 0.4,
+    nutrientCyclic: null,
+    nutrientFloor: 0,
     sporeDispersal: null,
+    dormantSenescence: null,
     birthCostFactor: 0.42,
     disturbanceInterval: 260,
     disturbanceChance: 0.55,
@@ -150,16 +169,21 @@ exports.DEFAULT_CONFIG = {
     seed: 1,
 };
 /** Deep-merge a partial override onto the baseline. */
-function resolveConfig(over = {}) {
-    return { ...exports.DEFAULT_CONFIG, ...over };
+export function resolveConfig(over = {}) {
+    return { ...DEFAULT_CONFIG, ...over };
 }
 /** Order-dependent stable fingerprint of a resolved config, for evidence. */
-function configFingerprint(c) {
+export function configFingerprint(c) {
     const keys = Object.keys(c).filter((k) => k !== 'label');
     keys.sort();
     let h = 0x811c9dc5;
     for (const k of keys) {
-        const s = `${k}=${String(c[k])};`;
+        const v = c[k];
+        // Objects (e.g. the senescence setting) stringify opaquely as
+        // "[object Object]", colliding across distinct configs in evidence
+        // transcripts — serialize structurally instead. Key order is insertion
+        // order, stable for our constructed settings objects.
+        const s = `${k}=${typeof v === 'object' && v !== null ? JSON.stringify(v) : String(v)};`;
         for (let i = 0; i < s.length; i++) {
             h ^= s.charCodeAt(i);
             h = Math.imul(h, 0x01000193) >>> 0;

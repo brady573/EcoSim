@@ -1,4 +1,3 @@
-"use strict";
 /**
  * Deterministic state hashing for the experimental evolution engine.
  *
@@ -16,12 +15,9 @@
  * Floats are folded in via their IEEE-754 bit patterns rather than their
  * numeric value, so -0 vs +0 and NaN payloads cannot alias.
  */
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.RollingDigest = exports.StateHasher = void 0;
-exports.floatToBits = floatToBits;
 const FNV_OFFSET = 0x811c9dc5;
 const FNV_PRIME = 0x01000193;
-class StateHasher {
+export class StateHasher {
     h = FNV_OFFSET;
     reset() {
         this.h = FNV_OFFSET;
@@ -65,9 +61,8 @@ class StateHasher {
         return (this.h >>> 0).toString(16).padStart(8, '0');
     }
 }
-exports.StateHasher = StateHasher;
 /** IEEE-754 bit pattern of a float32 value, as an unsigned 32-bit int. */
-function floatToBits(v) {
+export function floatToBits(v) {
     F32.setFloat32(0, v);
     return F32.getUint32(0);
 }
@@ -76,7 +71,7 @@ const F32 = new DataView(new ArrayBuffer(4));
  * A rolling digest that can be sampled cheaply at intervals.
  * Cheap enough to run every tick at production population sizes.
  */
-class RollingDigest {
+export class RollingDigest {
     h = FNV_OFFSET;
     reset() {
         this.h = FNV_OFFSET;
@@ -126,7 +121,6 @@ class RollingDigest {
         return (this.h >>> 0).toString(16).padStart(8, '0');
     }
 }
-exports.RollingDigest = RollingDigest;
 function mix32(h, v) {
     h = (h ^ (v & 0xff)) >>> 0;
     h = Math.imul(h, FNV_PRIME) >>> 0;

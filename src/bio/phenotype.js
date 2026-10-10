@@ -1,4 +1,3 @@
-"use strict";
 /**
  * Genotype -> phenotype mapping for the experimental evolution engine.
  *
@@ -12,16 +11,12 @@
  * function of (genome, individualSeed) so the same genome always yields the
  * same body, which is what makes morphology heredity observable at all.
  */
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.Phenotype = exports.PART = void 0;
-exports.resolveCapacity = resolveCapacity;
-exports.derivePhenotype = derivePhenotype;
-const genome_js_1 = require("./genome.js");
-const rng_js_1 = require("../core/rng.js");
-exports.PART = { LIMB: 0, SPINE: 1, FIN: 2, ANTENNA: 3 };
-class Phenotype {
+import { BODY_GENE, MODULE, TRAIT, TRAITS, TRAIT_COUNT, express } from './genome.js';
+import { Rng } from '../core/rng.js';
+export const PART = { LIMB: 0, SPINE: 1, FIN: 2, ANTENNA: 3 };
+export class Phenotype {
     /** Expressed physical trait values, indexed like TRAITS. Hot-path read. */
-    physical = new Float32Array(genome_js_1.TRAIT_COUNT);
+    physical = new Float32Array(TRAIT_COUNT);
     body;
     spine;
     parts;
@@ -48,49 +43,49 @@ class Phenotype {
     accentHue;
     constructor(genome, bodyGenes, individualSeed) {
         // --- Express every trait once. The hot loop reads `physical` only. ---
-        for (let i = 0; i < genome_js_1.TRAIT_COUNT; i++) {
-            const spec = genome_js_1.TRAITS[i];
-            this.physical[i] = (0, genome_js_1.express)(genome[i], spec);
+        for (let i = 0; i < TRAIT_COUNT; i++) {
+            const spec = TRAITS[i];
+            this.physical[i] = express(genome[i], spec);
         }
         const P = this.physical;
         // --- Resolve the body plan from discrete genes. ---
         this.body = {
-            segments: bodyGenes[genome_js_1.BODY_GENE.SEGMENTS],
-            limbPairs: bodyGenes[genome_js_1.BODY_GENE.LIMB_PAIRS],
-            eyeCount: bodyGenes[genome_js_1.BODY_GENE.EYE_COUNT],
-            shell: bodyGenes[genome_js_1.BODY_GENE.SHELL],
-            spines: bodyGenes[genome_js_1.BODY_GENE.SPINES],
-            fins: bodyGenes[genome_js_1.BODY_GENE.FINS],
-            antennae: bodyGenes[genome_js_1.BODY_GENE.ANTENNAE],
-            tail: bodyGenes[genome_js_1.BODY_GENE.TAIL],
+            segments: bodyGenes[BODY_GENE.SEGMENTS],
+            limbPairs: bodyGenes[BODY_GENE.LIMB_PAIRS],
+            eyeCount: bodyGenes[BODY_GENE.EYE_COUNT],
+            shell: bodyGenes[BODY_GENE.SHELL],
+            spines: bodyGenes[BODY_GENE.SPINES],
+            fins: bodyGenes[BODY_GENE.FINS],
+            antennae: bodyGenes[BODY_GENE.ANTENNAE],
+            tail: bodyGenes[BODY_GENE.TAIL],
             modules: 0,
         };
-        this.hue = bodyGenes[genome_js_1.BODY_GENE.PIGMENT_HUE];
-        this.sat = bodyGenes[genome_js_1.BODY_GENE.PIGMENT_SAT];
-        this.val = bodyGenes[genome_js_1.BODY_GENE.PIGMENT_VAL];
-        this.pattern = bodyGenes[genome_js_1.BODY_GENE.PATTERN];
+        this.hue = bodyGenes[BODY_GENE.PIGMENT_HUE];
+        this.sat = bodyGenes[BODY_GENE.PIGMENT_SAT];
+        this.val = bodyGenes[BODY_GENE.PIGMENT_VAL];
+        this.pattern = bodyGenes[BODY_GENE.PATTERN];
         // Accent is a deterministic function of hue so an organism's parts read as
         // the same creature rather than random confetti.
         this.accentHue = (this.hue + 137.508 + this.pattern * 29) % 360;
         // Chromatophore presence is inferred, not directly coded: vivid pigment
         // plus photosynthetic capacity implies light-advertising tissue.
-        const photoGen = P[genome_js_1.TRAIT.PHOTOSYNTHETIC_RATE];
+        const photoGen = P[TRAIT.PHOTOSYNTHETIC_RATE];
         if (this.sat > 62 && photoGen > 0.18)
-            this.body.modules |= genome_js_1.MODULE.CHROMATOPHORE;
+            this.body.modules |= MODULE.CHROMATOPHORE;
         if (this.body.shell > 0)
-            this.body.modules |= genome_js_1.MODULE.SHELL;
+            this.body.modules |= MODULE.SHELL;
         if (this.body.spines > 0)
-            this.body.modules |= genome_js_1.MODULE.SPINES;
+            this.body.modules |= MODULE.SPINES;
         if (this.body.fins > 0)
-            this.body.modules |= genome_js_1.MODULE.FINS;
+            this.body.modules |= MODULE.FINS;
         if (this.body.antennae > 0)
-            this.body.modules |= genome_js_1.MODULE.ANTENNAE;
+            this.body.modules |= MODULE.ANTENNAE;
         if (this.body.tail > 0)
-            this.body.modules |= genome_js_1.MODULE.TAIL;
+            this.body.modules |= MODULE.TAIL;
         // --- Scale relations. Bigger bodies are slower per body length but cost
         //     more absolutely and are worth more to a predator. ---
-        const size = P[genome_js_1.TRAIT.SIZE];
-        const armor = P[genome_js_1.TRAIT.ARMOR];
+        const size = P[TRAIT.SIZE];
+        const armor = P[TRAIT.ARMOR];
         // Shell inflates mass and therefore collision radius.
         const bulk = 1 + this.body.shell * 0.14 + this.body.spines * 0.05;
         this.hitRadius = Math.sqrt(size) * 0.42 * bulk;
@@ -98,11 +93,11 @@ class Phenotype {
         // maneuverability. Real quadrupedal scaling, deliberately simple.
         const scaleDrag = 1 / (1 + Math.sqrt(size) * 0.42);
         this.maxStep =
-            P[genome_js_1.TRAIT.SPEED] * 1.55 * scaleDrag * (1 + P[genome_js_1.TRAIT.BURST_POWER] * 0.28) * (1 - armor * 0.18);
+            P[TRAIT.SPEED] * 1.55 * scaleDrag * (1 + P[TRAIT.BURST_POWER] * 0.28) * (1 - armor * 0.18);
         // Sensing radius merges vision and chemical detection. Threat sense is
         // what actually extends it for a scared organism.
-        const vision = P[genome_js_1.TRAIT.VISION_RANGE] * (0.6 + this.body.eyeCount * 0.12);
-        const chem = P[genome_js_1.TRAIT.NUTRIENT_SENSE] * 40 + P[genome_js_1.TRAIT.THREAT_SENSE] * 55;
+        const vision = P[TRAIT.VISION_RANGE] * (0.6 + this.body.eyeCount * 0.12);
+        const chem = P[TRAIT.NUTRIENT_SENSE] * 40 + P[TRAIT.THREAT_SENSE] * 55;
         // Storage capacity scales with body mass.
         //
         // This was an INCONSISTENCY, not a tuning choice: predation yield is keyed
@@ -113,8 +108,8 @@ class Phenotype {
         // every other consumer guild. With capacity scaling with mass, yield as a
         // FRACTION of standing value becomes roughly constant, which is what makes
         // trophic efficiency a real quantity.
-        const capacityGene = P[genome_js_1.TRAIT.STORAGE_CAPACITY];
-        this.capacityForTrait = capacityGene * (0.42 + 0.58 * (P[genome_js_1.TRAIT.SIZE] / 15.5) * 1.85);
+        const capacityGene = P[TRAIT.STORAGE_CAPACITY];
+        this.capacityForTrait = capacityGene * (0.42 + 0.58 * (P[TRAIT.SIZE] / 15.5) * 1.85);
         // Larger animals have larger perceptual fields. Without this, sensory reach
         // was independent of body size, so a big predator detected prey no better
         // than a small grazer did.
@@ -122,15 +117,15 @@ class Phenotype {
         // This was the measured bottleneck: predation contacts ran at ~0.03 per
         // predator per tick, and contact win rate was already 100 % when it
         // happened. Predators were not losing fights, they were not finding prey.
-        const sizeScale = 0.62 + 0.72 * (P[genome_js_1.TRAIT.SIZE] / 15.5);
+        const sizeScale = 0.62 + 0.72 * (P[TRAIT.SIZE] / 15.5);
         this.senseRadius = Math.max(4, Math.max(vision, chem) * sizeScale);
         // --- Procedural geometry, from a per-individual seed. ---
-        const rng = new rng_js_1.Rng(individualSeed >>> 0);
+        const rng = new Rng(individualSeed >>> 0);
         // Spine: taper along the body, with a curvature that follows herd/exploration
         // traits so an individual's silhouette reads as behavioural too.
         const n = this.body.segments;
         this.spine = [];
-        const bend = (rng.nextFloat() - 0.5) * 0.7 + (P[genome_js_1.TRAIT.HERD_INSTINCT] - 0.5) * 0.35;
+        const bend = (rng.nextFloat() - 0.5) * 0.7 + (P[TRAIT.HERD_INSTINCT] - 0.5) * 0.35;
         let angle = (rng.nextFloat() - 0.5) * 0.25;
         for (let i = 0; i < n; i++) {
             const u = n === 1 ? 0 : i / (n - 1);
@@ -153,7 +148,7 @@ class Phenotype {
                 // Distribute limb pairs along the inner 70% of the spine.
                 const seg = Math.min(n - 1, Math.floor((0.2 + (0.6 * (l + 0.5)) / Math.max(1, this.body.limbPairs)) * n));
                 this.parts.push({
-                    kind: exports.PART.LIMB,
+                    kind: PART.LIMB,
                     segment: seg,
                     angle: sgn * (Math.PI / 2) + (rng.nextFloat() - 0.5) * 0.3,
                     length: this.hitRadius * (0.7 + rng.nextFloat() * 0.8),
@@ -164,7 +159,7 @@ class Phenotype {
         for (let s = 0; s < this.body.spines * 2; s++) {
             const seg = Math.min(n - 1, Math.floor(rng.nextFloat() * n));
             this.parts.push({
-                kind: exports.PART.SPINE,
+                kind: PART.SPINE,
                 segment: seg,
                 angle: -Math.PI / 2 + (rng.nextFloat() - 0.5) * 0.5,
                 length: this.hitRadius * (0.45 + rng.nextFloat() * 0.7),
@@ -175,7 +170,7 @@ class Phenotype {
             for (let f = 0; f < this.body.fins; f++) {
                 const seg = Math.max(0, Math.min(n - 1, n - 1 - f));
                 this.parts.push({
-                    kind: exports.PART.FIN,
+                    kind: PART.FIN,
                     segment: seg,
                     angle: (rng.nextFloat() - 0.5) * 0.6,
                     length: this.hitRadius * (0.6 + rng.nextFloat() * 0.9),
@@ -185,7 +180,7 @@ class Phenotype {
         }
         for (let a = 0; a < this.body.antennae * 2; a++) {
             this.parts.push({
-                kind: exports.PART.ANTENNA,
+                kind: PART.ANTENNA,
                 segment: 0,
                 angle: (a === 0 ? 1 : -1) * (Math.PI * 0.78) + (rng.nextFloat() - 0.5) * 0.3,
                 length: this.hitRadius * (0.8 + rng.nextFloat() * 0.9),
@@ -195,10 +190,9 @@ class Phenotype {
     }
     /** Photosynthetic fraction, 0..1. Used to classify trophic mode. */
     get photoCapable() {
-        return this.physical[genome_js_1.TRAIT.PHOTOSYNTHETIC_RATE] > 0.05;
+        return this.physical[TRAIT.PHOTOSYNTHETIC_RATE] > 0.05;
     }
 }
-exports.Phenotype = Phenotype;
 /** Convenience: derive a phenotype and report only the cheap parts. */
 /**
  * Mass-corrected storage capacity for one slot.
@@ -222,10 +216,10 @@ exports.Phenotype = Phenotype;
  * `fallback` is the raw trait, used when no phenotype is cached (e.g. a slot
  * whose phenotype has not been derived yet).
  */
-function resolveCapacity(phen, fallback) {
+export function resolveCapacity(phen, fallback) {
     const v = phen?.capacityForTrait;
     return typeof v === 'number' && v > 0 ? v : fallback;
 }
-function derivePhenotype(genome, bodyGenes, individualSeed) {
+export function derivePhenotype(genome, bodyGenes, individualSeed) {
     return new Phenotype(genome, bodyGenes, individualSeed);
 }

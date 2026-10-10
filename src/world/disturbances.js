@@ -1,4 +1,3 @@
-"use strict";
 /**
  * Dynamic abiotic axis and explicit environmental disturbances.
  *
@@ -17,10 +16,7 @@
  * an observed population collapse can be lined up against forcing history
  * rather than guessed at.
  */
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.AbioticDriver = exports.DISTURBANCE_NAME = exports.DISTURBANCE = void 0;
-exports.emptyModifiers = emptyModifiers;
-exports.DISTURBANCE = {
+export const DISTURBANCE = {
     /** Nutrient upwelling: boosts producer capture over a region. */
     BLOOM: 0,
     /** Rain of organic material: adds detritus, feeds scavengers. */
@@ -34,7 +30,7 @@ exports.DISTURBANCE = {
     /** Ash/contaminant: temporarily suppresses capture in a region. */
     ASH_FALL: 5,
 };
-exports.DISTURBANCE_NAME = {
+export const DISTURBANCE_NAME = {
     0: 'bloom',
     1: 'organicRain',
     2: 'frost',
@@ -42,13 +38,13 @@ exports.DISTURBANCE_NAME = {
     4: 'heatWave',
     5: 'ashFall',
 };
-function emptyModifiers() {
+export function emptyModifiers() {
     return { lightMul: 1, tempOffset: 0, nutrientMul: 1, detritusAdd: 0, captureMul: 1, metabolismMul: 1 };
 }
 /**
  * Tracks the slow abiotic axis and generates discrete disturbances.
  */
-class AbioticDriver {
+export class AbioticDriver {
     cycleTicks;
     interval;
     chance;
@@ -69,16 +65,16 @@ class AbioticDriver {
         this.interval = interval;
         this.chance = chance;
         this.lifetime = new Float64Array(6).fill(1);
-        this.lifetime[exports.DISTURBANCE.BLOOM] = 140;
-        this.lifetime[exports.DISTURBANCE.ORGANIC_RAIN] = 70;
-        this.lifetime[exports.DISTURBANCE.FROST] = 190;
-        this.lifetime[exports.DISTURBANCE.DROUGHT] = 320;
-        this.lifetime[exports.DISTURBANCE.HEAT_WAVE] = 240;
-        this.lifetime[exports.DISTURBANCE.ASH_FALL] = 150;
+        this.lifetime[DISTURBANCE.BLOOM] = 140;
+        this.lifetime[DISTURBANCE.ORGANIC_RAIN] = 70;
+        this.lifetime[DISTURBANCE.FROST] = 190;
+        this.lifetime[DISTURBANCE.DROUGHT] = 320;
+        this.lifetime[DISTURBANCE.HEAT_WAVE] = 240;
+        this.lifetime[DISTURBANCE.ASH_FALL] = 150;
         // Ash lingers longest without capture.
         this.decay = new Float64Array(6).fill(1);
-        this.decay[exports.DISTURBANCE.ASH_FALL] = 0.6;
-        this.decay[exports.DISTURBANCE.FROST] = 0.85;
+        this.decay[DISTURBANCE.ASH_FALL] = 0.6;
+        this.decay[DISTURBANCE.FROST] = 0.85;
     }
     /** Advance the abiotic axis. Returns the global light multiplier. */
     stepAxis(tick, baseLight, lightAmp) {
@@ -112,7 +108,7 @@ class AbioticDriver {
         const ev = {
             tick,
             kind,
-            name: exports.DISTURBANCE_NAME[kind],
+            name: DISTURBANCE_NAME[kind],
             x,
             y,
             radius,
@@ -147,30 +143,30 @@ class AbioticDriver {
             const t = 1 - Math.sqrt(distSq) / d.radius;
             const w = t * t * d.magnitude;
             switch (d.kind) {
-                case exports.DISTURBANCE.BLOOM:
+                case DISTURBANCE.BLOOM:
                     out.nutrientMul += w * 1.6;
                     out.lightMul += w * 0.22;
                     out.captureMul += w * 0.7;
                     break;
-                case exports.DISTURBANCE.ORGANIC_RAIN:
+                case DISTURBANCE.ORGANIC_RAIN:
                     out.detritusAdd += w * 22;
                     break;
-                case exports.DISTURBANCE.FROST:
+                case DISTURBANCE.FROST:
                     out.tempOffset -= w * 13;
                     out.metabolismMul += w * 0.62;
                     out.captureMul -= w * 0.3;
                     break;
-                case exports.DISTURBANCE.DROUGHT:
+                case DISTURBANCE.DROUGHT:
                     out.lightMul -= w * 0.34;
                     out.nutrientMul -= w * 0.3;
                     out.metabolismMul += w * 0.18;
                     break;
-                case exports.DISTURBANCE.HEAT_WAVE:
+                case DISTURBANCE.HEAT_WAVE:
                     out.tempOffset += w * 15;
                     out.metabolismMul += w * 0.45;
                     out.nutrientMul -= w * 0.22;
                     break;
-                case exports.DISTURBANCE.ASH_FALL:
+                case DISTURBANCE.ASH_FALL:
                     out.captureMul -= w * 0.85;
                     out.lightMul -= w * 0.18;
                     out.detritusAdd += w * 6;
@@ -212,4 +208,3 @@ class AbioticDriver {
         return this.active;
     }
 }
-exports.AbioticDriver = AbioticDriver;

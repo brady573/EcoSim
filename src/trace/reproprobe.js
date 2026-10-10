@@ -1,4 +1,3 @@
-"use strict";
 /**
  * Reproduction-gate probe — measures criterion 2 of case 9b5ff0df:
  * "the fraction of gate-eligible consumer ticks lost to the stochastic breeding
@@ -27,10 +26,8 @@
  * Non-perturbation is verified the same way tracing was: the gates suite
  * compares a state digest with instrumentation on versus off.
  */
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.ReproProbeLog = exports.REPRO_GATE_COUNT = exports.REPRO_GATE_NAMES = exports.REPRO_GATE = void 0;
 /** Which deterministic gate blocked a reproductive proposal. */
-exports.REPRO_GATE = {
+export const REPRO_GATE = {
     /** Breeding cooldown still running. Checked before the energy gates. */
     cooldown: 0,
     /** energy/capacity < reproThreshold — the measured dominant blocker. */
@@ -44,7 +41,7 @@ exports.REPRO_GATE = {
     /** Deferred to the MATE interaction (sexual); not subject to this lottery. */
     sexual: 5,
 };
-exports.REPRO_GATE_NAMES = [
+export const REPRO_GATE_NAMES = [
     'cooldown',
     'fraction',
     'maturity',
@@ -52,12 +49,12 @@ exports.REPRO_GATE_NAMES = [
     'surplus',
     'sexual',
 ];
-exports.REPRO_GATE_COUNT = exports.REPRO_GATE_NAMES.length;
+export const REPRO_GATE_COUNT = REPRO_GATE_NAMES.length;
 /** Fixed drive histogram: buckets over [0,1), plus one overflow bucket. */
 const DRIVE_BUCKETS = 64;
 function newGuildStats() {
     return {
-        blocked: new Array(exports.REPRO_GATE_COUNT).fill(0),
+        blocked: new Array(REPRO_GATE_COUNT).fill(0),
         reachedRoll: 0,
         eligiblePositive: 0,
         fired: 0,
@@ -77,7 +74,7 @@ function newGuildStats() {
     };
 }
 /** Accumulating implementation. Not engine-internal: reads only its own args. */
-class ReproProbeLog {
+export class ReproProbeLog {
     guilds;
     constructor(guildCount) {
         this.guilds = Array.from({ length: guildCount }, newGuildStats);
@@ -87,7 +84,7 @@ class ReproProbeLog {
     }
     blocked(_slot, guild, gate) {
         const s = this.stats(guild);
-        if (s && gate >= 0 && gate < exports.REPRO_GATE_COUNT)
+        if (s && gate >= 0 && gate < REPRO_GATE_COUNT)
             s.blocked[gate]++;
     }
     reachedRoll(_slot, guild, drive, margin, asexualRate, mateSeeking) {
@@ -176,4 +173,3 @@ class ReproProbeLog {
         return 1;
     }
 }
-exports.ReproProbeLog = ReproProbeLog;

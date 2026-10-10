@@ -1,4 +1,3 @@
-"use strict";
 /**
  * Uniform-grid spatial index for the experimental evolution engine.
  *
@@ -12,9 +11,7 @@
  * so neighbour iteration order is a pure function of slot order. That matters
  * because contested interactions resolve against this order.
  */
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.SpatialGrid = void 0;
-class SpatialGrid {
+export class SpatialGrid {
     worldW;
     worldH;
     cols;
@@ -128,4 +125,3 @@ class SpatialGrid {
         return out;
     }
 }
-exports.SpatialGrid = SpatialGrid;

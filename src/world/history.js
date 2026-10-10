@@ -1,4 +1,3 @@
-"use strict";
 /**
  * Ecological history and lineage tracking for the experimental evolution POC.
  *
@@ -11,12 +10,9 @@
  * sample ticks. Sampling is decoupled from `World.step()` so a benchmark can
  * turn history collection off entirely and measure pure simulation cost.
  */
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.LineageTracker = exports.WorldHistory = exports.TRACKED_TRAITS = void 0;
-exports.annotateForcing = annotateForcing;
-const genome_js_1 = require("../bio/genome.js");
+import { TRAITS } from '../bio/genome.js';
 /** Trait indices sampled for lineage adaptation tracking. */
-exports.TRACKED_TRAITS = [
+export const TRACKED_TRAITS = [
     0, // METABOLIC_EFFICIENCY
     3, // BASAL_COST
     4, // PHOTOSYNTHETIC_RATE
@@ -30,7 +26,7 @@ exports.TRACKED_TRAITS = [
     31, // TIMIDITY
     33, // HERD_INSTINCT
 ];
-class WorldHistory {
+export class WorldHistory {
     every;
     samples = [];
     prevBirths = 0;
@@ -87,13 +83,12 @@ class WorldHistory {
         this.prevDeaths = 0;
     }
 }
-exports.WorldHistory = WorldHistory;
 /**
  * Tracks lineages: who they are, when they arise, how they drift, and when
  * they go extinct. Lineage identity is inherited across asexual reproduction
  * and reassigned for sexual recombination, so lineages genuinely branch.
  */
-class LineageTracker {
+export class LineageTracker {
     records = new Map();
     totals;
     counts;
@@ -116,7 +111,7 @@ class LineageTracker {
         this.alloc(1024);
     }
     alloc(size) {
-        const t = new Float64Array(size * exports.TRACKED_TRAITS.length);
+        const t = new Float64Array(size * TRACKED_TRAITS.length);
         const c = new Int32Array(size);
         const e = new Float64Array(size);
         const g = new Float64Array(size);
@@ -156,12 +151,12 @@ class LineageTracker {
                 this.counts[id] = 0;
                 this.energyTotals[id] = 0;
                 this.generationTotals[id] = 0;
-                for (let t = 0; t < exports.TRACKED_TRAITS.length; t++)
-                    this.totals[id * exports.TRACKED_TRAITS.length + t] = 0;
+                for (let t = 0; t < TRACKED_TRAITS.length; t++)
+                    this.totals[id * TRACKED_TRAITS.length + t] = 0;
             }
             this.touched.length = 0;
         }
-        const nT = exports.TRACKED_TRAITS.length;
+        const nT = TRACKED_TRAITS.length;
         let population = 0;
         for (let slot = 0; slot < count; slot++) {
             if (!isAlive(slot))
@@ -176,10 +171,10 @@ class LineageTracker {
             this.generationTotals[id] += genDepthOf(slot);
             const base = id * nT;
             for (let t = 0; t < nT; t++) {
-                this.totals[base + t] += genomeOf(slot, exports.TRACKED_TRAITS[t]);
+                this.totals[base + t] += genomeOf(slot, TRACKED_TRAITS[t]);
             }
         }
-        const nT2 = exports.TRACKED_TRAITS.length;
+        const nT2 = TRACKED_TRAITS.length;
         for (let k = 0; k < this.touched.length; k++) {
             const id = this.touched[k];
             const n = this.counts[id];
@@ -263,12 +258,12 @@ class LineageTracker {
         for (const rec of this.records.values()) {
             if (!rec.first || !rec.last)
                 continue;
-            for (let t = 0; t < exports.TRACKED_TRAITS.length; t++) {
+            for (let t = 0; t < TRACKED_TRAITS.length; t++) {
                 const d = rec.last.traitMean[t] - rec.first.traitMean[t];
                 if (Math.abs(d) < 0.02)
                     continue;
                 best.push({
-                    trait: genome_js_1.TRAITS[exports.TRACKED_TRAITS[t]].name,
+                    trait: TRAITS[TRACKED_TRAITS[t]].name,
                     delta: d,
                     from: rec.first.traitMean[t],
                     to: rec.last.traitMean[t],
@@ -279,11 +274,10 @@ class LineageTracker {
         return best.slice(0, 20);
     }
 }
-exports.LineageTracker = LineageTracker;
 function nT() {
-    return exports.TRACKED_TRAITS.length;
+    return TRACKED_TRAITS.length;
 }
-function annotateForcing(events, samples, horizonTicks) {
+export function annotateForcing(events, samples, horizonTicks) {
     const out = [];
     for (const ev of events) {
         const before = nearestSample(samples, ev.tick);

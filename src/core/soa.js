@@ -1,4 +1,3 @@
-"use strict";
 /**
  * Structure-of-arrays organism store.
  *
@@ -19,8 +18,6 @@
  * Cost of this choice (disclosed): every field access needs a base offset, so
  * the code is more verbose than an object model. That is a deliberate trade.
  */
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.OrganismStore = exports.NUTRIENT_COUNT = exports.ROLE_STRIDE = exports.BODY_GENE_COUNT = exports.TRAIT_COUNT = void 0;
 /**
  * Layout constants are defined ONCE, in the genome, and re-exported here.
  *
@@ -29,16 +26,16 @@ exports.OrganismStore = exports.NUTRIENT_COUNT = exports.ROLE_STRIDE = exports.B
  * a trait is added: the block stride and the trait count must move together or
  * every genome in the world is misread.
  */
-const genome_js_1 = require("../bio/genome.js");
+import { TRAIT_COUNT as TC, BODY_GENE_COUNT as BGC } from '../bio/genome.js';
 /** Re-exported so every module has exactly one definition of the layout. */
-exports.TRAIT_COUNT = genome_js_1.TRAIT_COUNT;
-exports.BODY_GENE_COUNT = genome_js_1.BODY_GENE_COUNT;
+export const TRAIT_COUNT = TC;
+export const BODY_GENE_COUNT = BGC;
 /**
  * Stride of the cached role/stage readout block: trophic, motility, maturation
  * quantised, stage, reach quantised. Kept small and flat so it costs one byte
  * per field per slot and never fragments.
  */
-exports.ROLE_STRIDE = 5;
+export const ROLE_STRIDE = 5;
 /**
  * Number of independently limiting abiotic nutrients.
  *
@@ -47,8 +44,8 @@ exports.ROLE_STRIDE = 5;
  * is below p. A single-nutrient substrate makes a stable food web
  * mathematically impossible, not merely hard to tune. See RESEARCH.md.
  */
-exports.NUTRIENT_COUNT = 3;
-class OrganismStore {
+export const NUTRIENT_COUNT = 3;
+export class OrganismStore {
     /** Number of occupied slots. The dense iteration bound. */
     count = 0;
     /** Allocated slots. */
@@ -158,8 +155,8 @@ class OrganismStore {
         this.bornTick = new Int32Array(cap);
         this.individualSeed = new Uint32Array(cap);
         this.generationDepth = new Int32Array(cap);
-        this.genome = new Float32Array(cap * exports.TRAIT_COUNT);
-        this.bodyGenes = new Uint8Array(cap * exports.BODY_GENE_COUNT);
+        this.genome = new Float32Array(cap * TRAIT_COUNT);
+        this.bodyGenes = new Uint8Array(cap * BODY_GENE_COUNT);
         this.x = new Float32Array(cap);
         this.y = new Float32Array(cap);
         this.heading = new Float32Array(cap);
@@ -174,12 +171,12 @@ class OrganismStore {
         this.energySpent = new Float32Array(cap);
         this.energyTransferred = new Float32Array(cap);
         this.phen = new Array(cap).fill(null);
-        this.physical = new Float32Array(cap * exports.TRAIT_COUNT);
+        this.physical = new Float32Array(cap * TRAIT_COUNT);
         this.hitRadius = new Float32Array(cap);
         this.senseRadius = new Float32Array(cap);
         this.maxStep = new Float32Array(cap);
         this.modules = new Int32Array(cap);
-        this.role = new Uint8Array(cap * exports.ROLE_STRIDE);
+        this.role = new Uint8Array(cap * ROLE_STRIDE);
         this.freeList = new Int32Array(cap);
     }
     /**
@@ -234,9 +231,9 @@ class OrganismStore {
         this.bornTick = growInt32(this.bornTick, cap);
         this.generationDepth = growInt32(this.generationDepth, cap);
         this.individualSeed = growUint32(this.individualSeed, cap);
-        this.genome = growFloat32(this.genome, cap * exports.TRAIT_COUNT);
-        this.physical = growFloat32(this.physical, cap * exports.TRAIT_COUNT);
-        this.bodyGenes = growUint8(this.bodyGenes, cap * exports.BODY_GENE_COUNT);
+        this.genome = growFloat32(this.genome, cap * TRAIT_COUNT);
+        this.physical = growFloat32(this.physical, cap * TRAIT_COUNT);
+        this.bodyGenes = growUint8(this.bodyGenes, cap * BODY_GENE_COUNT);
         this.x = growFloat32(this.x, cap);
         this.y = growFloat32(this.y, cap);
         this.heading = growFloat32(this.heading, cap);
@@ -254,7 +251,7 @@ class OrganismStore {
         this.senseRadius = growFloat32(this.senseRadius, cap);
         this.maxStep = growFloat32(this.maxStep, cap);
         this.modules = growInt32(this.modules, cap);
-        this.role = growUint8(this.role, cap * exports.ROLE_STRIDE);
+        this.role = growUint8(this.role, cap * ROLE_STRIDE);
         this.freeList = growInt32(this.freeList, cap);
         const phen = new Array(cap).fill(null);
         for (let i = 0; i < this.capacity; i++)
@@ -265,14 +262,14 @@ class OrganismStore {
     }
     /** Copy a genome block into a slot. */
     copyGenomeToSlot(dstSlot, srcGenome, srcOffset = 0) {
-        this.genome.set(srcGenome.subarray(srcOffset, srcOffset + exports.TRAIT_COUNT), dstSlot * exports.TRAIT_COUNT);
+        this.genome.set(srcGenome.subarray(srcOffset, srcOffset + TRAIT_COUNT), dstSlot * TRAIT_COUNT);
     }
     copyBodyToSlot(dstSlot, srcBody, srcOffset = 0) {
-        this.bodyGenes.set(srcBody.subarray(srcOffset, srcOffset + exports.BODY_GENE_COUNT), dstSlot * exports.BODY_GENE_COUNT);
+        this.bodyGenes.set(srcBody.subarray(srcOffset, srcOffset + BODY_GENE_COUNT), dstSlot * BODY_GENE_COUNT);
     }
     /** Expressed-trait accessor: `store.trait(slot, TRAIT.SPEED)`. */
     trait(slot, traitIndex) {
-        return this.physical[slot * exports.TRAIT_COUNT + traitIndex];
+        return this.physical[slot * TRAIT_COUNT + traitIndex];
     }
     /** Approximate resident bytes, for memory-growth profiling. */
     byteEstimate() {
@@ -313,7 +310,6 @@ class OrganismStore {
         return typed + objects * 520;
     }
 }
-exports.OrganismStore = OrganismStore;
 function growInt32(old, n) {
     const a = new Int32Array(n);
     a.set(old);

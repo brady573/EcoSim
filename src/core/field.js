@@ -1,4 +1,3 @@
-"use strict";
 /**
  * Abiotic scalar fields for the experimental evolution engine.
  *
@@ -16,10 +15,8 @@
  * vertical structure and transport; this has neither. It is deliberately cheap
  * because the experiment is about organism-scale throughput, not soil physics.
  */
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.ScalarField = void 0;
 /** One scalar layer over the coarse grid. */
-class ScalarField {
+export class ScalarField {
     name;
     cols;
     rows;
@@ -115,4 +112,3 @@ class ScalarField {
         return n / this.data.length;
     }
 }
-exports.ScalarField = ScalarField;

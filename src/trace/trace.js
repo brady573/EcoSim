@@ -1,4 +1,3 @@
-"use strict";
 /**
  * Event trace: a bounded, deterministic record of what actually happened.
  *
@@ -29,18 +28,15 @@
  *   and an untraced run produce identical event sequences for the same seed.
  * - Opt-in: disabled by default; see `TraceOptions.enabled`.
  */
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.TraceLog = exports.TRACE_INTERACTION_NAME = exports.DEATH_CAUSE_NAME = exports.DEATH_CAUSE = exports.TRACE_NAME = exports.TRACE = void 0;
-exports.formatEvent = formatEvent;
 /** Event kinds. Kept numeric and stable so they survive serialization. */
-exports.TRACE = {
+export const TRACE = {
     BIRTH: 0,
     DEATH: 1,
     CONTEST: 2,
     /** A long-range disperser landed in a patch other than its parent's. */
     IMMIGRATION: 3,
 };
-exports.TRACE_NAME = {
+export const TRACE_NAME = {
     0: 'birth',
     1: 'death',
     2: 'contest',
@@ -49,18 +45,18 @@ exports.TRACE_NAME = {
     5: 'collapse',
 };
 /** Proximate cause of death. Mirrors the ledger's death-reason classification. */
-exports.DEATH_CAUSE = {
+export const DEATH_CAUSE = {
     STARVE: 0,
     AGE: 1,
     DAMAGE: 2,
 };
-exports.DEATH_CAUSE_NAME = {
+export const DEATH_CAUSE_NAME = {
     0: 'starve',
     1: 'age',
     2: 'damage',
 };
 /** Interaction kind, matching INTERACTION in bio/interactions.ts. */
-exports.TRACE_INTERACTION_NAME = {
+export const TRACE_INTERACTION_NAME = {
     0: 'predate',
     1: 'territorial',
     2: 'mate',
@@ -74,7 +70,7 @@ exports.TRACE_INTERACTION_NAME = {
  * O(births + deaths + contests) events, which at high population is tens of
  * thousands. A ring keeps memory flat and makes the cost per event constant.
  */
-class TraceLog {
+export class TraceLog {
     buf;
     head = 0;
     filled = 0;
@@ -127,7 +123,7 @@ class TraceLog {
         return this.events().filter((e) => {
             if (e.a === id)
                 return true;
-            if (e.kind === exports.TRACE.BIRTH || e.kind === exports.TRACE.CONTEST)
+            if (e.kind === TRACE.BIRTH || e.kind === TRACE.CONTEST)
                 return e.b === id;
             return false;
         });
@@ -146,21 +142,20 @@ class TraceLog {
         this.total = 0;
     }
 }
-exports.TraceLog = TraceLog;
 /**
  * Human-readable one-line rendering of an event. Shared by any CLI/report so
  * the same event reads identically everywhere.
  */
-function formatEvent(e, guildName) {
+export function formatEvent(e, guildName) {
     const gname = guildName ?? ((g) => String(g));
     switch (e.kind) {
-        case exports.TRACE.BIRTH:
+        case TRACE.BIRTH:
             return `t${e.tick} BIRTH id=${e.a} parent=${e.b} guild=${gname(e.x)} energy=${e.v.toFixed(1)} pathway=${e.w === 1 ? 'sexual' : 'asexual'}`;
-        case exports.TRACE.DEATH:
-            return `t${e.tick} DEATH id=${e.a} age=${e.w} cause=${exports.DEATH_CAUSE_NAME[e.v] ?? e.v} damage=${e.x.toFixed(1)} starveDmg=${e.y.toFixed(1)} guild=${gname(e.z)}`;
-        case exports.TRACE.CONTEST:
-            return `t${e.tick} CONTEST ${exports.TRACE_INTERACTION_NAME[e.x] ?? e.x} att=${e.a} def=${e.b} outcome=${e.w} delta=${e.v.toFixed(2)} attDmg=${e.y.toFixed(1)} defDmg=${e.z.toFixed(1)}`;
-        case exports.TRACE.IMMIGRATION:
+        case TRACE.DEATH:
+            return `t${e.tick} DEATH id=${e.a} age=${e.w} cause=${DEATH_CAUSE_NAME[e.v] ?? e.v} damage=${e.x.toFixed(1)} starveDmg=${e.y.toFixed(1)} guild=${gname(e.z)}`;
+        case TRACE.CONTEST:
+            return `t${e.tick} CONTEST ${TRACE_INTERACTION_NAME[e.x] ?? e.x} att=${e.a} def=${e.b} outcome=${e.w} delta=${e.v.toFixed(2)} attDmg=${e.y.toFixed(1)} defDmg=${e.z.toFixed(1)}`;
+        case TRACE.IMMIGRATION:
             return `t${e.tick} IMMIGRATION id=${e.a} fromPatch=${e.b} toPatch=${e.x} guild=${gname(e.v)}`;
         default:
             return `t${e.tick} kind=${e.kind} a=${e.a} b=${e.b} v=${e.v}`;

@@ -1,4 +1,3 @@
-"use strict";
 /**
  * The experimental ecosystem world.
  *
@@ -28,26 +27,39 @@
  * no individual ageing trajectory beyond linear damage; and crowding is
  * modelled as a local density penalty rather than explicit interference.
  */
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.WORLD_ENGINE_VERSION = exports.OUTCOME = exports.INTERACTION = exports.TRAIT_COUNT = exports.BODY_GENES = exports.TRAITS = exports.TRAIT = exports.World = exports.INTENT_NAME = exports.INTENT = exports.FATAL_DAMAGE = void 0;
-const rng_js_1 = require("../core/rng.js");
-const field_js_1 = require("../core/field.js");
-const spatial_js_1 = require("../core/spatial.js");
-const soa_js_1 = require("../core/soa.js");
-const hash_js_1 = require("../core/hash.js");
-const genome_js_1 = require("../bio/genome.js");
-const phenotype_js_1 = require("../bio/phenotype.js");
-const habitat_js_1 = require("../bio/habitat.js");
-const role_js_1 = require("../bio/role.js");
-const trace_js_1 = require("../trace/trace.js");
-const reproprobe_js_1 = require("../trace/reproprobe.js");
-const interactions_js_1 = require("../bio/interactions.js");
-const config_js_1 = require("./config.js");
-const ledger_js_1 = require("./ledger.js");
-const disturbances_js_1 = require("./disturbances.js");
-const history_js_1 = require("./history.js");
+import { Rng } from '../core/rng.js';
+import { ScalarField } from '../core/field.js';
+import { SpatialGrid } from '../core/spatial.js';
+import { OrganismStore, BODY_GENE_COUNT, ROLE_STRIDE, NUTRIENT_COUNT } from '../core/soa.js';
+import { RollingDigest } from '../core/hash.js';
+import { TRAIT, TRAITS, BODY_GENES, TRAIT_COUNT } from '../bio/genome.js';
+import { Phenotype, resolveCapacity } from '../bio/phenotype.js';
+import { HabitatMap } from '../bio/habitat.js';
+import { deriveRole, developmentalScale, stageDamageFactor, MOTILITY, TROPHIC, TROPHIC_COUNT } from '../bio/role.js';
+import { TraceLog, TRACE, DEATH_CAUSE } from '../trace/trace.js';
+import { REPRO_GATE } from '../trace/reproprobe.js';
+import { InteractionQueue, INTERACTION, OUTCOME } from '../bio/interactions.js';
+import { resolveConfig } from './config.js';
+import { Ledger } from './ledger.js';
+import { AbioticDriver, emptyModifiers } from './disturbances.js';
+import { WorldHistory } from './history.js';
 /** Damage at or above which an organism dies. */
-exports.FATAL_DAMAGE = 100;
+export const FATAL_DAMAGE = 100;
+/**
+ * Viability damage dealt by one diseased meal (diagnostic foodDisease knob).
+ * Starvation scale is ~0.9/tick and the breeding bar is 45: one bad meal is
+ * ~7 starving ticks — survivable singly, lethal in streaks. Fixed starting
+ * calibration, documented, not yet its own knob.
+ */
+const DISEASE_DAMAGE_PER_MEAL = 6.0;
+/**
+ * Patch occupants at which food-disease pressure saturates to the full knob
+ * rate. A 600x600-unit patch holding ~300 organisms is a genuine crowd;
+ * lone eaters see a small fraction of the rate (immune in practice).
+ * Starting calibration — the probe's diseased-meal counts are the signal
+ * (zero everywhere = too high; saturated everywhere = too low).
+ */
+const DISEASE_DENSE_PATCH = 300;
 /**
  * How often, in ticks, a given organism's cached role/stage readout is
  * recomputed. Staggered by the organism's own age so the work spreads evenly
@@ -65,6 +77,30 @@ const ROLE_REFRESH_EVERY = 16;
  */
 const REPRO_SURPLUS_TICKS = 90;
 /**
+ * Breeding-surplus buffer in ticks, from config when set.
+ *
+ * Exposed as a diagnostic because it is the gate that decides whether ANY
+ * guild can reproduce, and it was previously unreachable: a hardcoded
+ * constant at both breeding sites, so no config knob could move it. That
+ * matters because it is the identified blocker on consumer viability — a
+ * consumer must hold 90 ticks of full-rate surplus, which no amount of
+ * graze or predation income reaches (measured: consumers extinct at every
+ * food-transfer rung of the 18-seed ladder, and consumerBasalScale cannot
+ * help because it discounts cost, not the reserve demanded here).
+ *
+ * null = declared 90. Returned through one helper so the two breeding sites
+ * and any future site cannot drift apart.
+ */
+function resolveReproSurplusTicks(cfg) {
+    const v = cfg.reproSurplusTicks;
+    if (v === null || v === undefined)
+        return REPRO_SURPLUS_TICKS;
+    if (!Number.isFinite(v) || v < 0) {
+        throw new Error(`bad reproSurplusTicks: ${JSON.stringify(v)} (want >=0 or null)`);
+    }
+    return v;
+}
+/**
  * Fraction of offspring that disperse far from the parent.
  *
  * Seed rain is highly local: most propagules land within a short distance of the
@@ -75,7 +111,7 @@ const REPRO_SURPLUS_TICKS = 90;
  */
 const LONG_RANGE_DISPERSAL = 0.04;
 /** Behavioural intents, resolved from trait-weighted utility scores. */
-exports.INTENT = {
+export const INTENT = {
     FEED: 0,
     HUNT: 1,
     SCAVENGE: 2,
@@ -85,7 +121,7 @@ exports.INTENT = {
     EXPLORE: 6,
     GRAZE: 7,
 };
-exports.INTENT_NAME = {
+export const INTENT_NAME = {
     0: 'feed',
     1: 'hunt',
     2: 'scavenge',
@@ -94,11 +130,11 @@ exports.INTENT_NAME = {
     5: 'settle',
     6: 'explore',
 };
-class World {
+export class World {
     config;
     rng;
     store;
-    ledger = new ledger_js_1.Ledger();
+    ledger = new Ledger();
     history;
     abiotic;
     /**
@@ -160,6 +196,60 @@ class World {
      * reuse is needed: actPhase overwrites before any read.
      */
     dormant;
+    /**
+     * Consecutive dormant ticks per slot (sleep clock). Advances each tick the
+     * slot stays dormant; resets on waking. Drives dormant senescence when the
+     * knob is set. Mixed into hashState: unlike dormant[] (a recomputed cache),
+     * the clock carries history, so omitting it would let divergent sleep
+     * histories share a digest.
+     */
+    dormantSleep;
+    /**
+     * Cumulative senescence damage per slot, parallel to store.starveDamage.
+     * Attribution-only (killing runs through store.damage); never reset on
+     * waking, cleared only on slot reuse — like starveDamage, it records the
+     * load the organism carries, not the current sleep.
+     */
+    senesceDamage;
+    /**
+     * Cumulative disease damage per slot, parallel to senesceDamage. Same
+     * contract: attribution-only, cleared only on slot reuse, unhashed.
+     */
+    diseaseDamage;
+    /** Cumulative diseased meals (rolled diseased, whether or not they killed). */
+    diseaseMeals = 0;
+    /** Cumulative deaths whose largest damage share is disease. Exact. */
+    diseaseDeaths = 0;
+    /**
+     * Pioneer grace remaining per slot (ticks), parallel to dormantSleep.
+     * Granted at birth to flip newborns (guild != parent guild) when the
+     * pioneerBonus knob is set; magnitude of the subsidy is fixed at grant in
+     * pioneerVoid. Cleared on slot reuse. Unhashed (derived from census).
+     */
+    pioneerTicks;
+    /**
+     * Destination-guild void (0..1) captured at the flip birth: 1 for an
+     * extinct guild, ~0 for a dominant one. Fixed for the grace period.
+     */
+    pioneerVoid;
+    /** Cumulative flip births granted pioneer grace. Observation only. */
+    pioneerGrants = 0;
+    /** Pioneer grants by destination guild. Observation only. */
+    pioneerGrantsByGuild = [0, 0, 0];
+    /**
+     * Dormant fraction of the live population, recomputed every tick in Phase 3
+     * from last tick's dormancy flags (1-tick lag, negligible for a slow state
+     * — same precedent as basal/sensing reads). Drives share-mode senescence.
+     */
+    dormantFrac = 0;
+    /** Resolved senescence setting (constructor-normalised; user config untouched). */
+    senescence = null;
+    /**
+     * Breeding-surplus buffer in ticks. Resolved once in the constructor from
+     * config (declared 90 when null) and read by BOTH breeding gates, so the
+     * two can never disagree about how much reserve reproduction demands.
+     */
+    reproSurplus = REPRO_SURPLUS_TICKS;
     /** Monotonic id allocator. */
     nextId = 1;
     // --- Per-tick scratch, allocated once. -----------------------------------
@@ -184,9 +274,14 @@ class World {
     packLivePositions() {
         const store = this.store;
         let n = 0;
+        let dormantN = 0;
         for (let slot = 0; slot < store.count; slot++) {
             if (!this.live[slot])
                 continue;
+            // Last tick's dormancy flags (evaluation runs later this tick): 1-tick
+            // lag, negligible for a slow state. Feeds share-mode senescence.
+            if (this.dormant[slot] === 1)
+                dormantN++;
             if (n >= this.packedX.length) {
                 const cap = this.packedX.length * 2;
                 this.packedX = new Float32Array(cap);
@@ -198,7 +293,128 @@ class World {
             this.packedSlots[n] = slot;
             n++;
         }
+        this.dormantFrac = n > 0 ? dormantN / n : 0;
         return n;
+    }
+    /**
+     * Disease roll on a biomass meal (diagnostic foodDisease knob). With the
+     * knob's probability, the meal is diseased: fixed viability damage plus an
+     * exact attribution trail (diseaseDamage accumulator, diseasedMeals count).
+     * Photosynthesis and mineral uptake never call here — light and minerals
+     * are not food. Draws from the main RNG stream, so knob-on runs diverge
+     * from knob-off by stream position while staying exactly deterministic per
+     * seed+config. Callers pass taken > 0 (no roll on unfed contact).
+     */
+    /**
+     * Local disease pressure for a biomass meal: the knob rate scaled by patch
+     * occupancy (0 in empty patches = immune; saturating at DISEASE_DENSE_PATCH
+     * occupants). The patch census is rebuilt every tick in Phase 3, so this is
+     * fresh at every intake site including the contest-application phase —
+     * uniform semantics everywhere: disease follows crowds. Grid disabled falls
+     * back to the flat rate (documented).
+     */
+    diseasePressure(slot) {
+        const p = this.config.foodDisease;
+        if (p === null || p === undefined || p <= 0)
+            return 0;
+        const cols = this.patchCols;
+        if (cols <= 0 || this.patchCensus.length === 0)
+            return p;
+        const store = this.store;
+        let cx = ((store.x[slot] * cols) / this.config.worldW) | 0;
+        let cy = ((store.y[slot] * this.patchRows) / this.config.worldH) | 0;
+        if (cx < 0)
+            cx = 0;
+        else if (cx >= cols)
+            cx = cols - 1;
+        const rows = this.patchRows;
+        if (cy < 0)
+            cy = 0;
+        else if (cy >= rows)
+            cy = rows - 1;
+        const idx = cy * cols + cx;
+        let occ = 0;
+        for (let g = 0; g < TROPHIC_COUNT; g++)
+            occ += this.patchCount(idx, g);
+        return Math.min(1, p * occ / DISEASE_DENSE_PATCH);
+    }
+    /**
+     * Pioneer upkeep factor for a slot: 1 when the knob is off or no grace
+     * remains, otherwise (1 - discount * void-at-grant). Pure read — no RNG,
+     * no writes — so it is safe at every upkeep site (basal charge,
+     * starvation threshold, breeding-surplus bar). Deterministic per
+     * seed+config; knob-off path returns exactly 1.
+     */
+    /**
+     * Consumer upkeep multiplier applied to the VIABILITY gates as well as the
+     * charge. Returns 1 when the knob is unset, so declared behaviour and every
+     * pinned value are unchanged.
+     *
+     * This exists because consumerBasalScale was half-wired: it scaled only the
+     * basal CHARGE (world.ts basal site), leaving the starvation threshold and
+     * the breeding-surplus gate demanding the FULL-rate reserve. A consumer
+     * could therefore be charged a quarter of upkeep and still starve at the
+     * full threshold, and still be refused breeding for lacking a full-rate
+     * surplus — so the knob could not rescue consumers by construction, and
+     * every "consumers need photox4" conclusion measured through it is
+     * unverified. See REPORT.md.
+     *
+     * Routed through one shared helper for the same reason pioneerFactor exists:
+     * a cost discount that does not reach the gates is a bug wearing a knob's
+     * clothes, and the two must never be able to disagree.
+     */
+    consumerUpkeepFactor(slot) {
+        const c = this.config.consumerBasalScale;
+        if (c === null || c === undefined)
+            return 1;
+        return this.roleOf(slot).trophic === 1 ? c : 1;
+    }
+    pioneerFactor(slot) {
+        const pb = this.config.pioneerBonus;
+        if (pb === null || pb === undefined || pb.discount <= 0)
+            return 1;
+        if (this.pioneerTicks[slot] <= 0)
+            return 1;
+        return 1 - pb.discount * this.pioneerVoid[slot];
+    }
+    /**
+     * Pioneer grant at a flip birth: newborn guild differs from parent guild.
+     * Void is the destination guild's global share from the per-tick patch
+     * census (rebuilt before births are placed, so fresh and excluding
+     * same-tick newborns): void = 1 - destShare, 1 for an extinct guild.
+     * Grid disabled (no census) grants nothing — unmeasurable void, documented.
+     */
+    pioneerGrant(slot, newbornGuild) {
+        const pb = this.config.pioneerBonus;
+        if (pb === null || pb === undefined || pb.grace <= 0)
+            return;
+        if (this.patchCensus.length === 0)
+            return;
+        let dest = 0;
+        let total = 0;
+        const patches = this.patchCols * this.patchRows;
+        for (let p = 0; p < patches; p++) {
+            for (let g = 0; g < TROPHIC_COUNT; g++)
+                total += this.patchCount(p, g);
+            dest += this.patchCount(p, newbornGuild);
+        }
+        const share = total > 0 ? dest / total : 0;
+        this.pioneerTicks[slot] = Math.max(0, Math.min(65535, Math.floor(pb.grace)));
+        this.pioneerVoid[slot] = 1 - share;
+        this.pioneerGrants++;
+        this.pioneerGrantsByGuild[newbornGuild]++;
+    }
+    diseaseRoll(store, slot, meal) {
+        if (meal <= 0)
+            return;
+        const peff = this.diseasePressure(slot);
+        if (peff <= 0)
+            return;
+        if (!this.rng.chance(peff))
+            return;
+        store.damage[slot] += DISEASE_DAMAGE_PER_MEAL;
+        this.diseaseDamage[slot] += DISEASE_DAMAGE_PER_MEAL;
+        this.diseaseMeals++;
     }
     /** 1 where the organism converts assimilated detritus into substrate nutrient. */
     bioticMineraliser = new Uint8Array(1024);
@@ -267,8 +483,28 @@ class World {
             n.set(a);
             return n;
         };
+        const growU32 = (a) => {
+            const n = new Uint32Array(cap);
+            n.set(a);
+            return n;
+        };
+        const growU16 = (a) => {
+            const n = new Uint16Array(cap);
+            n.set(a);
+            return n;
+        };
+        const growF32 = (a) => {
+            const n = new Float32Array(cap);
+            n.set(a);
+            return n;
+        };
         this.live = growU8(this.live);
         this.dormant = growU8(this.dormant);
+        this.dormantSleep = growU32(this.dormantSleep);
+        this.senesceDamage = growF32(this.senesceDamage);
+        this.diseaseDamage = growF32(this.diseaseDamage);
+        this.pioneerTicks = growU16(this.pioneerTicks);
+        this.pioneerVoid = growF32(this.pioneerVoid);
         this.bioticMineraliser = growU8(this.bioticMineraliser);
         this.preyTarget = growI(this.preyTarget, -1);
         this.grazeTarget = growI(this.grazeTarget, -1);
@@ -283,6 +519,20 @@ class World {
     }
     /** Cumulative nutrient returned to the substrate by organisms, for the matter ledger. */
     bioticMineralised = 0;
+    /** Diagnostic counters: graze takes split from predation (the ledger merges
+     * both kinds). Submissions are already public via submittedByKind[4].
+     * Pure observation: incremented, never read by simulation logic. */
+    grazeWins = 0;
+    grazeEnergy = 0;
+    /** Sum of scaled graze requests (pre-cap). granted/requested measures cap binding. */
+    grazeRequested = 0;
+    /**
+     * Cumulative dormant-senescence deaths. Exact attribution for the senescence
+     * mechanism (deaths whose largest damage share is senescence); the deaths
+     * themselves fold into the damage bucket of the demographic shape, which is
+     * unchanged. Always 0 when the knob is off.
+     */
+    senescenceDeaths = 0;
     // --- Phase queues --------------------------------------------------------
     birthParentSlot;
     birthCount;
@@ -333,8 +583,29 @@ class World {
     patchCount(p, trophic) {
         if (this.patchCensus.length === 0)
             return 0;
-        const i = p * role_js_1.TROPHIC_COUNT + trophic;
+        const i = p * TROPHIC_COUNT + trophic;
         return i >= 0 && i < this.patchCensus.length ? this.patchCensus[i] : 0;
+    }
+    /**
+     * Local heterotrophic-substrate availability in cell `ci`, as a 0..1
+     * fraction that saturates at `mixotrophySaturation`.
+     *
+     * This is the shared input to the two guild-interdependence diagnostics
+     * (mixotrophyCarbon, nutrientCyclic): both ask the same question — is there
+     * organic matter here to work on? Detritus, sediment and recalcitrant
+     * litter all count, weighted toward litter because it is the decomposers'
+     * exclusive niche and the slowest to accumulate.
+     *
+     * `dormantFrac` is deliberately NOT read here. This is a spatial substrate
+     * question, not a population one, and mixing the two would couple every
+     * nutrient field to every dormant count in the world.
+     */
+    substrateAvailability(ci) {
+        const sat = Math.max(1e-6, this.config.mixotrophySaturation);
+        const raw = this.detritus.data[ci] +
+            this.sediment.data[ci] * 0.8 +
+            this.litter.data[ci] * 1.2;
+        return raw / (raw + sat);
     }
     /**
      * Rebuild the metapopulation census. O(live), so it costs no more than the
@@ -351,8 +622,8 @@ class World {
         const invH = rows / this.config.worldH;
         for (let i = 0; i < liveCount; i++) {
             const slot = this.packedSlots[i];
-            const trophic = store.role[slot * soa_js_1.ROLE_STRIDE];
-            if (trophic < 0 || trophic >= role_js_1.TROPHIC_COUNT)
+            const trophic = store.role[slot * ROLE_STRIDE];
+            if (trophic < 0 || trophic >= TROPHIC_COUNT)
                 continue;
             let cx = (this.packedX[i] * invW) | 0;
             let cy = (this.packedY[i] * invH) | 0;
@@ -364,7 +635,7 @@ class World {
                 cy = 0;
             else if (cy >= rows)
                 cy = rows - 1;
-            this.patchCensus[(cy * cols + cx) * role_js_1.TROPHIC_COUNT + trophic]++;
+            this.patchCensus[(cy * cols + cx) * TROPHIC_COUNT + trophic]++;
         }
     }
     pendingBirths = 0;
@@ -439,19 +710,59 @@ class World {
     snapshot;
     constructor(opts = {}) {
         if (opts.trace?.enabled) {
-            this.traceLog = new trace_js_1.TraceLog(opts.trace.capacity ?? 20000);
+            this.traceLog = new TraceLog(opts.trace.capacity ?? 20000);
         }
         this.repro = opts.reproProbe ?? null;
-        const cfg = (0, config_js_1.resolveConfig)(opts.config);
+        const cfg = resolveConfig(opts.config);
         this.config = cfg;
-        this.rng = new rng_js_1.Rng(cfg.seed);
-        this.store = new soa_js_1.OrganismStore({ capacity: Math.max(1024, cfg.founders * 2), label: 'organisms' });
+        // Normalise the senescence knob once (user config untouched): a plain
+        // number is legacy fixed-grace mode; an object selects a scale-free mode.
+        // Unknown mode strings throw here, at construction, never mid-run.
+        const ds = cfg.dormantSenescence;
+        // Reject non-finite/negative scales at construction: a negative share
+        // scale would silently disable via the rate guard, and NaN would never
+        // accrue — both look "off" while configured. Grace 0 is allowed (damage
+        // from the first dormant tick).
+        const bad = (x) => typeof x !== 'number' || !(x >= 0) || !Number.isFinite(x);
+        if (typeof ds === 'number') {
+            if (bad(ds))
+                throw new Error(`bad dormantSenescence scale: ${JSON.stringify(ds)}`);
+            this.senescence = { mode: 'fixed', scale: ds };
+        }
+        else if (ds !== null && ds !== undefined) {
+            if (ds.mode !== 'fixed' && ds.mode !== 'share' && ds.mode !== 'lifespan') {
+                throw new Error(`unknown dormantSenescence mode: ${JSON.stringify(ds.mode)}`);
+            }
+            if (bad(ds.scale))
+                throw new Error(`bad dormantSenescence scale: ${JSON.stringify(ds.scale)}`);
+            this.senescence = { mode: ds.mode, scale: ds.scale };
+        }
+        // Pioneer-bonus knob validation at construction, never mid-run. Grace 0
+        // grants nothing (harmless); discount outside [0,1] or non-finite throws
+        // rather than silently clamping into a different experiment.
+        const pb = cfg.pioneerBonus;
+        if (pb !== null && pb !== undefined) {
+            if (!Number.isFinite(pb.grace) || pb.grace < 0) {
+                throw new Error(`bad pioneerBonus grace: ${JSON.stringify(pb.grace)}`);
+            }
+            if (!Number.isFinite(pb.discount) || pb.discount < 0 || pb.discount > 1) {
+                throw new Error(`bad pioneerBonus discount: ${JSON.stringify(pb.discount)}`);
+            }
+        }
+        this.reproSurplus = resolveReproSurplusTicks(cfg);
+        this.rng = new Rng(cfg.seed);
+        this.store = new OrganismStore({ capacity: Math.max(1024, cfg.founders * 2), label: 'organisms' });
         this.live = new Uint8Array(this.store.capacity);
         this.dormant = new Uint8Array(this.store.capacity);
+        this.dormantSleep = new Uint32Array(this.store.capacity);
+        this.senesceDamage = new Float32Array(this.store.capacity);
+        this.diseaseDamage = new Float32Array(this.store.capacity);
+        this.pioneerTicks = new Uint16Array(this.store.capacity);
+        this.pioneerVoid = new Float32Array(this.store.capacity);
         this.neighbourScratch = new Int32Array(4096);
         const fieldCols = Math.ceil(cfg.worldW / cfg.fieldCell);
         const fieldRows = Math.ceil(cfg.worldH / cfg.fieldCell);
-        this.habitat = new habitat_js_1.HabitatMap(fieldCols, fieldRows, cfg.habitatSeed ?? cfg.seed);
+        this.habitat = new HabitatMap(fieldCols, fieldRows, cfg.habitatSeed ?? cfg.seed);
         // Coarser than the substrate grid: one canopy cell spans a patch of
         // substrate cells. At 1:1 the canopy could never bind, because producers
         // occupy a fraction of a substrate cell - see `shadeGrain`.
@@ -464,15 +775,15 @@ class World {
         if (mgrid > 0) {
             this.patchCols = mgrid;
             this.patchRows = mgrid;
-            this.patchCensus = new Int32Array(mgrid * mgrid * role_js_1.TROPHIC_COUNT);
+            this.patchCensus = new Int32Array(mgrid * mgrid * TROPHIC_COUNT);
         }
         this.shadeMass = new Float32Array(this.shadeCols * this.shadeRows);
         this.nutrients = [];
-        for (let nIdx = 0; nIdx < soa_js_1.NUTRIENT_COUNT; nIdx++) {
-            this.nutrients.push(new field_js_1.ScalarField(`nutrient${nIdx}`, fieldCols, fieldRows, 0));
+        for (let nIdx = 0; nIdx < NUTRIENT_COUNT; nIdx++) {
+            this.nutrients.push(new ScalarField(`nutrient${nIdx}`, fieldCols, fieldRows, 0));
         }
-        this.detritus = new field_js_1.ScalarField('detritus', fieldCols, fieldRows, 0);
-        this.sediment = new field_js_1.ScalarField('sediment', fieldCols, fieldRows, 0);
+        this.detritus = new ScalarField('detritus', fieldCols, fieldRows, 0);
+        this.sediment = new ScalarField('sediment', fieldCols, fieldRows, 0);
         /**
          * RECALCITRANT benthic litter - the structural (cellulose/lignin) fraction of
          * dead organic matter, which animals cannot digest and microbes can.
@@ -481,12 +792,12 @@ class World {
          * single entirely labile pool that scavengers and decomposers both drew on,
          * so competitive exclusion removed decomposers on every seed.
          */
-        this.litter = new field_js_1.ScalarField('litter', fieldCols, fieldRows, 0);
+        this.litter = new ScalarField('litter', fieldCols, fieldRows, 0);
         // Seed each cell to a fraction of its own capacity, so heterogeneity is
         // present from tick zero. Per-nutrient capacity modulation makes the three
         // pools only weakly correlated, so they can genuinely be co-limiting rather
         // than proportional copies of one another.
-        for (let nIdx = 0; nIdx < soa_js_1.NUTRIENT_COUNT; nIdx++) {
+        for (let nIdx = 0; nIdx < NUTRIENT_COUNT; nIdx++) {
             const field = this.nutrients[nIdx].data;
             const mod = cfg.nutrientCapacity[nIdx] ?? 1;
             for (let i = 0; i < field.length; i++) {
@@ -511,20 +822,20 @@ class World {
             this.litter.data[i] = cfg.litterPerCell * (0.5 + this.habitat.fertility.data[i] * 0.6);
         }
         this.ledger.foundingBiomass += this.litter.total();
-        this.grid = new spatial_js_1.SpatialGrid(cfg.worldW, cfg.worldH, cfg.spatialCell, this.store.capacity);
+        this.grid = new SpatialGrid(cfg.worldW, cfg.worldH, cfg.spatialCell, this.store.capacity);
         this.preyTarget = new Int32Array(this.store.capacity).fill(-1);
         this.grazeTarget = new Int32Array(this.store.capacity).fill(-1);
         this.threatTarget = new Int32Array(this.store.capacity).fill(-1);
         this.mateTarget = new Int32Array(this.store.capacity).fill(-1);
         this.intent = new Uint8Array(this.store.capacity);
-        this.localMods = (0, disturbances_js_1.emptyModifiers)();
+        this.localMods = emptyModifiers();
         this.birthParentSlot = new Int32Array(this.store.capacity * 2);
         this.birthCount = new Int32Array(this.store.capacity * 2);
         this.birthLineage = new Int32Array(this.store.capacity * 2).fill(-1);
         this.birthParentId = new Int32Array(this.store.capacity * 2).fill(-1);
-        this.abiotic = new disturbances_js_1.AbioticDriver(cfg.abioticCycle, cfg.disturbanceInterval, cfg.disturbanceChance);
-        this.history = new history_js_1.WorldHistory(opts.historyEvery ?? 0);
-        this.interactions = new interactions_js_1.InteractionQueue(Math.max(1024, cfg.founders));
+        this.abiotic = new AbioticDriver(cfg.abioticCycle, cfg.disturbanceInterval, cfg.disturbanceChance);
+        this.history = new WorldHistory(opts.historyEvery ?? 0);
+        this.interactions = new InteractionQueue(Math.max(1024, cfg.founders));
         this.snapshot = this.measure();
         this.seedFounders();
         this.snapshot = this.measure();
@@ -541,8 +852,8 @@ class World {
      */
     seedFounders() {
         const cfg = this.config;
-        const genome = new Float32Array(genome_js_1.TRAIT_COUNT);
-        const body = new Uint8Array(soa_js_1.BODY_GENE_COUNT);
+        const genome = new Float32Array(TRAIT_COUNT);
+        const body = new Uint8Array(BODY_GENE_COUNT);
         // Decomposer seeding: if configured, the first N founders get genes that
         // express to a qualifying decomposer (photo~0.12, recalc~0.70, speed~1.7).
         // Uses rng draws in the same order/count as the standard path so the RNG
@@ -552,33 +863,33 @@ class World {
             : 0;
         for (let i = 0; i < cfg.founders; i++) {
             const seedAsDecomposer = i < decompCount;
-            for (let t = 0; t < genome_js_1.TRAIT_COUNT; t++) {
-                const spec = genome_js_1.TRAITS[t];
+            for (let t = 0; t < TRAIT_COUNT; t++) {
+                const spec = TRAITS[t];
                 // Diagnostic override of the founder init for this trait only; null
                 // (the default) uses the declared spec value, leaving behaviour
                 // byte-identical. See config.reproThresholdInit.
-                let base = t === genome_js_1.TRAIT.REPRO_THRESHOLD && cfg.reproThresholdInit !== null
+                let base = t === TRAIT.REPRO_THRESHOLD && cfg.reproThresholdInit !== null
                     ? cfg.reproThresholdInit
-                    : t === genome_js_1.TRAIT.ASEXUAL_RATE && cfg.asexualRateInit !== null
+                    : t === TRAIT.ASEXUAL_RATE && cfg.asexualRateInit !== null
                         ? cfg.asexualRateInit
-                        : t === genome_js_1.TRAIT.CLUTCH_SIZE && cfg.clutchSizeInit !== null
+                        : t === TRAIT.CLUTCH_SIZE && cfg.clutchSizeInit !== null
                             ? cfg.clutchSizeInit
                             : spec.init;
                 // Decomposer-qualifying genes (expressed: photo~0.12<0.34,
                 // recalc~0.70>0.55, speed~1.7<2.4). Jitter applies normally below.
                 if (seedAsDecomposer) {
-                    if (t === genome_js_1.TRAIT.PHOTOSYNTHETIC_RATE)
+                    if (t === TRAIT.PHOTOSYNTHETIC_RATE)
                         base = 0.1;
-                    else if (t === genome_js_1.TRAIT.RECALCITRANT_DIGESTION)
+                    else if (t === TRAIT.RECALCITRANT_DIGESTION)
                         base = 0.7;
-                    else if (t === genome_js_1.TRAIT.SPEED)
+                    else if (t === TRAIT.SPEED)
                         base = 0.2;
                 }
                 const g = base + this.rng.gaussian(0, spec.spread) * 0.5;
                 genome[t] = g < 0 ? 0 : g > 1 ? 1 : g;
             }
-            for (let b = 0; b < soa_js_1.BODY_GENE_COUNT; b++) {
-                const spec = genome_js_1.BODY_GENES[b];
+            for (let b = 0; b < BODY_GENE_COUNT; b++) {
+                const spec = BODY_GENES[b];
                 const jitter = Math.round((this.rng.nextFloat() - 0.5) * (spec.hi - spec.lo) * 0.5);
                 const v = spec.init + jitter;
                 body[b] = v < spec.lo ? spec.lo : v > spec.hi ? spec.hi : v;
@@ -627,7 +938,7 @@ class World {
         // from anything the tick loop does. The Owner asked for this split
         // explicitly, so it must not be buried inside a birth-phase total.
         const phenT0 = this.profiling ? now() : 0;
-        const phen = new phenotype_js_1.Phenotype(genome, bodyGenes, seed);
+        const phen = new Phenotype(genome, bodyGenes, seed);
         if (this.profiling)
             this.phenotypeMs += now() - phenT0;
         this.store.phenotypeDerivations++;
@@ -646,6 +957,11 @@ class World {
         // occupant's flag and gets a tick of unearned cheap basal on its first
         // actPhase (which reads last tick's flag for basal/sensing).
         this.dormant[slot] = 0;
+        this.dormantSleep[slot] = 0;
+        this.senesceDamage[slot] = 0;
+        this.diseaseDamage[slot] = 0;
+        this.pioneerTicks[slot] = 0;
+        this.pioneerVoid[slot] = 0;
         this.store.fatigue[slot] = 0;
         this.store.id[slot] = this.nextId++;
         this.store.individualSeed[slot] = seed;
@@ -654,7 +970,7 @@ class World {
         this.store.bornTick[slot] = bornTick;
         this.store.copyGenomeToSlot(slot, genome);
         this.store.copyBodyToSlot(slot, bodyGenes);
-        this.store.physical.set(phen.physical, slot * genome_js_1.TRAIT_COUNT);
+        this.store.physical.set(phen.physical, slot * TRAIT_COUNT);
         this.store.phen[slot] = phen;
         this.store.hitRadius[slot] = phen.hitRadius;
         this.store.senseRadius[slot] = phen.senseRadius;
@@ -667,7 +983,7 @@ class World {
         // here with a different sizing policy let the two paths disagree.
         // Age is 0 at allocation: every organism starts as a juvenile. Reading
         // store.age here would read whatever the recycled slot last held.
-        const r = (0, role_js_1.deriveRole)(this.store.physical, slot * genome_js_1.TRAIT_COUNT, 0);
+        const r = deriveRole(this.store.physical, slot * TRAIT_COUNT, 0);
         this.writeRole(slot, r);
     }
     /** Write a role readout into the flat cache block. */
@@ -703,8 +1019,8 @@ class World {
             const slot = this.packedSlots[i];
             if (!this.live[slot])
                 continue;
-            const o = slot * genome_js_1.TRAIT_COUNT;
-            const photo = store.physical[o + genome_js_1.TRAIT.PHOTOSYNTHETIC_RATE];
+            const o = slot * TRAIT_COUNT;
+            const photo = store.physical[o + TRAIT.PHOTOSYNTHETIC_RATE];
             if (photo <= 0.02)
                 continue;
             let cx = (this.packedX[i] * invW) | 0;
@@ -717,15 +1033,15 @@ class World {
                 cy = 0;
             else if (cy >= rows)
                 cy = rows - 1;
-            const size = store.physical[o + genome_js_1.TRAIT.SIZE];
+            const size = store.physical[o + TRAIT.SIZE];
             this.shadeMass[cy * cols + cx] += photo * size;
         }
     }
     capacityOf(slot) {
-        return (0, phenotype_js_1.resolveCapacity)(this.store.phen[slot], this.store.trait(slot, genome_js_1.TRAIT.STORAGE_CAPACITY));
+        return resolveCapacity(this.store.phen[slot], this.store.trait(slot, TRAIT.STORAGE_CAPACITY));
     }
     writeRole(slot, r) {
-        const rb = slot * soa_js_1.ROLE_STRIDE;
+        const rb = slot * ROLE_STRIDE;
         const role = this.store.role;
         role[rb] = r.trophic;
         role[rb + 1] = r.motility;
@@ -740,7 +1056,7 @@ class World {
     }
     /** Public readout for inspection and reporting. */
     roleOf(slot) {
-        const rb = slot * soa_js_1.ROLE_STRIDE;
+        const rb = slot * ROLE_STRIDE;
         const role = this.store.role;
         return {
             trophic: role[rb],
@@ -758,15 +1074,15 @@ class World {
      * adult size and developmental growth will be invisible.
      */
     effectiveRadius(slot) {
-        const rb = slot * soa_js_1.ROLE_STRIDE;
+        const rb = slot * ROLE_STRIDE;
         const role = this.store.role;
-        return (0, role_js_1.developmentalScale)({ maturation: role[rb + 2] / 255, stage: role[rb + 3] }, this.store.hitRadius[slot]);
+        return developmentalScale({ maturation: role[rb + 2] / 255, stage: role[rb + 3] }, this.store.hitRadius[slot]);
     }
     /** Damage multiplier from developmental stage, for contest resolution. */
     stageDamageFactor(slot) {
-        const rb = slot * soa_js_1.ROLE_STRIDE;
+        const rb = slot * ROLE_STRIDE;
         const role = this.store.role;
-        return (0, role_js_1.stageDamageFactor)({ maturation: role[rb + 2] / 255, stage: role[rb + 3] });
+        return stageDamageFactor({ maturation: role[rb + 2] / 255, stage: role[rb + 3] });
     }
     // =========================================================================
     // The tick pipeline
@@ -813,12 +1129,36 @@ class World {
         const fert = hab.fertility.data;
         const drain = hab.drainage.data;
         const nCells = detritus.data.length;
-        for (let nIdx = 0; nIdx < soa_js_1.NUTRIENT_COUNT; nIdx++) {
+        // Diagnostic: cyclic nutrient regeneration (nutrientCyclic). Declared
+        // behaviour regenerates nutrient abiotically at a flat rate, which is a
+        // free lunch: producers can farm it forever with nothing else alive.
+        // When set, regeneration is scaled by local decomposition substrate, so
+        // nutrient returns only where organic matter is actually being worked on
+        // — decomposer activity — and a producer-only world slowly starves.
+        const cyclic = cfg.nutrientCyclic === true;
+        const sedData = this.sediment.data;
+        const litData = this.litter.data;
+        for (let nIdx = 0; nIdx < NUTRIENT_COUNT; nIdx++) {
             const nData = this.nutrients[nIdx].data;
             const mod = cfg.nutrientCapacity[nIdx] ?? 1;
             for (let i = 0; i < nCells; i++) {
                 const cap = cfg.nutrientPerCell * fert[i] * mod;
-                nData[i] += (cap - nData[i]) * cfg.nutrientRegen * drain[i];
+                let rate = cfg.nutrientRegen;
+                if (cyclic) {
+                    const sat = Math.max(1e-6, cfg.mixotrophySaturation);
+                    const raw = detritus.data[i] + sedData[i] * 0.8 + litData[i] * 1.2;
+                    rate *= raw / (raw + sat);
+                }
+                nData[i] += (cap - nData[i]) * rate * drain[i];
+                // Diagnostic: abiotic nutrient floor (nutrientFloor), a fraction of
+                // capacity. This is the RECOVERY PATH for the A+C deadlock, not an
+                // energy subsidy: it guarantees a remnant population can always
+                // regrow, without supplying enough to sustain a standing guild.
+                // Applied after regeneration and before clamping so the floor is the
+                // value that actually survives the tick. Zero = declared behaviour.
+                const floor = cfg.nutrientFloor * cap;
+                if (nData[i] < floor)
+                    nData[i] = floor;
                 if (nData[i] > cap)
                     nData[i] = cap;
                 else if (nData[i] < 0)
@@ -870,8 +1210,8 @@ class World {
         // Mineralised matter returns to the substrate split across the pools, so
         // recycling does not silently become a nutrient-A-only subsidy.
         const totalMineralised = detritusMineralised + sedimentMineralised + litterMineralised;
-        const share = totalMineralised * cfg.recyclingRate * 0.5 / soa_js_1.NUTRIENT_COUNT;
-        for (let nIdx = 0; nIdx < soa_js_1.NUTRIENT_COUNT; nIdx++) {
+        const share = totalMineralised * cfg.recyclingRate * 0.5 / NUTRIENT_COUNT;
+        for (let nIdx = 0; nIdx < NUTRIENT_COUNT; nIdx++) {
             const nData = this.nutrients[nIdx].data;
             for (let i = 0; i < nCells; i++)
                 nData[i] += share;
@@ -981,48 +1321,48 @@ class World {
         for (let slot = 0; slot < n; slot++) {
             if (!this.live[slot])
                 continue;
-            const o = slot * genome_js_1.TRAIT_COUNT;
+            const o = slot * TRAIT_COUNT;
             // --- Read the traits this organism actually uses. ---------------------
-            const size = p[o + genome_js_1.TRAIT.SIZE];
-            const photo = p[o + genome_js_1.TRAIT.PHOTOSYNTHETIC_RATE];
-            const efficiency = p[o + genome_js_1.TRAIT.METABOLIC_EFFICIENCY];
+            const size = p[o + TRAIT.SIZE];
+            const photo = p[o + TRAIT.PHOTOSYNTHETIC_RATE];
+            const efficiency = p[o + TRAIT.METABOLIC_EFFICIENCY];
             const capacity = this.capacityOf(slot);
-            const basalCost = p[o + genome_js_1.TRAIT.BASAL_COST];
-            const massCost = p[o + genome_js_1.TRAIT.MASS_COST];
-            const digestion = p[o + genome_js_1.TRAIT.DIGESTION_RATE];
-            const thermalTol = p[o + genome_js_1.TRAIT.THERMAL_TOLERANCE];
-            const visionRange = p[o + genome_js_1.TRAIT.VISION_RANGE];
-            const fov = p[o + genome_js_1.TRAIT.VISION_FOV];
-            const nutrientSense = p[o + genome_js_1.TRAIT.NUTRIENT_SENSE];
-            const threatSense = p[o + genome_js_1.TRAIT.THREAT_SENSE];
-            const aggression = p[o + genome_js_1.TRAIT.AGGRESSION];
-            const timidity = p[o + genome_js_1.TRAIT.TIMIDITY];
-            const foragingDrive = p[o + genome_js_1.TRAIT.FORAGING_DRIVE];
-            const herdInstinct = p[o + genome_js_1.TRAIT.HERD_INSTINCT];
-            const exploration = p[o + genome_js_1.TRAIT.EXPLORATION];
-            const appetite = p[o + genome_js_1.TRAIT.FEEDING_APPETITE];
+            const basalCost = p[o + TRAIT.BASAL_COST];
+            const massCost = p[o + TRAIT.MASS_COST];
+            const digestion = p[o + TRAIT.DIGESTION_RATE];
+            const thermalTol = p[o + TRAIT.THERMAL_TOLERANCE];
+            const visionRange = p[o + TRAIT.VISION_RANGE];
+            const fov = p[o + TRAIT.VISION_FOV];
+            const nutrientSense = p[o + TRAIT.NUTRIENT_SENSE];
+            const threatSense = p[o + TRAIT.THREAT_SENSE];
+            const aggression = p[o + TRAIT.AGGRESSION];
+            const timidity = p[o + TRAIT.TIMIDITY];
+            const foragingDrive = p[o + TRAIT.FORAGING_DRIVE];
+            const herdInstinct = p[o + TRAIT.HERD_INSTINCT];
+            const exploration = p[o + TRAIT.EXPLORATION];
+            const appetite = p[o + TRAIT.FEEDING_APPETITE];
             // Digestive capacity for structural (recalcitrant) material. Gates the
             // litter pool. Physical value equals the gene (0..1 range), so it is used
             // directly as a fraction.
-            const recalc = p[o + genome_js_1.TRAIT.RECALCITRANT_DIGESTION];
-            const maturityAge = p[o + genome_js_1.TRAIT.MATURITY_AGE];
-            const carrion = p[o + genome_js_1.TRAIT.CARRION_AFFINITY];
-            const memory = p[o + genome_js_1.TRAIT.MEMORY];
+            const recalc = p[o + TRAIT.RECALCITRANT_DIGESTION];
+            const maturityAge = p[o + TRAIT.MATURITY_AGE];
+            const carrion = p[o + TRAIT.CARRION_AFFINITY];
+            const memory = p[o + TRAIT.MEMORY];
             // Endurance resists fatigue: the trait that decides whether a prey animal
             // can outrun a predator indefinitely.
-            const endurance = p[o + genome_js_1.TRAIT.ENDURANCE];
+            const endurance = p[o + TRAIT.ENDURANCE];
             // Nutrient-partitioning traits: heritable niche specialisation.
-            const affA = p[o + genome_js_1.TRAIT.NUTRIENT_A];
+            const affA = p[o + TRAIT.NUTRIENT_A];
             // Foraging strategy: benthic deposit feeding vs active hunting. This is
             // what lets consumer guilds diverge instead of competing identically.
-            const detritivory = p[o + genome_js_1.TRAIT.DETRITIVORY];
+            const detritivory = p[o + TRAIT.DETRITIVORY];
             const huntDrive = 1 - detritivory;
-            const affB = p[o + genome_js_1.TRAIT.NUTRIENT_B];
-            const affC = p[o + genome_js_1.TRAIT.NUTRIENT_C];
+            const affB = p[o + TRAIT.NUTRIENT_B];
+            const affC = p[o + TRAIT.NUTRIENT_C];
             // Normalized size gene. Used for gape limitation, which needs a scale-
             // free value: the PHYSICAL size trait runs to ~15, so a modifier written
             // against it would go negative for large organisms.
-            const sizeGene = store.genome[o + genome_js_1.TRAIT.SIZE];
+            const sizeGene = store.genome[o + TRAIT.SIZE];
             const px = x[slot];
             const py = y[slot];
             const heading = store.heading[slot];
@@ -1033,7 +1373,18 @@ class World {
             const senseCost = visionRange * 0.00022 * (1 + memory * 0.0008);
             // Dormant organisms do not sense: no information gathering while waiting.
             // Reads last tick's flag (sensing precedes feeding evaluation).
-            if (!(this.config.decomposerDormancy !== null && this.dormant[slot] === 1)) {
+            // `asleep` is the dormantThreatBlind DIAGNOSTIC (null = off): it waives
+            // the sensing cost AND the threat detection below. With the knob off,
+            // `asleep` is always false and both lines behave exactly as declared —
+            // the cost waiver below is gated on the dormancy knob alone, so the
+            // two can no longer disagree.
+            // Dormant, per the DECLARED dormancy knob (drives the cost waiver only).
+            const dormant = this.config.decomposerDormancy !== null && this.dormant[slot] === 1;
+            // Blind, per the dormantThreatBlind diagnostic (drives threat detection
+            // only). Kept as a separate flag so knob-off reproduces declared
+            // behaviour EXACTLY: the cost waiver must not depend on the diagnostic.
+            const asleep = dormant && this.config.dormantThreatBlind === true;
+            if (!dormant) {
                 this.spend(slot, senseCost, 'sensing');
             }
             let prey = -1;
@@ -1068,8 +1419,8 @@ class World {
                 if (dSq > senseR * senseR)
                     continue;
                 crowding++;
-                const oo = other * genome_js_1.TRAIT_COUNT;
-                const otherSize = p[oo + genome_js_1.TRAIT.SIZE];
+                const oo = other * TRAIT_COUNT;
+                const otherSize = p[oo + TRAIT.SIZE];
                 // Field-of-view check: FOV >= 2*pi means omnidirectional.
                 let inFov = true;
                 if (fov < Math.PI * 1.99) {
@@ -1093,20 +1444,27 @@ class World {
                 const edible = ratio > 0.16 && ratio < 0.92;
                 // Something is a threat if it out-sizes us, or if it is our size band
                 // and actually armed.
-                const dangerous = ratio > 1.12 || (ratio > 0.86 && p[oo + genome_js_1.TRAIT.TOXIN] > 0.45);
+                const dangerous = ratio > 1.12 || (ratio > 0.86 && p[oo + TRAIT.TOXIN] > 0.45);
                 if (inFov && edible && otherSize < size * 0.95 && dSq < preyDistSq) {
                     preyDistSq = dSq;
                     prey = other;
                 }
-                if (dangerous && dSq < threatDistSq) {
+                // A sleeping organism gathers no information at all, so it cannot
+                // DETECT a threat. Gated on the dormantThreatBlind diagnostic: with
+                // the knob on, pay-nothing also means see-nothing, so a hunter walks
+                // up to a sleeper and the sleeper has no warning. `threat` stays -1,
+                // the FLEE case below has no bearing, and the sleeper holds
+                // position. Knob off (null = declared behaviour) leaves threat
+                // detection untouched, which is what every prior measurement saw.
+                if (dangerous && dSq < threatDistSq && !asleep) {
                     threatDistSq = dSq;
                     threat = other;
                 }
                 // A living producer is potential forage for a heterotroph. This is the
                 // renewable consumer food source; without it every consumer is a
                 // detritivore and the two consumer guilds exclude each other.
-                const otherTrophic = roleBlock[other * soa_js_1.ROLE_STRIDE];
-                if (otherTrophic === role_js_1.TROPHIC.PRODUCER && dSq < grazeDistSq) {
+                const otherTrophic = roleBlock[other * ROLE_STRIDE];
+                if (otherTrophic === TROPHIC.PRODUCER && dSq < grazeDistSq) {
                     grazeDistSq = dSq;
                     grazeTarget = other;
                 }
@@ -1129,7 +1487,7 @@ class World {
                 // preserved from the five-guild taxonomy. Independent review confirmed
                 // this as the one behavioural delta of the collapse; kept deliberately
                 // rather than reconstructing diet guilds through the back door.
-                if (roleBlock[other * soa_js_1.ROLE_STRIDE] === roleBlock[slot * soa_js_1.ROLE_STRIDE] && otherSize > 0.6 * size && otherSize < 1.7 * size) {
+                if (roleBlock[other * ROLE_STRIDE] === roleBlock[slot * ROLE_STRIDE] && otherSize > 0.6 * size && otherSize < 1.7 * size) {
                     herdX += dx;
                     herdY += dy;
                     herdN++;
@@ -1167,7 +1525,7 @@ class World {
             // written as (1 - size*0.1) goes negative for large animals and
             // silently switches predation off for exactly the organisms that should
             // be the dominant predators.
-            const localNutrientMean = (nutA[ci] + nutB[ci] + nutC[ci]) / soa_js_1.NUTRIENT_COUNT;
+            const localNutrientMean = (nutA[ci] + nutB[ci] + nutC[ci]) / NUTRIENT_COUNT;
             const photoOpportunity = photo > 0.02 ? localNutrientMean * globalLight * mods.lightMul : 0;
             const feedScore = foragingDrive * 1.1 * (photoOpportunity * 0.5 + (localDetritus > 0.4 ? carrion * 0.8 : 0)) +
                 appetite * 0.12;
@@ -1181,7 +1539,7 @@ class World {
                     (1 - sizeGene * 0.15) *
                     (energyFrac < 0.35 ? 1.35 : 1)
                 : 0;
-            const mateScore = maturity && mate >= 0 && energyFrac > 0.5 ? p[o + genome_js_1.TRAIT.MATE_SEEKING] * 1.8 : 0;
+            const mateScore = maturity && mate >= 0 && energyFrac > 0.5 ? p[o + TRAIT.MATE_SEEKING] * 1.8 : 0;
             // Settling is a genuine option but must not be the default winner: it
             // only dominates under real crowding AND low reserves, otherwise
             // nothing ever hunts and the ecology goes inert.
@@ -1210,7 +1568,7 @@ class World {
             // Only sustained fleeing tires an animal. A short burst costs little;
             // a sustained chase is what exhausts prey, and that is what lets a
             // predator win a chase it could never win on raw speed.
-            if (pick === exports.INTENT.FLEE) {
+            if (pick === INTENT.FLEE) {
                 // Endurance is 0..1; resistance = endurance. A prey animal with high
                 // endurance barely tires, which is a real anti-predator strategy.
                 const resist = endurance;
@@ -1223,7 +1581,7 @@ class World {
             let wantTurn = 0;
             let moveAmount = 0;
             switch (pick) {
-                case exports.INTENT.FEED: {
+                case INTENT.FEED: {
                     // Producers climb the nutrient gradient; heterotrophs home on
                     // detritus when there is any nearby.
                     moveAmount = 0.75;
@@ -1232,12 +1590,12 @@ class World {
                     }
                     break;
                 }
-                case exports.INTENT.HUNT: {
+                case INTENT.HUNT: {
                     // Pursuit boost. A hunter moving at the same top speed as its quarry
                     // can never close the gap, because both re-decide every tick and
                     // reverse on any frame wobble. Predators normally outperform prey
                     // over a sustained chase; this encodes that, scaled by burst power.
-                    const burst = p[o + genome_js_1.TRAIT.BURST_POWER];
+                    const burst = p[o + TRAIT.BURST_POWER];
                     moveAmount = 1.15 + burst * 0.35;
                     // A pure autotroph does not hunt.
                     //
@@ -1247,7 +1605,7 @@ class World {
                     // A phototrophy threshold let producers whose gene fell just under it
                     // hunt their own trophic level: measured deaths were 162/170 from
                     // predation in a population that was 92 % producers.
-                    const canHunt = roleBlock[slot * soa_js_1.ROLE_STRIDE] !== role_js_1.TROPHIC.PRODUCER;
+                    const canHunt = roleBlock[slot * ROLE_STRIDE] !== TROPHIC.PRODUCER;
                     if (prey >= 0 && canHunt) {
                         wantTurn = angleTo(px, py, x[prey], y[prey]) - heading;
                         // Close enough to strike rather than close further. Reach is the
@@ -1260,18 +1618,18 @@ class World {
                         const reach = this.effectiveRadius(slot) + this.effectiveRadius(prey) + 4.5;
                         if (dSq < reach * reach) {
                             moveAmount = 0;
-                            this.submittedByKind[interactions_js_1.INTERACTION.PREDATE]++;
-                            this.interactions.submit(this.store, slot, prey, interactions_js_1.INTERACTION.PREDATE, Math.min(energy, capacity * 0.4));
+                            this.submittedByKind[INTERACTION.PREDATE]++;
+                            this.interactions.submit(this.store, slot, prey, INTERACTION.PREDATE, Math.min(energy, capacity * 0.4));
                         }
                     }
                     break;
                 }
-                case exports.INTENT.SCAVENGE: {
+                case INTENT.SCAVENGE: {
                     moveAmount = 0.85;
                     wantTurn = this.detritusHeading(px, py, heading, carrion, 26) - heading;
                     break;
                 }
-                case exports.INTENT.FLEE: {
+                case INTENT.FLEE: {
                     moveAmount = 1.25;
                     if (threat >= 0) {
                         // Run directly away, and pay for the sprint.
@@ -1279,26 +1637,26 @@ class World {
                     }
                     break;
                 }
-                case exports.INTENT.MATE: {
+                case INTENT.MATE: {
                     moveAmount = 0.7;
                     if (mate >= 0) {
                         wantTurn = angleTo(px, py, x[mate], y[mate]) - heading;
                         const dSq = mateDistSq;
                         if (dSq < (store.hitRadius[slot] + store.hitRadius[mate] + 3) ** 2) {
                             moveAmount = 0;
-                            this.submittedByKind[interactions_js_1.INTERACTION.MATE]++;
-                            this.interactions.submit(this.store, slot, mate, interactions_js_1.INTERACTION.MATE, 0);
+                            this.submittedByKind[INTERACTION.MATE]++;
+                            this.interactions.submit(this.store, slot, mate, INTERACTION.MATE, 0);
                         }
                     }
                     break;
                 }
-                case exports.INTENT.SETTLE:
+                case INTENT.SETTLE:
                     moveAmount = sameKind > 0 ? 0.16 : 0;
                     break;
-                case exports.INTENT.GRAZE: {
+                case INTENT.GRAZE: {
                     // Approach a living producer and browse it on contact.
                     moveAmount = 0.85;
-                    const canGraze = roleBlock[slot * soa_js_1.ROLE_STRIDE] !== role_js_1.TROPHIC.PRODUCER;
+                    const canGraze = roleBlock[slot * ROLE_STRIDE] !== TROPHIC.PRODUCER;
                     if (grazeTarget >= 0 && canGraze) {
                         wantTurn = angleTo(px, py, x[grazeTarget], y[grazeTarget]) - heading;
                         const reach = this.effectiveRadius(slot) + this.effectiveRadius(grazeTarget) + 3.5;
@@ -1310,7 +1668,7 @@ class World {
                     }
                     break;
                 }
-                case exports.INTENT.EXPLORE:
+                case INTENT.EXPLORE:
                 default:
                     moveAmount = 0.55 + exploration * 0.5;
                     break;
@@ -1335,7 +1693,7 @@ class World {
             }
             // --- Locomotion ------------------------------------------------------
             // Turn rate is bounded by maneuverability, expressed as a trait.
-            const maneuverability = p[o + genome_js_1.TRAIT.MANEUVERABILITY];
+            const maneuverability = p[o + TRAIT.MANEUVERABILITY];
             const maxTurn = 0.16 + maneuverability * 1.5;
             if (wantTurn > Math.PI)
                 wantTurn -= Math.PI * 2;
@@ -1348,12 +1706,12 @@ class World {
             // Sessile organisms are rooted: they do not translate. This is the
             // autotrophy/immobility trade-off, and it is what makes substrate
             // depletion local and therefore what makes succession possible.
-            const roleBase = slot * soa_js_1.ROLE_STRIDE;
+            const roleBase = slot * ROLE_STRIDE;
             const motility = roleBlock[roleBase + 1];
             let step = store.maxStep[slot] * moveAmount;
-            if (motility === role_js_1.MOTILITY.SESSILE)
+            if (motility === MOTILITY.SESSILE)
                 step = 0;
-            else if (motility === role_js_1.MOTILITY.CREEP)
+            else if (motility === MOTILITY.CREEP)
                 step *= 0.32;
             // Exhaustion slows an animal down. Applied to every mover, so a tired
             // predator tires too: pursuit is not free for either side.
@@ -1416,12 +1774,20 @@ class World {
             if (this.dormant[slot] === 1 && this.config.decomposerDormancy !== null) {
                 basal *= this.config.decomposerDormancy;
             }
+            // Pioneer establishment bonus (diagnostic, default null = unchanged).
+            // Grace ticks down once per tick here, at the single basal-charge site;
+            // the starvation and breeding gates read the same remaining grace
+            // through pioneerFactor, so all three upkeep bars move together.
+            if (this.pioneerTicks[slot] > 0) {
+                basal *= this.pioneerFactor(slot);
+                this.pioneerTicks[slot]--;
+            }
             this.spend(slot, basal, 'basal');
             // Excretion: metabolism returns a little matter to the local substrate
             // as inorganic nutrient. Small, but it means organisms are a nutrient
             // SOURCE locally and not only a sink.
             if (cfg.excretionRate > 0) {
-                const excreted = (basal * cfg.excretionRate * 6) / soa_js_1.NUTRIENT_COUNT;
+                const excreted = (basal * cfg.excretionRate * 6) / NUTRIENT_COUNT;
                 const cellCap = cfg.nutrientPerCell * this.habitat.fertility.data[ci];
                 nutA[ci] = Math.min(cellCap, nutA[ci] + excreted);
                 nutB[ci] = Math.min(cellCap, nutB[ci] + excreted);
@@ -1429,7 +1795,7 @@ class World {
             }
             // Crowding penalty: local density costs energy via interference.
             if (crowding > 4) {
-                const crowdingCost = (crowding - 4) * 0.006 * (1 + p[o + genome_js_1.TRAIT.SIZE]);
+                const crowdingCost = (crowding - 4) * 0.006 * (1 + p[o + TRAIT.SIZE]);
                 const crowdingPaid = this.spend(slot, crowdingCost, 'basal');
                 // Recorded separately so density dependence is directly measurable.
                 // spend() already attributed the same amount to per-guild basal; this
@@ -1440,9 +1806,9 @@ class World {
                 this.ledger.recordCrowding(crowdingPaid, this.roleOf(slot).trophic);
             }
             // Ageing: damage accrues with age past a senescent threshold.
-            const lifespan = p[o + genome_js_1.TRAIT.LIFESPAN];
+            const lifespan = p[o + TRAIT.LIFESPAN];
             if (age > lifespan * 0.62) {
-                store.damage[slot] += (age - lifespan * 0.62) * 0.0016 * (2 - p[o + genome_js_1.TRAIT.REGENERATION] * 6);
+                store.damage[slot] += (age - lifespan * 0.62) * 0.0016 * (2 - p[o + TRAIT.REGENERATION] * 6);
             }
             // --- Feeding --------------------------------------------------------
             // --- Photosynthesis: multiple limiting nutrients + light -> energy ----
@@ -1469,6 +1835,17 @@ class World {
                         demand *= this.config.consumerPhotoScale;
                     else if (g === 0 && this.config.producerCaptureScale !== null)
                         demand *= this.config.producerCaptureScale;
+                }
+                // Diagnostic: mixotrophic carbon requirement (mixotrophyCarbon).
+                // Bare light is not enough for a producer: capturing energy also
+                // requires local heterotrophic substrate to work on, which exists
+                // only because heterotrophs (or corpses) produced it. This is the
+                // producer half of the guild-interdependence coupling; nutrientCyclic
+                // is the nutrient half. Producers keep their guild label and all
+                // their pathways — only the photosynthesis DEMAND is scaled — so this
+                // adds no new guild test and cannot be read as an assignment table.
+                if (cfg.mixotrophyCarbon === true && this.roleOf(slot).trophic === TROPHIC.PRODUCER) {
+                    demand *= this.substrateAvailability(ci);
                 }
                 if (demand > 0) {
                     // What this organism would take from each pool, scaled by affinity.
@@ -1540,6 +1917,8 @@ class World {
                         if (taken > 0) {
                             store.energy[slot] += taken;
                             store.energyIngested[slot] += taken;
+                            // Diseased detritus: part of the heterotroph food-disease path.
+                            this.diseaseRoll(store, slot, taken);
                         }
                         store.hunger[slot] = 0;
                         this.ledger.recordUnassimilated(unassimilated);
@@ -1555,9 +1934,9 @@ class World {
                             const returned = taken * cfg.bioticMineralisation;
                             // Returned across all pools so recycling is not pool-specific.
                             const cap = cfg.nutrientPerCell * this.habitat.fertility.data[ci];
-                            nutA[ci] += returned / soa_js_1.NUTRIENT_COUNT;
-                            nutB[ci] += returned / soa_js_1.NUTRIENT_COUNT;
-                            nutC[ci] += returned / soa_js_1.NUTRIENT_COUNT;
+                            nutA[ci] += returned / NUTRIENT_COUNT;
+                            nutB[ci] += returned / NUTRIENT_COUNT;
+                            nutC[ci] += returned / NUTRIENT_COUNT;
                             if (nutA[ci] > cap)
                                 nutA[ci] = cap;
                             if (nutB[ci] > cap)
@@ -1587,6 +1966,8 @@ class World {
                         if (taken > 0) {
                             store.energy[slot] += taken;
                             store.energyIngested[slot] += taken;
+                            // Diseased detritus: part of the heterotroph food-disease path.
+                            this.diseaseRoll(store, slot, taken);
                         }
                         store.hunger[slot] = 0;
                         this.ledger.recordUnassimilated(unassimilated);
@@ -1615,9 +1996,9 @@ class World {
                             const returned = taken * cfg.bioticMineralisation;
                             // Returned across all pools so recycling is not pool-specific.
                             const cap = cfg.nutrientPerCell * this.habitat.fertility.data[ci];
-                            nutA[ci] += returned / soa_js_1.NUTRIENT_COUNT;
-                            nutB[ci] += returned / soa_js_1.NUTRIENT_COUNT;
-                            nutC[ci] += returned / soa_js_1.NUTRIENT_COUNT;
+                            nutA[ci] += returned / NUTRIENT_COUNT;
+                            nutB[ci] += returned / NUTRIENT_COUNT;
+                            nutC[ci] += returned / NUTRIENT_COUNT;
                             if (nutA[ci] > cap)
                                 nutA[ci] = cap;
                             if (nutB[ci] > cap)
@@ -1677,6 +2058,8 @@ class World {
                     if (taken > 0) {
                         store.energy[slot] += taken;
                         store.energyIngested[slot] += taken;
+                        // Diseased litter: part of the heterotroph food-disease path.
+                        this.diseaseRoll(store, slot, taken);
                     }
                     store.hunger[slot] = 0;
                     this.ledger.recordUnassimilated(unassimilated);
@@ -1691,9 +2074,9 @@ class World {
                     if (this.bioticMineraliser[slot]) {
                         const returned = taken * cfg.bioticMineralisation;
                         const capN = cfg.nutrientPerCell * this.habitat.fertility.data[ci];
-                        nutA[ci] += returned / soa_js_1.NUTRIENT_COUNT;
-                        nutB[ci] += returned / soa_js_1.NUTRIENT_COUNT;
-                        nutC[ci] += returned / soa_js_1.NUTRIENT_COUNT;
+                        nutA[ci] += returned / NUTRIENT_COUNT;
+                        nutB[ci] += returned / NUTRIENT_COUNT;
+                        nutC[ci] += returned / NUTRIENT_COUNT;
                         if (nutA[ci] > capN)
                             nutA[ci] = capN;
                         if (nutB[ci] > capN)
@@ -1717,13 +2100,50 @@ class World {
             // breeding (Phase 6) read this tick's value; basal and sensing read last
             // tick's (1-tick lag, negligible for a slow state).
             if (this.config.decomposerDormancy !== null && this.roleOf(slot).trophic === 2) {
-                const threshold = store.trait(slot, genome_js_1.TRAIT.REPRO_THRESHOLD);
+                const threshold = store.trait(slot, TRAIT.REPRO_THRESHOLD);
                 const energyFrac = store.energy[slot] / Math.max(1, capacity);
                 const foodHere = litterData[ci] > 0.2 || sedimentData[ci] > 0.2 || localDetritus > 0.4;
                 this.dormant[slot] = energyFrac < threshold && !foodHere ? 1 : 0;
             }
             else {
                 this.dormant[slot] = 0;
+            }
+            // --- Dormant senescence -----------------------------------------------
+            // Diagnostic-knob-gated (null = off). The sleep clock advances each tick
+            // the slot stays dormant and resets on waking. Three modes behind the
+            // one knob (see config docs): fixed grace, dormant-share pressure, and
+            // lifespan-relative grace. Killing runs through the existing damage
+            // path; attribution via senesceDamage (parallel to starveDamage).
+            if (this.dormant[slot] === 1) {
+                this.dormantSleep[slot]++;
+                const sn = this.senescence;
+                if (sn !== null) {
+                    let rate = 0;
+                    if (sn.mode === 'fixed') {
+                        if (this.dormantSleep[slot] > sn.scale)
+                            rate = 0.35;
+                    }
+                    else if (sn.mode === 'share') {
+                        // No grace: the pressure IS the hoarding fraction. At 90%+
+                        // dormant this matches fixed-mode lethality (~0.35/tick); at 5%
+                        // it is ~0.02/tick (harmless over any run horizon).
+                        rate = 0.35 * sn.scale * this.dormantFrac;
+                    }
+                    else {
+                        // lifespan: grace scales with the organism's own heritable
+                        // lifespan (same trait the age-death gate reads).
+                        const grace = sn.scale * store.trait(slot, TRAIT.LIFESPAN);
+                        if (this.dormantSleep[slot] > grace)
+                            rate = 0.35;
+                    }
+                    if (rate > 0) {
+                        store.damage[slot] += rate;
+                        this.senesceDamage[slot] += rate;
+                    }
+                }
+            }
+            else {
+                this.dormantSleep[slot] = 0;
             }
             // --- Starvation -----------------------------------------------------
             // Damage scales with how badly the organism fails to meet its own
@@ -1734,7 +2154,9 @@ class World {
             // reproduction from viability and produced unbounded growth of starving
             // organisms born faster than they died. Deficit-proportional damage makes
             // inability-to-pay lethal in proportion to inability-to-pay.
-            const upkeep = upkeepOf(basalCost, size, massCost);
+            const upkeep = upkeepOf(basalCost, size, massCost) *
+                this.pioneerFactor(slot) *
+                this.consumerUpkeepFactor(slot);
             // Dormant organisms do not accrue starvation damage: waiting is not dying.
             // Only reachable when the knob is set (dormant[] otherwise always zero).
             const isDormant = this.dormant[slot] === 1 && this.config.decomposerDormancy !== null;
@@ -1750,7 +2172,7 @@ class World {
             }
             // Regeneration, paid for out of the metabolic budget.
             if (store.damage[slot] > 0.05) {
-                const regen = p[o + genome_js_1.TRAIT.REGENERATION];
+                const regen = p[o + TRAIT.REGENERATION];
                 if (regen > 0.005) {
                     const healed = Math.min(store.damage[slot], regen * 0.9);
                     store.damage[slot] -= healed;
@@ -1763,7 +2185,7 @@ class World {
             // organism in ROLE_REFRESH_EVERY is refreshed per tick, which keeps the
             // amortised cost near 6% rather than paying it every tick for everyone.
             if (age % ROLE_REFRESH_EVERY === 0) {
-                this.writeRole(slot, (0, role_js_1.deriveRole)(p, o, age + 1));
+                this.writeRole(slot, deriveRole(p, o, age + 1));
             }
             store.age[slot] = age + 1;
             if (store.reproCooldown[slot] > 0)
@@ -1807,7 +2229,7 @@ class World {
             if (scores[i] > max)
                 max = scores[i];
         if (max <= 0)
-            return exports.INTENT.SETTLE;
+            return INTENT.SETTLE;
         let total = 0;
         for (let i = 0; i < n; i++) {
             // exp() of a non-positive argument is in (0,1], so no overflow.
@@ -1870,10 +2292,10 @@ class World {
         const cfg = this.config;
         const fieldW = cfg.worldW / this.detritus.cols;
         const fieldH = cfg.worldH / this.detritus.rows;
-        this.interactions.resolve(store, (slot) => this.live[slot] === 1, rng, exports.FATAL_DAMAGE, (as) => {
+        this.interactions.resolve(store, (slot) => this.live[slot] === 1, rng, FATAL_DAMAGE, (as) => {
             // Predation contact cost. The energy transfer itself is applied from
             // the queue's resolution record below, so it is booked exactly once.
-            this.spend(as, 0.4 + store.trait(as, genome_js_1.TRAIT.SIZE) * 0.1, 'contest');
+            this.spend(as, 0.4 + store.trait(as, TRAIT.SIZE) * 0.1, 'contest');
         }, (_winner, loser) => {
             // Territorial displacement costs the loser a little condition. Spacing
             // therefore emerges from contests rather than from a hard rule.
@@ -1885,13 +2307,15 @@ class World {
             // Both sides must independently hold a viable surplus. Contests resolve
             // in attacker-id order, so without this a starving organism could mate
             // purely because it happened to be resolved first.
-            const upA = upkeepOf(store.trait(a, genome_js_1.TRAIT.BASAL_COST), store.trait(a, genome_js_1.TRAIT.SIZE), store.trait(a, genome_js_1.TRAIT.MASS_COST));
-            const upB = upkeepOf(store.trait(b, genome_js_1.TRAIT.BASAL_COST), store.trait(b, genome_js_1.TRAIT.SIZE), store.trait(b, genome_js_1.TRAIT.MASS_COST));
-            if (store.energy[a] <= upA * REPRO_SURPLUS_TICKS || store.energy[b] <= upB * REPRO_SURPLUS_TICKS) {
+            const upA = upkeepOf(store.trait(a, TRAIT.BASAL_COST), store.trait(a, TRAIT.SIZE), store.trait(a, TRAIT.MASS_COST))
+                * this.pioneerFactor(a) * this.consumerUpkeepFactor(a);
+            const upB = upkeepOf(store.trait(b, TRAIT.BASAL_COST), store.trait(b, TRAIT.SIZE), store.trait(b, TRAIT.MASS_COST))
+                * this.pioneerFactor(b) * this.consumerUpkeepFactor(b);
+            if (store.energy[a] <= upA * this.reproSurplus || store.energy[b] <= upB * this.reproSurplus) {
                 return;
             }
-            this.spend(a, 1.6 + store.trait(a, genome_js_1.TRAIT.SIZE) * 0.25, 'reproduction');
-            this.spend(b, 1.6 + store.trait(b, genome_js_1.TRAIT.SIZE) * 0.25, 'reproduction');
+            this.spend(a, 1.6 + store.trait(a, TRAIT.SIZE) * 0.25, 'reproduction');
+            this.spend(b, 1.6 + store.trait(b, TRAIT.SIZE) * 0.25, 'reproduction');
             // Recombination forks the lineage, so lineage trees actually branch
             // rather than degenerating into one immortal founder clone.
             const la = store.lineage[a];
@@ -1905,7 +2329,7 @@ class World {
             // is applied from the resolution record, so it is booked exactly once.
             store.damage[as] += 0.05;
             void ds;
-        }, undefined, cfg.meatYieldPerMass);
+        }, undefined, cfg.meatYieldPerMass, cfg.plantYieldPerMass);
         // Apply the resolved records. Records are in deterministic id order, so
         // damage and energy accumulate in a reproducible sequence.
         //
@@ -1930,7 +2354,7 @@ class World {
             if (this.traceLog !== null) {
                 this.traceLog.record({
                     tick: this.tick,
-                    kind: trace_js_1.TRACE.CONTEST,
+                    kind: TRACE.CONTEST,
                     a: r.attackerId,
                     b: r.defenderId,
                     v: r.delta,
@@ -1940,7 +2364,7 @@ class World {
                     z: r.defenderDamage,
                 });
             }
-            if (r.outcome === interactions_js_1.OUTCOME.ABANDONED)
+            if (r.outcome === OUTCOME.ABANDONED)
                 continue;
             // Locate slots by stable id. The queue already applied contact costs in
             // its callbacks; here we apply damage and predation yield.
@@ -1950,7 +2374,7 @@ class World {
                 continue;
             if (r.attackerDamage > 0) {
                 const stageMul = this.stageDamageFactor(as);
-                store.damage[as] = Math.min(exports.FATAL_DAMAGE + 1, store.damage[as] + r.attackerDamage * stageMul);
+                store.damage[as] = Math.min(FATAL_DAMAGE + 1, store.damage[as] + r.attackerDamage * stageMul);
                 this.spend(as, r.attackerDamage * 0.05, 'contest');
             }
             if (ds < 0 || !this.live[ds])
@@ -1960,13 +2384,17 @@ class World {
                 // this the life-stage system would be cosmetic: stages existed and were
                 // reported, but never changed any outcome.
                 const stageMul = this.stageDamageFactor(as);
-                store.damage[ds] = Math.min(exports.FATAL_DAMAGE + 1, store.damage[ds] + r.defenderDamage * stageMul);
+                store.damage[ds] = Math.min(FATAL_DAMAGE + 1, store.damage[ds] + r.defenderDamage * stageMul);
                 // Predation yield: energy moves from defender to attacker.
                 // predationYieldScale is a diagnostic multiplier on the amount moved per
-                // event (default null = unchanged). Conservation preserved: it scales the
-                // request and the defender provides what it holds. See config.
-                const yieldScale = this.config.predationYieldScale ?? 1;
-                if (r.delta * yieldScale > 0 && (r.kind === interactions_js_1.INTERACTION.PREDATE || r.kind === interactions_js_1.INTERACTION.GRAZE)) {
+                // event (default null = unchanged). grazeYieldScale, when set, replaces
+                // it for GRAZE-kind transfers only, so plants can be made more
+                // nutritious without enriching meat. Conservation preserved: it scales
+                // the request and the defender provides what it holds. See config.
+                const yieldScale = r.kind === INTERACTION.GRAZE && this.config.grazeYieldScale !== null
+                    ? this.config.grazeYieldScale
+                    : (this.config.predationYieldScale ?? 1);
+                if (r.delta * yieldScale > 0 && (r.kind === INTERACTION.PREDATE || r.kind === INTERACTION.GRAZE)) {
                     // Pure transfer: no dissipation may be recorded here.
                     //
                     // `r.delta` is what the resolver WOULD LIKE to move. The defender may
@@ -1981,6 +2409,15 @@ class World {
                     const gained = transferEnergy(store, ds, as, removed);
                     this.ledger.recordPredated(gained);
                     this.ledger.recordPredatedGuild(gained, this.roleOf(as).trophic);
+                    // Diseased meat/graze: hunted and browsed tissue is food too.
+                    if (gained > 0)
+                        this.diseaseRoll(store, as, gained);
+                    // Split graze takes from predation takes (ledger merges both kinds).
+                    if (r.kind === INTERACTION.GRAZE) {
+                        this.grazeWins++;
+                        this.grazeEnergy += gained;
+                        this.grazeRequested += scaledDelta;
+                    }
                     const overflow = removed - gained;
                     if (overflow > 0)
                         this.ledger.recordSpill(overflow);
@@ -2033,29 +2470,29 @@ class World {
             const guild = probe === null ? -1 : this.roleOf(slot).trophic;
             if (store.reproCooldown[slot] > 0) {
                 if (probe !== null)
-                    probe.blocked(slot, guild, reproprobe_js_1.REPRO_GATE.cooldown);
+                    probe.blocked(slot, guild, REPRO_GATE.cooldown);
                 continue;
             }
             // Mass-corrected: breeding eligibility must be judged against the same
             // capacity that gates intake, or an organism can qualify to breed at a
             // fraction of a reserve that intake would have refused to fill.
             const capacity = this.capacityOf(slot);
-            const threshold = store.trait(slot, genome_js_1.TRAIT.REPRO_THRESHOLD);
+            const threshold = store.trait(slot, TRAIT.REPRO_THRESHOLD);
             const energyFrac = store.energy[slot] / Math.max(1, capacity);
             if (energyFrac < threshold) {
                 if (probe !== null)
-                    probe.blocked(slot, guild, reproprobe_js_1.REPRO_GATE.fraction);
+                    probe.blocked(slot, guild, REPRO_GATE.fraction);
                 continue;
             }
-            const maturityAge = store.trait(slot, genome_js_1.TRAIT.MATURITY_AGE);
+            const maturityAge = store.trait(slot, TRAIT.MATURITY_AGE);
             if (store.age[slot] < maturityAge) {
                 if (probe !== null)
-                    probe.blocked(slot, guild, reproprobe_js_1.REPRO_GATE.maturity);
+                    probe.blocked(slot, guild, REPRO_GATE.maturity);
                 continue;
             }
-            if (store.damage[slot] > exports.FATAL_DAMAGE * 0.45) {
+            if (store.damage[slot] > FATAL_DAMAGE * 0.45) {
                 if (probe !== null)
-                    probe.blocked(slot, guild, reproprobe_js_1.REPRO_GATE.damage);
+                    probe.blocked(slot, guild, REPRO_GATE.damage);
                 continue;
             }
             // Viable surplus: reproduction requires enough reserve to sustain the
@@ -2063,14 +2500,14 @@ class World {
             // buffer. Without this, a small-bodied organism with a small buffer could
             // breed while starving - the mechanism behind the unbounded expansion in
             // REPORT.md.
-            const upkeep = upkeepOf(store.trait(slot, genome_js_1.TRAIT.BASAL_COST), store.trait(slot, genome_js_1.TRAIT.SIZE), store.trait(slot, genome_js_1.TRAIT.MASS_COST));
-            if (store.energy[slot] <= upkeep * REPRO_SURPLUS_TICKS) {
+            const upkeep = upkeepOf(store.trait(slot, TRAIT.BASAL_COST), store.trait(slot, TRAIT.SIZE), store.trait(slot, TRAIT.MASS_COST)) * this.pioneerFactor(slot) * this.consumerUpkeepFactor(slot);
+            if (store.energy[slot] <= upkeep * this.reproSurplus) {
                 if (probe !== null)
-                    probe.blocked(slot, guild, reproprobe_js_1.REPRO_GATE.surplus);
+                    probe.blocked(slot, guild, REPRO_GATE.surplus);
                 continue;
             }
-            const asexualRate = store.trait(slot, genome_js_1.TRAIT.ASEXUAL_RATE);
-            const mateSeeking = store.trait(slot, genome_js_1.TRAIT.MATE_SEEKING);
+            const asexualRate = store.trait(slot, TRAIT.ASEXUAL_RATE);
+            const mateSeeking = store.trait(slot, TRAIT.MATE_SEEKING);
             const mate = this.mateTarget[slot];
             // Sexual reproduction needs a mutual opportunity. Asexual reproduction
             // is always available but slower for mate-seeking genotypes, which is
@@ -2078,7 +2515,7 @@ class World {
             const sexual = mate >= 0 && this.live[mate] === 1;
             if (sexual) {
                 if (probe !== null)
-                    probe.blocked(slot, guild, reproprobe_js_1.REPRO_GATE.sexual);
+                    probe.blocked(slot, guild, REPRO_GATE.sexual);
                 continue; // handled by the MATE interaction, already queued
             }
             // Income-breeding response `(1 + 10*margin)`: organisms holding a large
@@ -2102,7 +2539,7 @@ class World {
             // deficit between eligibility headroom and heritable reproductive rate.
             // Both are read-only derivations of values already computed above.
             if (probe !== null) {
-                probe.reachedRoll(slot, guild, drive, energyFrac - threshold, store.trait(slot, genome_js_1.TRAIT.ASEXUAL_RATE), mateSeeking);
+                probe.reachedRoll(slot, guild, drive, energyFrac - threshold, store.trait(slot, TRAIT.ASEXUAL_RATE), mateSeeking);
             }
             if (drive <= 0)
                 continue;
@@ -2113,17 +2550,17 @@ class World {
                 probe.fired(slot, guild);
             if (!passed)
                 continue;
-            const clutch = Math.max(1, Math.round(store.trait(slot, genome_js_1.TRAIT.CLUTCH_SIZE) * (0.5 + this.rng.nextFloat())));
+            const clutch = Math.max(1, Math.round(store.trait(slot, TRAIT.CLUTCH_SIZE) * (0.5 + this.rng.nextFloat())));
             this.queueBirth(slot, clutch);
             // Cost of the act, on top of the biomass transferred to offspring.
             // reproActCostScale is a diagnostic override (default null = unchanged);
             // scale 0 makes breeding free to test whether its ENERGY COST is what
             // selection is responding to. See config.reproActCostScale.
             if (this.config.reproActCostScale === null || this.config.reproActCostScale === 1) {
-                this.spend(slot, 1.1 + store.trait(slot, genome_js_1.TRAIT.SIZE) * 0.35, 'reproduction');
+                this.spend(slot, 1.1 + store.trait(slot, TRAIT.SIZE) * 0.35, 'reproduction');
             }
             else {
-                this.spend(slot, (1.1 + store.trait(slot, genome_js_1.TRAIT.SIZE) * 0.35) * this.config.reproActCostScale, 'reproduction');
+                this.spend(slot, (1.1 + store.trait(slot, TRAIT.SIZE) * 0.35) * this.config.reproActCostScale, 'reproduction');
             }
         }
     }
@@ -2212,8 +2649,8 @@ class World {
         for (let slot = 0; slot < n; slot++) {
             if (!this.live[slot])
                 continue;
-            const lifespan = store.trait(slot, genome_js_1.TRAIT.LIFESPAN);
-            const lethal = store.damage[slot] >= exports.FATAL_DAMAGE ||
+            const lifespan = store.trait(slot, TRAIT.LIFESPAN);
+            const lethal = store.damage[slot] >= FATAL_DAMAGE ||
                 store.age[slot] > lifespan ||
                 store.energy[slot] <= 0 && store.hunger[slot] > 400;
             if (!lethal)
@@ -2225,12 +2662,14 @@ class World {
             // starving organisms as `damage` deaths and produced a wrong reading of
             // what was killing the population.
             const starveShare = store.starveDamage[slot];
-            const injuryShare = store.damage[slot] - starveShare;
+            const senesceShare = this.senesceDamage[slot];
+            const diseaseShare = this.diseaseDamage[slot];
+            const injuryShare = store.damage[slot] - starveShare - senesceShare - diseaseShare;
             // Per-guild demographic counters. Read-only: the role is already cached,
             // and these increments cannot affect simulation flow.
-            const deadGuild = store.role[slot * soa_js_1.ROLE_STRIDE];
+            const deadGuild = store.role[slot * ROLE_STRIDE];
             const g = deadGuild >= 0 && deadGuild < 3 ? deadGuild : -1;
-            if (store.damage[slot] < exports.FATAL_DAMAGE) {
+            if (store.damage[slot] < FATAL_DAMAGE) {
                 if (store.age[slot] > lifespan) {
                     this.reasonAge++;
                     if (g >= 0)
@@ -2241,6 +2680,27 @@ class World {
                     if (g >= 0)
                         this.deathByGuildCause[g * 3 + 0]++;
                 }
+            }
+            else if (senesceShare > starveShare && senesceShare > injuryShare) {
+                // Dormant-senescence death: exact by construction, since only the
+                // senescence block writes senesceDamage. Folded into the damage
+                // bucket to preserve the demographic shape; senescenceDeaths is the
+                // exact attribution. Always zero when the knob is off.
+                this.reasonDamage++;
+                this.senescenceDeaths++;
+                if (g >= 0)
+                    this.deathByGuildCause[g * 3 + 2]++;
+            }
+            else if (diseaseShare > starveShare && diseaseShare > senesceShare && diseaseShare > injuryShare) {
+                // Food-disease death: exact by construction (only diseaseRoll writes
+                // diseaseDamage). Ties with senescence break toward senescence above;
+                // both loads are cumulative life histories, so order only decides
+                // genuinely mixed cases. Folded into the damage bucket like
+                // senescence; diseaseDeaths is the exact attribution.
+                this.reasonDamage++;
+                this.diseaseDeaths++;
+                if (g >= 0)
+                    this.deathByGuildCause[g * 3 + 2]++;
             }
             else if (starveShare > injuryShare) {
                 this.reasonStarve++;
@@ -2263,16 +2723,16 @@ class World {
             // split (starve vs injury), age, and guild at the moment of death, which
             // were not otherwise recoverable after the fact.
             if (this.traceLog !== null) {
-                const cause = store.damage[slot] < exports.FATAL_DAMAGE
+                const cause = store.damage[slot] < FATAL_DAMAGE
                     ? store.age[slot] > lifespan
-                        ? trace_js_1.DEATH_CAUSE.AGE
-                        : trace_js_1.DEATH_CAUSE.STARVE
-                    : starveShare > injuryShare
-                        ? trace_js_1.DEATH_CAUSE.STARVE
-                        : trace_js_1.DEATH_CAUSE.DAMAGE;
+                        ? DEATH_CAUSE.AGE
+                        : DEATH_CAUSE.STARVE
+                    : starveShare > injuryShare && starveShare >= senesceShare && starveShare >= diseaseShare
+                        ? DEATH_CAUSE.STARVE
+                        : DEATH_CAUSE.DAMAGE;
                 this.traceLog.record({
                     tick: this.tick,
-                    kind: trace_js_1.TRACE.DEATH,
+                    kind: TRACE.DEATH,
                     a: store.id[slot],
                     b: store.lineage[slot],
                     v: cause,
@@ -2290,7 +2750,7 @@ class World {
             // same energy three times and breaks the conservation identity.
             const remaining = store.energy[slot];
             if (remaining > 0) {
-                const digestion = 0.35 + store.trait(slot, genome_js_1.TRAIT.CARRION_AFFINITY) * 0.3;
+                const digestion = 0.35 + store.trait(slot, TRAIT.CARRION_AFFINITY) * 0.3;
                 store.energy[slot] = 0;
                 this.ledger.recordLivingLoss(remaining, 0.88, this.detritus, fieldW, fieldH, store.x[slot], store.y[slot], digestion, this.sediment, cfg.litterFraction, this.litter);
             }
@@ -2387,13 +2847,18 @@ class World {
             // cached by populateSlot above, and `override >= 0` marks a sexual
             // (recombinant) birth. Cannot affect simulation flow.
             {
-                const newbornGuild = store.role[slot * soa_js_1.ROLE_STRIDE];
+                const newbornGuild = store.role[slot * ROLE_STRIDE];
                 if (newbornGuild >= 0 && newbornGuild < 3) {
                     const pathway = override >= 0 ? 1 : 0;
                     this.birthsByGuildPath[newbornGuild * 2 + pathway]++;
-                    const parentGuild = store.role[parent * soa_js_1.ROLE_STRIDE];
+                    const parentGuild = store.role[parent * ROLE_STRIDE];
                     if (parentGuild >= 0 && parentGuild < 3) {
                         this.guildTransitions[parentGuild * 3 + newbornGuild]++;
+                        // Pioneer establishment bonus: a birth flip into a void guild
+                        // banks grace scaled by the void. Same-tick newborns are excluded
+                        // from the census, so the void cannot dilute within a tick.
+                        if (newbornGuild !== parentGuild)
+                            this.pioneerGrant(slot, newbornGuild);
                     }
                 }
             }
@@ -2409,8 +2874,8 @@ class World {
             // declined monotonically. Real plants solve this with seeds and spores;
             // this is the heritable analogue, and it is what makes colonisation
             // possible at all.
-            const parentSessile = store.role[parent * soa_js_1.ROLE_STRIDE + 1] === role_js_1.MOTILITY.SESSILE;
-            const dispersalGene = store.trait(parent, genome_js_1.TRAIT.DISPERSAL);
+            const parentSessile = store.role[parent * ROLE_STRIDE + 1] === MOTILITY.SESSILE;
+            const dispersalGene = store.trait(parent, TRAIT.DISPERSAL);
             // Sessile parents are pushed harder because they have no other way to
             // move; motile parents already spread by walking.
             const capacityBoost = parentSessile ? 1.85 : 1;
@@ -2474,7 +2939,7 @@ class World {
             // post-branch heading draw are shared by both paths. Deterministic per
             // seed; the version bump covers the stream change.
             if (longRange && this.patchCensus.length > 0) {
-                const guild = store.role[slot * soa_js_1.ROLE_STRIDE];
+                const guild = store.role[slot * ROLE_STRIDE];
                 const nPatches = this.patchCols * this.patchRows;
                 let total = 0;
                 for (let p = 0; p < nPatches; p++) {
@@ -2508,11 +2973,11 @@ class World {
                     const fromRow = Math.min(this.patchRows - 1, Math.max(0, Math.floor((store.y[parent] / this.config.worldH) * this.patchRows)));
                     this.traceLog.record({
                         tick: this.tick,
-                        kind: trace_js_1.TRACE.IMMIGRATION,
+                        kind: TRACE.IMMIGRATION,
                         a: store.id[slot],
                         b: fromRow * this.patchCols + fromCol,
                         x: chosen,
-                        v: store.role[slot * soa_js_1.ROLE_STRIDE],
+                        v: store.role[slot * ROLE_STRIDE],
                         w: store.parentId[slot],
                         y: travelDist,
                         z: 0,
@@ -2521,7 +2986,7 @@ class World {
             }
             else if (this.config.sporeDispersal !== null &&
                 this.config.sporeDispersal !== 0 &&
-                store.role[slot * soa_js_1.ROLE_STRIDE] === role_js_1.TROPHIC.DECOMPOSER) {
+                store.role[slot * ROLE_STRIDE] === TROPHIC.DECOMPOSER) {
                 // --- Spore dispersal (diagnostic, decomposers only) -----------------
                 // Offspring lands 30-80 field cells away (wind-like, long-range), 20%
                 // directed to the highest-litter cell among 8 candidates. Travel cost
@@ -2587,14 +3052,14 @@ class World {
             if (this.traceLog !== null) {
                 this.traceLog.record({
                     tick: this.tick,
-                    kind: trace_js_1.TRACE.BIRTH,
+                    kind: TRACE.BIRTH,
                     a: store.id[slot],
                     b: store.id[parent],
                     v: store.energy[slot],
                     // Pathway flag: 1 = sexual (recombinant), 0 = asexual. NOT a clutch
                     // size — see `formatEvent`, which labels it accordingly.
                     w: override >= 0 ? 1 : 0,
-                    x: store.role[slot * soa_js_1.ROLE_STRIDE],
+                    x: store.role[slot * ROLE_STRIDE],
                     y: store.x[slot],
                     z: store.y[slot],
                 });
@@ -2619,8 +3084,43 @@ class World {
         this.pendingBirths = 0;
     }
     /** Reusable buffers for inheritance so births allocate nothing. */
-    birthGenome = new Float32Array(genome_js_1.TRAIT_COUNT);
-    birthBody = new Uint8Array(soa_js_1.BODY_GENE_COUNT);
+    birthGenome = new Float32Array(TRAIT_COUNT);
+    birthBody = new Uint8Array(BODY_GENE_COUNT);
+    /**
+     * Scheduled radiation multiplier for the current tick: 1 when the knob is
+     * off or the schedule hasn't started. Geometric in tick — m(t) doubles
+     * every `doubling` ticks from `onset`, saturating at `cap`. Defensive
+     * clamps (doubling >= 1, cap >= 1) make every numeric schedule total — no
+     * invalid states, no mid-run throws. Same draws, scaled sigma: stream
+     * positions stay comparable with radiation off.
+     *
+     * `overgrowthCoupling` (optional, default null = original behaviour) makes
+     * the ramp DIE with overgrowth: the multiplier scales by the live dormant
+     * share relative to `floor`, clamped to 1. Below the floor the share term
+     * is 1 (full schedule); as the brake suppresses hoarding and the dormant
+     * share falls toward zero, radiation fades proportionally and reaches
+     * exactly 1x at zero dormancy. Self-scaling like share-mode senescence:
+     * evolvability is only spent where the overgrowth is. `floor` 0 disables
+     * the coupling entirely (share/0 undefined -> treated as uncoupled).
+     *
+     * Reads this tick's dormant share (recomputed in Phase 3 from last tick's
+     * dormancy flags, the same 1-tick-lag precedent share-mode already uses);
+     * inheritance runs in Phase 6, later in the same tick.
+     */
+    radiationMultiplier() {
+        const r = this.config.radiation;
+        if (r === null || r === undefined)
+            return 1;
+        if (this.tick < r.onset)
+            return 1;
+        const m = Math.pow(2, (this.tick - r.onset) / Math.max(1, r.doubling));
+        let mult = Math.min(Math.max(1, r.cap), m);
+        const floor = r.overgrowthCoupling;
+        if (floor !== null && floor !== undefined && floor > 0) {
+            mult *= Math.min(1, this.dormantFrac / floor);
+        }
+        return mult;
+    }
     /**
      * Copy the parent's genome with mutation, and step the discrete body-plan
      * genes. Body plans change by integer structural steps, so a lineage's
@@ -2628,8 +3128,8 @@ class World {
      */
     inherit(parentSlot, outGenome, outBody) {
         const store = this.store;
-        const po = parentSlot * genome_js_1.TRAIT_COUNT;
-        const mutationRate = store.trait(parentSlot, genome_js_1.TRAIT.MUTATION_RATE);
+        const po = parentSlot * TRAIT_COUNT;
+        const mutationRate = store.trait(parentSlot, TRAIT.MUTATION_RATE);
         // Stress-induced mutagenesis: a parent under physiological stress produces
         // offspring that explore genotype space faster. Hunger integrates starvation
         // over time (lethal damage accrues past ~260), damage is scaled against the
@@ -2646,9 +3146,9 @@ class World {
         const stress = clamp(store.hunger[parentSlot] / 200, 0, 1) * 0.5 +
             clamp(store.damage[parentSlot] / 50, 0, 1) * 0.3 +
             clamp(1 - store.energy[parentSlot] / Math.max(1, this.capacityOf(parentSlot)), 0, 1) * 0.2;
-        const effRate = mutationRate * (1 + this.config.stressMutagenesis * stress);
-        for (let t = 0; t < genome_js_1.TRAIT_COUNT; t++) {
-            const spec = genome_js_1.TRAITS[t];
+        const effRate = mutationRate * (1 + this.config.stressMutagenesis * stress) * this.radiationMultiplier();
+        for (let t = 0; t < TRAIT_COUNT; t++) {
+            const spec = TRAITS[t];
             const inherited = store.genome[po + t];
             // Sigma combines the parent's own mutation rate with the trait's own
             // per-gene sensitivity, so a high-mutation-rate lineage really does
@@ -2660,9 +3160,9 @@ class World {
                 g += this.rng.gaussian(0, sigma * 8);
             outGenome[t] = g < 0 ? 0 : g > 1 ? 1 : g;
         }
-        const bo = parentSlot * soa_js_1.BODY_GENE_COUNT;
-        for (let b = 0; b < soa_js_1.BODY_GENE_COUNT; b++) {
-            const spec = genome_js_1.BODY_GENES[b];
+        const bo = parentSlot * BODY_GENE_COUNT;
+        for (let b = 0; b < BODY_GENE_COUNT; b++) {
+            const spec = BODY_GENES[b];
             let v = store.bodyGenes[bo + b];
             const span = spec.hi - spec.lo;
             if (span > 1) {
@@ -2716,17 +3216,17 @@ class World {
             if (!this.live[slot])
                 continue;
             live++;
-            const o = slot * genome_js_1.TRAIT_COUNT;
+            const o = slot * TRAIT_COUNT;
             const e = store.energy[slot];
             biomass += e;
-            sizeSum += p[o + genome_js_1.TRAIT.SIZE];
-            const photo = p[o + genome_js_1.TRAIT.PHOTOSYNTHETIC_RATE];
-            const toxin = p[o + genome_js_1.TRAIT.TOXIN];
+            sizeSum += p[o + TRAIT.SIZE];
+            const photo = p[o + TRAIT.PHOTOSYNTHETIC_RATE];
+            const toxin = p[o + TRAIT.TOXIN];
             if (photo > 0.35)
                 producers++;
             else
                 consumers++;
-            if (p[o + genome_js_1.TRAIT.SIZE] > 4.2 && toxin > 0.18)
+            if (p[o + TRAIT.SIZE] > 4.2 && toxin > 0.18)
                 apex++;
             generationSum += store.generationDepth[slot];
         }
@@ -2796,7 +3296,7 @@ class World {
      */
     hashState() {
         const store = this.store;
-        const h = new hash_js_1.RollingDigest();
+        const h = new RollingDigest();
         h.reset();
         h.mixInt(this.tick);
         h.mixInt(this.nextId);
@@ -2840,6 +3340,8 @@ class World {
             h.mixInt(store.age[slot]);
             h.mixInt(store.hunger[slot]);
             h.mixInt(store.reproCooldown[slot]);
+            h.mixInt(this.dormantSleep[slot]);
+            h.mixF32(this.dormantFrac);
             h.mixF32(store.energy[slot]);
             h.mixF32(store.damage[slot]);
             h.mixF32(store.x[slot]);
@@ -2847,7 +3349,7 @@ class World {
             h.mixF32(store.heading[slot]);
             h.mixF32(store.energyIngested[slot]);
             h.mixF32(store.energySpent[slot]);
-            h.mixF32Array(store.genome.subarray(slot * genome_js_1.TRAIT_COUNT, (slot + 1) * genome_js_1.TRAIT_COUNT));
+            h.mixF32Array(store.genome.subarray(slot * TRAIT_COUNT, (slot + 1) * TRAIT_COUNT));
             h.mixBytes(store.bodyGenes.subarray(slot * 12, (slot + 1) * 12));
         }
         return h.digest();
@@ -2973,7 +3475,7 @@ class World {
     sampleLineages(tracker, tick) {
         const t0 = this.profiling ? now() : 0;
         const store = this.store;
-        tracker.sample(tick, (slot) => store.lineage[slot], (slot, trait) => store.genome[slot * genome_js_1.TRAIT_COUNT + trait], (slot) => store.energy[slot], (slot) => store.generationDepth[slot], store.count, (slot) => this.live[slot] === 1);
+        tracker.sample(tick, (slot) => store.lineage[slot], (slot, trait) => store.genome[slot * TRAIT_COUNT + trait], (slot) => store.energy[slot], (slot) => store.generationDepth[slot], store.count, (slot) => this.live[slot] === 1);
         if (this.profiling)
             this.lineageMs += now() - t0;
     }
@@ -3012,7 +3514,6 @@ class World {
         }
     }
 }
-exports.World = World;
 /**
  * Baseline energy an organism must spend per tick merely to stay alive.
  *
@@ -3057,7 +3558,7 @@ function transferEnergy(store, fromSlot, toSlot, requested) {
     // dissipated, and a transfer dissipates nothing. Recording it there made the
     // per-organism counter read "dissipation + transfers".
     store.energyTransferred[fromSlot] += amount;
-    const cap = (0, phenotype_js_1.resolveCapacity)(store.phen[toSlot], store.trait(toSlot, genome_js_1.TRAIT.STORAGE_CAPACITY));
+    const cap = resolveCapacity(store.phen[toSlot], store.trait(toSlot, TRAIT.STORAGE_CAPACITY));
     const room = cap - store.energy[toSlot];
     const gain = amount < room ? amount : Math.max(0, room);
     if (gain > 0) {
@@ -3074,13 +3575,6 @@ function now() {
     // wall-clock time: it is only ever used for reporting, never for state.
     return typeof performance !== 'undefined' ? performance.now() : Date.now();
 }
-var genome_js_2 = require("../bio/genome.js");
-Object.defineProperty(exports, "TRAIT", { enumerable: true, get: function () { return genome_js_2.TRAIT; } });
-Object.defineProperty(exports, "TRAITS", { enumerable: true, get: function () { return genome_js_2.TRAITS; } });
-Object.defineProperty(exports, "BODY_GENES", { enumerable: true, get: function () { return genome_js_2.BODY_GENES; } });
-Object.defineProperty(exports, "TRAIT_COUNT", { enumerable: true, get: function () { return genome_js_2.TRAIT_COUNT; } });
-var interactions_js_2 = require("../bio/interactions.js");
-Object.defineProperty(exports, "INTERACTION", { enumerable: true, get: function () { return interactions_js_2.INTERACTION; } });
-Object.defineProperty(exports, "OUTCOME", { enumerable: true, get: function () { return interactions_js_2.OUTCOME; } });
-var version_js_1 = require("./version.js");
-Object.defineProperty(exports, "WORLD_ENGINE_VERSION", { enumerable: true, get: function () { return version_js_1.WORLD_ENGINE_VERSION; } });
+export { TRAIT, TRAITS, BODY_GENES, TRAIT_COUNT } from '../bio/genome.js';
+export { INTERACTION, OUTCOME } from '../bio/interactions.js';
+export { WORLD_ENGINE_VERSION } from './version.js';
