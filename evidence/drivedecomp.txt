@@ -1,0 +1,31 @@
+DRIVE DECOMPOSITION — 2400 ticks, seeds 24601/777/1234
+
+Arithmetic floor: with founder traits (A=0.2, M=0.4), the
+minimum drive at ZERO margin is 0.0936. Any mean drive below
+that cannot be explained by margin alone.
+
+nonPerturbing=true (hashState probe-off vs probe-on)
+
+MARGIN AND TRAIT TERM AT THE GATE (fraction gate guarantees margin >= 0)
+guild        reached  meanMargin  ~zero%   drivePos  traitTerm  asexRate  mateSeek  A~0%  drive<=0%
+PRODUCER      101342     0.1692    0.0%    0.0277     0.0242   0.0123   0.3795  29.8%      29.8%
+CONSUMER        3396     0.1688    0.0%    0.0182     0.0093   0.0051   0.3959  45.4%      45.4%
+DECOMPOSER         9     0.0994    0.0%    0.0169     0.0243   0.0121   0.2944   0.0%       0.0%
+
+PER-SEED CONSUMER DETAIL
+seed      reached  meanMargin  p50Margin  p95Margin  ~zero%  drivePos  traitTerm  drive<=0  vsFloor
+ 24601      1075     0.1536    0.1406    0.3594    4.3%    0.0173     0.0126       348  0.19x
+   777      1407     0.1538    0.1563    0.3281    6.7%    0.0205     0.0082       680  0.22x
+  1234       914     0.2097    0.2344    0.3750    8.6%    0.0157     0.0069       513  0.17x
+
+ATTRIBUTION (consumers, pooled)
+  mean margin at gate      : 0.1724
+  implied trait term       : 0.0093  (founder value 0.3744)
+  drive <= 0 despite gate  : 1541 of 3396 reached-roll ticks (45.4%)
+  founder trait term ratio : 0.025x
+  mean asexualRate at roll : 0.0051  (founder 0.2)
+  mean mateSeeking at roll : 0.3959  (founder 0.4)
+  ticks with A <= 1e-6    : 45.4%
+
+nonPerturbing=true
+{"consumerMeanMargin":0.17238,"consumerTraitTerm":0.00927,"consumerNonPositiveDrivePct":45.377,"consumerDriveMeanPositive":0.01782,"founderDriveFloor":0.0936,"probeNonPerturbing":1}

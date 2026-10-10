@@ -1,0 +1,6 @@
+SENESCENCE seed=41004 ticks=6000 setting=share:1 photox4 basalxnull grazexnull tissuexnull radxnull disx0.15 piox200,0.5 (probe config)
+tick      pop   prod  cons  decomp | dormant  senescDeaths
+1000    1017  611   244   162    | 149      2 disD:18 pools:6254 pioG:46
+2000    1783  414   40    1329   | 981      901 disD:20 pools:3873 pioG:130
+3000    3223  1016  20    2187   | 967      8974 disD:35 pools:4577 pioG:732
+4000    31618 6464  104   25050  | 19325    31982 disD:1596 pools:4324 pioG:7127

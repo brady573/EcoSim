@@ -1,0 +1,10 @@
+SENESCENCE seed=517 ticks=6000 setting=share:1 photox0 basalxnull (probe config)
+tick      pop   prod  cons  decomp | dormant  senescDeaths
+1000    1081  994   14    73     | 61       0
+2000    1130  895   0     235    | 206      0
+3000    862   638   0     224    | 151      5
+4000    2607  2151  1     455    | 327      9
+5000    14877 14274 12    591    | 558      9
+6000    60000 59655 9     336    | 320      9
+B/D prod=118667/59312=2.00 cons=282/323=0.87 decomp=2448/2162=1.13 senescenceDeaths=9
+{"seed":517,"ticks":6000,"setting":"share:1"}

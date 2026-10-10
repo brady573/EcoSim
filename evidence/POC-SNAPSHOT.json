@@ -1,0 +1,34 @@
+{
+ "version": "ts-evo-poc/0.4.1+app-poc",
+ "base": "c247dd9",
+ "branch": "experiment/ts-evolution-poc",
+ "combinedWinner": {
+  "consumerPhotoScale": 4,
+  "decomposerFounders": 0.25,
+  "decomposerDormancy": 0.05,
+  "sporeDispersal": 1
+ },
+ "files": {
+  "src/app/main.js": "0f5ece275e1647aa",
+  "src/app/main.ts": "d2c91ce800157764",
+  "src/app/shell.html": "fdd2092ad78dfaf6",
+  "src/bio/genome.ts": "7822423484241208",
+  "src/bio/habitat.ts": "0a785a7c14928339",
+  "src/bio/interactions.ts": "e239bc36b64843f9",
+  "src/bio/phenotype.ts": "83fdcf0daa6cfb0b",
+  "src/bio/role.ts": "963457c67eaf0a82",
+  "src/core/field.ts": "7139a180358a9150",
+  "src/core/hash.ts": "3191944be1da22bd",
+  "src/core/rng.ts": "a490acf2795daf5e",
+  "src/core/soa.ts": "59dfd5eedb6e63c0",
+  "src/core/spatial.ts": "54c085cd7d2ed3d6",
+  "src/trace/pixels.ts": "b51d75304f9080ee",
+  "src/trace/png.ts": "f10d27e0a32a7df4",
+  "src/world/config.ts": "c48425b75b25a8e8",
+  "src/world/disturbances.ts": "00c0fd4376245203",
+  "src/world/history.ts": "a7fb6993f209f1eb",
+  "src/world/ledger.ts": "c1c052899faddd91",
+  "src/world/version.ts": "bdd9d368956b973d",
+  "src/world/world.ts": "e980682cf47b160d"
+ }
+}

@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+    <title>DE evolution POC — experimental viewer</title>
+    <style>
+      /* Minimal functional UI. Deliberately not polished: this exists to make
+         emergence inspectable, not to be a product surface. */
+      :root {
+        color-scheme: dark;
+        --bg: #0b0f14;
+        --panel: #121821;
+        --line: #243040;
+        --text: #d7e0ea;
+        --dim: #8698ad;
+        --accent: #6ee7a8;
+      }
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0; height: 100%; background: var(--bg); color: var(--text);
+        font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        overscroll-behavior: none;
+      }
+      #stage { position: fixed; inset: 0; }
+      canvas { display: block; touch-action: none; }
+
+      .panel {
+        position: fixed; background: color-mix(in srgb, var(--panel) 88%, transparent);
+        border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px;
+        backdrop-filter: blur(6px);
+      }
+      #controls { top: 8px; left: 8px; max-width: 240px; }
+      #stats { top: 8px; right: 8px; min-width: 210px; }
+      #inspect { bottom: 8px; left: 8px; max-width: 46vw; max-height: 52vh; overflow: auto; display: none; }
+      #legend { bottom: 8px; right: 8px; max-width: 210px; }
+
+      .row { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
+      .row + .row { margin-top: 5px; }
+      button {
+        font: inherit; color: var(--text); background: #1a2331; border: 1px solid var(--line);
+        border-radius: 4px; padding: 3px 7px; cursor: pointer;
+      }
+      button:hover { border-color: var(--accent); }
+      button[aria-pressed='true'] { background: #21384a; border-color: var(--accent); color: var(--accent); }
+      label { color: var(--dim); }
+      input[type='range'] { width: 92px; accent-color: var(--accent); }
+      table { border-collapse: collapse; width: 100%; }
+      td { padding: 0 4px 0 0; vertical-align: top; }
+      td.k { color: var(--dim); white-space: nowrap; }
+      h1 { font-size: 11px; margin: 0 0 5px; letter-spacing: .04em; text-transform: uppercase; color: var(--dim); }
+      .warn { color: #ffb86b; }
+      .tiny { font-size: 10px; color: var(--dim); }
+      .swatch { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; vertical-align: -1px; }
+    </style>
+  </head>
+  <body>
+    <div id="stage"></div>
+
+    <div class="panel" id="controls">
+      <h1>Simulation</h1>
+      <div class="row">
+        <button id="btn-pause">Pause</button>
+        <button id="btn-1x" aria-pressed="true">1&times;</button>
+        <button id="btn-4x">4&times;</button>
+        <button id="btn-16x">16&times;</button>
+        <button id="btn-max">Max</button>
+      </div>
+      <div class="row">
+        <label for="pop">founders</label>
+        <input id="pop" type="range" min="200" max="20000" step="200" value="1200" />
+        <span id="pop-val" class="tiny">1200</span>
+      </div>
+      <div class="row">
+        <label for="seed">seed</label>
+        <input id="seed" type="number" value="7" style="width:64px;background:#1a2331;color:inherit;border:1px solid var(--line);border-radius:4px;padding:2px 4px" />
+        <button id="btn-restart">Restart</button>
+      </div>
+      <div class="row">
+        <button id="btn-morph" aria-pressed="false">Morphology</button>
+        <button id="btn-overlay">Substrate</button>
+        <button id="btn-disturb">Disturbances</button>
+      </div>
+      <div class="row tiny">
+        drag to pan &middot; wheel to zoom &middot; click an organism to inspect
+      </div>
+    </div>
+
+    <div class="panel" id="stats">
+      <h1>World</h1>
+      <table id="stats-table"></table>
+      <div class="row tiny" id="fps-line"></div>
+    </div>
+
+    <div class="panel" id="legend">
+      <h1>Trophic role</h1>
+      <div id="legend-rows"></div>
+    </div>
+
+    <div class="panel" id="inspect"></div>
+
+    <script type="importmap">
+      { "imports": { "pixi.js": "/pixi.mjs" } }
+    </script>
+    <script type="module" src="/view/viewer.js"></script>
+  </body>
+</html>

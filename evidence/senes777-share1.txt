@@ -1,0 +1,10 @@
+SENESCENCE seed=777 ticks=6000 setting=share:1 (combined winner + senescence)
+tick      pop   prod  cons  decomp | dormant  senescDeaths
+1000    1083  546   377   160    | 157      0
+2000    665   244   407   14     | 14       0
+3000    692   371   320   1      | 1        0
+4000    718   311   407   0      | 0        0
+5000    654   318   336   0      | 0        0
+6000    538   165   371   2      | 2        0
+B/D prod=5896/6021=0.98 cons=4763/4459=1.07 decomp=242/283=0.86 senescenceDeaths=0
+{"seed":777,"ticks":6000,"setting":"share:1"}

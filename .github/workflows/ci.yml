@@ -1,0 +1,102 @@
+name: CI
+
+# REQUIRED. Runs on every push and pull request and gates merges.
+#
+# Scope is deliberately limited to what is relevant to THIS repository: a
+# single TypeScript simulation engine plus a browser viewer. Nothing here
+# validates a product application, a monorepo package boundary, or a UI
+# framework — those do not exist in this repository and must not be invented.
+#
+# What "relevant" means here:
+#   - the engine still compiles and its behavioural gates hold
+#   - DECLARED BEHAVIOUR HAS NOT CHANGED (knobs-unset parity against pinned
+#     values) — this is the reproducibility contract
+#   - every diagnostic knob still rolls back cleanly to declared behaviour
+#   - invalid knob values are rejected, never silently coerced
+#   - the app bundle and the compiled CLI probe still agree
+#   - the built engine actually contains the config keys (presence, not parity)
+#   - the delivered viewer is self-contained
+#
+# Explicitly NOT gated here, by choice:
+#   - long-horizon simulations and 18-seed ladders: evidence generation, not
+#     validation, and far too slow for a per-push gate
+#   - the sensitivity kit screens: exploratory, high variance at small n
+#     (see .github/workflows/diagnostics.yml, dispatch-only)
+#   - performance/bench characterisation: noisy on shared CI hardware
+#
+# Runtime notes (measured on the dev device, warm):
+#   typecheck ~1.0s | tsc build ~1.0s | tsc app ~0.3s | bundle ~0.15s
+#   gates ~1.0s | contract checks ~5.7s  <- dominant cost
+# The contract checks dominate, so they are the thing to keep fast. Probes are
+# memoised on their exact argv inside the checker, which collapses 8 call sites
+# to 5 distinct worlds. Do not parallelise the checks at the cost of determinism
+# of the report; extend the memo instead.
+#
+# `tsx` is deliberately absent from the critical path. Gates run from compiled
+# output (node build/gates.js), so nothing required depends on esbuild's
+# postinstall — npm 11 blocks unapproved install scripts by default, and
+# putting esbuild on the required path would make the gate hostage to that
+# policy for no benefit.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    name: Typecheck, gates, contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          # Keyed on package-lock.json; the lockfile is committed, so this is
+          # now a cache hit on every run after the first.
+          cache: 'npm'
+
+      - name: Install dev dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      # CLI probe output. Required by the contract checks.
+      - name: Build CLI probes
+        run: npm run view:build
+
+      # Credibility gates G1-G5: seeded repeatability, finite state, causal
+      # accounting, birth/death consistency, deterministic contest resolution.
+      # Run from compiled output — see the runtime note above.
+      - name: Behavioural gates
+        run: npm run gates:compiled
+
+      # App bundle input. Deliberately a SEPARATE tsconfig from the CLI build:
+      # tsconfig.app.json -> build/app/, tsconfig.build.json -> build/. Building
+      # only one leaves the other stale and silently ships an old engine. That
+      # failure has happened here once and was invisible to parity checks.
+      - name: Build viewer
+        run: npm run build:app
+
+      - name: Contract checks
+        run: npm run contract
+
+      - name: Upload built engine on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: engine-on-failure
+          path: evidence/app/evo-sim-poc.html
+          if-no-files-found: ignore

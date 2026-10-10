@@ -1,0 +1,10 @@
+SENESCENCE seed=41018 ticks=6000 setting=share:1 photox4 basalxnull grazexnull tissuexnull radxnull disx0.15 pioxnull dtboff mixooff cycoff sat0.4 pcapnull nfloor0 ZERO-BASELINE (probe config)
+tick      pop   prod  cons  decomp | dormant  senescDeaths
+1000    863   426   7     430    | 407      7 disD:0 pools:6412 pioG:0
+2000    608   87    1     520    | 387      527 disD:0 pools:2418 pioG:0
+3000    0     0     0     0      | 0        893 disD:0 pools:2891 pioG:0
+4000    0     0     0     0      | 0        893 disD:0 pools:2882 pioG:0
+5000    0     0     0     0      | 0        893 disD:0 pools:2874 pioG:0
+6000    0     0     0     0      | 0        893 disD:0 pools:2866 pioG:0
+B/D prod=1071/1376=0.78 cons=77/123=0.63 decomp=1747/1796=0.97 senescenceDeaths=893 diseaseDeaths=0 diseaseMeals=733 pioneerGrants=0 pioGPG=0/0/0 grazeSubmit=1217 grazeWins=0 grazeEnergy=0 grazeRequested=0
+{"seed":41018,"ticks":6000,"setting":"share:1"}

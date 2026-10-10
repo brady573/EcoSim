@@ -1,0 +1,191 @@
+name: Diagnostics
+
+# OPTIONAL BY DESIGN.
+#
+# This workflow is dispatch-only. It never runs on push or pull_request and it
+# never gates anything. It exists so a full declared-control sensitivity screen
+# can be run on demand against a known engine version, without paying for it on
+# every change and without being able to block a commit.
+#
+# It uses tools/diagnostics/evo-diagnostics.mjs (dependency-free, node builtins
+# only). It BUILDS the viewer HTML from source first, so the screen always
+# reflects current engine code rather than a committed artefact.
+#
+# Beware the build split documented in AGENTS.md: the app bundle comes from
+# tsconfig.app.json (build/app/), the CLI probes from tsconfig.build.json
+# (build/). This workflow uses tsconfig.app.json for the bundle.
+
+on:
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: Diagnostic suite to run
+        type: choice
+        default: config-only
+        options:
+          - config-only
+          - factorial-core
+          - target
+      target:
+        description: Config key (only used when suite = target)
+        type: string
+        default: nutrientRegen
+      seeds:
+        description: Seed panel (comma-separated, or "1:N" for a range)
+        type: string
+        default: "1:10"
+      legs:
+        description: Parallel seed shards (higher = faster, more CPU)
+        type: string
+        default: "4"
+      ticks:
+        description: Ticks per run
+        type: string
+        default: "1500"
+      interval:
+        description: Checkpoint interval
+        type: string
+        default: "100"
+      mode:
+        description: Engine mode
+        type: choice
+        default: balanced
+        options: [balanced, base]
+  workflow_call:
+    inputs:
+      suite:
+        type: string
+        default: config-only
+      target:
+        type: string
+        default: nutrientRegen
+      seeds:
+        type: string
+        default: "1:10"
+      legs:
+        type: string
+        default: "4"
+      ticks:
+        type: string
+        default: "1500"
+      interval:
+        type: string
+        default: "100"
+      mode:
+        type: string
+        default: balanced
+
+permissions:
+  contents: read
+
+concurrency:
+  group: diagnostics-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  diagnostics:
+    name: Diagnostic screen
+    runs-on: ubuntu-latest
+    # Bounded so a mistyped seed panel cannot burn an unbounded amount of time.
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      # The lockfile is committed, so this is reproducible and cached.
+      - name: Install dev dependencies
+        run: npm ci --no-audit --no-fund
+
+      # Cheap gates first: do not spend a full screen on code that does not
+      # typecheck or fails its behavioural gates. Gates run compiled so esbuild's
+      # postinstall is not on the path.
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build CLI probes
+        run: npm run view:build
+
+      - name: Behavioural gates
+        run: npm run gates:compiled
+
+      - name: Build viewer from source
+        run: npm run build:app
+
+      # The kit reads the engine out of the HTML sitting beside it.
+      - name: Stage engine HTML for the kit
+        run: cp evidence/app/evo-sim-poc.html tools/diagnostics/evo-sim-poc.html
+
+      # Presence check, not just parity. Parity proves defaults behave; it
+      # cannot detect that an intended config key is missing from the built
+      # engine. This is the check that would have caught the stale-bundle bug.
+      - name: Assert new knobs reached the built engine
+        run: |
+          set -euo pipefail
+          missing=0
+          for key in reproSurplusTicks mixotrophyCarbon nutrientCyclic nutrientFloor dormantThreatBlind; do
+            if ! grep -q "$key" tools/diagnostics/evo-sim-poc.html; then
+              echo "::error::config key absent from built engine: $key"
+              missing=1
+            fi
+          done
+          exit $missing
+
+      - name: Run diagnostics
+        run: |
+          set -euo pipefail
+          sh scripts/run-diagnostics.sh \
+            tools/diagnostics/evo-diagnostics.mjs \
+            ./diag-out \
+            "${{ inputs.legs }}" \
+            "${{ inputs.seeds }}" \
+            "${{ inputs.ticks }}" \
+            "${{ inputs.interval }}" \
+            "${{ inputs.mode }}" \
+            "${{ inputs.suite }}" \
+            "${{ inputs.target }}"
+
+      # A screen that cannot report is not a screen. Legs write separate output
+      # directories and are deliberately NOT merged — merging hand-written CSVs to
+      # fake one result file would be fabricating a combined measurement. Each leg
+      # manifest states the seeds it covered.
+      - name: Summarise
+        if: always()
+        run: |
+          set -euo pipefail
+          {
+            echo "### Engine"
+            for m in diag-out/leg*/manifest.json; do
+              [ -e "$m" ] || continue
+              node -e "
+                const fs=require('fs');
+                const m=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));
+                const skipped=(m.skippedTargets||[]).length;
+                console.log('- leg ' + process.argv[1].split('/')[1] +
+                  ': seeds=' + JSON.stringify(m.seeds) +
+                  ', targets=' + m.targets.length +
+                  ', runs=' + m.runCount +
+                  ', unsweepable=' + skipped);
+              " "$m"
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          {
+            echo ""
+            echo "### Inert controls (no observed state change)"
+            cat diag-out/leg*/effects.csv 2>/dev/null \
+              | awk -F, 'NR>1 && $NF=="NO_OBSERVED_STATE_CHANGE" {print "- " $1 " @ " $4}' \
+              | sort -u | head -40
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: diagnostics-${{ github.run_number }}
+          path: diag-out/
+          if-no-files-found: warn

@@ -1,0 +1,7 @@
+SENESCENCE seed=31010 ticks=2400 setting=share:1 photox4 basalxnull grazexnull tissuexnull (probe config)
+tick      pop   prod  cons  decomp | dormant  senescDeaths
+1000    1058  534   260   264    | 259      0
+2000    502   104   267   131    | 104      118
+2400    493   142   149   202    | 172      133
+B/D prod=2426/2572=0.94 cons=1341/1262=1.06 decomp=785/625=1.26 senescenceDeaths=133 grazeSubmit=2832 grazeWins=1603 grazeEnergy=985 grazeRequested=1074
+{"seed":31010,"ticks":2400,"setting":"share:1"}

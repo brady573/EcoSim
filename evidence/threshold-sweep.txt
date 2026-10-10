@@ -1,0 +1,25 @@
+CONTROLLED reproThreshold SWEEP — 2400 ticks, seeds 24601/777/1234
+Only founder reproThreshold varies; all else held fixed. Trait remains heritable.
+
+thr    seed   consBirths consDeaths  B/D    pop   cons%E  prod%E  capHits  endThr
+0.60  24601          70        107   0.65    555     0.0  100.0        0   0.671
+0.60    777          66        105   0.63    843     0.0  100.0        0   0.754
+0.60   1234          53         86   0.62    379     0.0  100.0        0   0.704
+0.45  24601         149        186   0.80    598     0.0  100.0        0   0.526
+0.45    777          79        118   0.67    896     0.0  100.0        0   0.623
+0.45   1234         133        166   0.80    849     0.0  100.0        0   0.538
+0.35  24601         125        162   0.77    570     0.0  100.0        0   0.459
+0.35    777          84        123   0.68    959     0.0  100.0        0   0.542
+0.35   1234         170        198   0.86    889     0.0  100.0        0   0.402
+0.25  24601         173        210   0.82    598     0.0  100.0        0   0.391
+0.25    777          65        104   0.63    814     0.0  100.0        0   0.440
+0.25   1234         102        135   0.76    852     0.0  100.0        0   0.349
+
+SUMMARY BY THRESHOLD
+thr    meanB/D  seedsB>D  meanCons%E  meanEndThr  capHit
+0.60     0.633         0        0.0       0.709      no
+0.45     0.757         0        0.0       0.562      no
+0.35     0.771         0        0.0       0.468      no
+0.25     0.735         0        0.0       0.393      no
+
+seeds=3 thresholds=4 runs=12 ticksPerRun=2400

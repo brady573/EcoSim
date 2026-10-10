@@ -1,0 +1,10 @@
+SENESCENCE seed=24601 ticks=6000 setting=off photox4 basalxnull grazexnull tissuexnull radx1000,1000,32 (probe config)
+tick      pop   prod  cons  decomp | dormant  senescDeaths
+1000    821   346   266   209    | 198      0
+2000    860   66    53    741    | 701      0
+3000    803   115   1     687    | 637      0
+4000    885   69    8     808    | 714      0
+5000    2057  268   142   1647   | 1489     0
+6000    9369  2125  4584  2660   | 2397     0
+B/D prod=5838/4010=1.46 cons=6746/2232=3.02 decomp=8652/6025=1.44 senescenceDeaths=0 grazeSubmit=25454 grazeWins=4928 grazeEnergy=517 grazeRequested=524
+{"seed":24601,"ticks":6000,"setting":"off"}

@@ -1,0 +1,10 @@
+SENESCENCE seed=24601 ticks=6000 grace=500 (combined winner + senescence)
+tick      pop   prod  cons  decomp | dormant  senescDeaths
+1000    869   333   321   215    | 194      4
+2000    664   55    43    566    | 538      13
+3000    680   29    6     645    | 610      66
+4000    934   36    0     898    | 822      131
+5000    1540  34    0     1506   | 1405     206
+6000    1780  28    0     1752   | 1655     469
+B/D prod=1735/2004=0.87 cons=1147/1217=0.94 decomp=7590/5871=1.29 senescenceDeaths=469
+{"seed":24601,"ticks":6000,"grace":500}

@@ -1,0 +1,28 @@
+ASEXUAL-RATE SEEDING SWEEP — 2400 ticks, seeds 24601/777/1234
+Only the founder asexualRate init varies; the trait stays heritable,
+so selection may still erode it. Sampling consumers at 10 checkpoints.
+
+init          seed   consBirths consDeaths    B/D   pop  prod%  endAsexal  consumer presence at t=200..2400
+founder(0.2)  24601          70         107   0.65    555  100.0     0.0069      44   43   54   34   12    0    0    0    0    0
+founder(0.2)    777          66         105   0.63    843  100.0     0.0043      50   44   34   22    8    1    1    0    0    0
+founder(0.2)   1234          53          86   0.62    379  100.0     0.0042      32   39   29   14    8    2    0    0    0    0
+forced(0.5)   24601         154         185   0.83    548   99.0     0.0172      42   51   69   48   30   24   27   18    5    6
+forced(0.5)     777          94         133   0.71   1237  100.0     0.0308      55   78   37   24    5    0    0    0    0    0
+forced(0.5)    1234          85         118   0.72    755  100.0     0.0146      39   58   51   53   19    4    0    0    0    0
+forced(0.8)   24601         176         213   0.83    404  100.0     0.0362      40   72   79   93   92   29    2    1    0    0
+forced(0.8)     777          74         113   0.65    868  100.0     0.0390      49   64   37    8    4    2    0    0    0    0
+forced(0.8)    1234         144         173   0.83    603   99.9     0.0424      43   44   46   40   21   45   43   10    5    4
+
+SUMMARY BY INITIAL VALUE
+init          meanB/D  seedsB>D  seedsAnyAlive  meanEndAsexal  vsFounder
+founder(0.2)      0.633         0              3         0.0051      0.025x
+forced(0.5)       0.753         0              3         0.0209      0.104x
+forced(0.8)       0.771         0              3         0.0392      0.196x
+
+INTERPRETATION HINT
+  founder(0.2)  endAsexal 0.0051 (2.5% of founder) consumersAliveInAnySeed 3/3
+  forced(0.5)   endAsexal 0.0209 (10.4% of founder) consumersAliveInAnySeed 3/3
+  forced(0.8)   endAsexal 0.0392 (19.6% of founder) consumersAliveInAnySeed 3/3
+
+ADAPTIVE would show: endAsexal eroded back toward 0.005 and consumers still extinct.
+ARTEFACT would show: consumers persist when seeded high.

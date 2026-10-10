@@ -1,0 +1,7 @@
+PER-LIFETIME CONSUMER GATE ATTRIBUTION
+Each post-maturity consumer tick attributed to the FIRST gate that blocks it.
+
+seed      postMatTicks   immature  cooldown  damageCeil  surplus  fraction  ELIGIBLE   elig%
+ 24601           23273    0.0    1.8   26.9   16.7   49.9    4.7
+   777           18061    0.0    2.2   41.0   28.1   19.6    9.2
+  1234           15806    0.0    1.6   32.0   27.8   32.6    6.1

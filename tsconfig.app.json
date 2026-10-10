@@ -1,0 +1,21 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "node16",
+    "moduleResolution": "node16",
+    "rootDir": "./src",
+    "outDir": "./build/app",
+    "noEmit": false,
+    "allowImportingTsExtensions": false,
+    "types": []
+  },
+  "include": [
+    "src/app/**/*.ts",
+    "src/world/**/*.ts",
+    "src/bio/**/*.ts",
+    "src/core/**/*.ts",
+    "src/trace/pixels.ts",
+    "src/trace/trace.ts",
+    "src/trace/reproprobe.ts"
+  ]
+}

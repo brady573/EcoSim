@@ -1,0 +1,37 @@
+PER-GUILD INCOME — 2400 ticks, seeds 24601/777/1234
+perGuildSumsMatchGlobal=true
+
+INCOME BY GUILD AND SOURCE (cumulative, pooled across seeds)
+guild         capture  scavenge   predate    TOTAL   cap%  scav%  pred%
+PRODUCER        580344     97464         0   677808  85.6%  14.4%   0.0%
+CONSUMER          5178     13088       539    18806  27.5%  69.6%   2.9%
+DECOMPOSER         380       332        24      735  51.7%  45.1%   3.2%
+
+DIGESTION EFFICIENCY — ingested vs wasted (pooled)
+guild        scavenged  unassimilated   waste%   (waste = ingested but not usable)
+PRODUCER          97464         38043    39.0%
+CONSUMER          13088          5517    42.1%
+DECOMPOSER          332           131    39.4%
+
+SCALE — total income per guild (pooled)
+  PRODUCER       677808  (97.2% of all income)
+  CONSUMER        18806  (2.7% of all income)
+  DECOMPOSER        735  (0.1% of all income)
+
+  producer-to-consumer income ratio: 36.0x
+
+PER-SEED CONSUMER DETAIL
+seed      capture  scavenge   predate  unassim   births  alive(end)
+ 24601     1754      4131      305     1692      70           0
+   777     2023      5581       99     2408      66           0
+  1234     1401      3376      136     1417      53           0
+
+CONSUMER ANSWER (pooled)
+  predation share of consumer income  : 2.9%
+  scavenging share                    : 69.6%
+  photosynthesis share (unexpected?)  : 27.5%
+  waste rate (unassimilated/scavenged): 42.1%
+  producer-to-consumer income ratio   : 36.0x
+
+perGuildSumsMatchGlobal=true
+{"consumerPredationSharePct":2.867,"consumerScavengeSharePct":69.598,"consumerCaptureSharePct":27.535,"consumerWastePct":42.15,"producerToConsumerIncomeRatio":36.043,"perGuildSumsMatchGlobal":1}

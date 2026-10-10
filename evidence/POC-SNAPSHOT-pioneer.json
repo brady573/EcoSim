@@ -1,0 +1,14 @@
+{
+ "version": "ts-evo-poc/0.4.1+app-pioneer",
+ "base": "c247dd9",
+ "notes": "post-rollback: radiation restored to original geometric form; pioneer bonus + density disease present at null defaults; parity exact",
+ "files": {
+  "src/app/main.ts": "b215b155a5d01eae",
+  "src/app/shell.html": "92dd354a3e112c48",
+  "scripts/bundle-app.mjs": "5ac9334b782ae494",
+  "scripts/assemble-app.mjs": "c802ae313bacbc1c",
+  "src/world/world.ts": "38a29587898220c5",
+  "src/world/config.ts": "124fc81a883c4782",
+  "evidence/app/evo-sim-poc.html": "2296ab5240aea314"
+ }
+}

@@ -1,0 +1,16 @@
+# Generated TypeScript output. Reproducible from source:
+#   tsc -p tsconfig.json --noEmit        (typecheck)
+#   tsc -p tsconfig.build.json           (CLI probes -> build/)
+#   tsc -p tsconfig.app.json             (app bundle input -> build/app/)
+#   node scripts/bundle-app.mjs && node scripts/assemble-app.mjs
+build/
+
+# Symlinked from the parent checkout; never versioned.
+node_modules/
+
+# Local run noise.
+*.log
+*.tmp
+
+# Built engine staged for the diagnostic kit; produced by npm run build:app.
+tools/diagnostics/evo-sim-poc.html

@@ -1,0 +1,27 @@
+{
+  "name": "@dee-experiment/ts-evolution-poc",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "EXPERIMENTAL proof of concept: evolutionary ecosystem simulation in TypeScript. Not production code.",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit --pretty false",
+    "smoke": "tsx src/smoke.ts",
+    "gates": "tsx src/gates.ts",
+    "gates:compiled": "node build/gates.js",
+    "viability": "tsx src/viability.ts",
+    "bench": "tsx src/bench.ts",
+    "view": "tsx src/view/serve.ts",
+    "view:build": "tsc -p tsconfig.build.json --pretty false",
+    "acceptance": "tsx src/acceptance.ts",
+    "longrun": "tsx src/longrun.ts",
+    "regime": "tsx src/regime.ts",
+    "build:app": "tsc -p tsconfig.app.json --pretty false && node scripts/bundle-app.mjs && node scripts/assemble-app.mjs",
+    "diag": "node tools/diagnostics/evo-diagnostics.mjs",
+    "contract": "node scripts/contract-checks.mjs ."
+  },
+  "devDependencies": {
+    "tsx": "4.23.15",
+    "typescript": "7.0.2"
+  }
+}

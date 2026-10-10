@@ -1,0 +1,15 @@
+{
+ "version": "ts-evo-poc/0.4.1+app-60fps",
+ "base": "c247dd9",
+ "preserves": "evidence/POC-SNAPSHOT.json (untouched success snapshot)",
+ "notes": "60fps decoupled render: rAF + adaptive batch + position lerp; engine untouched",
+ "files": {
+  "src/app/main.ts": "b215b155a5d01eae",
+  "src/app/shell.html": "92dd354a3e112c48",
+  "scripts/bundle-app.mjs": "5ac9334b782ae494",
+  "scripts/assemble-app.mjs": "c802ae313bacbc1c",
+  "tsconfig.app.json": "2ffe32bd12e70419",
+  "src/trace/pixels.ts": "b51d75304f9080ee",
+  "evidence/app/evo-sim-poc.html": "f133a04c8fc42fb6"
+ }
+}

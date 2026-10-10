@@ -1,0 +1,7 @@
+LONG-RUN seed=42 ticks=4800 SEEDED (25%) + photox4 + dormancy + spores
+  t600: P795/C407/D64(dor60)
+  t1200: P198/C846/D73(dor73)
+  t1800: P45/C1522/D34(dor34)
+  t2400: P332/C9237/D23(dor20)
+  t3000: P598/C13498/D6(dor5)
+  t3600: P1202/C26624/D1(dor1)

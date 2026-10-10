@@ -1,0 +1,39 @@
+MARGINAL (COUNTERFACTUAL) CONSUMER GATE ANALYSIS
+Read-only recomputation; no engine gate is modified.
+
+--- seed 24601 (post-maturity consumer ticks: 23273) ---
+  INDEPENDENT prevalence (a tick may appear under several gates):
+    cooldown          1.8%
+    damageCeiling    26.9%
+    reproSurplus     35.0%
+    fractionGate     94.6%
+  COUNTERFACTUAL eligibility (remaining gates still enforced):
+    as-is                             4.7%
+    remove damageCeiling            ->    5.3%   marginal +0.6 pts
+    remove reproSurplus             ->    4.7%   marginal +0.1 pts
+    remove fractionGate             ->   54.6%   marginal +49.9 pts
+
+--- seed 777 (post-maturity consumer ticks: 18061) ---
+  INDEPENDENT prevalence (a tick may appear under several gates):
+    cooldown          2.2%
+    damageCeiling    41.1%
+    reproSurplus     61.9%
+    fractionGate     87.2%
+  COUNTERFACTUAL eligibility (remaining gates still enforced):
+    as-is                             9.2%
+    remove damageCeiling            ->   12.7%   marginal +3.5 pts
+    remove reproSurplus             ->    9.2%   marginal +0.0 pts
+    remove fractionGate             ->   28.8%   marginal +19.6 pts
+
+--- seed 1234 (post-maturity consumer ticks: 15806) ---
+  INDEPENDENT prevalence (a tick may appear under several gates):
+    cooldown          1.6%
+    damageCeiling    32.0%
+    reproSurplus     51.6%
+    fractionGate     91.4%
+  COUNTERFACTUAL eligibility (remaining gates still enforced):
+    as-is                             6.1%
+    remove damageCeiling            ->    8.5%   marginal +2.5 pts
+    remove reproSurplus             ->    6.1%   marginal +0.0 pts
+    remove fractionGate             ->   38.7%   marginal +32.6 pts
+

@@ -1,0 +1,14 @@
+SENESCENCE seed=31008 ticks=10000 setting=share:1 photox4 basalxnull grazexnull tissuexnull radxnull disx0.15 (probe config)
+tick      pop   prod  cons  decomp | dormant  senescDeaths
+1000    773   514   153   106    | 95       0
+2000    617   139   199   279    | 204      5
+3000    420   34    15    371    | 197      60
+4000    247   14    35    198    | 67       143
+5000    444   84    86    274    | 166      180
+6000    398   10    96    292    | 155      203
+7000    456   7     190   259    | 174      223
+8000    433   1     124   308    | 225      235
+9000    381   0     129   252    | 188      250
+10000   459   1     181   277    | 201      257
+B/D prod=1761/2048=0.86 cons=2563/2448=1.05 decomp=4314/4083=1.06 senescenceDeaths=257 diseaseDeaths=9 diseaseMeals=1320 grazeSubmit=2900 grazeWins=1129 grazeEnergy=898 grazeRequested=1058
+{"seed":31008,"ticks":10000,"setting":"share:1"}

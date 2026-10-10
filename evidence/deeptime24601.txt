@@ -1,0 +1,22 @@
+DEEP-TIME seed=24601 ticks=6000 (photox4 + seeding + dormancy + spores)
+tick      pop   prod  cons  decomp | C->P trans  P->C trans  meanConsPhoto  dormant
+--- resurrection watch: producers extinct ~t4200; C->P transitions = evolution trying ---
+ 1000     821   346   266     209 |         7         0        0.2977      198
+ 2000     815    41    61     713 |         7         0        0.3127      683
+ 3000     733    42     0     691 |         7         0        0.0000      651
+ 4000     902    40     0     862 |         7         0        0.0000      832
+ 5000     981    26     0     955 |         7         0        0.0000      891
+ 6000    1298    23     0    1275 |         7         0        0.0000     1212
+
+FINAL TRANSITION MATRIX (parent guild -> child guild):
+         toPROD    toCONS    toDECOMP
+fromPROD      1212         0          7
+fromCONS         7      1090          1
+fromDECOMP       437         1       5912
+
+Producer extinction tick: never
+Producer return tick: NEVER
+C->P transitions total: 7
+RESURRECTED=0 (producers returned after extinction)
+EVOLUTION_TRIED=1 (any consumer parent produced a producer child)
+{"seed":24601,"ticks":6000,"prodExtinctTick":-1,"prodReturnTick":-1,"cpTransitions":7,"resurrected":0,"evolutionTried":1}

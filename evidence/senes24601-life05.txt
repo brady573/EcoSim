@@ -1,0 +1,10 @@
+SENESCENCE seed=24601 ticks=6000 setting=lifespan:0.5 (combined winner + senescence)
+tick      pop   prod  cons  decomp | dormant  senescDeaths
+1000    811   324   332   155    | 150      7
+2000    713   27    51    635    | 600      38
+3000    745   48    2     695    | 656      130
+4000    966   22    1     943    | 874      224
+5000    1686  6     0     1680   | 1585     335
+6000    1652  7     0     1645   | 1556     680
+B/D prod=1549/1839=0.84 cons=1176/1246=0.94 decomp=7631/6019=1.27 senescenceDeaths=680
+{"seed":24601,"ticks":6000,"setting":"lifespan:0.5"}

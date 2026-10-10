@@ -1,0 +1,38 @@
+CLUTCH SWEEP — 2400 ticks, seeds 24601/777/1234
+Only the founder clutchSize init varies; the trait stays heritable.
+nonPerturbing=true (hashState probe-off vs probe-on)
+
+init           seed   consBirths consDeaths    B/D   pop  prod%  endClutchTrait  consumers at t=200..2400
+declared(0.35) 24601          70         107   0.65    555  100.0           0.000      44   43   54   34   12    0    0    0    0    0
+declared(0.35)   777          66         105   0.63    843  100.0           0.000      50   44   34   22    8    1    1    0    0    0
+declared(0.35)  1234          53          86   0.62    379  100.0           0.000      32   39   29   14    8    2    0    0    0    0
+gene(0.00)->1.0 24601          46          82   0.56    522  100.0           1.030      35   40   46   30   12    2    1    1    1    1
+gene(0.00)->1.0   777          34          73   0.47    761  100.0           0.000      41   46   34   15    2    0    0    0    0    0
+gene(0.00)->1.0  1234          37          70   0.53    566  100.0           0.000      32   31   33   32    7    1    3    0    0    0
+gene(0.15)->2.5 24601          63         100   0.63    443  100.0           0.000      38   57   61   44   19    2    1    0    0    0
+gene(0.15)->2.5   777          47          86   0.55   1191  100.0           0.000      46   59   32   14    4    0    0    0    0    0
+gene(0.15)->2.5  1234          38          71   0.54    515  100.0           0.000      31   37   34   18    7    2    0    0    0    0
+gene(0.55)->6.5 24601          85         122   0.70    429  100.0           0.000      43   57   58   43   26   13    2    0    0    0
+gene(0.55)->6.5   777          58          97   0.60   1196  100.0           0.000      50   54   23   12    0    0    0    0    0    0
+gene(0.55)->6.5  1234         128         161   0.80    534  100.0           0.000      31   61   56   64   38   43    4    1    0    0
+
+SUMMARY BY CLUTCH INIT
+init           meanB/D  seedsB>D  seedsAliveAtEnd  meanEndClutch  meanBirths  vsDeclared
+declared(0.35)     0.633         0                0          0.000        63.0        1.00x
+gene(0.00)->1.0     0.518         0                1          0.343        39.0        0.62x
+gene(0.15)->2.5     0.571         0                0          0.000        49.3        0.78x
+gene(0.55)->6.5     0.697         0                0          0.000        90.3        1.43x
+
+NOTE: endClutchTrait is the mean PHYSICAL trait of consumers alive at end.
+      Declared founder gene 0.35 expresses to physical 4.5, not 0.35.
+
+DECISION TABLE
+  declared(0.35) B/D 0.633  births 63.0  endClutch 0.000
+  gene(0.00)->1.0 B/D 0.518  births 39.0  endClutch 0.343
+  gene(0.15)->2.5 B/D 0.571  births 49.3  endClutch 0.000
+  gene(0.55)->6.5 B/D 0.697  births 90.3  endClutch 0.000
+
+CEILING_BINDS=false (some level reaches B/D > 1.0)
+TRAIT_ERODED=false (every raised level ends below half its start)
+nonPerturbing=true
+{"bestLevel":0.55,"bestBD":0.6966,"ceilingBinds":0,"traitEroded":0,"probeNonPerturbing":1}
