@@ -15,7 +15,13 @@
  * this project more than once; a header that disagrees is the only cheap way
  * to catch a repeat.
  *
- * Usage: node tools/ladder/run-arm.mjs <arms.json> <armName> <outDir>
+ * Usage: node tools/ladder/run-arm.mjs <arms.json> <armName> <outDir> [shardIndex] [shardCount]
+ *
+ * Sharding: when shardCount > 1, only seeds where (position % shardCount) ===
+ * shardIndex are run. Every leg runs the SAME declared arm and writes its own
+ * directory. Legs are deliberately NOT merged: merging hand-written rows into
+ * one combined measurement fabricates a result nobody ran. Each leg's manifest
+ * records which seeds it covered.
  */
 
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
@@ -27,9 +33,17 @@ const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..', '..');
 const probe = join(root, 'build', 'trace', 'scenesprobe.js');
 
-const [armsPath, armName, outDir] = process.argv.slice(2);
+const [armsPath, armName, outDir, shardIndexRaw, shardCountRaw] = process.argv.slice(2);
 if (!armsPath || !armName || !outDir) {
-  console.error('usage: run-arm.mjs <arms.json> <armName> <outDir>');
+  console.error('usage: run-arm.mjs <arms.json> <armName> <outDir> [shardIndex] [shardCount]');
+  process.exit(2);
+}
+
+const shardIndex = Number(shardIndexRaw ?? 0);
+const shardCount = Number(shardCountRaw ?? 1);
+if (!Number.isInteger(shardIndex) || !Number.isInteger(shardCount)
+    || shardCount < 1 || shardIndex < 0 || shardIndex >= shardCount) {
+  console.error(`bad shard ${shardIndex}/${shardCount}`);
   process.exit(2);
 }
 
@@ -58,7 +72,10 @@ function parseSeeds(spec_) {
   return out;
 }
 
-const seeds = parseSeeds(arm.seeds);
+const allSeeds = parseSeeds(arm.seeds);
+// Round-robin rather than contiguous blocks: contiguous blocks would put every
+// short-horizon seed in one leg and unbalance the wall clock.
+const seeds = allSeeds.filter((_, i) => i % shardCount === shardIndex);
 
 /** The declared 17-slot argv, tail slots 2..16, exactly as passed to the probe. */
 function buildArgv(seed) {
@@ -151,6 +168,8 @@ const manifest = {
   title: arm.title,
   preregistered: arm.preregistered,
   seedCount: seeds.length,
+  declaredSeedCount: allSeeds.length,
+  shard: { index: shardIndex, count: shardCount },
   ticks: arm.ticks,
   zero: !!arm.zero,
   lifts: arm.lifts ?? {},
@@ -249,8 +268,8 @@ writeFileSync(join(outDir, 'summary.csv'), csv.join('\n') + '\n');
 const ok = manifest.runs.length === seeds.length
   && manifest.headerMismatches.length === 0
   && manifest.failures.length === 0;
-console.log(`arm=${armName} seeds=${seeds.length} ran=${manifest.runs.length} ` +
-  `mismatches=${manifest.headerMismatches.length} failures=${manifest.failures.length}`);
+console.log(`arm=${armName} shard=${shardIndex}/${shardCount} seeds=${seeds.length}/${allSeeds.length} ` +
+  `ran=${manifest.runs.length} mismatches=${manifest.headerMismatches.length} failures=${manifest.failures.length}`);
 if (!ok) {
   console.error('::error::arm did not complete as declared — see manifest.json');
   for (const m of manifest.headerMismatches.slice(0, 5)) console.error('  mismatch', JSON.stringify(m));
