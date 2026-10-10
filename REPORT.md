@@ -4481,3 +4481,110 @@ NEXT: the falsification arm (rsur 10) is required before concluding the
 reserve is not the constraint. Until it runs, the correct statement is
 "30 is insufficient on 12/18 seeds", not "the reserve does not gate
 consumers".
+
+================================================================================
+ENGINE 0.4.1 -> 0.5.0 : THREE BEHAVIOURAL DEFECTS CORRECTED
+================================================================================
+
+Everything above this line was measured under `ts-evo-poc/0.4.1`, and under
+0.4.1 three defects in the engine were live. Those results are RETAINED AS
+PROVENANCE and describe the 0.4.1 semantics. They are not current behaviour,
+and a 0.5.0 figure must never be placed beside an 0.4.1 figure as though the
+two were two samples of one process.
+
+ORIGIN: independent review of the CI-gate work. I verified each finding
+against the source rather than accepting the report, and confirmed three as
+real defects. A fourth (pixi.js undeclared) was stale — already fixed in
+2791259.
+
+DEFECT 1 — resource-gradient ascent was malformed. `gradientHeading` and
+`detritusHeading` computed `dN = (n - e)`: they compared the NORTH sample
+against the EAST sample and took no south sample at all. `gradientHeading`
+additionally took its "east" probe at `(px + probe, py + probe)`, a diagonal
+position that measures neither axis cleanly. Organisms seeking nutrients or
+detritus therefore steered off a gradient that was not one.
+
+DEFECT 2 — predation assimilation was applied twice. `gross` already
+included `carnivoreDigestion`, and `unassimilatedShare = gross * (1 - cd)`
+made `delta = gross * cd`. The effective yield was carnivoreDigestion
+SQUARED. Herbivory, in the same function, has always applied digestion once.
+At cd ~ 0.8 the predator received ~0.64 instead of ~0.80.
+
+DEFECT 3 — mating was not reciprocal. The resolver comment claimed "Both
+sides consented ... reciprocal by construction", but `onMate(as, ds)` fired
+from a single submission with no requirement that the other organism had
+selected MATE. A second, previously unrecorded consequence: two organisms
+that mutually selected each other recorded two contacts and both resolved,
+charging `onMate()` twice for one pairing.
+
+THE FIXES. Gradient: four axis-aligned samples, `dE = (e - w)`,
+`dN = (n - s)`. Predation: `gross` is pre-assimilation intake, digestion
+applied once through the unassimilated share, matching herbivory. Mating:
+actPhase records mating CANDIDATES instead of submitting; a new phase 4b
+(`resolveMatingIntent`) runs after the whole act phase — necessary, because
+actPhase walks slots in order and a partner with a higher index has not chosen
+yet when the contact is recorded — and submits only pairs where both intents
+are MATE, once each, in canonical slot order (a < b).
+
+VALIDATION OF THE FIXES. Four new gate checks (G6a-d, G7, G8a-c), each
+verified by NEGATIVE TEST — reverting the defect in a scratch tree and
+confirming the gate fails. This mattered: the first version of the gradient
+gate was VACUOUS. It asserted compass buckets, and the defective formula
+lands in the correct bucket for both an eastward and a northward field, so
+it PASSED against the code it was written to catch. Replaced with exact-angle
+assertions plus a diagonal field, which discriminates. Recorded here because
+a gate that cannot fail is worse than no gate.
+
+  - G6a/G6c fail with the gradient defect restored; G6b/G6d hold (supporting).
+  - G6e fails with the `detritusHeading` defect restored.
+  - G7 fails with the double application restored.
+  - G8b fails with the intent reciprocity requirement removed.
+  - G8d fails with the mutual-selection requirement removed.
+  - G8c fails with the canonical dedupe removed.
+
+RE-PINNED PARITY (knobs unset, 500 ticks, engine ts-evo-poc/0.5.0):
+
+  seed 517    P778 / C169 / D63    (retired: 881/187/73 @ 0.4.1)
+  seed 24601  P597 / C246 / D103   (retired: 658/280/98 @ 0.4.1)
+
+The retired values are recorded in `scripts/contract-checks.mjs` beside the
+new ones and in AGENTS.md, so the re-pin is visible rather than silent. An
+intermediate pair (859/146/68 and 586/260/103) was measured mid-fix, before a
+mating partner was required to have selected the organism BACK rather than
+merely be in reproductive intent. That intermediate is not a pin and is not
+recorded as one.
+
+SECOND DEFECT FOUND IN THE FIX ITSELF. Independent review of this change
+caught a bug I introduced: the canonical `a < b` filter, intended to prevent a
+mutually-recorded pair resolving twice, also silently discarded every contact
+recorded from the higher slot. Whether a mating happened therefore depended on
+slot INDEX rather than biology — rename slots and the outcome flips.
+
+Reprocessed: reciprocity now means mutual SELECTION, not merely mutual intent.
+A partner must have selected this organism back (`mateTarget[b] === a`). That
+requirement is what makes the slot-order filter lossless rather than a silent
+discard, because the contact test is symmetric — the same two bodies measured
+from either side — so a mutually-selecting pair always records both
+directions, and exactly one satisfies `a < b`. A contact whose partner is
+courting someone else is rejected by the mutual-selection test regardless of
+which slot recorded it.
+
+COVERAGE ADDED FOR IT: G8d stages exactly that case — both organisms in MATE
+intent, in contact, but the partner courting a third organism — and requires
+zero matings. It fails when the mutual-selection check is removed. Also
+G6e, because `detritusHeading` had the same gradient defect, was fixed in the
+same commit, and was previously untested; it has its own synthetic-field
+coverage now and fails when its defect is restored.
+
+STATUS: 17/17 gates, 11/11 contract checks, typecheck clean, viewer builds
+and the bundle agrees with the CLI probe on both pinned seeds.
+
+WHAT THIS DOES NOT SETTLE. Nothing ecological. Every ladder verdict above
+was gathered under the defective engine and none of it transfers. In
+particular the consumer-viability question that rungs 2-6 were circling was
+investigated under a predation yield that was ~20% lower than intended and a
+gradient that was not a gradient, so the standing conclusion ("no single-knob
+lever produced three-guild balance") is a statement about 0.4.1 only.
+
+H6 (reproSurplusTicks:10, 18 seeds) remains formally UNRESOLVED and must be
+re-run under 0.5.0 rather than closed against 0.4.1 numbers.

@@ -16,7 +16,7 @@ This file governs repository practice only.
 
 `ts-evolution-poc` — a disposable, evidence-driven experiment in whole-ecosystem
 evolutionary simulation. Single TypeScript tree. Engine version
-`ts-evo-poc/0.4.1`.
+`ts-evo-poc/0.5.0`.
 
 - **STATUS: EXPERIMENTAL. NOT PRODUCTION CODE.**
 - Judged on **reproducibility, honest accounting, emergence without forcing,
@@ -101,8 +101,13 @@ Required before a change is considered done:
 1. **Typecheck clean.**
 2. **Gates pass** (`src/gates.ts`).
 3. **Knobs-unset parity exact** against pinned values — currently seed 517 →
-   `P881 C187 D73` and 24601 → `P658 C280 D98` at 500 ticks. A change that
-   alters these with no knob set has changed declared behaviour.
+   `P778 C169 D63` and 24601 → `P597 C246 D103` at 500 ticks, engine
+   `ts-evo-poc/0.5.0`. A change that alters these with no knob set has changed
+   declared behaviour. These values were **re-pinned** when three defects were
+   corrected in 0.5.0; the previous pin (`517 → P881 C187 D73`,
+   `24601 → P658 C280 D98`) belonged to the defective 0.4.1 engine and is
+   retired. Do not restore it, and do not compare 0.4.1 figures against 0.5.0
+   runs — they are different simulation semantics, not two samples of one.
 4. **Presence checks, not only parity.** Parity proves defaults behave; it
    cannot detect that an intended key is *absent* from a shipped artefact.
    Assert the keys you added are actually present in the artefact.

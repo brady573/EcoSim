@@ -310,8 +310,11 @@ export class InteractionQueue {
 
       // --- Reciprocal interaction: mating. ---------------------------------
       if (kind === INTERACTION.MATE) {
-        // Both sides consented by mutually detecting; this is reciprocal by
-        // construction, and both sides pay a cost in onMate().
+        // Reciprocity is NOT decided here. By the time a mating reaches this
+        // point the world has already checked that BOTH organisms selected
+        // INTENT.MATE this tick (see World.resolveMatingIntent) and collapsed
+        // the pair into one submission. A one-sided submission is never
+        // queued. Both sides pay a cost in onMate().
         onMate(as, ds);
         this.record(aid, did, kind, OUTCOME.ATTACKER_WINS, 0, 0, 0);
         continue;
@@ -354,7 +357,13 @@ export class InteractionQueue {
           // over herbivory on fibrous material. Modelled as a higher base than
           // the detritus pathway uses.
           const carnivoreDigestion = 0.55 + eff * 0.35;
-          const gross = preyMass * meatYield * take * carnivoreDigestion;
+          // `gross` is the tissue INTAKE, before assimilation. Digestion is
+          // applied exactly once, via the unassimilated share below, so the
+          // predator keeps carnivoreDigestion of intake. Folding digestion in
+          // here as well made the effective yield carnivoreDigestion^2 and
+          // silently taxed the predator guild; herbivory has always been the
+          // single-application reference for this structure.
+          const gross = preyMass * meatYield * take;
           // Unassimilated tissue is left behind rather than destroyed: a
           // predator's leftovers subsidise scavengers, which is how carcasses
           // feed the level below it.

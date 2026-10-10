@@ -330,6 +330,17 @@ export class World {
   /** Reused behaviour-utility scratch. Fixed at INTENT_COUNT options. */
   private intentScores = new Float64Array(8);
 
+  /**
+   * Mating contacts collected during actPhase, resolved once the whole phase
+   * has run. A contact is only a CANDIDATE here: neither organism's final
+   * intent is authoritative until every slot has acted, because actPhase walks
+   * slots in order and a partner with a higher slot index has not chosen yet
+   * at the moment the contact is recorded.
+   */
+  private mateCandA = new Int32Array(1024);
+  private mateCandB = new Int32Array(1024);
+  private mateCandN = 0;
+
   /** Live-packed position/slot arrays for the spatial index build. */
   private packedX = new Float32Array(4096);
   private packedY = new Float32Array(4096);
@@ -1329,6 +1340,11 @@ export class World {
     this.actPhase();
     const t4 = now();
 
+    // --- Phase 4b: reciprocal mating ---------------------------------------
+    // actPhase only recorded mating CONTACTS; the intent array is not
+    // authoritative until every slot has acted, so consent is settled here.
+    this.resolveMatingIntent();
+
     // --- Phase 5: contested interactions -----------------------------------
     // Requests were submitted during actPhase; resolve them now while every
     // participant is still guaranteed live.
@@ -1393,6 +1409,7 @@ export class World {
     const store = this.store;
     const cfg = this.config;
     const n = store.count;
+    this.mateCandN = 0;
     if (n === 0) return;
     const p = store.physical;
     const x = store.x;
@@ -1766,8 +1783,20 @@ export class World {
             const dSq = mateDistSq;
             if (dSq < (store.hitRadius[slot] + store.hitRadius[mate] + 3) ** 2) {
               moveAmount = 0;
-              this.submittedByKind[INTERACTION.MATE]++;
-              this.interactions.submit(this.store, slot, mate, INTERACTION.MATE, 0);
+              // Recorded, not submitted. Whether this contact matures into a
+              // mating depends on the PARTNER also choosing MATE this tick,
+              // and the partner may not have acted yet.
+              if (this.mateCandN >= this.mateCandA.length) {
+                const grown = new Int32Array(this.mateCandA.length * 2);
+                grown.set(this.mateCandA);
+                this.mateCandA = grown;
+                const grownB = new Int32Array(this.mateCandB.length * 2);
+                grownB.set(this.mateCandB);
+                this.mateCandB = grownB;
+              }
+              this.mateCandA[this.mateCandN] = slot;
+              this.mateCandB[this.mateCandN] = mate;
+              this.mateCandN++;
             }
           }
           break;
@@ -2346,8 +2375,6 @@ export class World {
   /** Heading toward the steepest local nutrient gradient. */
   private gradientHeading(px: number, py: number, heading: number, sense: number, probe: number): number {
     const cfg = this.config;
-    const nx = Math.min(cfg.worldW, px + probe);
-    const ny = Math.min(cfg.worldH, py + probe);
     const gw = cfg.worldW / this.nutrients[0].cols;
     const gh = cfg.worldH / this.nutrients[0].rows;
     // Sum across pools so a producer climbs whichever gradient is steepest
@@ -2357,11 +2384,16 @@ export class World {
       for (const f of this.nutrients) t += f.sample(x, y, gw, gh);
       return t;
     };
-    const e = sampleAll(nx, ny);
-    const s = sampleAll(Math.max(0, px - probe), py);
+    // Four axis-aligned samples. Sampling each axis independently is the whole
+    // point: a diagonal probe measures neither the east-west nor the
+    // north-south difference cleanly, and comparing north against east mixes
+    // two perpendicular axes into one bogus gradient.
+    const e = sampleAll(Math.min(cfg.worldW, px + probe), py);
+    const w = sampleAll(Math.max(0, px - probe), py);
     const n = sampleAll(px, Math.max(0, py - probe));
-    const dE = (e - s) * sense;
-    const dN = (n - e) * sense;
+    const s = sampleAll(px, Math.min(cfg.worldH, py + probe));
+    const dE = (e - w) * sense;
+    const dN = (n - s) * sense;
     if (Math.abs(dE) < 1e-9 && Math.abs(dN) < 1e-9) return heading;
     return Math.atan2(-dN, dE);
   }
@@ -2372,12 +2404,53 @@ export class World {
     const w = cfg.worldW / this.detritus.cols;
     const h = cfg.worldH / this.detritus.rows;
     const e = this.detritus.sample(Math.min(cfg.worldW, px + probe), py, w, h);
-    const s = this.detritus.sample(Math.max(0, px - probe), py, w, h);
+    const wst = this.detritus.sample(Math.max(0, px - probe), py, w, h);
     const n = this.detritus.sample(px, Math.max(0, py - probe), w, h);
-    const dE = (e - s) * sense;
-    const dN = (n - e) * sense;
+    const s = this.detritus.sample(px, Math.min(cfg.worldH, py + probe), w, h);
+    const dE = (e - wst) * sense;
+    const dN = (n - s) * sense;
     if (Math.abs(dE) < 1e-9 && Math.abs(dN) < 1e-9) return heading;
     return Math.atan2(-dN, dE);
+  }
+
+  /**
+   * Phase 4b: turn recorded mating contacts into submissions.
+   *
+   * RECIPROCITY here means mutual SELECTION, not merely mutual intent. A
+   * contact matures only when the partner chose this organism back
+   * (`mateTarget[b] === a`) in addition to both organisms being in MATE intent.
+   * One-sided intent is not consent: the partner may have been fleeing, grazing
+   * or hunting, or courting someone else entirely.
+   *
+   * That requirement is what makes the canonical-order filter below
+   * LOSSLESS rather than a silent discard. When selection is mutual, the
+   * contact test is symmetric — `dSq` compares the same two bodies from either
+   * side — so BOTH organisms record the pair, one as (a,b) and one as (b,a).
+   * Exactly one satisfies a < b. A contact whose partner selected someone
+   * else is rejected by the mateTarget test regardless of which slot recorded
+   * it, so keeping only the low-slot direction loses nothing. Filtering on
+   * slot order alone (without the mateTarget test) WOULD lose real matings:
+   * whether a pairing happened would depend on slot indices rather than
+   * biology.
+   *
+   * Reading intent and mateTarget is only sound after the whole act phase has
+   * run, which is why this is a separate phase rather than an inline check.
+   */
+  private resolveMatingIntent(): void {
+    const count = this.mateCandN;
+    if (count === 0) return;
+    const store = this.store;
+    for (let i = 0; i < count; i++) {
+      const a = this.mateCandA[i];
+      const b = this.mateCandB[i];
+      if (a >= b) continue; // self-contact, or the pair seen from the other side
+      if (this.intent[a] !== INTENT.MATE || this.intent[b] !== INTENT.MATE) continue;
+      // The partner must have selected THIS organism, not merely be in MATE
+      // intent with someone else.
+      if (this.mateTarget[b] !== a) continue;
+      this.submittedByKind[INTERACTION.MATE]++;
+      this.interactions.submit(store, a, b, INTERACTION.MATE, 0);
+    }
   }
 
   // -------------------------------------------------------------------------

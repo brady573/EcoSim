@@ -109,9 +109,34 @@ function probeArgs(over = {}) {
   return a;
 }
 
+/**
+ * Knobs-unset parity, re-pinned for engine ts-evo-poc/0.5.0.
+ *
+ * The PREVIOUS pin (seed 517 -> 881/187/73, seed 24601 -> 658/280/98) was
+ * measured under 0.4.1 and is RETIRED, not corrected. Three behavioural
+ * defects were fixed between the two versions:
+ *
+ *   - resource-gradient ascent compared north against east with no south
+ *     sample, and probed east on the diagonal (both gradientHeading and
+ *     detritusHeading);
+ *   - predation assimilation was applied twice (effective yield carnivore
+ *     digestion squared);
+ *   - mating matured from a ONE-SIDED submission, charged onMate() twice when
+ *     two organisms mutually selected each other, and dropped contacts
+ *     according to slot index rather than mutual selection.
+ *
+ * Measured in two passes: an intermediate 859/146/68 and 586/260/103 was
+ * taken before mutual SELECTION (as opposed to mutual intent) was required of
+ * a mating partner. That intermediate pair is not a pin and is not recorded as
+ * one; the values below are the single 0.5.0 origin.
+ *
+ * Every multi-seed ladder and balance verdict recorded before this pin
+ * describes 0.4.1 semantics. They are provenance, not current behaviour, and
+ * must not be compared against figures produced by this engine.
+ */
 const PINNED = [
-  { seed: 517, want: [881, 187, 73] },
-  { seed: 24601, want: [658, 280, 98] },
+  { seed: 517, want: [778, 169, 63], retired: '881/187/73 @ ts-evo-poc/0.4.1' },
+  { seed: 24601, want: [597, 246, 103], retired: '658/280/98 @ ts-evo-poc/0.4.1' },
 ];
 
 if (!hasBuild) {
@@ -122,8 +147,8 @@ if (!hasBuild) {
     const got = lastRow(runProbe(probeArgs({ seed: p.seed, ticks: 500 })));
     const ok = got !== null && got.prod === p.want[0] && got.cons === p.want[1] && got.dec === p.want[2];
     check('C1', `parity seed ${p.seed} (knobs unset)`, ok,
-      ok ? `P${got.prod}/C${got.cons}/D${got.dec} matches pinned`
-         : `expected P${p.want.join('/C')}/D${p.want[2]}, got ${fmt(got)}`);
+      ok ? `P${got.prod}/C${got.cons}/D${got.dec} matches pinned (0.5.0; retired ${p.retired})`
+         : `expected P${p.want.join('/C')}/D${p.want[2]} (0.5.0), got ${fmt(got)}`);
   }
 }
 

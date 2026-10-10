@@ -11,14 +11,20 @@
  *   G3 causal resource accounting
  *   G4 consistent births and deaths
  *   G5 explicit deterministic resolution of contested interactions
+ *   G6 gradient ascent samples both axes independently
+ *   G7 trophic assimilation is applied exactly once
+ *   G8 mating requires reciprocal intent
  *
  * Run: pnpm gates   (designed to finish in a few seconds at small scale)
  */
 
 import { World } from './world/world.js';
 import { WORLD_ENGINE_VERSION } from './world/version.js';
-import { INTERACTION } from './bio/interactions.js';
-import { TRAIT_COUNT } from './bio/genome.js';
+import { INTERACTION, InteractionQueue } from './bio/interactions.js';
+import { TRAIT, TRAIT_COUNT } from './bio/genome.js';
+import { OrganismStore } from './core/soa.js';
+import { Rng } from './core/rng.js';
+import { INTENT } from './world/world.js';
 
 interface GateResult {
   id: string;
@@ -322,6 +328,306 @@ function gate5(): void {
 }
 
 // ---------------------------------------------------------------------------
+// G6 — gradient ascent samples both axes independently
+//
+// A purely horizontal resource field must yield an eastward heading and a
+// purely vertical one a northward heading. This is a white-box gate: it reaches
+// the private heading helpers directly and injects a synthetic field, because
+// the bug it guards (comparing north against east, and probing east on the
+// diagonal) is invisible from the outside — it only missteers.
+type GradientProbe = {
+  nutrients: { cols: number; rows: number; data: Float32Array }[];
+  gradientHeading(px: number, py: number, heading: number, sense: number, probe: number): number;
+  detritusHeading(px: number, py: number, heading: number, sense: number, probe: number): number;
+};
+
+function gate6(): void {
+  const probeDist = 60;
+  const cx = SMALL.worldW / 2;
+  const cy = SMALL.worldH / 2;
+
+  /** Build a world whose EVERY nutrient pool carries the same synthetic field. */
+  const build = (eastward: boolean, northward: boolean): GradientProbe => {
+    const w = new World({ config: { ...SMALL } });
+    const p = w as unknown as GradientProbe;
+    // gradientHeading SUMS across all pools, so writing only pool 0 leaves the
+    // others contributing their own gradient — the field is then not synthetic
+    // at all and every assertion below becomes meaningless. Write them all.
+    for (const field of p.nutrients) {
+      for (let cy2 = 0; cy2 < field.rows; cy2++) {
+        for (let cx2 = 0; cx2 < field.cols; cx2++) {
+          // Value rises along x when eastward, along -y when northward, so the
+          // two axes are varied independently and can be checked separately.
+          const x = cx2 / (field.cols - 1);
+          const y = 1 - cy2 / (field.rows - 1);
+          field.data[cy2 * field.cols + cx2] = (eastward ? x : 0) + (northward ? y : 0);
+        }
+      }
+    }
+    return p;
+  };
+
+  /**
+   * Exact heading comparison, NOT a compass bucket.
+   *
+   * A bucket test was tried first and is VACUOUS: with the original defect
+   * (north sampled against east, no south sample) a purely eastward field
+   * lands in the "east" bucket and a purely northward field in "north",
+   * because the malformed term happens to carry the right sign in both cases.
+   * The gate passed against the code it was written to catch. Exact angles
+   * plus a diagonal field are what actually separate the two models.
+   */
+  const near = (a: number, b: number, tol = 1e-6): boolean => Math.abs(a - b) < tol;
+  const deg = (r: number): string => (((r * 180) / Math.PI + 360) % 360).toFixed(1);
+
+  const eastOnly = build(true, false).gradientHeading(cx, cy, 0, 1, probeDist);
+  const northOnly = build(false, true).gradientHeading(cx, cy, 0, 1, probeDist);
+  // Equal rise on both axes: correct sampling yields exactly -45 deg. The
+  // defective version collapses this to ~-90 deg (north), because its east
+  // probe is taken on the diagonal and its north term is measured against it.
+  const diagonal = build(true, true).gradientHeading(cx, cy, 0, 1, probeDist);
+  const neither = build(false, false).gradientHeading(cx, cy, 0.75, 1, probeDist);
+
+  record(
+    'G6a',
+    'horizontal nutrient gradient steers due east',
+    near(eastOnly, 0),
+    `purely eastward field -> ${deg(eastOnly)} deg, want 0.0 (due east).`,
+  );
+  record(
+    'G6b',
+    'vertical nutrient gradient steers due north',
+    near(northOnly, -Math.PI / 2),
+    `purely northward field -> ${deg(northOnly)} deg, want 270.0 (due north).`,
+  );
+  record(
+    'G6c',
+    'diagonal gradient splits the two axes',
+    near(diagonal, -Math.PI / 4, 0.02),
+    `equal east+north rise -> ${deg(diagonal)} deg, want 315.0 (north-east). ` +
+      `This is the discriminating case: comparing north against east, or probing ` +
+      `east on the diagonal, collapses it toward due north instead.`,
+  );
+  record(
+    'G6d',
+    'flat field preserves heading',
+    Math.abs(neither - 0.75) < 1e-9,
+    `flat field -> heading ${neither.toFixed(6)}, want the passed-in 0.75 (no spurious steering).`,
+  );
+
+  // detritusHeading had the SAME defect and was fixed in the same commit, but
+  // is a separate function with its own field and its own sampling calls. It
+  // needs its own coverage: a regression here would be invisible to G6a-d.
+  type DetritusProbe = GradientProbe & { detritus: { cols: number; rows: number; data: Float32Array } };
+  const buildDetritus = (eastward: boolean, northward: boolean): DetritusProbe => {
+    const w2 = new World({ config: { ...SMALL } });
+    const p2 = w2 as unknown as DetritusProbe;
+    const field = p2.detritus;
+    for (let cy2 = 0; cy2 < field.rows; cy2++) {
+      for (let cx2 = 0; cx2 < field.cols; cx2++) {
+        const x = cx2 / (field.cols - 1);
+        const y = 1 - cy2 / (field.rows - 1);
+        field.data[cy2 * field.cols + cx2] = (eastward ? x : 0) + (northward ? y : 0);
+      }
+    }
+    return p2;
+  };
+
+  const detEast = buildDetritus(true, false).detritusHeading(cx, cy, 0, 1, probeDist);
+  const detNorth = buildDetritus(false, true).detritusHeading(cx, cy, 0, 1, probeDist);
+  const detDiag = buildDetritus(true, true).detritusHeading(cx, cy, 0, 1, probeDist);
+
+  record(
+    'G6e',
+    'detritus gradient matches nutrient gradient',
+    near(detEast, 0) && near(detNorth, -Math.PI / 2) && near(detDiag, -Math.PI / 4, 0.02),
+    `detritus: east=${deg(detEast)} deg (want 0.0), north=${deg(detNorth)} deg (want 270.0), ` +
+      `diagonal=${deg(detDiag)} deg (want 315.0). Same axis sampling as the nutrient ` +
+      `path; the two functions are separate and each needs its own guard.`,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// G7 — trophic assimilation is applied exactly once
+//
+// A synthetic two-organism contest measures the ENERGY THE CONTEST YIELDED and
+// compares it against BOTH candidate models: assimilation applied once (the
+// herbivory structure, and the intended reading) and applied twice (the defect).
+// A change in yield is worthless if it cannot be shown to be a specific factor
+// rather than "the numbers moved".
+//
+// The quantity is read from the resolution record, not from store.energy:
+// InteractionQueue.resolve computes a transfer and RECORDS it; applying it to
+// organism state is resolveContests' job in the World. Reading the store after
+// a bare resolve() reads 0 and would pass or fail for the wrong reason.
+function gate7(): void {
+  const store = new OrganismStore({ capacity: 2, label: 'gate7' });
+  store.count = 2;
+  store.id[0] = 1;
+  store.id[1] = 2;
+
+  const ao = 0 * TRAIT_COUNT;
+  const dop = 1 * TRAIT_COUNT;
+  const p = store.physical;
+
+  // Predator: big, well-armed, and decisively the stronger contestant. Combat
+// is decided by offensivePower vs defensivePower with a bounded random margin
+  // on each side, so a merely-large predator still loses roughly half the
+  // time; a gate that depends on that coin flip measures noise, not yield.
+  p[ao + TRAIT.SIZE] = 8;
+  p[ao + TRAIT.AGGRESSION] = 1;
+  p[ao + TRAIT.SPEED] = 1;
+  p[ao + TRAIT.BURST_POWER] = 1;
+  p[ao + TRAIT.DIGESTION_RATE] = 0.5;
+  p[ao + TRAIT.METABOLIC_EFFICIENCY] = 0.7;
+  p[ao + TRAIT.TOXIN] = 0.5;
+  p[ao + TRAIT.STORAGE_CAPACITY] = 1000;
+  p[dop + TRAIT.SIZE] = 1;
+  p[dop + TRAIT.STORAGE_CAPACITY] = 100;
+  // Predator starts empty: fuel scales combat power, so a fed predator would
+  // confound the win with headroom. Starting at zero also makes the room left
+  // for intake equal to the full capacity.
+  store.energy[0] = 0;
+  store.energy[1] = 0;
+
+  const q = new InteractionQueue();
+  q.submit(store, 0, 1, INTERACTION.PREDATE, 0);
+
+  const eff = p[ao + TRAIT.METABOLIC_EFFICIENCY];
+  const digest = p[ao + TRAIT.DIGESTION_RATE];
+  // Reproduction of the engine's own yield model, for the comparison only.
+  // Every input is read back from the store rather than restated, so the
+  // expected value cannot drift from what the engine was actually handed.
+  const meatYield = 1;
+  const preyMass = Math.pow(p[dop + TRAIT.SIZE], 1.4);
+  const take = Math.min(0.9, 0.35 + digest * 0.6);
+  const cd = 0.55 + eff * 0.35;
+  const once = preyMass * meatYield * take * cd;
+  const twice = once * cd;
+
+  q.resolve(
+    store,
+    () => true,
+    new Rng(4242),
+    1e9,
+    () => {},
+    () => {},
+    () => {},
+    () => {},
+    undefined,
+    meatYield,
+  );
+
+  const gained = q.peekRecords()[0]?.delta ?? 0;
+  const matchesOnce = Math.abs(gained - once) / Math.max(1e-9, once) < 0.02;
+  const matchesTwice = Math.abs(gained - twice) / Math.max(1e-9, twice) < 0.02;
+
+  record(
+    'G7',
+    'predation assimilation applied once, not squared',
+    matchesOnce && !matchesTwice,
+    `predator gained ${gained.toFixed(4)}; once=${once.toFixed(4)} (rel err ${(Math.abs(gained - once) / once).toFixed(4)}), ` +
+      `twice=${twice.toFixed(4)}. Must match the single-application model and NOT the squared one. ` +
+      `Herbivory has always been single-application; parity between the two paths is the intent.`,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// G8 — mating requires reciprocal intent
+//
+// White-box, because the defect was invisible from outside: a one-sided
+// submission produced offspring, so mating succeeded while looking like a
+// two-sided event. Each case asserts the exact number of matured pairs.
+function gate8(): void {
+  type MatingProbe = {
+    intent: Uint8Array<ArrayBuffer>;
+    mateTarget: Int32Array<ArrayBuffer>;
+    mateCandA: Int32Array<ArrayBuffer>;
+    mateCandB: Int32Array<ArrayBuffer>;
+    mateCandN: number;
+    submittedByKind: Int32Array;
+    resolveMatingIntent(): void;
+  };
+
+  const w = new World({ config: { ...SMALL } });
+  const m = w as unknown as MatingProbe;
+  m.intent.fill(INTENT.SETTLE, 0, 4);
+  m.mateTarget.fill(-1, 0, 4);
+
+  /** Stage a contact and report how many matings it produced. */
+  const stage = (
+    a: number,
+    b: number,
+    intentA: number,
+    intentB: number,
+    targetB: number,
+  ): number => {
+    m.intent[a] = intentA;
+    m.intent[b] = intentB;
+    m.mateTarget[a] = b; // the recorder always selected the partner
+    m.mateTarget[b] = targetB;
+    m.mateCandA[0] = a;
+    m.mateCandB[0] = b;
+    m.mateCandN = 1;
+    const before = m.submittedByKind[INTERACTION.MATE];
+    m.resolveMatingIntent();
+    return m.submittedByKind[INTERACTION.MATE] - before;
+  };
+
+  const mutual = stage(0, 1, INTENT.MATE, INTENT.MATE, 0);
+  const oneSided = stage(0, 1, INTENT.MATE, INTENT.FLEE, 0);
+  const reversed = stage(0, 1, INTENT.GRAZE, INTENT.MATE, 0);
+  // Both in MATE intent and in contact, but the partner is courting a third
+  // organism. This is the case a slot-order-only filter silently drops.
+  const courtingElsewhere = stage(0, 1, INTENT.MATE, INTENT.MATE, 2);
+
+  // A mutual pair recorded from BOTH sides must still mature exactly once,
+  // or onMate() is charged twice for a single pairing.
+  m.intent[0] = INTENT.MATE;
+  m.intent[1] = INTENT.MATE;
+  m.mateTarget[0] = 1;
+  m.mateTarget[1] = 0;
+  m.mateCandA[0] = 0;
+  m.mateCandB[0] = 1;
+  m.mateCandA[1] = 1;
+  m.mateCandB[1] = 0;
+  m.mateCandN = 2;
+  const beforeDup = m.submittedByKind[INTERACTION.MATE];
+  m.resolveMatingIntent();
+  const duplicated = m.submittedByKind[INTERACTION.MATE] - beforeDup;
+
+  record(
+    'G8a',
+    'mutual intent matures a mating',
+    mutual === 1,
+    `both MATE -> ${mutual} mating(s), want 1.`,
+  );
+  record(
+    'G8b',
+    'one-sided intent does not mature a mating',
+    oneSided === 0 && reversed === 0,
+    `A=MATE/B=FLEE -> ${oneSided} (want 0); A=GRAZE/B=MATE -> ${reversed} (want 0). ` +
+      `One-sided selection is not consent.`,
+  );
+  record(
+    'G8c',
+    'a mutually-recorded pair matures exactly once',
+    duplicated === 1,
+    `same pair staged from both sides -> ${duplicated} mating(s), want 1. ` +
+      `Resolving twice would double-charge onMate() and double the offspring.`,
+  );
+  record(
+    'G8d',
+    'mating requires MUTUAL selection, not just mutual intent',
+    courtingElsewhere === 0,
+    `A=MATE with B, B=MATE with a THIRD organism -> ${courtingElsewhere} mating(s), want 0. ` +
+      `Both being in MATE intent is not enough; B must have selected A back. ` +
+      `Without this check the slot-order filter decides the outcome by slot ` +
+      `index rather than by biology.`,
+  );
+}
+
+// ---------------------------------------------------------------------------
 
 function main(): void {
   console.log(`=== credibility gates :: ${WORLD_ENGINE_VERSION} ===`);
@@ -331,6 +637,9 @@ function main(): void {
   gate3();
   gate4();
   gate5();
+  gate6();
+  gate7();
+  gate8();
 
   const failed = results.filter((r) => !r.pass);
   console.log(`\n${results.length - failed.length}/${results.length} checks passed`);
