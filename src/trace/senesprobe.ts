@@ -137,6 +137,11 @@ const ZEROED = ZERO ? {
   producerCaptureScale: 0,
   // Consumers get no solar income either.
   consumerPhotoScale: 0,
+  // Decomposers had NO branch in the guild capture gate, so they captured at
+  // full demand regardless of the two scales above. This is a SECOND `--zero`
+  // entry point, so the preset must carry the entry too or `--zero` means
+  // different things depending on which probe runs it.
+  decomposerPhotoScale: 0,
   // No exogenous organic subsidy.
   basalFoodPerCell: 0,
   // No abiotic nutrient regeneration (the free lunch A+C was closing).

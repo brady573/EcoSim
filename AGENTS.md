@@ -16,7 +16,7 @@ This file governs repository practice only.
 
 `ts-evolution-poc` — a disposable, evidence-driven experiment in whole-ecosystem
 evolutionary simulation. Single TypeScript tree. Engine version
-`ts-evo-poc/0.5.0`.
+`ts-evo-poc/0.6.0`.
 
 - **STATUS: EXPERIMENTAL. NOT PRODUCTION CODE.**
 - Judged on **reproducibility, honest accounting, emergence without forcing,
@@ -102,15 +102,19 @@ Required before a change is considered done:
 2. **Gates pass** (`src/gates.ts`).
 3. **Knobs-unset parity exact** against pinned values — currently seed 517 →
    `P808 C159 D58` and 24601 → `P558 C290 D96` at 500 ticks, engine
-   `ts-evo-poc/0.5.0`. A change that alters these with no knob set has changed
+   `ts-evo-poc/0.6.0`. A change that alters these with no knob set has changed
    declared behaviour.
 
    These values were re-pinned **twice**. The chain of retired values is
    recorded in `scripts/contract-checks.mjs` beside the live ones:
    - `881/187/73`, `658/280/98` @ 0.4.1 — three behavioural defects corrected;
-   - `778/169/63`, `597/246/103` @ 0.5.0 pre-P0-1 — the mineralisation
-     broadcast was inflating substrate by the cell count, which changed
-     producer growth and therefore everything downstream.
+   - `778/169/63`, `597/246/103` @ 0.5.0 — the mineralisation broadcast was
+     inflating substrate by the cell count, which changed producer growth and
+     therefore everything downstream.
+
+   **Every 0.5.0 figure describes a LEAKY engine.** Decomposer photosynthesis
+   was never actually gated under `--zero` (issue #2 P0-2), so the flatline and
+   consumer-yield verdicts recorded at 0.5.0 must be re-run, not re-read.
 
    Do not restore any retired pair, and do not compare figures across them:
    they are different simulation semantics, not two samples of one process.

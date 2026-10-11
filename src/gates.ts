@@ -714,14 +714,23 @@ function gate10(): void {
   const liftBlock = /const ZERO_LIFTABLE = \{([\s\S]*?)\n\} as const/.exec(probeSrc);
   const inZeroed = zeroedBlock ? /decomposerPhotoScale:\s*0/.test(zeroedBlock[1]) : false;
   const inLifts = liftBlock ? /decomposerPhotoScale/.test(liftBlock[1]) : false;
+  // Asserted across BOTH probe entry points: `--zero` must mean the same
+  // thing whichever probe runs it.
+  const senesSrc = probePath.replace('scenesprobe.ts', 'senesprobe.ts');
+  const senesOk = existsSync(senesSrc)
+    ? /const ZEROED = ZERO \? \{([\s\S]*?)\n\s*\.\.\./.exec(readFileSync(senesSrc, 'utf8'))
+      ?.slice(1)[0]?.includes('decomposerPhotoScale: 0') ?? false
+    : false;
   record(
     'G10',
     'the --zero preset actually zeroes every guild capture',
-    inZeroed && !inLifts,
-    `scenesprobe ZEROED sets decomposerPhotoScale=0: ${inZeroed}; ` +
-      `ZERO_LIFTABLE wrongly claims decomposerPhotoScale: ${inLifts}. ` +
-      `The P0-2 leak was that entry landing in ZERO_LIFTABLE, so the preset is ` +
-      `asserted directly rather than reconstructed from config.`,
+    inZeroed && inLifts && senesOk,
+    `scenesprobe: ZEROED sets it=${inZeroed} (required), ZERO_LIFTABLE lifts ` +
+      `it=${inLifts} (also required — a preset you cannot override is not a ` +
+      `knob); senesprobe: ZEROED sets it=${senesOk} (required). ` +
+      `The P0-2 leak was the entry being in ZERO_LIFTABLE ONLY, which left the ` +
+      `baseline ungated while making it look controllable. Asserted on BOTH ` +
+      `probe entry points so --zero cannot mean different things per probe.`,
   );
 }
 

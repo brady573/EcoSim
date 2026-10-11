@@ -14,6 +14,12 @@
 /**
  * Bump on any behavioural change to the simulation.
  *
+ * 0.6.0 closes the energy accounting defects found by independent review
+ * (issue #2). Parity is re-pinned: 517 -> 808/159/58, 24601 -> 558/290/96.
+ * All figures recorded under 0.5.0 describe a LEAKY engine — decomposer
+ * photosynthesis was never actually gated under `--zero` — and are earlier-
+ * engine evidence, not current behaviour.
+ *
  * 0.5.0 corrects three defects found by independent review:
  *   - resource-gradient ascent compared north against east with no south
  *     sample, and probed east on the diagonal;
@@ -25,7 +31,7 @@
  * All figures recorded under 0.4.1 describe the DEFECTIVE semantics and are
  * provenance only. See REPORT.md.
  */
-export const WORLD_ENGINE_VERSION = 'ts-evo-poc/0.5.0';
+export const WORLD_ENGINE_VERSION = 'ts-evo-poc/0.6.0';
 
 /** Identifier for the credibility-check suite that accompanies this version. */
-export const GATE_SUITE_VERSION = 'gates/0.3.0';
+export const GATE_SUITE_VERSION = 'gates/0.4.0';

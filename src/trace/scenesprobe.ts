@@ -131,6 +131,10 @@ const ZERO_LIFTABLE = {
   meatYieldPerMass: 0,
   grazeYieldScale: 0,
   plantYieldPerMass: 0,
+  // Also in ZEROED: the preset sets the baseline, this authorises the override.
+  // Belonging in BOTH is correct — the P0-2 bug was being in ZERO_LIFTABLE
+  // ONLY, which left the baseline ungated while making it look controllable.
+  decomposerPhotoScale: 0,
 } as const;
 const ZEROED = ZERO ? {
   // No primary energy: producers cannot photosynthesise at all.
