@@ -94,6 +94,7 @@ interchangeable.
 ```sh
 tsc -p tsconfig.json --noEmit                    # typecheck
 tsx src/gates.ts                                 # behavioural gates
+node scripts/workflow-checks.mjs                 # evidence-layer fixtures
 ```
 
 Required before a change is considered done:
@@ -124,6 +125,40 @@ Required before a change is considered done:
    Assert the keys you added are actually present in the artefact.
 5. **Determinism** — repeat runs byte-identical per seed and config.
 6. **Rejected inputs** — bad knob values throw loudly.
+7. **Evidence fixtures pass** (`node scripts/workflow-checks.mjs`). Required for
+   any change to `tools/ladder/`, `tools/diagnostics/`, `scripts/`, or the
+   workflows. Gates prove a *run* is sound; these prove the layer that reports
+   the run cannot report a measurement it did not take.
+
+### The evidence layer is not the engine
+
+`tools/ladder/`, `tools/diagnostics/` and `scripts/` produce and report
+measurements of the engine. They never compute biology, and a change there must
+not alter declared behaviour — parity (item 3) is the check for that.
+
+The rules this layer owes the record, each of which was violated at least once
+before the fixtures in `scripts/workflow-checks.mjs` existed to catch it:
+
+- **Absent evidence is never a pass.** A missing, truncated or non-finite
+  ledger field is a *failure of the measurement*, distinct from a measurement
+  that failed. The distinction must survive into the manifest, the CSV, and the
+  exit code.
+- **Balanced books are not compliance.** A system can mint energy, book it as
+  capture, and reconcile. A declared capture policy is enforced per guild, and a
+  guild that never existed is reported as a vacuous check, not as a pass and not
+  as a violation.
+- **A falsified prediction is a result.** Cohort integrity and scientific
+  outcome are separate verdicts. Under the Owner's decision of 2026-10-11, a
+  green workflow means **the evidence is trustworthy** — never that the
+  hypothesis was correct. Non-zero exit is reserved for an evidence-integrity
+  violation or an execution failure. Falsification must still be stated
+  prominently in the step summary and in `cohort-verdict.json`, because a green
+  tick that reads as confirmation is how a negative result gets misread as a
+  confirmed one.
+- **An override never masquerades as the pre-registered run.** A cohort executed
+  at a different horizon cannot report the pre-registered verdict.
+- **Dispatch input is data.** It reaches a step through `env:` and is read as an
+  argv argument. It is never interpolated into a `run:` body.
 
 ### Build traps
 

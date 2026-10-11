@@ -78,9 +78,23 @@ on:
 permissions:
   contents: read
 
+# QUEUE, DO NOT REPLACE — same reason and same fix as ladder.yml.
+#
+# The default `queue: single` cancels the PENDING run when a newer one is
+# dispatched, so two screens submitted in quick succession silently dropped the
+# first. Diagnostics screens are expensive and slow to re-run; losing one loses
+# the measurement. `queue: max` preserves up to 100 pending runs in order, and
+# GitHub cancels only once that queue is full.
+#
+# `queue: max` is incompatible with `cancel-in-progress: true` (a validation
+# error), so the flag stays false. A fixture asserts the pair.
+#
+# Screens on DIFFERENT suites are kept apart so a config-only screen cannot
+# block a factorial screen behind it.
 concurrency:
-  group: diagnostics-${{ github.ref }}
+  group: diagnostics-${{ github.ref }}-${{ inputs.suite }}
   cancel-in-progress: false
+  queue: max
 
 jobs:
   diagnostics:
@@ -135,52 +149,69 @@ jobs:
           done
           exit $missing
 
+      # Dispatch inputs reach the script through the ENVIRONMENT, never by
+      # interpolation into the run: body. GitHub expands `${{ }}` BEFORE the
+      # shell parses anything, so a value containing $(id) executes during
+      # expansion — ahead of every validation the planner or the kit performs.
+      # Quoting does not help; the substitution has already happened.
+      #
+      # The planner's only job here is to REJECT bad input loudly, at dispatch
+      # time, before an expensive screen is launched. It does not shard: this job
+      # runs the legs itself via run-diagnostics.sh, which does its own
+      # expansion through the same validated expander. Two allocators would be
+      # two answers to "which seeds does leg N cover".
+      - name: Validate dispatch inputs
+        env:
+          DIAG_SEEDS: ${{ inputs.seeds }}
+          DIAG_LEGS: ${{ inputs.legs }}
+          DIAG_TICKS: ${{ inputs.ticks }}
+          DIAG_INTERVAL: ${{ inputs.interval }}
+          DIAG_MODE: ${{ inputs.mode }}
+          DIAG_SUITE: ${{ inputs.suite }}
+          DIAG_TARGET: ${{ inputs.target }}
+        run: |
+          set -euo pipefail
+          node tools/diagnostics/plan-seeds.mjs cli \
+            "$DIAG_SEEDS" "$DIAG_LEGS" "$DIAG_TICKS" "$DIAG_INTERVAL" \
+            "$DIAG_MODE" "$DIAG_SUITE" "$DIAG_TARGET"
+
       - name: Run diagnostics
+        env:
+          DIAG_KIT: tools/diagnostics/evo-diagnostics.mjs
+          DIAG_OUT: ./diag-out
+          DIAG_SEEDS: ${{ inputs.seeds }}
+          DIAG_LEGS: ${{ inputs.legs }}
+          DIAG_TICKS: ${{ inputs.ticks }}
+          DIAG_INTERVAL: ${{ inputs.interval }}
+          DIAG_MODE: ${{ inputs.mode }}
+          DIAG_SUITE: ${{ inputs.suite }}
+          DIAG_TARGET: ${{ inputs.target }}
         run: |
           set -euo pipefail
           sh scripts/run-diagnostics.sh \
-            tools/diagnostics/evo-diagnostics.mjs \
-            ./diag-out \
-            "${{ inputs.legs }}" \
-            "${{ inputs.seeds }}" \
-            "${{ inputs.ticks }}" \
-            "${{ inputs.interval }}" \
-            "${{ inputs.mode }}" \
-            "${{ inputs.suite }}" \
-            "${{ inputs.target }}"
+            "$DIAG_KIT" "$DIAG_OUT" "$DIAG_LEGS" "$DIAG_SEEDS" \
+            "$DIAG_TICKS" "$DIAG_INTERVAL" "$DIAG_MODE" "$DIAG_SUITE" "$DIAG_TARGET"
 
       # A screen that cannot report is not a screen. Legs write separate output
       # directories and are deliberately NOT merged — merging hand-written CSVs to
       # fake one result file would be fabricating a combined measurement. Each leg
       # manifest states the seeds it covered.
+      #
+      # This step previously printed `m.targets.length` unconditionally, but the
+      # factorial-core manifest carries `switches` and no `targets` at all. A
+      # fully successful factorial screen therefore threw inside this
+      # `if: always()` step and left the workflow reporting FAILURE. The
+      # summariser reads whichever schema is present and never throws.
+      #
+      # It also never fails the job: whether the EXPERIMENT succeeded is the
+      # experiment job's business. This step only describes what exists.
       - name: Summarise
         if: always()
+        env:
+          DIAG_OUT: ./diag-out
         run: |
           set -euo pipefail
-          {
-            echo "### Engine"
-            for m in diag-out/leg*/manifest.json; do
-              [ -e "$m" ] || continue
-              node -e "
-                const fs=require('fs');
-                const m=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));
-                const skipped=(m.skippedTargets||[]).length;
-                console.log('- leg ' + process.argv[1].split('/')[1] +
-                  ': seeds=' + JSON.stringify(m.seeds) +
-                  ', targets=' + m.targets.length +
-                  ', runs=' + m.runCount +
-                  ', unsweepable=' + skipped);
-              " "$m"
-            done
-          } >> "$GITHUB_STEP_SUMMARY"
-
-          {
-            echo ""
-            echo "### Inert controls (no observed state change)"
-            cat diag-out/leg*/effects.csv 2>/dev/null \
-              | awk -F, 'NR>1 && $NF=="NO_OBSERVED_STATE_CHANGE" {print "- " $1 " @ " $4}' \
-              | sort -u | head -40
-          } >> "$GITHUB_STEP_SUMMARY"
+          node tools/diagnostics/summarise.mjs "$DIAG_OUT"
 
       - name: Upload diagnostics
         if: always()

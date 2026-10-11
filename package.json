@@ -18,7 +18,9 @@
     "regime": "tsx src/regime.ts",
     "build:app": "tsc -p tsconfig.app.json --pretty false && node scripts/bundle-app.mjs && node scripts/assemble-app.mjs",
     "diag": "node tools/diagnostics/evo-diagnostics.mjs",
-    "contract": "node scripts/contract-checks.mjs ."
+    "contract": "node scripts/contract-checks.mjs .",
+    "workflow": "node scripts/workflow-checks.mjs",
+    "cohort": "node tools/ladder/cohort-verify.mjs"
   },
   "devDependencies": {
     "@types/node": "26.6.4",

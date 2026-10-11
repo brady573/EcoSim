@@ -16,6 +16,8 @@ name: CI
 #   - the app bundle and the compiled CLI probe still agree
 #   - the built engine actually contains the config keys (presence, not parity)
 #   - the delivered viewer is self-contained
+#   - the evidence layer cannot report a measurement it did not take
+#     (workflow fixtures; see the Workflow evidence fixtures step)
 #
 # Explicitly NOT gated here, by choice:
 #   - long-horizon simulations and 18-seed ladders: evidence generation, not
@@ -27,6 +29,7 @@ name: CI
 # Runtime notes (measured on the dev device, warm):
 #   typecheck ~1.0s | tsc build ~1.0s | tsc app ~0.3s | bundle ~0.15s
 #   gates ~1.0s | contract checks ~5.7s  <- dominant cost
+#   workflow fixtures ~0.05s (no simulation, no probe)
 # The contract checks dominate, so they are the thing to keep fast. Probes are
 # memoised on their exact argv inside the checker, which collapses 8 call sites
 # to 5 distinct worlds. Do not parallelise the checks at the cost of determinism
@@ -92,6 +95,19 @@ jobs:
 
       - name: Contract checks
         run: npm run contract
+
+      # Evidence-integrity fixtures for the workflow layer: the ladder runner,
+      # the cohort verifier, the seed planner, the manifest summariser, and the
+      # workflows' own shell-safety. Every fixture is a way this repository
+      # could previously have produced a clean green run that measured nothing,
+      # and none of them can be reached by a successful run — which is why they
+      # are fixtures rather than assertions inside the runner.
+      #
+      # Fast and dependency-free by construction: no simulation, no probe, no
+      # network. Expensive scientific sweeps stay opt-in in the dispatch-only
+      # workflows, per the layering this repository deliberately keeps.
+      - name: Workflow evidence fixtures
+        run: npm run workflow
 
       - name: Upload built engine on failure
         if: failure()

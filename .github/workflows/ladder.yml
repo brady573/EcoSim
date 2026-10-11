@@ -55,9 +55,31 @@ on:
 permissions:
   contents: read
 
+# QUEUE, DO NOT REPLACE.
+#
+# GitHub's documented default for a concurrency group is `queue: single`: at
+# most one run may be PENDING, and a new run CANCELS the pending one waiting
+# behind it. Two ladder dispatches submitted an hour apart on the same branch
+# therefore silently dropped the first, with a cancelled status that reads like
+# an ordinary cancellation rather than a policy decision. This repository loses
+# experiments that way, and a lost experiment is a lost measurement.
+#
+# `queue: max` lets up to 100 runs wait and execute in order, so every dispatched
+# experiment survives. When the queue is full, further runs are cancelled: that
+# is the spend cap, and it is GitHub's rather than ours.
+#
+# `queue: max` with `cancel-in-progress: true` is a workflow VALIDATION ERROR,
+# so cancel-in-progress must stay false. A fixture asserts both halves of that
+# constraint, because the failure mode is a workflow that cannot run at all.
+#
+# The group is keyed on branch AND arm, so different arms never block each
+# other. It deliberately does NOT include `github.run_attempt`: that counter
+# starts at 1 for every newly dispatched run, so it is not a dispatch identity,
+# and including it gave a false impression of separating same-arm dispatches.
 concurrency:
-  group: ladder-${{ github.ref }}
+  group: ladder-${{ github.ref }}-${{ inputs.arm }}
   cancel-in-progress: false
+  queue: max
 
 jobs:
   # Cap legs at the seed count so no leg launches with zero seeds to run.
@@ -117,26 +139,18 @@ jobs:
 
       # Report the pre-registration up front, so a reader sees the hypothesis
       # and the falsification condition BEFORE any result.
+      #
+      # The arm name arrives through the ENVIRONMENT, never as `${{ inputs.arm }}`
+      # inside the script body. GitHub expands expressions before the shell
+      # parses anything, so an interpolated value containing $(id) would execute
+      # during expansion — ahead of any validation, in a workflow step that runs
+      # with the repository checked out.
       - name: Show pre-registration
+        env:
+          LADDER_ARM: ${{ inputs.arm }}
         run: |
           set -euo pipefail
-          node -e '
-            const s=require("./tools/ladder/arms.json");
-            const a=s.arms["${{ inputs.arm }}"];
-            const p=a.preregistered;
-            const out=[
-              "### Pre-registration",
-              `- arm: \`${{ inputs.arm }}\` — ${a.title}`,
-              `- declared: ${p}`,
-              `- hypothesis: ${a.hypothesis}`,
-              `- prediction: ${a.prediction}`,
-              `- falsified if: ${a.falsification}`,
-            ];
-            if(a.notPredicted) out.push(`- NOT predicted: ${a.notPredicted}`);
-            for(const c of (a.confoundsControlled||[])) out.push(`- confound controlled: ${c}`);
-            require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY, out.join("\n")+"\n");
-            console.log(out.join("\n"));
-          '
+          node tools/ladder/plan-legs.js prereg "$LADDER_ARM"
 
       - name: Run arm
         env:
@@ -194,4 +208,76 @@ jobs:
         with:
           name: ladder-${{ inputs.arm }}-${{ github.run_number }}-leg${{ matrix.leg }}
           path: ladder-out/
+          if-no-files-found: warn
+
+  # --------------------------------------------------------------------------
+  # Cohort verification — the stage that was missing entirely.
+  #
+  # Every leg above checks ITS OWN output. None of them can tell whether the
+  # PANEL was measured: a leg that never launched, a seed measured twice, or a
+  # leg left over from a different engine all produce the same thing — a set of
+  # green jobs and a meaningless number. `consumer-yield` predicted three-guild
+  # survival on >= 12/18 seeds and nothing in the workflow ever established it.
+  #
+  # This stage is READ-ONLY over the artifacts the legs already uploaded. It
+  # never re-runs a seed and never merges leg outputs into a single measured
+  # result; it reports what the immutable per-leg evidence actually supports.
+  #
+  # IT DISTINGUISHES TWO VERDICTS, and the exit code follows only the first:
+  #   integrity — was every declared seed measured exactly once, from one engine?
+  #   science   — supported / falsified / not measured, per the pre-registration.
+  # A falsified prediction is a RESULT and exits 0. Conflating it with a broken
+  # run is how a genuine finding gets mistaken for bad infrastructure.
+  # --------------------------------------------------------------------------
+  cohort:
+    name: Verify cohort
+    needs: ladder
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    env:
+      LADDER_ARM: ${{ inputs.arm }}
+      LADDER_RUN: ${{ github.run_id }}
+    steps:
+      - uses: actions/checkout@v5
+
+      # Download EVERY leg's immutable artifacts, one directory per artifact.
+      #
+      # `merge-multiple` MUST stay false. Each leg uploads `ladder-out/`, so each
+      # artifact root holds its own manifest.json / summary.csv / seed-*.txt.
+      # Merging them into one directory makes every leg overwrite the previous
+      # one's manifest — the cohort then sees a single colliding manifest and
+      # can never assemble a multi-leg panel at all. Separate directories are
+      # what let the verifier prove disjoint, exhaustive seed coverage.
+      - name: Download leg artifacts
+        uses: actions/download-artifact@v5
+        with:
+          pattern: ladder-${{ inputs.arm }}-${{ github.run_number }}-leg*
+          path: legs
+          merge-multiple: false
+
+      - name: Verify cohort
+        run: |
+          set -euo pipefail
+          # Collect each leg's directory explicitly. A glob that matched nothing
+          # would pass an empty list to the verifier, and "no legs" must be a
+          # failure rather than a vacuous success.
+          set -- 
+          for d in legs/*/; do
+            [ -f "$d/manifest.json" ] && set -- "$@" "${d%/}"
+          done
+          if [ "$#" -eq 0 ]; then
+            echo "::error::no leg manifests were produced; the panel was not measured"
+            exit 1
+          fi
+          node tools/ladder/cohort-verify.mjs tools/ladder/arms.json "$LADDER_ARM" "$@"
+
+      - name: Upload cohort verdict
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: ladder-${{ inputs.arm }}-${{ github.run_number }}-cohort
+          path: legs/
           if-no-files-found: warn

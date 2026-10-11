@@ -157,6 +157,25 @@
       "hypothesis": "Removing the doubled digestion tax raises consumer net yield enough to move consumers from ~0 into persistent three-guild worlds on a majority of seeds.",
       "prediction": "consumers > 0 on at least 12/18 seeds at tick 6000, AND all three guilds non-zero on at least 12/18 seeds.",
       "falsification": "consumers == 0 on 7 or more of 18 seeds, or all three guilds non-zero on fewer than 12/18 seeds.",
+      "$criteriaNote": "Machine-readable form of `prediction`, added for the cohort verifier (issue #5 item 7). The prose above stays authoritative; this only makes the same statement checkable. Both clauses must hold for the arm to read as supported.",
+      "criteria": [
+        {
+          "id": "consumers-viable",
+          "metric": "cons",
+          "op": ">",
+          "value": 0,
+          "required": 12,
+          "statement": "consumers > 0 at tick 6000"
+        },
+        {
+          "id": "three-guild-persistence",
+          "metric": "allGuildsNonZero",
+          "op": "==",
+          "value": 1,
+          "required": 12,
+          "statement": "all three guilds non-zero at tick 6000"
+        }
+      ],
       "confoundsControlled": [
         "18-seed panel 41001-41018, identical to the 0.4.1 ladder panel",
         "6000-tick horizon, identical",

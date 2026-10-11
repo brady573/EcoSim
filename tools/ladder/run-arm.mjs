@@ -25,9 +25,15 @@
  */
 
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
+
+import {
+  parseLedgerStrict, classifyLedgerStatus, residualWithinTolerance,
+  evaluateCapturePolicy, parseCheckpoints, permittedGuilds,
+} from './evidence.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..', '..');
@@ -198,30 +204,16 @@ function parseHeader(line) {
 }
 
 /**
- * Read the FINAL guild state from the probe's tabular output.
+ * Guild state is read from the probe's checkpoint rows — "tick pop prod cons
+ * decomp | dormant ..." — by parseCheckpoints in ./evidence.mjs, which also
+ * records per-guild presence across the whole run for the capture non-vacuity
+ * check. It was extracted so CI can test the parsing without a simulation.
  *
  * The probe's trailing JSON line is deliberately minimal
- * ({seed,ticks,setting}) — it does NOT carry guild counts. Guild state lives in
- * the checkpoint rows: "tick pop prod cons decomp | dormant ...". Parsing the
- * JSON instead yields a clean CSV of nulls that LOOKS like a measured result
- * and measures nothing, so this reads the last checkpoint row instead.
+ * ({seed,ticks,setting}) — it does NOT carry guild counts. Parsing the JSON
+ * instead yields a clean CSV of nulls that LOOKS like a measured result and
+ * measures nothing.
  */
-function parseFinalRow(lines) {
-  let last = null;
-  for (const line of lines) {
-    // Anchored on the leading tick + the '|' separator so the trailing summary
-    // lines, which also contain digits and slashes, cannot match.
-    const m = /^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s*\|/.exec(line);
-    if (m) {
-      last = {
-        tick: Number(m[1]), pop: Number(m[2]),
-        prod: Number(m[3]), cons: Number(m[4]), dec: Number(m[5]),
-      };
-    }
-  }
-  if (!last) throw new Error('no checkpoint row found in probe output');
-  return last;
-}
 
 /**
  * WHAT THE HEADER CHECK CAN AND CANNOT CATCH.
@@ -253,21 +245,85 @@ function assertMeasured(manifest) {
 
 mkdirSync(outDir, { recursive: true });
 
+
+/**
+ * RESOLVED IDENTITY (issue #5 item 6).
+ *
+ * The manifest used to record what was DECLARED — arm, seeds, horizon, lifts —
+ * and nothing about what actually RAN. Two arms could differ in engine version,
+ * commit, or resolved config and produce indistinguishable manifests, so a
+ * cohort assembled from them was not checkable after the fact.
+ *
+ * The engine identity is read from the COMPILED build, not from the workflow or
+ * from arms.json, because arms.json can be stale relative to the code it claims
+ * to describe. If the build is missing this cannot be checked, and the field
+ * records the reason rather than guessing.
+ */
+function resolveIdentity() {
+  let engine = null;
+  let gateSuite = null;
+  let engineError = null;
+  try {
+    const src = readFileSync(join(root, 'build', 'world', 'version.js'), 'utf8');
+    engine = /WORLD_ENGINE_VERSION\s*=\s*'([^']+)'/.exec(src)?.[1] ?? null;
+    gateSuite = /GATE_SUITE_VERSION\s*=\s*'([^']+)'/.exec(src)?.[1] ?? null;
+    if (!engine) engineError = 'compiled engine reports no WORLD_ENGINE_VERSION';
+  } catch (err) {
+    engineError = `compiled build/world/version.js not readable (${String(err.message).slice(0, 120)})`;
+  }
+
+  let commit = process.env.GITHUB_SHA ?? null;
+  if (!commit) commit = currentCommit() === 'unknown' ? null : currentCommit();
+
+  return {
+    engine, gateSuite, engineError,
+    commit,
+    ref: process.env.GITHUB_REF ?? null,
+    runtime: process.version,
+    // Fingerprint the arm declaration itself, so a cohort verifier can prove
+    // every leg was driven by the same text rather than by a same-named but
+    // edited file.
+    armSpecHash: createHash('sha256').update(readFileSync(armsPath, 'utf8')).digest('hex'),
+    armSpecPath: armsPath,
+  };
+}
+
+const identity = resolveIdentity();
+
 const manifest = {
   arm: armName,
   title: arm.title,
   preregistered: arm.preregistered,
+  /**
+   * Resolved from the COMPILED build and the checkout, so it describes what
+   * actually RAN rather than what the declaration asked for.
+   *
+   * ONE identity block, deliberately. PR #4 introduced a second `engineIdentity`
+   * carrying the same engine version and commit; two fields answering one
+   * question is how a reader ends up quoting whichever one says what they
+   * expected. The historical-replay caveat now lives here, with the values it
+   * qualifies.
+   */
+  identity: {
+    ...identity,
+    note: 'The probe always ran from the current checkout. A historical arm spec '
+      + 'applied here is a settings replay, not a reproduction of its original figure.',
+  },
+  /** Capture policy implied by the declaration, stated up front so a reader
+   *  can see what the leg was permitted to earn before seeing what it earned. */
+  capturePolicy: {
+    zero: !!arm.zero,
+    permitted: permittedGuilds(!!arm.zero, arm.lifts ?? {}).permitted,
+  },
   seedCount: seeds.length,
+  /** The shard's exact assigned seeds. Written so the cohort verifier can tell
+   *  "this leg never ran seed X" from "this leg was never assigned seed X" —
+   *  without it, `seedCount` alone cannot support that distinction. */
+  seeds,
   declaredSeedCount: allSeeds.length,
   shard: { index: shardIndex, count: shardCount },
   historicalSpec: HISTORICAL && allowHistoricalSpec,
   historicalEngineReproduced: false,
-  engineIdentity: {
-    note: 'The probe always ran from the current checkout. A historical arm spec '
-        + 'applied here is a settings replay, not a reproduction of its original figure.',
-    engineVersion: readEngineVersion(),
-    gitCommit: currentCommit(),
-  },
   ticks,
   declaredTicks,
   ticksOverrideApplied: ticksOverride !== null,
@@ -279,10 +335,12 @@ const manifest = {
     falsification: arm.falsification,
     notPredicted: arm.notPredicted ?? null,
     confoundsControlled: arm.confoundsControlled ?? [],
+    criteria: arm.criteria ?? null,
   },
   runs: [],
   headerMismatches: [],
   failures: [],
+  warnings: [],
 };
 
 for (const seed of seeds) {
@@ -329,8 +387,11 @@ for (const seed of seeds) {
 
 
   let final;
+  let checkpoints;
   try {
-    final = parseFinalRow(lines);
+    checkpoints = parseCheckpoints(lines);
+    final = checkpoints.final;
+    if (!final) throw new Error('no checkpoint row found in probe output');
   } catch (err) {
     manifest.failures.push({ seed, error: `checkpoint rows: ${err.message}` });
     continue;
@@ -338,6 +399,7 @@ for (const seed of seeds) {
 
   const row = {
     seed,
+    argv,
     header,
     prod: final.prod,
     cons: final.cons,
@@ -352,28 +414,96 @@ for (const seed of seeds) {
       seed, want: { finalTick: ticks }, got: { finalTick: final.tick },
     });
   }
-  // Conservation is MEASURED here, not inferred from population. The probe's
-  // LEDGER line reports the accounting identity: total input versus biomass +
-  // detritus + dissipation. A near-zero residual is direct evidence that no
-  // energy is being created, which population counts and B/D ratios cannot
-  // establish on their own.
-  const ledgerLine = lines.find((l) => l.startsWith('LEDGER '));
-  if (ledgerLine) {
-    const g = (re) => { const m = re.exec(ledgerLine); return m ? Number(m[1]) : null; };
-    row.totalInput = g(/totalInput=(-?[\d.]+)/);
-    row.residualPct = g(/residualPct=(-?[\d.]+)/);
-    if (row.residualPct !== null && Math.abs(row.residualPct) > 0.5) {
-      manifest.failures.push({
+
+  // --- Conservation, MEASURED and STRICTLY validated. ------------------------
+  //
+  // This used to be `if (residualPct !== null && abs(residualPct) > 0.5)`, which
+  // meant an absent, truncated or NaN residual skipped the check entirely and
+  // the seed still reported a number. parseLedgerStrict never returns a usable
+  // ledger from an unusable line, so "not measured" can no longer read as
+  // "measured and fine".
+  const parsed = parseLedgerStrict(lines);
+  row.ledgerStatus = parsed.status;
+  row.ledgerClass = classifyLedgerStatus(parsed.status);
+  if (parsed.status !== 'ok') {
+    manifest.failures.push({
+      seed,
+      error: `${row.ledgerClass}: ${parsed.problems.join('; ')}`,
+      evidenceClass: row.ledgerClass,
+    });
+  } else {
+    const l = parsed.ledger;
+    row.totalInput = l.totalInput;
+    row.residualPct = l.residualPct;
+    row.capture = l.capture;
+    row.captureByGuild = l.captureByGuild;
+
+    const tol = residualWithinTolerance(l);
+    row.residualOk = tol.pass;
+    if (!tol.pass) {
+      manifest.failures.push({ seed, error: tol.detail, evidenceClass: 'accounting-violation' });
+    }
+
+    // --- The declared capture policy. ---------------------------------------
+    // Accounting can balance perfectly while a FORBIDDEN energy input is booked
+    // as capture, which is exactly how the decomposer leak survived a
+    // zero-residual run. This is asserted per guild, against the declared lifts.
+    const cap = evaluateCapturePolicy({
+      ledger: l, zero: !!arm.zero, lifts: arm.lifts ?? {}, finalRow: checkpoints,
+    });
+    row.capturePolicyOk = cap.pass;
+    if (!cap.pass) {
+      manifest.failures.push({ seed, error: cap.detail, evidenceClass: 'capture-policy-violation' });
+    }
+    // Vacuity is recorded as a limitation of the MEASUREMENT, not a violation
+    // of it. A forbidden guild that never existed cannot have captured, so it is
+    // not a leak — but "its capture was zero" also carries no information, and
+    // the manifest has to say which of those two things happened.
+    if (cap.vacuous && cap.vacuous.length > 0) {
+      row.captureVacuous = cap.vacuous;
+      manifest.warnings.push({
         seed,
-        error: `accounting residual ${row.residualPct}% exceeds 0.5% tolerance — energy conservation is violated on this seed`,
+        warning: cap.vacuous.join('; '),
+        evidenceClass: 'capture-vacuous',
       });
     }
-  } else {
-    manifest.failures.push({ seed, error: 'probe emitted no LEDGER line; conservation could not be measured' });
   }
 
   manifest.runs.push(row);
   writeFileSync(join(outDir, `seed-${seed}.txt`), stdout);
+}
+
+// A run whose engine cannot be identified cannot be compared with any other
+// run, including its own re-run, and a cohort verifier cannot prove its legs
+// share an engine. That makes the artifacts unreplayable, so it fails the leg
+// rather than emitting a number nobody can trace back to a simulation.
+//
+// Declared AFTER `manifest` exists: this used to sit above the declaration and
+// threw a TDZ ReferenceError on exactly the path that matters most — a missing
+// or stale compiled build — destroying the one diagnostic that would have
+// explained the failure.
+if (!identity.engine) {
+  manifest.failures.push({
+    seed: null,
+    error: identity.engineError
+      ?? 'engine version could not be resolved from the compiled build — the artifacts would carry no replayable identity',
+    evidenceClass: 'identity-mismatch',
+  });
+}
+
+/**
+ * A declared engine that disagrees with the engine that actually ran means the
+ * pre-registration describes a different simulation than the one measured. That
+ * is rejected BEFORE the run is allowed to look valid — a number produced by the
+ * wrong engine is worse than no number, because it will be compared with one.
+ */
+if (arm.expectEngine && arm.expectEngine !== identity.engine) {
+  manifest.failures.push({
+    seed: null,
+    error: `arm declares engine '${arm.expectEngine}' but the compiled build reports ` +
+      `'${identity.engine ?? 'unknown'}' — the artifacts and the declaration describe different simulations`,
+    evidenceClass: 'identity-mismatch',
+  });
 }
 
 writeFileSync(join(outDir, 'manifest.json'), JSON.stringify(manifest, null, 2));
@@ -384,18 +514,29 @@ writeFileSync(join(outDir, 'manifest.json'), JSON.stringify(manifest, null, 2));
 // Per-seed outputs stay separate. They are deliberately NOT merged: merging
 // hand-written rows into one combined measurement would fabricate a result
 // nobody ran.
-const csv = ['seed,prod,cons,dec,pop,totalInput,residualPct'];
-for (const r of manifest.runs) csv.push(`${r.seed},${r.prod},${r.cons},${r.dec},${r.pop},${r.totalInput},${r.residualPct}`);
+//
+// The ledger status is a column, not a footnote. A blank or missing measurement
+// must be visible in the CSV a human actually reads, not only in the manifest.
+const csv = ['seed,prod,cons,dec,pop,totalInput,residualPct,ledgerStatus,capturePolicyOk'];
+for (const r of manifest.runs) {
+  csv.push([
+    r.seed, r.prod, r.cons, r.dec, r.pop,
+    r.totalInput ?? '', r.residualPct ?? '',
+    r.ledgerStatus ?? 'unmeasured',
+    r.capturePolicyOk ?? '',
+  ].join(','));
+}
 writeFileSync(join(outDir, 'summary.csv'), csv.join('\n') + '\n');
 
 const ok = manifest.runs.length === seeds.length
   && manifest.headerMismatches.length === 0
   && manifest.failures.length === 0;
 console.log(`arm=${armName} shard=${shardIndex}/${shardCount} seeds=${seeds.length}/${allSeeds.length} ` +
-  `ran=${manifest.runs.length} mismatches=${manifest.headerMismatches.length} failures=${manifest.failures.length}`);
+  `ran=${manifest.runs.length} mismatches=${manifest.headerMismatches.length} failures=${manifest.failures.length} ` +
+  `engine=${identity.engine ?? 'UNKNOWN'} commit=${(identity.commit ?? 'unknown').slice(0, 8)}`);
 if (!ok) {
   console.error('::error::arm did not complete as declared — see manifest.json');
   for (const m of manifest.headerMismatches.slice(0, 5)) console.error('  mismatch', JSON.stringify(m));
-  for (const f of manifest.failures.slice(0, 5)) console.error('  failure', JSON.stringify(f));
+  for (const f of manifest.failures.slice(0, 5)) console.error(`  failure [${f.evidenceClass ?? 'general'}]`, JSON.stringify(f));
   process.exit(1);
 }
