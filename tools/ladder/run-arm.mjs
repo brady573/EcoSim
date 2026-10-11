@@ -215,7 +215,10 @@ for (const seed of seeds) {
       cwd: root,
       encoding: 'utf8',
       maxBuffer: 64 * 1024 * 1024,
-      timeout: 15 * 60 * 1000,
+      // Scale with horizon. A flat 15-minute cap killed seed 31014 at 24000
+      // ticks with ETIMEDOUT — the run was fine, the budget was not. Cost is
+      // roughly linear in ticks x population, so scale off the horizon.
+      timeout: Math.max(15 * 60 * 1000, Number(ticks) * 2500),
     });
   } catch (err) {
     manifest.failures.push({ seed, error: String(err.message).slice(0, 300) });
