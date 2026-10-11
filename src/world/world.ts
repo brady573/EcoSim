@@ -607,6 +607,13 @@ export class World {
    * suppresses all regeneration.
    */
   cyclicFluxLastTick = 0;
+  /**
+   * Nutrient ACTUALLY written into the fields by the recycling loop last tick,
+   * counted inside the loop. `recycledLastTick` is derived algebraically from
+   * the same `share` expression, so it cannot distinguish "the loop ran" from
+   * "the loop was deleted". This counter can: G9 asserts on it.
+   */
+  recycledAppliedLastTick = 0;
 
   /**
    * Per-cell substrate ACTUALLY PROCESSED by mineralising organisms this tick.
@@ -1382,10 +1389,15 @@ export class World {
     // * NUTRIENT_COUNT, which must collapse back to the intended quantity.
     this.mineralisedLastTick = totalMineralised;
     this.recycledLastTick = share * nCells * NUTRIENT_COUNT;
+    let applied = 0;
     for (let nIdx = 0; nIdx < NUTRIENT_COUNT; nIdx++) {
       const nData = this.nutrients[nIdx].data;
-      for (let i = 0; i < nCells; i++) nData[i] += share;
+      for (let i = 0; i < nCells; i++) {
+        nData[i] += share;
+        applied += share; // measured inside the loop, not derived from the formula
+      }
     }
+    this.recycledAppliedLastTick = applied;
     const t2 = now();
 
     // --- Phase 3: spatial rebuild -----------------------------------------

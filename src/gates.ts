@@ -651,34 +651,52 @@ function gate8(): void {
 // capture per guild is zero, which is a stronger and more direct statement
 // than any population outcome.
 function gate9(): void {
-  // Assert the recycling ARITHMETIC directly, at two grid resolutions.
+  // Assert the ACTUAL nutrient-field writes, summed INSIDE the delivery loop.
   //
-  // An earlier version of this gate watched the standing nutrient field and
-  // was wrong three times: it measured per-cell background regeneration, then
-  // initial per-cell seeding, then net uptake rather than return. Uptake and
-  // return occur in the same ticks, so no field proxy can separate them. The
-  // quantity under test is a pure function of the mineralised total and the
-  // cell count, so it is asserted directly instead.
-  const run = (cell: number): { ratio: number } => {
+  // Two earlier versions were wrong. One compared recycledLastTick, which is
+  // derived from the same `share` formula, so it passed even with the delivery
+  // loop deleted. The next compared total applied across two grid resolutions —
+  // but those two runs are DIFFERENT simulations that mineralise different
+  // amounts, so comparing their totals compared two different experiments.
+  //
+  // The invariant is WITHIN one run: the amount written to the fields must equal
+  // mineralised x recyclingRate x 0.5. That catches a missing nCells division
+  // (which inflates the aggregate by the cell count) and a deleted loop (which
+  // writes nothing), and it is resolution-independent by construction. Run at
+  // two resolutions to show that.
+  type W = {
+    mineralisedLastTick: number;
+    recycledLastTick: number;
+    recycledAppliedLastTick: number;
+    config: { recyclingRate: number };
+    step(): void;
+  };
+  const run = (cell: number): { ratio: number; mineralised: number; applied: number; expected: number } => {
     const w = new World({
-      config: { ...SMALL, worldW: 1600, worldH: 1600, fieldCell: cell, founders: 60, nutrientRegen: 0, excretionRate: 0 } as never,
-    });
-    for (let i = 0; i < 40; i++) w.step();
-    const intended = w.mineralisedLastTick * w.config.recyclingRate * 0.5;
-    const got = w.recycledLastTick;
-    return { ratio: intended === 0 ? 1 : got / intended };
+      config: { ...SMALL, worldW: 1600, worldH: 1600, fieldCell: cell, founders: 150, nutrientRegen: 0, excretionRate: 0 } as never,
+    }) as unknown as W;
+    for (let i = 0; i < 120; i++) w.step();
+    const mineralised = w.mineralisedLastTick;
+    const expected = mineralised * w.config.recyclingRate * 0.5;
+    return { ratio: expected === 0 ? 0 : w.recycledAppliedLastTick / expected, mineralised, applied: w.recycledAppliedLastTick, expected };
   };
   const coarse = run(100); // 16 x 16 = 256 cells
   const fine = run(25); // 64 x 64 = 4096 cells, 16x more cells
-  const bothExact = Math.abs(coarse.ratio - 1) < 1e-9 && Math.abs(fine.ratio - 1) < 1e-9;
+  // Non-vacuity: both arms must actually have material to recycle, or a ratio
+  // of 1 is earned by doing nothing.
+  const fixtureOk = coarse.mineralised > 1e-3 && fine.mineralised > 1e-3;
+  const ok = Math.abs(coarse.ratio - 1) < 1e-9 && Math.abs(fine.ratio - 1) < 1e-9;
   record(
     'G9',
-    'recycled nutrient is grid-size invariant',
-    bothExact,
-    `recycled / (mineralised x recyclingRate x 0.5): coarse(256 cells)=${coarse.ratio.toFixed(6)} ` +
-      `fine(4096 cells)=${fine.ratio.toFixed(6)}, want exactly 1.000000. ` +
-      `A value near 16 means the return is still multiplied by the cell count; ` +
-      `the ratio is independent of resolution because both sides are per-tick totals.`,
+    'recycled nutrient is actually written and grid-size invariant',
+    fixtureOk && ok,
+    `coarse(256 cells): mineralised=${coarse.mineralised.toFixed(4)} applied=${coarse.applied.toFixed(4)} ` +
+      `expected=${coarse.expected.toFixed(4)} ratio=${coarse.ratio.toFixed(6)}; ` +
+      `fine(4096 cells): mineralised=${fine.mineralised.toFixed(4)} applied=${fine.applied.toFixed(4)} ` +
+      `expected=${fine.expected.toFixed(4)} ratio=${fine.ratio.toFixed(6)}. ` +
+      `Applied is summed inside the delivery loop, so deleting that loop or dropping ` +
+      `the nCells division both fail this. Totals are NOT compared across resolutions: ` +
+      `those runs mineralise different amounts.`,
   );
 }
 

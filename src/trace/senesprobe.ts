@@ -131,6 +131,10 @@ const ZERO_LIFTABLE = {
   meatYieldPerMass: 0,
   grazeYieldScale: 0,
   plantYieldPerMass: 0,
+  // Also in ZEROED: the preset sets the baseline, this authorises the override.
+  // A preset you cannot override is not a knob, and --zero-lift is how the
+  // decomposer mechanism gets isolated from the rest of the zero floor.
+  decomposerPhotoScale: 0,
 } as const;
 const ZEROED = ZERO ? {
   // No primary energy: producers cannot photosynthesise at all.
