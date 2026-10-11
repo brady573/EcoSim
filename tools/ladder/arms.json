@@ -222,7 +222,25 @@
         "Identical engine (ts-evo-poc/0.6.0); the ONLY difference from consumer-yield is the seed panel",
         "conservation enforced per seed at 0.5%; a seed above it fails the run rather than reporting"
       ],
-      "knownLimits": "Does not test decomposer viability directly, and does not resolve whether three-guild balance is reachable at all. A negative result here says the balance shortfall is robust, not that it is permanent."
+      "knownLimits": "Does not test decomposer viability directly, and does not resolve whether three-guild balance is reachable at all. A negative result here says the balance shortfall is robust, not that it is permanent.",
+      "criteria": [
+        {
+          "id": "consumers-viable",
+          "metric": "cons",
+          "op": ">",
+          "value": 0,
+          "required": 12,
+          "statement": "consumers > 0 at tick 6000 on at least 12/18 seeds"
+        },
+        {
+          "id": "three-guild-shortfall",
+          "metric": "allGuildsNonZero",
+          "op": "==",
+          "value": 0,
+          "required": 10,
+          "statement": "all three guilds non-zero on AT MOST 8/18 seeds \u2014 encoded as its exact complement, at least 10/18 seeds where allGuildsNonZero == 0. Counting the complement is what makes the boundary machine-checkable: 8 versus 9 is the supported/falsified edge."
+        }
+      ]
     }
   }
 }
