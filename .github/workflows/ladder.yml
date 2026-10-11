@@ -35,6 +35,7 @@ on:
         default: flatline
         options:
           - flatline
+          - horizon
           - consumer-yield
       ticks:
         description: Ticks per run (override for a smoke test)
@@ -146,7 +147,8 @@ jobs:
             "${{ inputs.arm }}" \
             ./ladder-out \
             "${{ matrix.leg }}" \
-            "${{ needs.plan.outputs.legs }}"
+            "${{ needs.plan.outputs.legs }}" \
+            "${{ inputs.ticks }}"
 
       - name: Summarise
         if: always()

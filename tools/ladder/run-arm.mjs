@@ -33,9 +33,26 @@ const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..', '..');
 const probe = join(root, 'build', 'trace', 'scenesprobe.js');
 
-const [armsPath, armName, outDir, shardIndexRaw, shardCountRaw] = process.argv.slice(2);
+const [armsPath, armName, outDir, shardIndexRaw, shardCountRaw, ticksRaw] = process.argv.slice(2);
 if (!armsPath || !armName || !outDir) {
-  console.error('usage: run-arm.mjs <arms.json> <armName> <outDir> [shardIndex] [shardCount]');
+  console.error('usage: run-arm.mjs <arms.json> <armName> <outDir> [shardIndex] [shardCount] [ticksOverride]');
+  process.exit(2);
+}
+
+/**
+ * Horizon override. The dispatch workflow exposes a ticks box; before this
+ * existed that box was DEAD — it parsed, it appeared in the UI, and it was
+ * never handed to the runner, which read ticks straight from arms.json. A
+ * control that parses and prints but never reaches the engine is the dead-knob
+ * class this repository forbids explicitly.
+ *
+ * An override is recorded in the manifest as an override, so a run at a
+ * different horizon still describes itself honestly and never masquerades as
+ * the pre-registered one.
+ */
+const ticksOverride = ticksRaw !== undefined && ticksRaw !== '' ? Number(ticksRaw) : null;
+if (ticksOverride !== null && (!Number.isInteger(ticksOverride) || ticksOverride <= 0)) {
+  console.error(`bad ticks override: ${ticksRaw}`);
   process.exit(2);
 }
 
@@ -72,6 +89,9 @@ function parseSeeds(spec_) {
   return out;
 }
 
+const declaredTicks = Number(arm.ticks);
+const ticks = ticksOverride ?? declaredTicks;
+
 const allSeeds = parseSeeds(arm.seeds);
 // Round-robin rather than contiguous blocks: contiguous blocks would put every
 // short-horizon seed in one leg and unbalance the wall clock.
@@ -83,7 +103,7 @@ function buildArgv(seed) {
   if (rest.length !== 15) {
     throw new Error(`argvRest must hold slots 2..16 (15 entries), got ${rest.length}`);
   }
-  const argv = [String(seed), String(arm.ticks), ...rest];
+  const argv = [String(seed), String(ticks), ...rest];
   if (arm.zero) argv.push('--zero');
   for (const [dial, value] of Object.entries(arm.lifts ?? {})) {
     argv.push(`--zero-lift=${dial}:${value}`);
@@ -170,7 +190,9 @@ const manifest = {
   seedCount: seeds.length,
   declaredSeedCount: allSeeds.length,
   shard: { index: shardIndex, count: shardCount },
-  ticks: arm.ticks,
+  ticks,
+  declaredTicks,
+  ticksOverrideApplied: ticksOverride !== null,
   zero: !!arm.zero,
   lifts: arm.lifts ?? {},
   preregistration: {
@@ -215,7 +237,7 @@ for (const seed of seeds) {
   // the remaining knobs are zeroed or lifted by the preset and are not all
   // echoed, so the check is partial BY CONSTRUCTION and is documented as such.
   const expectSeed = String(seed);
-  const expectTicks = String(arm.ticks);
+  const expectTicks = String(ticks);
   if (cfg.seed !== expectSeed || cfg.ticks !== expectTicks) {
     manifest.headerMismatches.push({ seed, want: { seed: expectSeed, ticks: expectTicks }, got: cfg });
   }
@@ -244,9 +266,9 @@ for (const seed of seeds) {
   };
   // The final checkpoint must actually BE the final tick, otherwise the
   // reported guild state is from an earlier horizon than the one declared.
-  if (final.tick !== Number(arm.ticks)) {
+  if (final.tick !== ticks) {
     manifest.headerMismatches.push({
-      seed, want: { finalTick: Number(arm.ticks) }, got: { finalTick: final.tick },
+      seed, want: { finalTick: ticks }, got: { finalTick: final.tick },
     });
   }
   manifest.runs.push(row);

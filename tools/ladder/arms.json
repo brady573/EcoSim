@@ -21,6 +21,27 @@
     "sat", "pcap", "nfloor", "rsur"
   ],
   "arms": {
+    "horizon": {
+      "title": "Does the --zero decomposer loop decay, or persist?",
+      "preregistered": "2026-10-10",
+      "$comment": "Runs LONGER than the pre-registered flatline horizon on the four surviving seeds, to distinguish an energy-POSITIVE loop (gains energy) from a neutrally stable loop (recycles the founder endowment without decay). The distinction decides whether the flatline falsification is a conservation break or a criticality result. Horizon is 4x the flatline arm.",
+      "seeds": "31002,31003,31014,31017",
+      "ticks": 24000,
+      "zero": true,
+      "lifts": {},
+      "argvRest": ["off", "4", "null", "null", "null", "null", "null",
+                   "null", "off", "off", "off", "0.4", "null", "0", "null"],
+      "hypothesis": "Two competing readings of the flatline falsification. H-A (leak): the decomposer loop is energy-positive, so it persists AND grows with horizon. H-B (criticality): the loop conserves energy and merely recycles the founder endowment, so it persists without growing and will eventually decay as basal dissipation outpaces recycling.",
+      "prediction": "H-A predicts population at 24000 ticks EXCEEDS its 6000-tick value. H-B predicts it is the same order of magnitude, oscillating, with decomp B/D near 1.0 and no upward trend across the four checkpoints.",
+      "falsification": "H-A is falsified if no seed exceeds its 6000-tick population at 24000 ticks, or if decomp B/D falls below 1.0 on every seed. H-B is falsified if any seed grows monotonically beyond its 6000-tick value.",
+      "notPredicted": "Absolute population values are not predicted; only the SHAPE across checkpoints distinguishes the two hypotheses.",
+      "confoundsControlled": [
+        "Same four seeds that survived the flatline arm, unchanged",
+        "Same argv, same --zero preset, no lifts",
+        "Only the horizon differs from the flatline arm",
+        "One variable: ticks"
+      ]
+    },
     "flatline": {
       "title": "Zero baseline re-verification under 0.5.0",
       "preregistered": "2026-10-10",
