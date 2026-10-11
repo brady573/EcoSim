@@ -37,10 +37,10 @@
   "arms": {
     "horizon": {
       "title": "Does the --zero decomposer loop decay, or persist?",
-      "note": "Seed panel originally 31002,31003,31014,31017. 31002/31003/31017 completed at 24000 and are REPORTED in REPORT.md; 31014 was killed by a per-seed timeout that has since been fixed to scale with horizon, so it is re-run alone. Narrowing the panel mid-experiment is recorded here rather than done silently.",
+      "note": "Seed panel originally 31002,31003,31014,31017. 31014 alone was re-run after a per-seed timeout that has since been fixed to scale with horizon; the full panel is now re-run so that EVERY seed carries a measured conservation residual (residualPct), not just a population trajectory. Population and B/D cannot establish conservation on their own, so the ledger residual is the quantity that matters and all four seeds must report it.",
       "preregistered": "2026-10-10",
       "$comment": "Runs LONGER than the pre-registered flatline horizon on the four surviving seeds, to distinguish an energy-POSITIVE loop (gains energy) from a neutrally stable loop (recycles the founder endowment without decay). The distinction decides whether the flatline falsification is a conservation break or a criticality result. Horizon is 4x the flatline arm.",
-      "seeds": "31014",
+      "seeds": "31002,31003,31014,31017",
       "ticks": 24000,
       "zero": true,
       "lifts": {},
