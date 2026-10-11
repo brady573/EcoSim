@@ -4770,3 +4770,49 @@ The `consumer-yield` result (consumers > 0 on 13/18, all three guilds on
 10/18, prediction required both >= 12/18) is therefore PARTIALLY SUPPORTED and
 falsified on the balance clause. It is no longer provisional on leak grounds,
 because there is no leak.
+
+================================================================================
+INDEPENDENT REVIEW OF 70a30f9 — THREE FINDINGS, ALL ACCEPTED
+================================================================================
+
+1. [High] The default `ticks` input defeated the horizon arm. The workflow
+   defaulted ticks to "6000" and the runner treats any non-empty value as an
+   override, so dispatching `horizon` with defaults would have run 24000-tick
+   seeds for 6000 ticks and recorded `ticksOverrideApplied: true`. Accepted.
+   The default is now "" (blank = use the arm's declared horizon). Note the
+   horizon run already dispatched passed ticks explicitly, so that run was
+   unaffected — but the workflow was a trap for the next person.
+
+2. [Medium] `${{ inputs.ticks }}` interpolated into a shell script body.
+   GitHub expands expressions before the shell parses, so a value containing
+   $(id) executes ahead of any validation the runner performs. Accepted.
+   Both the Run arm step and the plan step now pass dispatch input through the
+   ENVIRONMENT and read it as an argv argument. The plan step's inline
+   `node -e` moved into tools/ladder/plan-legs.js for the same reason.
+   Verified: plan-legs.js given '$(id)' rejects it as a non-integer argument
+   and does not execute it.
+
+3. [Medium] The horizon arm cannot establish energy conservation from
+   population counts and B/D ratios. Accepted, and it is the most important of
+   the three. A conservative system can grow while converting stored
+   resources; an energy-positive one can stabilise under density limits. My
+   "there is no leak" conclusion rested on exactly that inference.
+
+FIXED BY MEASURING INSTEAD OF INFERRING. The probe now emits a LEDGER line
+carrying the accounting identity itself:
+
+  LEDGER totalInput=... biomass=... detritus=... dissipated=... accounted=...
+         residualPct=...
+
+run-arm.mjs parses it per seed, records totalInput and residualPct in the
+manifest and summary.csv, and FAILS the run if any seed exceeds 0.5% residual
+(the same tolerance G3 uses). A missing LEDGER line is also a failure, so the
+measurement cannot be silently skipped.
+
+First measurement on a --zero world, seed 31017, 400 ticks:
+  totalInput=48268.6  residualPct=0.0001
+
+That is direct evidence, not inference. The conservation verdict now rests on
+the accounting identity, which is what the claim actually needed.
+
+STATUS: 17/17 gates, 11/11 contract checks, typecheck clean.

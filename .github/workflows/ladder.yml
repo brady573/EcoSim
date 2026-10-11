@@ -38,9 +38,9 @@ on:
           - horizon
           - consumer-yield
       ticks:
-        description: Ticks per run (override for a smoke test)
+        description: Horizon override in ticks (BLANK = use the arm's pre-registered ticks)
         type: string
-        default: "6000"
+        default: ""
       legs:
         description: Parallel seed shards (higher = faster, more CPU)
         type: string
@@ -65,22 +65,14 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - id: plan
+        env:
+          # Same rule as the Run arm step: dispatch input via the environment,
+          # never interpolated into the script body.
+          LADDER_ARM: ${{ inputs.arm }}
+          LADDER_LEGS: ${{ inputs.legs }}
         run: |
           set -euo pipefail
-          node -e '
-            const s=require("./tools/ladder/arms.json");
-            const arm=s.arms["${{ inputs.arm }}"];
-            const n=String(arm.seeds).split(",").reduce((a,p)=>{
-              const m=/^(\d+):(\d+)$/.exec(p.trim());
-              return a + (m ? Number(m[2])-Number(m[1])+1 : 1);
-            },0);
-            const want=Number("${{ inputs.legs }}");
-            const legs=Math.max(1, Math.min(want, n));
-            const matrix=JSON.stringify(Array.from({length:legs},(_,i)=>i));
-            console.log(`arm seeds=${n} requested legs=${want} -> ${legs} legs: ${matrix}`);
-            require("fs").writeFileSync(process.env.GITHUB_OUTPUT,
-              "matrix="+matrix+"\nlegs="+legs+"\n");
-          '
+          node tools/ladder/plan-legs.js "$LADDER_ARM" "$LADDER_LEGS"
 
   ladder:
     name: Ladder leg ${{ matrix.leg }}
@@ -141,14 +133,22 @@ jobs:
           '
 
       - name: Run arm
+        env:
+          # Dispatch inputs are passed through the ENVIRONMENT, not
+          # interpolated into the script body. GitHub substitutes `${{ }}`
+          # before the shell parses anything, so a value like $(id) would
+          # execute during expansion, ahead of any validation the runner does.
+          # Shell indirection also keeps the quoting honest.
+          LADDER_ARM: ${{ inputs.arm }}
+          LADDER_TICKS: ${{ inputs.ticks }}
         run: |
           node tools/ladder/run-arm.mjs \
             tools/ladder/arms.json \
-            "${{ inputs.arm }}" \
+            "$LADDER_ARM" \
             ./ladder-out \
             "${{ matrix.leg }}" \
             "${{ needs.plan.outputs.legs }}" \
-            "${{ inputs.ticks }}"
+            "$LADDER_TICKS"
 
       - name: Summarise
         if: always()

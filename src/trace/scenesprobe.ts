@@ -284,4 +284,19 @@ const bd = (g: number): string => {
   return `${b}/${dd2}=${dd2 > 0 ? (b / dd2).toFixed(2) : 'n/a'}`;
 };
 console.log(`B/D prod=${bd(0)} cons=${bd(1)} decomp=${bd(2)} senescenceDeaths=${w.senescenceDeaths} diseaseDeaths=${w.diseaseDeaths} diseaseMeals=${w.diseaseMeals} pioneerGrants=${w.pioneerGrants} pioGPG=${w.pioneerGrantsByGuild.join('/')} grazeSubmit=${w.submittedByKind[4]} grazeWins=${w.grazeWins} grazeEnergy=${Math.round(w.grazeEnergy)} grazeRequested=${Math.round(w.grazeRequested)}`);
+// Direct conservation measurement.
+//
+// Population counts and birth/death ratios do NOT establish whether energy is
+// conserved: a conservative system can grow while converting stored resources,
+// and an energy-positive one can stabilise under density limits. This reports
+// the accounting identity itself — inputs versus biomass + detritus +
+// dissipation — so an energy-balance claim rests on a measurement instead of
+// an inference from population shape.
+const L = w.ledger;
+const _biomass = L.biomass(w.store, (slot) => w.aliveAt(slot));
+const _det = w.detritus.total();
+const _dis = L.totalDissipated();
+const _residual = w.accountingResidualFraction();
+console.log(`LEDGER totalInput=${L.totalInput().toFixed(1)} biomass=${_biomass.toFixed(1)} detritus=${_det.toFixed(1)} dissipated=${_dis.toFixed(1)} accounted=${(_biomass + _det + _dis).toFixed(1)} residualPct=${(_residual * 100).toFixed(5)}`);
+
 console.log(JSON.stringify({ seed: SEED, ticks: TICKS, setting: settingLabel }));

@@ -274,6 +274,26 @@ for (const seed of seeds) {
       seed, want: { finalTick: ticks }, got: { finalTick: final.tick },
     });
   }
+  // Conservation is MEASURED here, not inferred from population. The probe's
+  // LEDGER line reports the accounting identity: total input versus biomass +
+  // detritus + dissipation. A near-zero residual is direct evidence that no
+  // energy is being created, which population counts and B/D ratios cannot
+  // establish on their own.
+  const ledgerLine = lines.find((l) => l.startsWith('LEDGER '));
+  if (ledgerLine) {
+    const g = (re) => { const m = re.exec(ledgerLine); return m ? Number(m[1]) : null; };
+    row.totalInput = g(/totalInput=(-?[\d.]+)/);
+    row.residualPct = g(/residualPct=(-?[\d.]+)/);
+    if (row.residualPct !== null && Math.abs(row.residualPct) > 0.5) {
+      manifest.failures.push({
+        seed,
+        error: `accounting residual ${row.residualPct}% exceeds 0.5% tolerance — energy conservation is violated on this seed`,
+      });
+    }
+  } else {
+    manifest.failures.push({ seed, error: 'probe emitted no LEDGER line; conservation could not be measured' });
+  }
+
   manifest.runs.push(row);
   writeFileSync(join(outDir, `seed-${seed}.txt`), stdout);
 }
@@ -286,8 +306,8 @@ writeFileSync(join(outDir, 'manifest.json'), JSON.stringify(manifest, null, 2));
 // Per-seed outputs stay separate. They are deliberately NOT merged: merging
 // hand-written rows into one combined measurement would fabricate a result
 // nobody ran.
-const csv = ['seed,prod,cons,dec,pop'];
-for (const r of manifest.runs) csv.push(`${r.seed},${r.prod},${r.cons},${r.dec},${r.pop}`);
+const csv = ['seed,prod,cons,dec,pop,totalInput,residualPct'];
+for (const r of manifest.runs) csv.push(`${r.seed},${r.prod},${r.cons},${r.dec},${r.pop},${r.totalInput},${r.residualPct}`);
 writeFileSync(join(outDir, 'summary.csv'), csv.join('\n') + '\n');
 
 const ok = manifest.runs.length === seeds.length
