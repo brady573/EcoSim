@@ -17,8 +17,12 @@
 # Usage: sh scripts/runprobe.sh <outfile> <probe args...>
 set -u
 OUT="$1"; shift
-ROOT=/root/DEE-TS-POC
-PROBE=experiment/ts-evolution-poc/build/trace/senesprobe.js
+# Derive the repo root from this script's own location rather than hardcoding
+# an absolute path. The hardcoded form pointed at a directory that stopped
+# existing when the repo moved to /root/EcoSim, and would have failed only at
+# run time, on the device's module-resolution path.
+ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+PROBE="$ROOT/build/trace/scenesprobe.js"
 ATTEMPTS=8
 i=1
 while [ "$i" -le "$ATTEMPTS" ]; do

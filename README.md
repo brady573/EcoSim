@@ -10,12 +10,18 @@ questions with evidence:
 2. Is there a hard performance wall that would justify a different execution
    approach (WASM, or something that is not TypeScript)?
 
-It is a **standalone repository** at `/root/DEE-TS-POC/experiment/ts-evolution-poc`
-on branch `main`, with its own history. It originated as an untracked directory
-inside the `DEE-TS-POC` worktree of Digital-Evolution-Ecosystem (based at
-`c247dd9`) and was promoted out on 2026-10-10; that base commit is recorded in
-the initial commit message for provenance, not as an ancestor. It touches **no
-production package**, adds **no new dependency**, and has **no remote**.
+It is a **standalone repository** at `/root/EcoSim` on branch `main`, with its
+own history. It originated as an untracked directory inside the `DEE-TS-POC`
+worktree of Digital-Evolution-Ecosystem (based at `c247dd9`), was promoted out
+on 2026-10-10, and moved to `/root/EcoSim` on 2026-10-10 during device
+housekeeping; the base commit is recorded in the initial commit message for
+provenance, not as an ancestor. It touches **no production package** and adds
+**no new dependency**. Upstream:
+<https://github.com/brady573/EcoSim>.
+
+> Historical path references remain in `REPORT.md`. They record where a run
+> actually happened at the time and are deliberately not rewritten — see the
+> evidence rules in `AGENTS.md`.
 
 See `AGENTS.md` for the engineering contract that governs this repository.
 
@@ -68,22 +74,25 @@ several biological abstractions that are listed and justified there.
 
 ## Prerequisites
 
-- Node >= 24 (uses the repo's existing toolchain)
-- Reuses `typescript`, `tsx` and `pixi.js` from the parent checkout's
-  `node_modules`. **No install step, no new packages.**
-
-If `node_modules` is missing, recreate the symlink to the canonical install:
+- Node >= 24
+- Dependencies are installed from the committed lockfile:
 
 ```sh
-cd /root/DEE-TS-POC && ln -sfn /root/Digital-Evolution-Ecosystem/node_modules node_modules
+cd /root/EcoSim
+npm ci
 ```
 
-Define convenience aliases used below:
+> **Do not symlink or borrow `node_modules` from another checkout.** That was
+> the earlier arrangement and it hid two undeclared dependencies (`@types/node`
+> and `pixi.js`) from CI for a full run. `npm ci` against the committed
+> `package-lock.json` is what CI does and the only arrangement under which the
+> declared dependency set is actually the one in use.
+
+Convenience aliases used below:
 
 ```sh
-cd /root/DEE-TS-POC/experiment/ts-evolution-poc
-TSX=/root/DEE-TS-POC/node_modules/.bin/tsx
-TSC=/root/DEE-TS-POC/node_modules/.bin/tsc
+cd /root/EcoSim
+TSC=./node_modules/.bin/tsc
 ```
 
 > **Run long probes against the compiled build, not `tsx`.** Transpilation
