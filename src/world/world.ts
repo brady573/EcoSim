@@ -600,6 +600,13 @@ export class World {
    */
   mineralisedLastTick = 0;
   recycledLastTick = 0;
+  /**
+   * Flux the cyclic regen term actually SAW last tick. Exposed so a gate can
+   * prove the term is not a kill-switch: if this is 0 while mineralisers are
+   * alive, the read and the clear are misordered and nutrientCyclic silently
+   * suppresses all regeneration.
+   */
+  cyclicFluxLastTick = 0;
 
   /**
    * Per-cell substrate ACTUALLY PROCESSED by mineralising organisms this tick.
@@ -1240,7 +1247,6 @@ export class World {
 
     // --- Phase 2: substrate fields ----------------------------------------
     const detritus = this.detritus;
-    this.mineralisedCell.fill(0);
     // External organic input (falling matter). This is an energy INPUT and is
     // recorded as such.
     const perCellOrganic = cfg.basalFoodPerCell;
@@ -1275,6 +1281,7 @@ export class World {
     // nutrient returns only where organic matter is actually being worked on
     // — decomposer activity — and a producer-only world slowly starves.
     const cyclic = cfg.nutrientCyclic === true;
+    this.cyclicFluxLastTick = 0;
     for (let nIdx = 0; nIdx < NUTRIENT_COUNT; nIdx++) {
       const nData = this.nutrients[nIdx].data;
       const mod = cfg.nutrientCapacity[nIdx] ?? 1;
@@ -1288,6 +1295,7 @@ export class World {
           // makes it a biotic coupling rather than background regeneration.
           const sat = Math.max(1e-6, cfg.mixotrophySaturation);
           const raw = this.mineralisedCell[i];
+          if (raw > this.cyclicFluxLastTick) this.cyclicFluxLastTick = raw;
           rate *= raw / (raw + sat);
         }
         nData[i] += (cap - nData[i]) * rate * drain[i];
@@ -1304,6 +1312,16 @@ export class World {
       }
       this.nutrients[nIdx].step(cfg.nutrientDiffusivity, cfg.nutrientDecay);
     }
+
+    // Clear the flux AFTER the regen loop has read it, not before.
+    //
+    // The fill used to sit at the top of this phase, so the cyclic term below
+    // always read 0 and `nutrientCyclic` behaved as a nutrient KILL-SWITCH
+    // rather than a coupling. The loop now reads the PREVIOUS tick's
+    // mineraliser throughput (a deliberate one-tick lag, since mineralisation
+    // itself runs later in actPhase), and the array is cleared here ready for
+    // this tick's accumulation.
+    this.mineralisedCell.fill(0);
 
     // Detritus mineralises: it leaves the biological loop as it becomes
     // inorganic nutrient. Energy that was in a corpse does NOT come back free.

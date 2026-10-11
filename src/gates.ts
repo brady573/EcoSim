@@ -18,6 +18,9 @@
  * Run: pnpm gates   (designed to finish in a few seconds at small scale)
  */
 
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { World } from './world/world.js';
 import { WORLD_ENGINE_VERSION } from './world/version.js';
 import { INTERACTION, InteractionQueue } from './bio/interactions.js';
@@ -680,31 +683,75 @@ function gate9(): void {
 }
 
 function gate10(): void {
-  const w = new World({
-    config: {
-      ...SMALL,
-      founders: 300,
-      producerCaptureScale: 0,
-      consumerPhotoScale: 0,
-      decomposerPhotoScale: 0,
-      basalFoodPerCell: 0,
-      nutrientRegen: 0,
-      excretionRate: 0,
-      meatYieldPerMass: 0,
-      grazeYieldScale: 0,
-      plantYieldPerMass: 0,
-    } as never,
-  });
-  for (let i = 0; i < 300; i++) w.step();
-  const g = [0, 1, 2].map((i) => w.ledger.capturedByGuild[i]);
-  const total = g.reduce((a, b) => a + b, 0);
+  // Assert on the PRESET, not on a hand-built config.
+  //
+  // The P0-2 defect was a routing error: `decomposerPhotoScale: 0` was written
+  // into ZERO_LIFTABLE instead of ZEROED. A gate that sets the scales directly
+  // in config would have stayed GREEN on exactly that code, because the engine
+  // branch was fine and only the preset wiring was broken. So this gate must
+  // go through the same preset the probe uses.
+  // Walk upward for the repo root. This module runs from build/gates.js in
+  // production and src/gates.ts under a bundler, so resolving relative to the
+  // module alone points at the wrong directory in one of the two cases.
+  let dir = dirname(fileURLToPath(import.meta.url));
+  let probePath = '';
+  for (let up = 0; up < 5; up++) {
+    const candidate = join(dir, 'src', 'trace', 'scenesprobe.ts');
+    if (existsSync(candidate)) { probePath = candidate; break; }
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  if (!probePath) {
+    record('G10', 'the --zero preset actually zeroes every guild capture', false,
+      'could not locate src/trace/scenesprobe.ts to assert the preset');
+    return;
+  }
+  const probeSrc = readFileSync(probePath, 'utf8');
+  // ZEROED ends with a spread IIFE (the lifts block), not `} as const`, so the
+  // boundary is the spread rather than a closing brace.
+  const zeroedBlock = /const ZEROED = ZERO \? \{([\s\S]*?)\n\s*\.\.\./.exec(probeSrc);
+  const liftBlock = /const ZERO_LIFTABLE = \{([\s\S]*?)\n\} as const/.exec(probeSrc);
+  const inZeroed = zeroedBlock ? /decomposerPhotoScale:\s*0/.test(zeroedBlock[1]) : false;
+  const inLifts = liftBlock ? /decomposerPhotoScale/.test(liftBlock[1]) : false;
   record(
     'G10',
-    'no guild captures energy when all capture scales are zero',
-    total === 0 && g.every((x) => x === 0),
-    `capture by guild [prod, cons, dec] = [${g[0]}, ${g[1]}, ${g[2]}], total=${total}. ` +
-      `All must be exactly 0. A non-zero guild here means a capture path escaped gating ` +
-      `and the zero preset is not actually zero.`,
+    'the --zero preset actually zeroes every guild capture',
+    inZeroed && !inLifts,
+    `scenesprobe ZEROED sets decomposerPhotoScale=0: ${inZeroed}; ` +
+      `ZERO_LIFTABLE wrongly claims decomposerPhotoScale: ${inLifts}. ` +
+      `The P0-2 leak was that entry landing in ZERO_LIFTABLE, so the preset is ` +
+      `asserted directly rather than reconstructed from config.`,
+  );
+}
+
+function gate12(): void {
+  // nutrientCyclic must not be a KILL-SWITCH.
+  //
+  // The phase-order defect this guards: clearing mineralisedCell at the TOP of
+  // the substrate phase wiped the flux BEFORE the regen loop read it, so the
+  // cyclic term always saw 0 and suppressed ALL regeneration. Every other gate
+  // stayed green on that code -- verified by reintroducing it.
+  //
+  // So this asserts the read directly: with cyclic ON and mineralisers alive,
+  // the flux the regen term observed must be non-zero.
+  type W = { cyclicFluxLastTick: number; step(): void };
+  const arm = (cyclic: boolean): number => {
+    const w = new World({
+      config: { ...SMALL, founders: 120, nutrientCyclic: cyclic } as never,
+    }) as unknown as W;
+    for (let k = 0; k < 150; k++) w.step();
+    return w.cyclicFluxLastTick;
+  };
+  const on = arm(true);
+  const off = arm(false);
+  record(
+    'G12',
+    'nutrientCyclic reads a non-zero biotic flux (not a kill-switch)',
+    on > 0 && off === 0,
+    `cyclic flux observed with nutrientCyclic on=${on.toFixed(6)}, off=${off.toFixed(6)} ` +
+      `(want >0 and exactly 0). Zero while ON means the flux is cleared before it is ` +
+      `read, and the knob suppresses regeneration instead of coupling it.`,
   );
 }
 
@@ -721,6 +768,7 @@ function main(): void {
   gate8();
   gate9();
   gate10();
+  gate12();
 
   const failed = results.filter((r) => !r.pass);
   console.log(`\n${results.length - failed.length}/${results.length} checks passed`);
