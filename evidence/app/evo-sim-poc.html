@@ -4310,6 +4310,22 @@ class World {
      */
     mineralisedLastTick = 0;
     recycledLastTick = 0;
+    /**
+     * Per-cell substrate ACTUALLY PROCESSED by mineralising organisms this tick.
+     *
+     * This is what `nutrientCyclic` is driven from. It previously used a
+     * saturation function of STANDING substrate (detritus + sediment + litter),
+     * which is abiotic: a cell holding substrate regenerated nutrients with no
+     * decomposer alive at all. That is a legitimate abiotic abstraction, but it
+     * is not the biotic guild-interdependence coupling the knob was chosen for,
+     * and a decomposition guild that cannot be ablated cannot be shown to drive
+     * anything.
+     *
+     * As a measured FLUX it goes to zero when mineralisers are absent, so an
+     * ablation holding initial substrate constant isolates biotic cycling from
+     * background regeneration. G11 asserts exactly that.
+     */
+    mineralisedCell = new Float64Array(0);
     /** Diagnostic counters: graze takes split from predation (the ledger merges
      * both kinds). Submissions are already public via submittedByKind[4].
      * Pure observation: incremented, never read by simulation logic. */
@@ -4570,6 +4586,7 @@ class World {
         }
         this.shadeMass = new Float32Array(this.shadeCols * this.shadeRows);
         this.nutrients = [];
+        this.mineralisedCell = new Float64Array(fieldCols * fieldRows);
         for (let nIdx = 0; nIdx < NUTRIENT_COUNT; nIdx++) {
             this.nutrients.push(new ScalarField(`nutrient${nIdx}`, fieldCols, fieldRows, 0));
         }
@@ -4893,6 +4910,7 @@ class World {
         const t1 = now();
         // --- Phase 2: substrate fields ----------------------------------------
         const detritus = this.detritus;
+        this.mineralisedCell.fill(0);
         // External organic input (falling matter). This is an energy INPUT and is
         // recorded as such.
         const perCellOrganic = cfg.basalFoodPerCell;
@@ -4927,8 +4945,6 @@ class World {
         // nutrient returns only where organic matter is actually being worked on
         // — decomposer activity — and a producer-only world slowly starves.
         const cyclic = cfg.nutrientCyclic === true;
-        const sedData = this.sediment.data;
-        const litData = this.litter.data;
         for (let nIdx = 0; nIdx < NUTRIENT_COUNT; nIdx++) {
             const nData = this.nutrients[nIdx].data;
             const mod = cfg.nutrientCapacity[nIdx] ?? 1;
@@ -4936,8 +4952,12 @@ class World {
                 const cap = cfg.nutrientPerCell * fert[i] * mod;
                 let rate = cfg.nutrientRegen;
                 if (cyclic) {
+                    // Driven by substrate mineralisers ACTUALLY processed this tick, not
+                    // by standing substrate. Ablate the mineralisers and this term goes
+                    // to zero even with a full substrate pool; that separation is what
+                    // makes it a biotic coupling rather than background regeneration.
                     const sat = Math.max(1e-6, cfg.mixotrophySaturation);
-                    const raw = detritus.data[i] + sedData[i] * 0.8 + litData[i] * 1.2;
+                    const raw = this.mineralisedCell[i];
                     rate *= raw / (raw + sat);
                 }
                 nData[i] += (cap - nData[i]) * rate * drain[i];
@@ -5770,6 +5790,7 @@ class World {
                             if (nutC[ci] > cap)
                                 nutC[ci] = cap;
                             this.bioticMineralised += returned;
+                            this.mineralisedCell[ci] += returned;
                         }
                     }
                 }
@@ -5832,6 +5853,7 @@ class World {
                             if (nutC[ci] > cap)
                                 nutC[ci] = cap;
                             this.bioticMineralised += returned;
+                            this.mineralisedCell[ci] += returned;
                         }
                     }
                 }
@@ -5910,6 +5932,7 @@ class World {
                         if (nutC[ci] > capN)
                             nutC[ci] = capN;
                         this.bioticMineralised += returned;
+                        this.mineralisedCell[ci] += returned;
                     }
                 }
             }
@@ -7093,9 +7116,15 @@ class World {
             const e = store.energy[slot];
             biomass += e;
             sizeSum += p[o + TRAIT.SIZE];
-            const photo = p[o + TRAIT.PHOTOSYNTHETIC_RATE];
             const toxin = p[o + TRAIT.TOXIN];
-            if (photo > 0.35)
+            // Guild comes from the AUTHORITATIVE derived role, not from a second
+            // threshold. This used to re-derive "producer" as `photo > 0.35` while
+            // deriveRole used `photo > 0.34`, so an organism with photo in
+            // (0.34, 0.35] counted as a PRODUCER in role terms and a CONSUMER in
+            // every snapshot statistic. Two reporting paths disagreeing is how a
+            // measured guild total stops meaning anything.
+            const guild = this.roleOf(slot).trophic;
+            if (guild === TROPHIC.PRODUCER)
                 producers++;
             else
                 consumers++;
