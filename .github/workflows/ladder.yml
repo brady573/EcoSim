@@ -35,8 +35,14 @@ on:
         default: flatline
         options:
           - flatline
-          - horizon
           - consumer-yield
+          # `horizon` is deliberately NOT offered. It is retained in arms.json as
+          # provenance with status HISTORICAL: its registered hypothesis was for
+          # the 0.5.0 LEAKY engine, whose four seeds are not 0.6.0 survivors, so a
+          # green run would look current while testing a superseded contrast.
+          # run-arm.mjs refuses it unless --historical-spec is passed, and that flag replays
+          # the arm SETTINGS on the CURRENT engine — it does NOT reproduce the
+          # original figure.
       ticks:
         description: Horizon override in ticks (BLANK = use the arm's pre-registered ticks)
         type: string
