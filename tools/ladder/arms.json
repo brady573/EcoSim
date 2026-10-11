@@ -36,7 +36,7 @@
   ],
   "arms": {
     "horizon": {
-      "title": "Does the --zero decomposer loop decay, or persist?",
+      "title": "(Historical) Does the --zero decomposer loop decay, or persist? \u2014 tested on 0.5.0 survivors",
       "note": "Seed panel originally 31002,31003,31014,31017. 31014 alone was re-run after a per-seed timeout that has since been fixed to scale with horizon; the full panel is now re-run so that EVERY seed carries a measured conservation residual (residualPct), not just a population trajectory. Population and B/D cannot establish conservation on their own, so the ledger residual is the quantity that matters and all four seeds must report it.",
       "preregistered": "2026-10-10",
       "$comment": "Runs LONGER than the pre-registered flatline horizon on the four surviving seeds, to distinguish an energy-POSITIVE loop (gains energy) from a neutrally stable loop (recycles the founder endowment without decay). The distinction decides whether the flatline falsification is a conservation break or a criticality result. Horizon is 4x the flatline arm.",
@@ -70,11 +70,16 @@
         "Same argv, same --zero preset, no lifts",
         "Only the horizon differs from the flatline arm",
         "One variable: ticks"
-      ]
+      ],
+      "status": "HISTORICAL \u2014 superseded, not a live arm",
+      "horizonRelationNote": "WAS 4x the flatline horizon when the flatline was registered at 6000. The flatline baseline is now 12000, so 24000 is 2x, not 4x. The original text would mislead anyone checking that ratio.",
+      "statusNote": "Its four seeds (31002, 31003, 31014, 31017) were survivors of the 0.5.0 LEAKY-engine flatline. Under 0.6.0 only ONE seed (41015) was alive at tick 6000, and those four are not it. The contrast the arm was registered for has no counterpart under the corrected engine, and a green run would NOT validate it. The question is moot.",
+      "verifiedFinding": "Answered: 31002/31003/31017 went extinct by tick 8000 with decomp B/D 0.99; 31014 grew monotonically to a 60000 cap with 11.18M of unbooked input. That growth is what P0-2 explained and 0.6.0 fixes.",
+      "replacement": "None registered. A prospective horizon claim on the corrected engine needs a NEW seed panel registered before inspection; the only 0.6.0 near-survivor observed is 41015."
     },
     "flatline": {
-      "title": "Zero baseline re-verification under 0.5.0",
-      "preregistered": "2026-10-10 (re-registered 2026-10-10 under ts-evo-poc/0.6.0)",
+      "title": "Flatline zero-energy regression baseline (replay on known seeds)",
+      "preregistered": "2026-10-10 (original 6000-tick registration)",
       "seeds": "41001:41018,31001:31018",
       "ticks": 12000,
       "zero": true,
@@ -96,18 +101,29 @@
         "0",
         "null"
       ],
-      "hypothesis": "With every energy-giving pathway zeroed and excretionRate also 0, all guilds go extinct on every seed.",
-      "prediction": "36/36 seeds reach total extinction (pop = 0) by tick 12000.",
-      "falsification": "ANY seed reaches tick 12000 with pop > 0.",
+      "hypothesis": "With every energy-giving pathway zeroed, all guilds go extinct. This is a REGRESSION CRITERION on a seed panel whose outcomes are already known, not a prospective ecological test: a deterministic replay of the same seeds and engine cannot confirm anything it did not already show.",
+      "prediction": "REPLAY CRITERION: all 36 seeds read pop = 0 at tick 12000. A prospective ecological claim would require a NEW seed panel registered BEFORE its outcomes are inspected; that panel is not yet registered and no verdict is claimed for it.",
+      "falsification": "Any of the 36 seeds reads pop > 0 at tick 12000 (would mean the correction is not deterministic, or extinction regressed).",
       "notPredicted": "Extinction TIMING within the horizon is not predicted, only terminal state. Pre-0.6.0 extinction windows are earlier-engine evidence and are not comparable.",
       "confoundsControlled": [
-        "Same 36-seed panel as the 0.4.1 flatline",
-        "Same 6000-tick horizon",
-        "--zero only, no lifts, so the arm is fully specified",
-        "Knob schema unchanged in 0.5.0"
+        "Same 36-seed panel as every prior flatline run (41001-41018, 31001-31018)",
+        "--zero only, no lifts, so the arm remains fully specified",
+        "Knob schema unchanged between 0.4.1 and 0.6.0 (decomposerPhotoScale added, default null)",
+        "NOT controlled: the horizon changed from 6000 to 12000. This is a re-registration, not a matched comparison, and must not be read as one.",
+        "NOT independent: outcomes at 12000 were already observed on these seeds before the horizon was set. See registrationKind."
       ],
-      "horizonRationale": "RE-REGISTERED under 0.6.0. The original horizon was 6000, copied from the 0.4.1 extinction window (t2000-t5000). Measured on 36 seeds under 0.6.0, the LATEST extinction is tick 7000 (seed 41015, pop=3 at t6000, zero by t7000). A 6000-tick horizon therefore fails its own prediction by construction on 1 of 36 seeds \u2014 a mis-calibrated window, not a leak. 12000 gives 5000 ticks of margin over the worst observed extinction. This is sufficient FOR THESE 36 SEEDS and is not claimed sufficient in general.",
-      "measured_0_6_0": "Ladder run 38110148193, engine ba0df5a: 35/36 extinct at tick 6000, 36/36 by tick 7000, 0/36 alive at 24000. Conservation under --zero across all 36 seeds: mean |residual| 0.00028%, max 0.00162%, against a 0.5% failure threshold. Verdict on the OLD 6000-tick registration: FALSIFIED (1/36 alive at 6000). The origin reference is otherwise VALID: --zero is flat and energy is conserved to five decimal places."
+      "horizonRationale": "Set to 12000 AFTER observing the same seeds: latest extinction was tick 7000, so 6000 fails its own prediction on 1 of 36 seeds. 12000 gives 5000 ticks of margin. Sufficient FOR THESE 36 SEEDS; not claimed sufficient in general and not claimed independently confirmed.",
+      "measured_0_6_0": "Ladder run 38110148193, engine ba0df5a: 35/36 extinct at tick 6000, 36/36 by tick 7000, 0/36 alive at 24000. Conservation under --zero across all 36 seeds: mean |residual| 0.00028%, max 0.00162%, against a 0.5% failure threshold. Verdict on the OLD 6000-tick registration: FALSIFIED (1/36 alive at 6000). The origin reference is otherwise VALID: --zero is flat and energy is conserved to five decimal places.",
+      "registrationKind": "REGRESSION_REPLAY_NOT_PROSPECTIVE",
+      "reRegistered": "2026-10-10, after the 0.6.0 run on the SAME 36 seeds",
+      "supersededRegistration": {
+        "horizon": 6000,
+        "prediction": "36/36 seeds reach total extinction (pop = 0) by tick 6000.",
+        "falsification": "ANY seed reaches tick 6000 with pop > 0.",
+        "verdict": "FALSIFIED",
+        "measured": "35/36 extinct at tick 6000; seed 41015 held pop=3 and reached 0 by tick 7000.",
+        "why": "The horizon was copied from the 0.4.1 extinction window (t2000-t5000) and was too short for the corrected engine. A mis-calibrated window, not a leak. Retained as history, not as a live claim."
+      }
     },
     "consumer-yield": {
       "title": "Consumer viability under corrected predation assimilation",
