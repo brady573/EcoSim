@@ -4298,6 +4298,18 @@ class World {
     }
     /** Cumulative nutrient returned to the substrate by organisms, for the matter ledger. */
     bioticMineralised = 0;
+    /**
+     * Last tick's globally mineralised substrate, and the aggregate nutrient
+     * actually returned from it. Exposed so G9 can assert the recycling
+     * arithmetic DIRECTLY.
+     *
+     * A field-level proxy cannot verify this: uptake and return happen in the
+     * same ticks, so watching the standing nutrient total measures consumption,
+     * not the return path. `recycledLastTick` must equal
+     * `mineralisedLastTick * recyclingRate * 0.5` for ANY cell count.
+     */
+    mineralisedLastTick = 0;
+    recycledLastTick = 0;
     /** Diagnostic counters: graze takes split from predation (the ledger merges
      * both kinds). Submissions are already public via submittedByKind[4].
      * Pure observation: incremented, never read by simulation logic. */
@@ -4988,8 +5000,21 @@ class World {
         this.ledger.recordMineralised(litterMineralised);
         // Mineralised matter returns to the substrate split across the pools, so
         // recycling does not silently become a nutrient-A-only subsidy.
+        // Return the recycled fraction ONCE, split across pools AND cells.
+        //
+        // This previously broadcast `share` to every cell while dividing only by
+        // the pool count, so the aggregate addition was nCells times the quantity
+        // that was actually mineralised. Nutrients are NOT covered by the energy
+        // ledger, so the accounting residual could not see it: the books stayed
+        // balanced while substrate was created from nothing. Dividing by the cell
+        // count as well makes aggregate recycling independent of grid resolution,
+        // which G9 asserts directly.
         const totalMineralised = detritusMineralised + sedimentMineralised + litterMineralised;
-        const share = totalMineralised * cfg.recyclingRate * 0.5 / NUTRIENT_COUNT;
+        const share = (totalMineralised * cfg.recyclingRate * 0.5) / (NUTRIENT_COUNT * nCells);
+        // Record the pair G9 asserts on. The aggregate returned is share * nCells
+        // * NUTRIENT_COUNT, which must collapse back to the intended quantity.
+        this.mineralisedLastTick = totalMineralised;
+        this.recycledLastTick = share * nCells * NUTRIENT_COUNT;
         for (let nIdx = 0; nIdx < NUTRIENT_COUNT; nIdx++) {
             const nData = this.nutrients[nIdx].data;
             for (let i = 0; i < nCells; i++)

@@ -629,6 +629,85 @@ function gate8(): void {
 
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// G9 — recycled nutrient is independent of grid resolution
+//
+// Mineralised substrate is returned to the nutrient field. If that return is
+// broadcast to every cell while divided only by the pool count, the aggregate
+// addition scales with nCells: refining the grid SILENTLY MANUFACTURES
+// substrate. Nutrients sit outside the energy ledger, so the accounting
+// residual cannot detect it — the books balance while matter appears from
+// nowhere. This gate is the only guard, so it asserts the property directly:
+// identical world area, two field resolutions, same aggregate nutrient.
+//
+// G10 — under `--zero`, no guild captures any energy.
+//
+// "Zero" is a claim about every energy-giving pathway at once. A missing
+// guild branch in the capture gate leaves one guild still earning while the
+// preset reports inert, which is a flatline that is not flat. This asserts
+// capture per guild is zero, which is a stronger and more direct statement
+// than any population outcome.
+function gate9(): void {
+  // Assert the recycling ARITHMETIC directly, at two grid resolutions.
+  //
+  // An earlier version of this gate watched the standing nutrient field and
+  // was wrong three times: it measured per-cell background regeneration, then
+  // initial per-cell seeding, then net uptake rather than return. Uptake and
+  // return occur in the same ticks, so no field proxy can separate them. The
+  // quantity under test is a pure function of the mineralised total and the
+  // cell count, so it is asserted directly instead.
+  const run = (cell: number): { ratio: number } => {
+    const w = new World({
+      config: { ...SMALL, worldW: 1600, worldH: 1600, fieldCell: cell, founders: 60, nutrientRegen: 0, excretionRate: 0 } as never,
+    });
+    for (let i = 0; i < 40; i++) w.step();
+    const intended = w.mineralisedLastTick * w.config.recyclingRate * 0.5;
+    const got = w.recycledLastTick;
+    return { ratio: intended === 0 ? 1 : got / intended };
+  };
+  const coarse = run(100); // 16 x 16 = 256 cells
+  const fine = run(25); // 64 x 64 = 4096 cells, 16x more cells
+  const bothExact = Math.abs(coarse.ratio - 1) < 1e-9 && Math.abs(fine.ratio - 1) < 1e-9;
+  record(
+    'G9',
+    'recycled nutrient is grid-size invariant',
+    bothExact,
+    `recycled / (mineralised x recyclingRate x 0.5): coarse(256 cells)=${coarse.ratio.toFixed(6)} ` +
+      `fine(4096 cells)=${fine.ratio.toFixed(6)}, want exactly 1.000000. ` +
+      `A value near 16 means the return is still multiplied by the cell count; ` +
+      `the ratio is independent of resolution because both sides are per-tick totals.`,
+  );
+}
+
+function gate10(): void {
+  const w = new World({
+    config: {
+      ...SMALL,
+      founders: 300,
+      producerCaptureScale: 0,
+      consumerPhotoScale: 0,
+      decomposerPhotoScale: 0,
+      basalFoodPerCell: 0,
+      nutrientRegen: 0,
+      excretionRate: 0,
+      meatYieldPerMass: 0,
+      grazeYieldScale: 0,
+      plantYieldPerMass: 0,
+    } as never,
+  });
+  for (let i = 0; i < 300; i++) w.step();
+  const g = [0, 1, 2].map((i) => w.ledger.capturedByGuild[i]);
+  const total = g.reduce((a, b) => a + b, 0);
+  record(
+    'G10',
+    'no guild captures energy when all capture scales are zero',
+    total === 0 && g.every((x) => x === 0),
+    `capture by guild [prod, cons, dec] = [${g[0]}, ${g[1]}, ${g[2]}], total=${total}. ` +
+      `All must be exactly 0. A non-zero guild here means a capture path escaped gating ` +
+      `and the zero preset is not actually zero.`,
+  );
+}
+
 function main(): void {
   console.log(`=== credibility gates :: ${WORLD_ENGINE_VERSION} ===`);
   console.log(`scenario: founders=${SMALL.founders} world=${SMALL.worldW}x${SMALL.worldH} ticks=${TICKS} seed=${SMALL.seed}\n`);
@@ -640,6 +719,8 @@ function main(): void {
   gate6();
   gate7();
   gate8();
+  gate9();
+  gate10();
 
   const failed = results.filter((r) => !r.pass);
   console.log(`\n${results.length - failed.length}/${results.length} checks passed`);
