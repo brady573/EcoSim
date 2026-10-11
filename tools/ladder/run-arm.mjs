@@ -33,9 +33,28 @@ const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..', '..');
 const probe = join(root, 'build', 'trace', 'scenesprobe.js');
 
-const [armsPath, armName, outDir, shardIndexRaw, shardCountRaw, ticksRaw] = process.argv.slice(2);
+// Parse NAMED FLAGS first, then positionals.
+//
+// Destructuring positionals directly meant a trailing `--historical-spec` landed
+// in shardIndexRaw and failed as `bad shard NaN/1`. Shards are optional, so the
+// natural short invocation must work without them.
+const KNOWN_FLAGS = new Set(['--historical-spec']);
+const argvAll = process.argv.slice(2);
+const flags = new Set(argvAll.filter((a) => a.startsWith('--')));
+for (const f of flags) {
+  if (!KNOWN_FLAGS.has(f)) {
+    console.error(`::error::unknown flag '${f}'. Known: ${[...KNOWN_FLAGS].join(', ')}`);
+    process.exit(2);
+  }
+}
+const positional = argvAll.filter((a) => !a.startsWith('--'));
+
+const [armsPath, armName, outDir, shardIndexRaw, shardCountRaw, ticksRaw] = positional;
 if (!armsPath || !armName || !outDir) {
-  console.error('usage: run-arm.mjs <arms.json> <armName> <outDir> [shardIndex] [shardCount] [ticksOverride]');
+  console.error(
+    'usage: run-arm.mjs <arms.json> <armName> <outDir> [shardIndex] [shardCount] [ticksOverride]\n' +
+    '       [--historical-spec]',
+  );
   process.exit(2);
 }
 
@@ -81,12 +100,45 @@ if (!arm) {
 // with an explicit flag that is recorded in the manifest — it just cannot
 // happen by accident.
 const HISTORICAL = typeof arm.status === 'string' && arm.status.startsWith('HISTORICAL');
-const allowHistorical = process.argv.includes('--historical-replay');
-if (HISTORICAL && !allowHistorical) {
+const allowHistoricalSpec = flags.has('--historical-spec');
+if (HISTORICAL && !allowHistoricalSpec) {
   console.error(`::error::arm '${armName}' is HISTORICAL: ${arm.status}`);
   console.error(`  Its registered hypothesis was for an earlier engine and is not a current claim.`);
-  console.error(`  Re-run deliberately with --historical-replay to reproduce its provenance figure.`);
+  console.error(`  Pass --historical-spec to run the arm's SETTINGS on the CURRENT engine.`);
+  console.error(`  That is a sensitivity replay, NOT a reproduction of its historical figure.`);
   process.exit(2);
+}
+
+// THE ENGINE BELOW IS ALWAYS THE CURRENT CHECKOUT.
+//
+// This flag was originally `--historical-replay`, which promised to reproduce a
+// published historical result. It cannot: the probe is always
+// build/trace/scenesprobe.js from the working tree, so the historical arm's
+// SETTINGS are applied to whatever engine is checked out now. Pinning to the
+// 0.5.0 build would mean checking out old sources and rebuilding them.
+//
+// So the flag is named for what it does and the manifest states plainly that
+// no historical figure was reproduced. Anyone needing the original number must
+// check out the engine commit it was measured on.
+
+
+/** Best-effort engine version from the built engine, or 'unknown'. */
+function readEngineVersion() {
+  try {
+    const m = /WORLD_ENGINE_VERSION\s*=\s*'([^']+)'/.exec(
+      readFileSync(join(root, 'build', 'world', 'version.js'), 'utf8'),
+    );
+    return m ? m[1] : 'unknown';
+  } catch { return 'unknown'; }
+}
+
+/** Best-effort git commit of the checkout, or 'unknown'. Never throws. */
+function currentCommit() {
+  try {
+    return execFileSync('git', ['rev-parse', 'HEAD'], {
+      cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+  } catch { return 'unknown'; }
 }
 
 /** Expand "41001:41018,31001:31018" or "41001:41018" into a seed list. */
@@ -208,7 +260,14 @@ const manifest = {
   seedCount: seeds.length,
   declaredSeedCount: allSeeds.length,
   shard: { index: shardIndex, count: shardCount },
-  historicalReplay: HISTORICAL && allowHistorical,
+  historicalSpec: HISTORICAL && allowHistoricalSpec,
+  historicalEngineReproduced: false,
+  engineIdentity: {
+    note: 'The probe always ran from the current checkout. A historical arm spec '
+        + 'applied here is a settings replay, not a reproduction of its original figure.',
+    engineVersion: readEngineVersion(),
+    gitCommit: currentCommit(),
+  },
   ticks,
   declaredTicks,
   ticksOverrideApplied: ticksOverride !== null,
