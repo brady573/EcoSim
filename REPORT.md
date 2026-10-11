@@ -4920,3 +4920,286 @@ drive its own test is the dead-knob pattern this repository forbids. The
 coupling is therefore implemented and reasoned but NOT empirically
 demonstrated. Stated plainly rather than papered over with a gate that passes
 without testing it.
+
+================================================================================
+ISSUE #5 — EVIDENCE INTEGRITY: THE LAYER THAT REPORTS THE RUNS
+================================================================================
+
+Branch `issue5/evidence-integrity`, based on `chore/flatline-horizon-12000`
+(1be6a88). Engine UNCHANGED at ts-evo-poc/0.6.0; no file under `src/` is
+touched. Parity verified unchanged at the 0.6.0 pins (517 -> 808/159/58,
+24601 -> 558/290/96).
+
+THIS IS NOT A BIOLOGICAL RESULT AND IS NOT REPORTED AS ONE. It changes no
+organism, no mechanism and no number the engine produces. What it changes is
+how much of what the engine reports is actually trustworthy.
+
+WHY IT EXISTED. Every defect fixed here was a way for this repository to
+produce a clean green run that measured nothing, or a number that was never
+earned. None was a simulation error. The 0.6.0 engine closed an energy leak
+(issue #2) while the machinery reporting on it could still have missed one.
+
+--------------------------------------------------------------------------------
+FOUR DEFECTS FOUND BY INDEPENDENT REVIEW OF THIS CHANGE ITSELF
+--------------------------------------------------------------------------------
+Worth recording plainly: the first version of this work passed its own review
+of intent but contained three defects that would have defeated the very
+guarantees it claimed. The independent review pass found all three. They are
+listed because a report that only lists what was fixed is not an honest record.
+
+1. THE COHORT STAGE COULD NOT COMPARE ENGINE IDENTITY. It read `leg.engine`,
+   but the runner writes `manifest.identity.engine`. Every field resolved to
+   `undefined`, the null-guard filtered those out, and the comparison set was
+   empty — so a cohort spanning two engine versions compared equal to itself.
+   The fixture that "proved" this worked used a manifest shape production never
+   emits. A test built on a shape the system does not produce proves nothing.
+
+2. THE COHORT STAGE LAUNDERED THE VIOLATIONS IT EXISTED TO CATCH. The runner
+   records a policy-violating seed in `runs` anyway and parks the reason in
+   `failures`; the verifier read only `runs`, saw clean finite numbers over
+   contaminated evidence, and reported INTACT. Forbidden guild capture, a
+   conservation violation and a final-tick mismatch all passed the stage whose
+   purpose was to stop exactly that.
+
+3. THE COHORT ARTIFACT DOWNLOAD COLLIDED. `merge-multiple: true` merged every
+   leg's `manifest.json` into one directory, so each leg overwrote the last.
+   With more than one leg the cohort stage could never assemble a panel at all.
+
+4. A HORIZON OVERRIDE REPORTED THE PRE-REGISTERED VERDICT. Found by RUNNING
+   the chain end to end, not by a fixture. Two legs agreed on ticks=200 while
+   the arm's criteria are declared at tick 6000; both legs being consistent made
+   the override invisible, and the verifier reported SUPPORTED. Internal
+   consistency is not the same as pre-registration. Now an override yields
+   "not measured" with the reason stated.
+
+--------------------------------------------------------------------------------
+SECOND REVIEW ROUND — THE FIXES THEMSELVES BROKE THE WORKFLOW
+--------------------------------------------------------------------------------
+The four defects above were fixed, and a second independent review of the
+FIXED state found that the fixes had introduced a new one. Recorded because it
+is the same failure class, twice.
+
+`plan-legs.js` gained a `prereg` subcommand, and the argument parsing became
+`const [subcommand, armName, legsRaw] = ...`. The ladder workflow's plan job
+calls it as `plan-legs.js "$LADDER_ARM" "$LADDER_LEGS"` — two plain arguments.
+So `subcommand` absorbed the arm name, `armName` absorbed the leg count, and
+every ladder dispatch exited 2 at the plan job with "unknown arm '6'". The
+ladder became undispatchable and the cohort stage then failed on no manifests.
+
+It survived a full review because NOTHING EXECUTED THAT FILE. It was read,
+reasoned about, and passed review on intent. Every fixture exercised a different
+module. The defect was not bad parsing — it was a code path that no test, no
+gate and no CI step ever ran.
+
+FIXED by dispatching on the literal `prereg` keyword only, and — the part that
+actually matters — by ADDING FIXTURES THAT EXECUTE BOTH WORKFLOW CLIS exactly
+as the workflows invoke them (`scripts/workflow-checks.mjs` section W7). An
+unexecuted path cannot be reviewed into correctness; it has to be run.
+
+Also corrected in this round:
+- `run-arm.mjs` referenced `manifest.failures` before `manifest` was declared,
+  throwing a TDZ ReferenceError on a missing compiled build — destroying the one
+  diagnostic that would explain the failure. Verified by removing `build/` and
+  running: the manifest is now written with the reason intact.
+- The cohort CLI printed `integrity: INTACT` before applying the declared
+  identity check, so console and exit code could disagree. The check now runs
+  inside the evaluator.
+- A null entry in `failures`/`headerMismatches` threw instead of failing the
+  cohort. A verifier must fail dirty input, never crash on it.
+- The W3 scanner matched only the full `${{ inputs.x }}` shape, so
+  `${{ fromJSON(inputs.matrix) }}` and `${{ inputs.ticks || '6000' }}` passed
+  the one guard written to catch them. Now matches any expression referencing
+  `inputs.`, with a self-fixture for the compound forms.
+- The diagnostics validation step printed a round-robin allocation that never
+  ran (the shell chunks contiguously), putting a plan in the log that
+  contradicted each leg's `.assigned-seeds`. Removed.
+
+--------------------------------------------------------------------------------
+WHAT EACH ITEM NOW DOES
+--------------------------------------------------------------------------------
+1  Conservation evidence. `tools/ladder/evidence.mjs` parses the LEDGER line
+   under a strict schema and reports MISSING / INVALID / VIOLATION / VALID as
+   distinct outcomes. The old check was `residualPct !== null && abs(...) > 0.5`,
+   so an absent, truncated or NaN residual skipped the check and the seed still
+   reported a number. Identities are asserted only where every term is printed:
+   the probe emits the SUSPENDED detritus pool while the engine's residual also
+   contains sediment and litter, so residualPct is deliberately NOT recomputed.
+   `accounted <= totalInput` is sound for the same reason in reverse.
+
+2  Capture policy. Enforced per guild against the declared lifts. Only the three
+   photosynthetic scales sanction capture; `basalFoodPerCell` books as organic
+   and licenses nobody. A lift must be POSITIVE — presence of the key at 0 is
+   not permission. This is the check that would have caught the decomposer leak
+   at the reporting layer, where the energy books still balanced.
+
+3  Dispatch input. Every `${{ inputs.* }}` was moved out of `run:` bodies into
+   step-level `env:` and read as an argv argument. Two sites remained in
+   ladder.yml beyond the ones already fixed earlier.
+
+4  Seed ranges. `1:10` is valid to the diagnostic kit but the shell shard
+   planner split only on comma and space, so it counted ONE token, started ONE
+   leg, passed the whole range to it, and reported success. Expansion now
+   happens once, in one validated place; legs beyond the seed count are capped
+   rather than left empty.
+
+5  Manifest schemas. The summary read `m.targets.length` unconditionally, but
+   `factorial-core` writes `switches` and no `targets` — so a fully successful
+   factorial screen threw inside `if: always()` and reported failure. It now
+   dispatches on schema, degrades explicitly, and never fails the job.
+
+6  Identity. Manifests record engine, gate suite, commit, ref, runtime and a
+   SHA-256 of the arm declaration. The engine identity is read from the COMPILED
+   build, not from arms.json, because arms.json can be stale relative to the
+   code it describes. A leg that cannot resolve its engine fails rather than
+   emitting an unreplayable artifact.
+
+7  Cohort verification. Read-only over immutable per-leg artifacts. Proves
+   disjoint, exhaustive, single-engine, single-horizon seed coverage, and
+   evaluates an arm's machine-readable criteria as supported / falsified / not
+   measured. Integrity and science are separate verdicts and ONLY integrity
+   governs the exit code: a refuted hypothesis is a result, and failing the job
+   for one teaches you to distrust the runner for biology.
+
+8  Concurrency. Keyed on branch AND arm AND run attempt, so independent
+   experiments queue instead of superseding one another.
+
+--------------------------------------------------------------------------------
+VALIDATION ACTUALLY PERFORMED
+--------------------------------------------------------------------------------
+  typecheck        clean
+  gates            20/20 (compiled)
+  contract         11/11, including C1 parity at the 0.6.0 pins
+  workflow         62/62 fixtures, ~0.55s, no simulation
+  run-arm.mjs      executed end to end (2 legs x 9 seeds at 200 ticks; 2 single-seed
+                   legs at the declared 6000-tick horizon)
+  cohort-verify    executed over real leg manifests, at both horizons
+  failure paths    executed: build/ removed -> identity-mismatch recorded, no crash
+  plan-legs        both invocations executed; adversarial inputs rejected as data
+
+Real-run observations, recorded because they are evidence rather than claims:
+  - At a 200-tick override: integrity INVALID, "not measured", HORIZON OVERRIDE
+    named. Without the fix this reported SUPPORTED.
+  - At the declared 6000-tick horizon with 2 of 18 seeds present: integrity
+    INVALID with the 16 missing seeds listed. No override complaint, confirming
+    the declared path is distinguishable from the overridden one.
+
+NOT YET DONE. No multi-leg ladder has been dispatched through GitHub Actions,
+so the cohort JOB (artifact download layout in particular) is proven at the
+script level and by fixture, not on Actions. `flatline` and `horizon` have no
+machine-readable criteria and would report "not measured" by design; adding them
+is the Owner's call, since it makes a prose prediction executable.
+
+--------------------------------------------------------------------------------
+EXIT POLICY — OWNER DECISION, 2026-10-11
+--------------------------------------------------------------------------------
+Settled, and now enforced by fixture rather than left to interpretation.
+
+  A GREEN WORKFLOW MEANS THE EVIDENCE IS TRUSTWORTHY.
+  IT NEVER MEANS THE HYPOTHESIS WAS CORRECT.
+
+Non-zero exit is reserved for exactly two things: an evidence-integrity
+violation, and an execution failure. A falsified prediction exits 0.
+
+The reasoning is that these are different kinds of statement and conflating
+them is harmful in both directions. If a refuted hypothesis failed the job,
+a reader would learn to distrust the runner for a biological outcome — and a
+real finding would get mistaken for broken infrastructure. If a green tick
+meant "confirmed", a negative result would be misread as a positive one. The
+exit code describes the trustworthiness of the evidence; it does not describe
+the world.
+
+THE COST OF THIS POLICY IS REAL AND IS PAID FOR BY PROMINENCE, NOT BY SUPPRESSION.
+A falsified verdict is therefore stated in three places:
+  - the console banner, before any supporting detail;
+  - the GitHub step summary, above the per-seed numbers;
+  - `cohort-verdict.json`, written beside the immutable per-leg manifests so
+    the verdict is part of the evidence record rather than a line of scrollback
+    that the next reader never sees.
+
+Rendered falsified verdict (illustrative, from a SYNTHETIC manifest used only
+to exercise the display path — NOT a simulation, no such run has occurred):
+
+  - evidence integrity: INTACT
+  **PREDICTION FALSIFIED** — the pre-registered outcome did NOT occur. This run
+  is trustworthy evidence and a negative result. The workflow is GREEN because
+  the evidence is sound, NOT because anything was confirmed.
+  Measured against the pre-registration — consumers-viable 5/18,
+  three-guild-persistence 5/18.
+  NOT MET:
+    - consumers-viable: 5/18 met 'consumers > 0 at tick 6000' (needed >= 12)
+    - three-guild-persistence: 5/18 met 'all three guilds non-zero' (needed >= 12)
+  Exit code: 0.
+
+Fixtures W6p/W6q/W6r pin all three of: falsification exits green, the headline
+says it is not confirmation, and an INVALID cohort never issues a scientific
+verdict at all.
+
+WHAT THIS DOES NOT CHANGE. No scientific verdict has been issued under this
+policy yet. `consumer-yield` and `flatline` have not been re-run at 0.6.0 with
+complete panels, and every 0.5.0 figure for those arms describes a leaky engine.
+The first honest use of this policy is a full `consumer-yield` dispatch, which
+is an Actions run and not yet performed.
+
+--------------------------------------------------------------------------------
+THIRD REVIEW ROUND — AND WHAT THE FIXTURES NOW PROVE
+--------------------------------------------------------------------------------
+The final review found no HIGH or MEDIUM defect. Its three LOWs were taken,
+because each closed a real hole rather than tidying a style preference:
+
+1. `verdictHeadline` was not exported despite being described as such, and the
+   JSDoc still documented the pre-verdict return shape. Corrected, and the
+   return type now states explicitly that `pass` is integrity ONLY and never
+   reflects whether the biology agreed with the prediction.
+2. The cohort CLI parsed `arms.json` and each leg manifest with an unguarded
+   `JSON.parse`, so a corrupt artifact exited with a raw stack trace — reporting
+   an evidence defect as a program fault and discarding the message that named
+   the unreadable file. Both reads now fail with `::error::` and exit 1.
+3. Nothing executed `cohort-verify.mjs` as a PROCESS. W6p proved the function
+   returns `pass === true` for a falsified cohort, but a later edit could have
+   inverted the exit mapping and every function-level fixture would still have
+   been green — which would have quietly reversed the Owner's decision without
+   turning a single check red. W7l/W7m/W7n now run the real CLI and assert:
+   falsified exits 0 and leads with the verdict; invalid exits non-zero and
+   issues no verdict; a corrupt manifest fails cleanly.
+
+That third one is the same lesson as `plan-legs.js`, one level up: the exit code
+is the policy, and policy that is only asserted inside a function is not
+enforced.
+
+Also recorded from that round: `allocateShards` is the canonical round-robin
+DEFINITION but is not what either production path runs (the diagnostics shell
+chunks contiguously; the ladder filters inline). Coverage is exact-once in all
+three. This is now stated in the module header rather than left as a trap for
+the next reader — if the allocation rule ever changes, all three change together
+or the leg-to-seed mapping diverges.
+
+FINAL VALIDATION
+  typecheck   clean
+  gates       20/20 (compiled)
+  contract    11/11 — C1 parity 517 -> 808/159/58, 24601 -> 558/290/D96 (unchanged)
+  workflow    74/74 fixtures, 1.2s, no simulation, no residue
+  engine      untouched; nothing under src/ modified; nothing committed or pushed
+
+--------------------------------------------------------------------------------
+INTEGRATION DEFECT FOUND BY THE REBASE, NOT BY REVIEW
+--------------------------------------------------------------------------------
+This branch is based on `chore/flatline-horizon-12000`, which landed on main as
+PR #4 while this work was in progress. Rebasing produced a conflict that git
+resolved silently and a reviewer would plausibly skim: `run-arm.mjs` ended up
+carrying TWO identity blocks — this change's `identity` (engine, gate suite,
+commit, ref, runtime, arm-spec hash) beside PR #4's `engineIdentity` (engine
+version, commit). Both correct, both populated, same values.
+
+No conflict marker, no test failure, no CI signal. Two fields answering one
+question is precisely the failure this change exists to prevent, arriving
+through the back door of a clean rebase.
+
+Consolidated to one `identity` block. PR #4's historical-replay caveat was moved
+into it verbatim rather than dropped, and its `historicalSpec` /
+`historicalEngineReproduced` fields were left untouched. Verified after the
+merge: a single identity block is written, the historical arm still refuses to
+run without `--historical-spec` and still runs with it, and parity is unchanged.
+
+RECORDED BECAUSE IT IS THE THIRD TIME in this change that a defect was found by
+RUNNING OR INTEGRATING rather than by reading, after two defects found by
+review. Reading finds defects in code. Running finds defects in paths.
