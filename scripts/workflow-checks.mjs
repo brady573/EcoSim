@@ -796,6 +796,82 @@ const okRun = (seed) => ({
     `class=${r.classification} — ${r.headline}`);
 }
 
+// --- Review finding: identity absent from EVERY leg ------------------------
+// The guard was `missing > 0 && seen.size > 0`, so when no leg recorded a
+// field the comparison set was empty and the field was silently skipped.
+for (const f of ['engine', 'commit', 'armSpecHash']) {
+  const legs = [1, 2].map((i) => {
+    const id = { ...manifestFor([i]).identity };
+    delete id[f];
+    return manifestFor([i], { runs: [okRun(i)], identity: id });
+  });
+  const r = evaluateCohort({ armName: 'flatline', expectedSeeds: [1, 2], legs });
+  check(`W6s-${f}`, `identity absent from ALL legs (${f}) fails the cohort`,
+    !r.pass && r.detail.includes(f),
+    `pass=${r.pass} — ${r.detail}`);
+}
+
+{
+  // A declared expectation must be satisfied by a PRESENT value, not skipped
+  // because nothing recorded one.
+  const legs = [manifestFor([1], { runs: [okRun(1)], identity: {} })];
+  const r = evaluateCohort({
+    armName: 'flatline', expectedSeeds: [1], legs, expect: { engine: 'ts-evo-poc/0.6.0' },
+  });
+  check('W6t', 'a declared identity no leg records is a failure, not a skip',
+    !r.pass && r.detail.includes('cannot be verified'),
+    `pass=${r.pass} — ${r.detail}`);
+}
+
+// --- Review finding: cohort must re-derive the per-seed verdict -------------
+// The verifier trusted the leg's `failures` array to be complete. A corrupted
+// or legacy manifest with empty failures and an out-of-tolerance residual passed.
+{
+  const legs = [manifestFor([1], {
+    runs: [{ ...okRun(1), residualPct: 0.9 }],
+    failures: [], // the leg claims nothing went wrong
+  })];
+  const r = evaluateCohort({ armName: 'flatline', expectedSeeds: [1], legs });
+  check('W6u', 'an out-of-tolerance residual fails even with an EMPTY failures array',
+    !r.pass && r.detail.includes('0.5% tolerance'),
+    `pass=${r.pass} — ${r.detail}`);
+}
+
+{
+  const legs = [manifestFor([1], { runs: [{ ...okRun(1), ledgerStatus: 'contradictory' }], failures: [] })];
+  const r = evaluateCohort({ armName: 'flatline', expectedSeeds: [1], legs });
+  check('W6v', 'a non-ok ledgerStatus fails even with an EMPTY failures array',
+    !r.pass && /ledger status/.test(r.detail),
+    `pass=${r.pass} — ${r.detail}`);
+}
+
+{
+  const legs = [manifestFor([1], { runs: [{ ...okRun(1), capturePolicyOk: false }], failures: [] })];
+  const r = evaluateCohort({ armName: 'flatline', expectedSeeds: [1], legs });
+  check('W6w', 'a failed capturePolicyOk fails even with an EMPTY failures array',
+    !r.pass && r.detail.includes('capture policy'),
+    `pass=${r.pass} — ${r.detail}`);
+}
+
+{
+  // An absent status is unverifiable, which is not the same as compliant.
+  const { ledgerStatus, ...noStatus } = okRun(1);
+  const legs = [manifestFor([1], { runs: [noStatus], failures: [] })];
+  const r = evaluateCohort({ armName: 'flatline', expectedSeeds: [1], legs });
+  check('W6x', 'an ABSENT ledgerStatus fails rather than passing by omission',
+    !r.pass && r.detail.includes('ledgerStatus'),
+    `pass=${r.pass} — ${r.detail}`);
+}
+
+{
+  const { capturePolicyOk, ...noCap } = okRun(1);
+  const legs = [manifestFor([1], { runs: [noCap], failures: [] })];
+  const r = evaluateCohort({ armName: 'flatline', expectedSeeds: [1], legs });
+  check('W6y', 'an ABSENT capturePolicyOk fails rather than passing by omission',
+    !r.pass && r.detail.includes('capturePolicyOk'),
+    `pass=${r.pass} — ${r.detail}`);
+}
+
 {
   const legs = [manifestFor([1], { runs: [{ ...okRun(1), residualPct: null }] })];
   const r = evaluateCohort({ armName: 'flatline', expectedSeeds: [1], legs });
@@ -1037,6 +1113,53 @@ function runCli(rel, args, extraEnv = {}) {
   for (const d of ['wc-falsified', 'wc-invalid', 'wc-corrupt']) {
     rmSync(join(root, 'build', d), { recursive: true, force: true });
   }
+}
+
+// ===========================================================================
+// W8 — concurrency policy must actually preserve dispatched experiments
+// ===========================================================================
+// GitHub's documented default is `queue: single`: a new run CANCELS the pending
+// run in the same group. That silently drops experiments. `queue: max` preserves
+// up to 100 pending runs, and `queue: max` together with
+// `cancel-in-progress: true` is a workflow VALIDATION ERROR — the workflow would
+// not run at all.
+//
+// A previous version of this change grouped on `github.run_attempt` believing it
+// was a dispatch identity. It is not: it starts at 1 for every newly dispatched
+// run, so same-arm dispatches still collided and the first was still dropped.
+// These fixtures read the workflow, so that cannot come back silently.
+//
+// THIS CANNOT PROVE RUN-QUEUING BEHAVIOUR — only Actions can. It proves the
+// declared policy is the one we intend. Exercising several pending dispatches is
+// a manual Actions step, recorded as unproven in REPORT.md.
+for (const [wfPath, label] of [
+  ['.github/workflows/diagnostics.yml', 'diagnostics'],
+  ['.github/workflows/ladder.yml', 'ladder'],
+]) {
+  const text = readFileSync(join(root, wfPath), 'utf8');
+  // `concurrency:` plus every following INDENTED line, and nothing else. A
+  // non-greedy repetition here silently captures only the header, which is how
+  // a guard can report the policy it cannot actually see.
+  const block = /^concurrency:[ \t]*\n(?:[ \t]+[^\n]*\n?)*/m.exec(text)?.[0] ?? '';
+
+  check(`W8-${label}`, `${label} concurrency QUEUES pending runs rather than cancelling them`,
+    /^[ \t]*queue:[ \t]*max[ \t]*$/m.test(block),
+    `declared block:${block ? '\n' + block.trimEnd() : ' NOT FOUND'}`);
+}
+
+for (const [wfPath, label] of [
+  ['.github/workflows/diagnostics.yml', 'diagnostics'],
+  ['.github/workflows/ladder.yml', 'ladder'],
+]) {
+  const text = readFileSync(join(root, wfPath), 'utf8');
+  const block = /^concurrency:[ \t]*\n(?:[ \t]+[^\n]*\n?)*/m.exec(text)?.[0] ?? '';
+  const queues = /^[ \t]*queue:[ \t]*max[ \t]*$/m.test(block);
+  const cancels = /^[ \t]*cancel-in-progress:[ \t]*true[ \t]*$/m.test(block);
+  check(`W8-${label}-valid`, `${label} does not combine queue:max with cancel-in-progress:true`,
+    !(queues && cancels),
+    queues && cancels
+      ? 'INVALID COMBINATION — GitHub rejects this workflow at parse time'
+      : `queue:max=${queues}, cancel-in-progress:true=${cancels}`);
 }
 
 // ===========================================================================

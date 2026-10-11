@@ -32,6 +32,7 @@ import { readFileSync, existsSync, appendFileSync, writeFileSync } from 'node:fs
 import { join, dirname } from 'node:path';
 
 import { expandSeeds } from '../diagnostics/plan-seeds.mjs';
+import { RESIDUAL_TOLERANCE_PCT } from './evidence.mjs';
 
 /** Metrics a criterion may reference, and how each is derived from one run. */
 const METRICS = {
@@ -141,6 +142,15 @@ export function evaluateCohort({ armName, expectedSeeds, legs, criteria = [], ex
   // A field that is ABSENT is a problem, not a value to skip. A cohort whose
   // legs cannot name their engine cannot prove they share one, and treating
   // "unknown" as "consistent" is how an unverifiable cohort reports INTACT.
+  // Every leg must NAME every identity field. Not "the legs that have it must
+  // agree" — an ABSENT field is unverifiable, and treating unknown as
+  // consistent is how a cohort with no provable engine reports INTACT.
+  //
+  // The all-missing case is the one that matters: the previous guard was
+  // `missing > 0 && seen.size > 0`, so when NO leg recorded `engine` the
+  // comparison set was empty, the guard was skipped, and the field was silently
+  // excluded from the verdict. Complete seed coverage and finite observations
+  // then produced a clean INTACT with nothing to prove it was one experiment.
   const identity = {};
   for (const f of IDENTITY_FIELDS) {
     const present = legs.map((l) => legIdentity(l, f));
@@ -150,12 +160,19 @@ export function evaluateCohort({ armName, expectedSeeds, legs, criteria = [], ex
     }
     if (seen.size === 1) identity[f] = [...seen][0];
     const missing = present.filter((v) => v === undefined || v === null).length;
-    if (missing > 0 && seen.size > 0) {
-      problems.push(`${missing} leg(s) do not record ${f}; every leg must name it for the cohort to be verifiable`);
+    if (missing > 0) {
+      problems.push(`${missing} of ${legs.length} leg(s) do not record ${f}` +
+        (seen.size === 0 ? ' — NO leg recorded it, so this cohort cannot be verified at all' : ''));
     }
   }
+  // A declared expectation must be MATCHED by a present value. Previously an
+  // absent measured value skipped the comparison, so an arm declaring
+  // `expectIdentity` could be satisfied by artifacts that record nothing.
   for (const [f, want] of Object.entries(expect)) {
-    if (want !== undefined && identity[f] !== undefined && identity[f] !== want) {
+    if (want === undefined) continue;
+    if (identity[f] === undefined) {
+      problems.push(`this run declares ${f} = '${want}' but no leg recorded ${f}; the declaration cannot be verified`);
+    } else if (identity[f] !== want) {
       problems.push(`${f} is '${identity[f]}' but this run declared '${want}' — the artifacts and the dispatch disagree`);
     }
   }
@@ -224,6 +241,15 @@ export function evaluateCohort({ armName, expectedSeeds, legs, criteria = [], ex
   if (unexpected.length > 0) problems.push(`seed(s) not in the declared panel: ${unexpected.join(', ')}`);
 
   // --- per-seed measurement validity ----------------------------------------
+  //
+  // The cohort verifier is INDEPENDENT. It does not merely aggregate what the
+  // legs concluded: it re-derives the per-seed verdict from the recorded
+  // measurements, so a legacy, corrupted or hand-edited manifest with an
+  // out-of-tolerance residual and an empty `failures` array still fails here.
+  //
+  // Trusting the leg's `failures` alone would make this stage only as good as
+  // the thing it is auditing, and the whole point of a second stage is that it
+  // is not that thing.
   for (const [seed, r] of bySeed) {
     for (const k of ['prod', 'cons', 'dec', 'pop', 'finalTick']) {
       if (r[k] === null || r[k] === undefined || !Number.isFinite(r[k])) {
@@ -232,6 +258,30 @@ export function evaluateCohort({ armName, expectedSeeds, legs, criteria = [], ex
     }
     if (r.residualPct === null || r.residualPct === undefined || !Number.isFinite(r.residualPct)) {
       problems.push(`seed ${seed}: ledger residual was never measured`);
+    } else if (Math.abs(r.residualPct) > RESIDUAL_TOLERANCE_PCT) {
+      // Re-applied here rather than trusted from the leg. Finite is not
+      // compliant: 0.9% is a perfectly finite number that means the books do
+      // not balance.
+      problems.push(`seed ${seed}: accounting residual ${r.residualPct}% exceeds the ` +
+        `${RESIDUAL_TOLERANCE_PCT}% tolerance — energy conservation is violated on this seed`);
+    }
+
+    // The ledger must have parsed cleanly, and the capture policy must hold.
+    // Both are re-read from the record rather than inferred from `failures`.
+    if (r.ledgerStatus !== undefined) {
+      if (r.ledgerStatus !== 'ok') {
+        problems.push(`seed ${seed}: ledger status is '${r.ledgerStatus}', not 'ok'`);
+      }
+    } else {
+      problems.push(`seed ${seed}: manifest records no ledgerStatus; the measurement cannot be confirmed`);
+    }
+    if (r.capturePolicyOk === undefined) {
+      problems.push(`seed ${seed}: manifest records no capturePolicyOk; the declared capture policy cannot be confirmed`);
+    } else if (r.capturePolicyOk !== true) {
+      problems.push(`seed ${seed}: the declared capture policy did not hold on this seed`);
+    }
+    if (r.residualOk === false) {
+      problems.push(`seed ${seed}: the runner recorded the residual as out of tolerance`);
     }
   }
 

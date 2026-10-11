@@ -5203,3 +5203,68 @@ run without `--historical-spec` and still runs with it, and parity is unchanged.
 RECORDED BECAUSE IT IS THE THIRD TIME in this change that a defect was found by
 RUNNING OR INTEGRATING rather than by reading, after two defects found by
 review. Reading finds defects in code. Running finds defects in paths.
+
+--------------------------------------------------------------------------------
+PR #6 REVIEW — THREE FINDINGS, ALL ACCEPTED
+--------------------------------------------------------------------------------
+Reviewed by Acrius-max at a5ebe79. Changes requested. All three accepted
+without reservation; they are correct, and two of them were gaps in code that
+three prior review rounds had already passed.
+
+1. [HIGH] THE CONCURRENCY GROUP STILL DROPPED PENDING EXPERIMENTS. The group
+   was keyed on `github.run_attempt`, which starts at 1 for every newly
+   dispatched run and is therefore NOT a dispatch identity. Same-arm dispatches
+   still collided.
+
+   Confirmed against GitHub's workflow-syntax reference rather than from memory:
+   the documented DEFAULT is `queue: single` — at most one PENDING run per group,
+   and a new run CANCELS the pending one. `queue: max` lets up to 100 wait and
+   execute in order. `queue: max` with `cancel-in-progress: true` is a workflow
+   VALIDATION ERROR.
+
+   Both workflows now declare `queue: max` with `cancel-in-progress: false`, and
+   `github.run_attempt` was removed from the group because it never did what the
+   comment claimed. Diagnostics was also still on branch-only grouping; it now
+   includes the suite so a config-only screen cannot block a factorial screen.
+
+   NOT PROVEN: this only establishes the DECLARED policy. Only Actions can show
+   that several pending dispatches actually queue, and that needs a manual
+   multi-dispatch test, recorded as unproven rather than claimed.
+
+2. [HIGH] IDENTITY MISSING FROM EVERY LEG STILL PASSED. The guard read
+   `missing > 0 && seen.size > 0`, so when NO leg recorded a field the comparison
+   set was empty, the guard was skipped, and the field was excluded from the
+   verdict. Complete coverage plus finite observations then produced a clean
+   INTACT with nothing to prove it was one experiment. The `expect` guard had the
+   same hole: an absent measured value skipped the comparison entirely.
+
+   Now every leg must name every identity field, and a declared expectation must
+   be matched by a PRESENT value. Fixtures W6s-{engine,commit,armSpecHash} and
+   W6t.
+
+3. [MEDIUM] THE COHORT TRUSTED LEGS' `failures` ARRAYS. It checked that
+   residualPct was finite, but not that it was within tolerance, and did not
+   require `ledgerStatus`, `residualOk` or `capturePolicyOk`. A legacy,
+   corrupted or hand-edited manifest with an out-of-tolerance residual and an
+   empty `failures` array would have passed.
+
+   The verifier is now INDEPENDENT: it re-derives the per-seed verdict from the
+   recorded measurements instead of aggregating the leg's conclusion, re-applies
+   the 0.5% residual tolerance, and requires `ledgerStatus === 'ok'`,
+   `capturePolicyOk === true`, and no recorded tolerance failure. Absent statuses
+   fail — they are unverifiable, which is not the same as compliant. Fixtures
+   W6u–W6y, each with an explicitly EMPTY failures array.
+
+VERIFIED AFTER THE FIXES, on real runner output, not fixtures alone:
+  - 2-seed partial panel at the declared horizon -> INVALID, missing seeds named.
+  - COMPLETE 18-seed panel at an overridden horizon -> every new check passes;
+    the only complaint is the horizon override. The stricter checks introduced
+    no false failures against 18 real seeds.
+  - typecheck clean; gates 20/20; contract 11/11 parity unchanged; 87/87 fixtures.
+
+THE LESSON, AGAIN. Finding 1 is the third defect in this change that survived
+multiple reviews because it asserted a policy in a COMMENT rather than in code.
+Review reads code; it does not check whether a comment is true of GitHub's
+documented semantics. The policy is now asserted by fixture, which reads the
+workflow and fails if `queue: max` disappears — though still only Actions can
+prove the runtime behaviour.

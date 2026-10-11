@@ -55,33 +55,31 @@ on:
 permissions:
   contents: read
 
-# QUEUEING, NOT REPLACEMENT.
+# QUEUE, DO NOT REPLACE.
 #
-# The group was keyed on the branch alone, so every ladder dispatch on a branch
-# shared one concurrency identity: under standard behaviour a newer pending run
-# SUPERSEDES an older one. Two experiments submitted an hour apart meant the
-# first was dropped in favour of the second — silently, with a cancelled status
-# that reads like an ordinary cancellation rather than a policy decision.
+# GitHub's documented default for a concurrency group is `queue: single`: at
+# most one run may be PENDING, and a new run CANCELS the pending one waiting
+# behind it. Two ladder dispatches submitted an hour apart on the same branch
+# therefore silently dropped the first, with a cancelled status that reads like
+# an ordinary cancellation rather than a policy decision. This repository loses
+# experiments that way, and a lost experiment is a lost measurement.
 #
-# The group is keyed on branch AND arm AND run attempt. Two experiments
-# dispatched an hour apart on different arms previously shared one concurrency
-# identity, and under standard behaviour a newer pending run SUPERSEDES an older
-# one — the first was dropped silently, with a cancelled status that reads like
-# an ordinary cancellation rather than a policy decision. Distinct arms must not
-# cancel each other.
+# `queue: max` lets up to 100 runs wait and execute in order, so every dispatched
+# experiment survives. When the queue is full, further runs are cancelled: that
+# is the spend cap, and it is GitHub's rather than ours.
 #
-# `run_attempt` is what lets a RE-DISPATCH of the same arm supersede its own
-# earlier attempt: that is a deliberate replacement, and it is the only kind this
-# policy performs.
+# `queue: max` with `cancel-in-progress: true` is a workflow VALIDATION ERROR,
+# so cancel-in-progress must stay false. A fixture asserts both halves of that
+# constraint, because the failure mode is a workflow that cannot run at all.
 #
-# cancel-in-progress stays false, so independent arms QUEUE rather than replace.
-# Stated plainly because it is easy to assume otherwise: with this flag nothing
-# is cancelled mid-flight, including a same-arm re-dispatch. Spend is bounded by
-# the per-arm seed panel, the 90-minute per-leg timeout, and the arm-specific
-# queue — not by dropping experiments.
+# The group is keyed on branch AND arm, so different arms never block each
+# other. It deliberately does NOT include `github.run_attempt`: that counter
+# starts at 1 for every newly dispatched run, so it is not a dispatch identity,
+# and including it gave a false impression of separating same-arm dispatches.
 concurrency:
-  group: ladder-${{ github.ref }}-${{ inputs.arm }}-${{ github.run_attempt }}
+  group: ladder-${{ github.ref }}-${{ inputs.arm }}
   cancel-in-progress: false
+  queue: max
 
 jobs:
   # Cap legs at the seed count so no leg launches with zero seeds to run.

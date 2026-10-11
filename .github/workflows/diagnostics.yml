@@ -78,9 +78,23 @@ on:
 permissions:
   contents: read
 
+# QUEUE, DO NOT REPLACE — same reason and same fix as ladder.yml.
+#
+# The default `queue: single` cancels the PENDING run when a newer one is
+# dispatched, so two screens submitted in quick succession silently dropped the
+# first. Diagnostics screens are expensive and slow to re-run; losing one loses
+# the measurement. `queue: max` preserves up to 100 pending runs in order, and
+# GitHub cancels only once that queue is full.
+#
+# `queue: max` is incompatible with `cancel-in-progress: true` (a validation
+# error), so the flag stays false. A fixture asserts the pair.
+#
+# Screens on DIFFERENT suites are kept apart so a config-only screen cannot
+# block a factorial screen behind it.
 concurrency:
-  group: diagnostics-${{ github.ref }}
+  group: diagnostics-${{ github.ref }}-${{ inputs.suite }}
   cancel-in-progress: false
+  queue: max
 
 jobs:
   diagnostics:
