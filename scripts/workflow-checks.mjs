@@ -966,6 +966,80 @@ for (const f of ['engine', 'commit', 'armSpecHash']) {
     r.pass, `pass=${r.pass} — ${r.detail}`);
 }
 
+// --- Review finding: executed horizon must equal the REGISTERED horizon -----
+// ticksOverrideApplied is a claim the manifest makes about itself. If the two
+// recorded numbers disagree, the evidence disagrees even when the flag says
+// otherwise.
+{
+  const legs = [manifestFor([1], {
+    runs: [{ ...okRun(1), finalTick: 3000 }],
+    ticksOverrideApplied: false, // the manifest's own story is "no override"
+    declaredTicks: 6000,
+    identity: { engine: 'ts-evo-poc/0.6.0', commit: 'abc123', armSpecHash: 'h1', ticks: 3000 },
+  })];
+  const r = evaluateCohort({ armName: 'flatline', expectedSeeds: [1], legs });
+  check('W7t', 'ticks != declaredTicks fails even when ticksOverrideApplied is FALSE',
+    !r.pass && r.detail.includes('EXECUTED to tick 3000'),
+    `pass=${r.pass} — ${r.detail}`);
+}
+
+{
+  // The flag alone must still be honoured: an override back to the declared
+  // value is still not the pre-registered run.
+  const legs = [manifestFor([1], {
+    runs: [okRun(1)],
+    ticksOverrideApplied: true,
+    declaredTicks: 12000,
+    identity: { engine: 'ts-evo-poc/0.6.0', commit: 'abc123', armSpecHash: 'h1', ticks: 12000 },
+  })];
+  const r = evaluateCohort({ armName: 'flatline', expectedSeeds: [1], legs });
+  check('W7u', 'ticksOverrideApplied is still honoured independently of the value check',
+    !r.pass && r.detail.includes('HORIZON OVERRIDE'),
+    `pass=${r.pass} — ${r.detail}`);
+}
+
+// --- Review finding: preflight must reject what the KIT rejects -------------
+// Preflight that accepts a value the run will reject reports success first and
+// then fails the expensive screen on the same value.
+{
+  let threw = null;
+  try { expandSeeds('0'); } catch (e) { threw = e.message; }
+  check('W7v', 'preflight rejects seed 0, which the diagnostic kit rejects',
+    threw !== null, `expandSeeds('0') -> ${threw ?? 'NO ERROR (kit would reject it later)'}`);
+}
+
+{
+  let threw = null;
+  try { expandSeeds('4294967296'); } catch (e) { threw = e.message; }
+  check('W7w', 'preflight rejects a seed above the kit 2^32-1 bound',
+    threw !== null, `expandSeeds('4294967296') -> ${threw ?? 'NO ERROR'}`);
+}
+
+{
+  // Inside the kit's bound and still fine — the guard must not be over-tight.
+  check('W7x', 'a seed at the kit boundary is still accepted',
+    expandSeeds('4294967295').length === 1 && expandSeeds('1').length === 1,
+    `expandSeeds('4294967295') and expandSeeds('1') both accepted`);
+}
+
+{
+  // `strictlyPositiveInt` in the kit requires a safe integer, so a 20-digit
+  // ticks passes a naive "is it a number > 0" test and dies at run time.
+  const r = runCli('tools/diagnostics/plan-seeds.mjs',
+    ['cli', '1:10', '4', '99999999999999999999', '100', 'balanced', 'config-only', 'nutrientRegen']);
+  check('W7y', 'preflight rejects a non-safe-integer ticks, which strictlyPositiveInt rejects',
+    r.code === 2 && r.out.includes('::error::'),
+    `exit=${r.code} — ${r.out.trim().slice(0, 90)}`);
+}
+
+{
+  const r = runCli('tools/diagnostics/plan-seeds.mjs',
+    ['cli', '0', '4', '1500', '100', 'balanced', 'config-only', 'nutrientRegen']);
+  check('W7z', 'the CLI preflight rejects seed 0 end to end',
+    r.code === 2 && r.out.includes('::error::'),
+    `exit=${r.code} — ${r.out.trim().slice(0, 90)}`);
+}
+
 {
   const legs = [manifestFor([1], { runs: [{ ...okRun(1), residualPct: null }] })];
   const r = evaluateCohort({ armName: 'flatline', expectedSeeds: [1], legs });

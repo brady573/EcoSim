@@ -332,6 +332,23 @@ export function evaluateCohort({ armName, expectedSeeds, legs, criteria = [], ex
     );
   }
 
+  // The EXECUTION horizon must equal the REGISTERED horizon — checked from the
+  // two recorded VALUES, never from the override flag.
+  //
+  // `ticksOverrideApplied` is a claim the manifest makes about itself. A legacy,
+  // altered or hand-edited manifest can record ticks=3000, declaredTicks=6000
+  // and the flag false: every cross-leg check passes, every finalTick agrees
+  // with ticks=3000, and a 3000-tick observation is then judged against a
+  // 6000-tick prediction. The two numbers disagreeing is the EVIDENCE; the flag
+  // is only the story told about it.
+  if (identity.ticks !== undefined && identity.declaredTicks !== undefined
+      && identity.ticks !== identity.declaredTicks) {
+    problems.push(
+      `this cohort EXECUTED to tick ${identity.ticks} but the arm is REGISTERED at tick ${identity.declaredTicks} ` +
+      '— observations from a different horizon cannot test the registered criteria',
+    );
+  }
+
   if (problems.length > 0) {
     return {
       pass: false,

@@ -32,7 +32,47 @@ export const MAX_SEEDS = 256;
 /** Upper bound on parallel legs. Beyond this the runner gains nothing and CI loses. */
 export const MAX_LEGS = 32;
 
+/**
+ * Seed value bounds, copied from the diagnostic kit's own `parseSeed`
+ * (tools/diagnostics/evo-diagnostics.mjs).
+ *
+ * Preflight exists to reject at DISPATCH time what the run would reject later.
+ * If the two disagree, validation passes and then the expensive screen fails on
+ * the same value — which is worse than no validation, because it reports
+ * success first. The kit rejects 0 and anything above 2^32-1 ("avoid 32-bit
+ * aliases"), and requires a safe integer; so does this.
+ */
+export const MIN_SEED = 1;
+export const MAX_SEED = 4294967295;
+
+/**
+ * MAX_SEEDS is deliberately TIGHTER than the kit's 10,000 and is not a copy of
+ * it. This planner governs a dispatch that fans the panel out across parallel
+ * legs on shared CI runners, so its bound is a resource decision; the kit's is a
+ * memory guard for a single process. Both are intentional and neither is a bug.
+ */
+
 const DIGITS = /^\d+$/;
+
+/** Positive safe integer, matching the kit's `strictlyPositiveInt`. */
+export function parsePositiveSafeInt(raw, label) {
+  const s = String(raw ?? '').trim();
+  if (!DIGITS.test(s)) throw new Error(`${label} must be a positive integer, got '${raw}'`);
+  const n = Number(s);
+  if (!Number.isSafeInteger(n) || n <= 0) throw new Error(`${label} must be a positive safe integer, got '${raw}'`);
+  return n;
+}
+
+/** One seed value under the kit's bounds. */
+function validateSeedValue(n, token) {
+  if (!Number.isSafeInteger(n) || n < MIN_SEED || n > MAX_SEED) {
+    throw new Error(
+      `integer seed ${token} must be in [${MIN_SEED},${MAX_SEED}] (avoid 32-bit aliases) — `
+      + 'the diagnostic kit rejects these, so a screen would fail after preflight passed',
+    );
+  }
+  return n;
+}
 
 /**
  * Expand a panel spec into an explicit, de-duplicated seed list.
@@ -54,15 +94,15 @@ export function expandSeeds(spec) {
   for (const part of spec.split(/[,\s]+/).filter((p) => p !== '')) {
     const range = /^(\d+):(\d+)$/.exec(part);
     if (range) {
-      const lo = Number(range[1]);
-      const hi = Number(range[2]);
+      const lo = validateSeedValue(Number(range[1]), range[1]);
+      const hi = validateSeedValue(Number(range[2]), range[2]);
       if (hi < lo) throw new Error(`reversed seed range '${part}'`);
       if (hi - lo + 1 > MAX_SEEDS) {
         throw new Error(`seed range '${part}' yields ${hi - lo + 1} seeds, over the ${MAX_SEEDS} limit`);
       }
       for (let s = lo; s <= hi; s++) add(s);
     } else if (DIGITS.test(part)) {
-      add(Number(part));
+      add(validateSeedValue(Number(part), part));
     } else {
       throw new Error(`unparseable seed '${part}' (want an integer or "lo:hi")`);
     }
@@ -175,15 +215,12 @@ if (process.argv[1] && process.argv[1].endsWith('plan-seeds.mjs')) {
     try {
       seeds = expandSeeds(seedsRaw ?? '');
       legs = Math.min(parseLegs(legsRaw ?? ''), seeds.length);
+      parsePositiveSafeInt(ticksRaw, 'ticks');
+      parsePositiveSafeInt(intervalRaw, 'interval');
     } catch (err) {
       fail(String(err.message ?? err));
     }
 
-    for (const [name, raw] of [['ticks', ticksRaw], ['interval', intervalRaw]]) {
-      if (!/^\d+$/.test(String(raw ?? '')) || Number(raw) < 1) {
-        fail(`${name} must be a positive integer, got '${raw}'`);
-      }
-    }
     if (!MODES.has(String(mode))) fail(`mode must be one of ${[...MODES].join(', ')}, got '${mode}'`);
     if (!SUITES.has(String(suite))) fail(`suite must be one of ${[...SUITES].join(', ')}, got '${suite}'`);
     if (!/^[A-Za-z][A-Za-z0-9]*$/.test(String(target ?? ''))) {

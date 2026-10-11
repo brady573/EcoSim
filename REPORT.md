@@ -5351,3 +5351,45 @@ is a local execution on one runtime, not a dispatched Actions ladder run, and it
 supersedes nothing: the 0.5.0 figures remain what they were, earlier-engine
 evidence. It also does not close the decomposer question — it sharpens it, and
 sharpens it in the direction that matters.
+
+--------------------------------------------------------------------------------
+PR #6 THIRD RE-REVIEW — TWO NARROWER FINDINGS, ALL ACCEPTED
+--------------------------------------------------------------------------------
+Reviewed by Acrius-max at 498697b. Changes requested. Both accepted.
+
+1. [MEDIUM] EXECUTION HORIZON COULD DIFFER FROM THE REGISTERED HORIZON. The
+   verifier checked declaredTicks against the arm's ticks, and each run's
+   finalTick against identity.ticks — but never identity.ticks against
+   identity.declaredTicks. A manifest recording ticks=3000, declaredTicks=6000
+   and ticksOverrideApplied=false was internally coherent and could be judged
+   against 6000-tick criteria.
+
+   The flag was the sole guard, and the flag is a claim the manifest makes about
+   itself. The fix checks the two recorded VALUES. `ticksOverrideApplied` is
+   still honoured independently, so an override back to the declared value is
+   still refused.
+
+   Verified on real artifacts, not only fixtures: both legs of a genuine
+   18-seed panel were forged to agree with each other at ticks=3000 against
+   declaredTicks=6000 with the flag false. Every cross-leg check passed and
+   every finalTick matched — and the cohort was still refused:
+
+     this cohort EXECUTED to tick 3000 but the arm is REGISTERED at tick 6000
+     — observations from a different horizon cannot test the registered criteria
+
+2. [LOW] PREFLIGHT ACCEPTED NUMBERS THE KIT REJECTS. Read the kit rather than
+   trusting the stated bounds: `parseSeed` requires a safe integer in
+   [1, 4294967295] ("avoid 32-bit aliases"), and ticks/interval go through
+   `strictlyPositiveInt`. Preflight checked neither. Seed 0 and a 20-digit
+   ticks both passed validation and would have failed the screen.
+
+   Preflight now applies the kit's constraints, so it cannot report success on a
+   value the run will reject. MAX_SEEDS stays at 256 and the difference from the
+   kit's 10,000 is now documented rather than looking like an oversight: this
+   planner bounds a dispatch fanned across parallel CI runners, the kit's
+   bounds one process's memory. Both are deliberate.
+
+102 fixtures. The complete 18-seed consumer-yield panel reproduces its earlier
+numbers EXACTLY on a different commit (14/18 and 5/18), which is an incidental
+but real reproducibility signal: 498697b and daeeb6a are different trees and
+produced the same terminal guild state on all 18 seeds.
