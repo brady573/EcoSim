@@ -4851,9 +4851,15 @@ ALREADY MEASURED, NOT CONTESTED
     on 10/18 (needed >= 12). PARTIALLY SUPPORTED, falsified on the balance
     clause. Correcting the doubled digestion tax did restore consumers.
 
+CLOSED
+  - Branch protection on main is ENFORCED. It is a GitHub RULESET (id
+    24848207, name "main", target branch, enforcement active) rather than
+    classic branch protection, so the /branches/main API still reports
+    "enabled: false" and will keep doing so. Verify via /rulesets. It requires
+    the status check context "Typecheck, gates, contract" — which is exactly
+    the CI job name — plus branch deletion and non-fast-forward rules.
+
 STILL OPEN
-  - Branch protection on main is DISABLED. CI is advisory, not gating. Needs a
-    Settings -> Branches change; no tooling reaches it.
   - The flatline arm has never been re-run to a horizon proven sufficient for
     extinction on all 36 seeds. 24000 is 3x the longest observed extinction,
     which is not the same as shown sufficient.
