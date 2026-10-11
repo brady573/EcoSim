@@ -88,6 +88,16 @@ export function expandSeeds(spec) {
 export function parseLegs(raw) {
   const s = String(raw ?? '').trim();
   if (!DIGITS.test(s)) throw new Error(`legs must be a positive integer, got '${raw}'`);
+  // Leading zeros are rejected rather than normalised, because LEGS is passed
+  // through to the shell UNCHANGED and `/bin/sh` (dash) reads `08` as an
+  // invalid octal digit and dies on `$(( ... ))`. The value therefore has to be
+  // rejected here, where the error is actionable, rather than accepted by the
+  // validator and failing later in an unrelated arithmetic expression.
+  // Seeds do not have this problem: they are re-serialised canonically by
+  // formatShard before anything downstream sees them.
+  if (s.length > 1 && s.startsWith('0')) {
+    throw new Error(`legs must not have a leading zero, got '${raw}' (write ${Number(s)})`);
+  }
   const n = Number(s);
   if (n < 1) throw new Error(`legs must be at least 1, got ${n}`);
   if (n > MAX_LEGS) throw new Error(`legs must be at most ${MAX_LEGS}, got ${n}`);

@@ -16,6 +16,7 @@
  * Exits non-zero on any failure. No test framework, no dependencies.
  */
 import { readFileSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -539,6 +540,27 @@ function scanWorkflowForInputInterpolation(text) {
     threw !== null, `parseLegs('4; rm -rf /') -> ${threw ?? 'NO ERROR'}`);
 }
 
+{
+  // LEGS is passed through to /bin/sh unchanged, and dash reads a leading zero
+  // as an invalid octal digit. Accepting "08" here and dying later inside
+  // `$(( ))` is a validation pass followed by an unrelated runtime failure.
+  let threw = null;
+  try { parseLegs('08'); } catch (e) { threw = e.message; }
+  check('W4i', "a leading-zero leg count is rejected before it reaches shell arithmetic",
+    threw !== null && /leading zero/.test(threw),
+    `parseLegs('08') -> ${threw ?? 'NO ERROR (accepted; dash would reject it in $(( )))'}`);
+}
+
+{
+  // The plain forms must still work — the leading-zero guard must not reject
+  // legitimate counts, and 0 must still be rejected as out of range.
+  let zeroThrew = false;
+  try { parseLegs('0'); } catch { zeroThrew = true; }
+  check('W4j', 'plain leg counts are unaffected by the leading-zero guard',
+    parseLegs('1') === 1 && parseLegs('10') === 10 && zeroThrew,
+    `parseLegs('1')=1, parseLegs('10')=10, parseLegs('0') rejected=${zeroThrew}`);
+}
+
 // ===========================================================================
 // W5 — every diagnostics suite summarises without a schema error
 // ===========================================================================
@@ -604,6 +626,9 @@ function manifestFor(seeds, over = {}) {
   return {
     arm: 'flatline',
     identity: { engine: 'ts-evo-poc/0.6.0', commit: 'abc123', armSpecHash: 'h1', ticks: 12000 },
+    // Recorded because the verifier requires every leg to name it: a cohort
+    // assembled from legs with different declared horizons is not one experiment.
+    declaredTicks: 12000,
     seedCount: seeds.length,
     seeds,
     runs: [],
@@ -872,6 +897,75 @@ for (const f of ['engine', 'commit', 'armSpecHash']) {
     `pass=${r.pass} — ${r.detail}`);
 }
 
+// --- Review finding: the cohort must be checked against the REQUESTED run ----
+// Cross-leg agreement proves the legs came from the same place. It does not
+// prove they came from the place that was ASKED FOR.
+{
+  // A complete, internally consistent panel for a different arm.
+  const legs = [manifestFor([1, 2], { runs: [okRun(1), okRun(2)], arm: 'consumer-yield' })];
+  const r = evaluateCohort({ armName: 'flatline', expectedSeeds: [1, 2], legs });
+  check('W6z', 'legs that internally agree but are a DIFFERENT ARM are rejected',
+    !r.pass && r.detail.includes('arm'),
+    `pass=${r.pass} — ${r.detail}`);
+}
+
+{
+  // Every leg driven by a different (edited) arms.json than the one supplied.
+  const legs = [manifestFor([1, 2], {
+    runs: [okRun(1), okRun(2)],
+    identity: { engine: 'ts-evo-poc/0.6.0', commit: 'abc123', armSpecHash: 'a-different-hash', ticks: 6000 },
+  })];
+  const r = evaluateCohort({
+    armName: 'flatline', expectedSeeds: [1, 2], legs, expect: { armSpecHash: 'the-supplied-hash' },
+  });
+  check('W7o', 'a cohort driven by a DIFFERENT arms.json is rejected',
+    !r.pass && r.detail.includes('armSpecHash'),
+    `pass=${r.pass} — ${r.detail}`);
+}
+
+{
+  const legs = [manifestFor([1, 2], {
+    runs: [okRun(1), okRun(2)],
+    identity: { engine: 'ts-evo-poc/0.6.0', commit: 'abc123', armSpecHash: 'h1', ticks: 12000 },
+  })];
+  const r = evaluateCohort({
+    armName: 'flatline', expectedSeeds: [1, 2], legs, expect: { armSpecHash: 'h1' },
+  });
+  check('W7p', 'a matching arms.json hash passes',
+    r.pass, `pass=${r.pass} — ${r.detail}`);
+}
+
+{
+  // Declared horizon mismatch: the run overrode to 24000 against a 6000 arm.
+  const legs = [manifestFor([1], { runs: [okRun(1)], declaredTicks: 24000 })];
+  const r = evaluateCohort({
+    armName: 'flatline', expectedSeeds: [1], legs, expect: { declaredTicks: 6000 },
+  });
+  check('W7q', 'a declared-horizon mismatch is rejected',
+    !r.pass && r.detail.includes('declaredTicks'),
+    `pass=${r.pass} — ${r.detail}`);
+}
+
+// --- Review finding: finalTick must match the verified horizon --------------
+{
+  const legs = [manifestFor([1], {
+    runs: [{ ...okRun(1), finalTick: 3000 }],
+    // deliberately EMPTY: the verifier must not rely on the runner noticing
+    headerMismatches: [],
+  })];
+  const r = evaluateCohort({ armName: 'flatline', expectedSeeds: [1], legs });
+  check('W7r', 'a finalTick earlier than the cohort horizon is rejected even with EMPTY headerMismatches',
+    !r.pass && r.detail.includes('final checkpoint is tick 3000'),
+    `pass=${r.pass} — ${r.detail}`);
+}
+
+{
+  const legs = [manifestFor([1], { runs: [okRun(1)], headerMismatches: [] })];
+  const r = evaluateCohort({ armName: 'flatline', expectedSeeds: [1], legs });
+  check('W7s', 'a finalTick equal to the cohort horizon passes',
+    r.pass, `pass=${r.pass} — ${r.detail}`);
+}
+
 {
   const legs = [manifestFor([1], { runs: [{ ...okRun(1), residualPct: null }] })];
   const r = evaluateCohort({ armName: 'flatline', expectedSeeds: [1], legs });
@@ -1068,11 +1162,20 @@ function runCli(rel, args, extraEnv = {}) {
     const seeds = Array.from({ length: 18 }, (_, i) => 41001 + i);
     const runs = seeds.map((s) => ({
       seed: s, prod: 1, cons: 1, dec: 1, pop: 1, finalTick: 6000,
-      totalInput: 300, residualPct: 0.01, ledgerStatus: 'ok', capturePolicyOk: true,
+      totalInput: 300, residualPct: 0.01, residualOk: true,
+      ledgerStatus: 'ok', capturePolicyOk: true,
     }));
     const m = {
       arm: 'consumer-yield',
-      identity: { engine: 'ts-evo-poc/0.6.0', commit: 'FIXTURE', armSpecHash: 'FIXTURE', ticks: 6000 },
+      // Must match what the verifier derives from the supplied arms.json, or the
+      // cohort is rejected for binding before it ever reaches a verdict.
+      identity: {
+        engine: 'ts-evo-poc/0.6.0', commit: 'FIXTURE', ticks: 6000,
+        armSpecHash: createHash('sha256')
+          .update(readFileSync(join(root, 'tools/ladder/arms.json'), 'utf8')).digest('hex'),
+      },
+      declaredTicks: 6000,
+      ticksOverrideApplied: false,
       seeds, runs, failures: [], headerMismatches: [], warnings: [],
     };
     mutate?.(m, seeds);

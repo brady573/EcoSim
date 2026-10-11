@@ -31,6 +31,7 @@
 import { readFileSync, existsSync, appendFileSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 
+import { createHash } from 'node:crypto';
 import { expandSeeds } from '../diagnostics/plan-seeds.mjs';
 import { RESIDUAL_TOLERANCE_PCT } from './evidence.mjs';
 
@@ -56,11 +57,15 @@ const OPS = {
 
 /**
  * Identity fields that must be identical across every leg of one cohort.
- * `ticks` is here on purpose: a cohort assembled from legs run at different
- * horizon overrides is not one experiment, and that is the dead-ticks-knob
- * failure reappearing one level up.
+ * `ticks` and `declaredTicks` are here on purpose: a cohort assembled from legs
+ * run at different horizons, or against different declared horizons, is not one
+ * experiment — and that is the dead-ticks-knob failure reappearing one level up.
+ *
+ * `declaredTicks` is in this list rather than only in `expect` because the
+ * resolved-identity map is populated from these fields. An `expect` key that is
+ * not listed here could never be satisfied, because nothing would ever read it.
  */
-export const IDENTITY_FIELDS = ['arm', 'engine', 'commit', 'armSpecHash', 'ticks'];
+export const IDENTITY_FIELDS = ['arm', 'engine', 'commit', 'armSpecHash', 'ticks', 'declaredTicks'];
 
 /**
  * Read one identity field off a leg manifest.
@@ -180,6 +185,18 @@ export function evaluateCohort({ armName, expectedSeeds, legs, criteria = [], ex
     problems.push('a leg manifest has no `runs` array; it cannot be verified');
   }
 
+  // The requested arm is checked UNCONDITIONALLY, not via `expect`.
+  //
+  // Cross-leg agreement proves the legs came from the same place; it does not
+  // prove they came from the place that was ASKED FOR. Making this depend on
+  // the caller passing `expect` would leave the door open for any caller that
+  // forgets — and every arm currently declares no `expectIdentity`, so the check
+  // would simply never run.
+  if (identity.arm !== undefined && identity.arm !== armName) {
+    problems.push(`artifacts record arm '${identity.arm}' but arm '${armName}' was requested — ` +
+      'a cohort for one arm cannot be measured against another arm\'s criteria');
+  }
+
   // --- per-leg failures are INHERITED, not discarded -------------------------
   //
   // This is the finding that mattered most. run-arm.mjs records a seed in
@@ -283,6 +300,20 @@ export function evaluateCohort({ armName, expectedSeeds, legs, criteria = [], ex
     if (r.residualOk === false) {
       problems.push(`seed ${seed}: the runner recorded the residual as out of tolerance`);
     }
+
+    // The reported state must come from the HORIZIZON THE COHORT VERIFIED.
+    // The runner already checks this and records it in `headerMismatches`, but
+    // the verifier must not depend on the thing it is auditing having noticed:
+    // a manifest with `finalTick: 3000` against an identity of `ticks: 6000`
+    // and an empty `headerMismatches` would otherwise have a 3000-tick
+    // observation measured against a 6000-tick prediction.
+    const horizon = identity.ticks;
+    if (horizon !== undefined && horizon !== null) {
+      if (r.finalTick !== horizon) {
+        problems.push(`seed ${seed}: final checkpoint is tick ${r.finalTick} but this cohort ran to tick ${horizon} ` +
+          '— the reported state is from an earlier horizon than the one verified');
+      }
+    }
   }
 
   const overridden = legs.filter((l) => l?.ticksOverrideApplied === true);
@@ -316,7 +347,6 @@ export function evaluateCohort({ armName, expectedSeeds, legs, criteria = [], ex
     };
   }
   const runs = [...bySeed.values()];
-  // --- science: the pre-registered criteria, where expressible ---------------
   const numerators = {};
   const denominators = {};
   const unmet = [];
@@ -459,6 +489,20 @@ if (process.argv[1] && process.argv[1].endsWith('cohort-verify.mjs')) {
     process.exit(2);
   }
 
+  // Bind the cohort to the REQUESTED EXPERIMENT, not merely to itself.
+  //
+  // Checking that the legs agree with each other proves only that they came
+  // from the same place. It does not prove they came from the place that was
+  // asked for: a complete, internally consistent panel for a DIFFERENT arm, an
+  // older arms.json, or a different declared horizon would otherwise satisfy
+  // every cross-leg check and then be measured against this arm's criteria.
+  //
+  // `armSpecHash` uses the SAME hashing contract as the runner, so it answers a
+  // question a hash can answer: were all these legs driven by exactly this
+  // declaration text? It does not prove the declaration was correct — only that
+  // it is the one we are reading.
+  const armSpecHash = createHash('sha256').update(readFileSync(armsPath, 'utf8')).digest('hex');
+
   const legs = [];
   for (const d of legDirs) {
     // A leg directory holds exactly one manifest; if a glob was expanded
@@ -481,7 +525,14 @@ if (process.argv[1] && process.argv[1].endsWith('cohort-verify.mjs')) {
     expectedSeeds: expandPanel(arm.seeds),
     legs,
     criteria: arm.criteria ?? [],
-    expect: arm.expectIdentity ?? {},
+    // The requested experiment first; an arm's own `expectIdentity` is an
+    // ADDITIONAL constraint on top, never a substitute for these.
+    expect: {
+      arm: armName,
+      armSpecHash,
+      declaredTicks: arm.ticks,
+      ...(arm.expectIdentity ?? {}),
+    },
   });
 
   // The verdict is an ARTIFACT, not just log text. A falsification that lives

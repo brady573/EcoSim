@@ -5268,3 +5268,86 @@ Review reads code; it does not check whether a comment is true of GitHub's
 documented semantics. The policy is now asserted by fixture, which reads the
 workflow and fails if `queue: max` disappears — though still only Actions can
 prove the runtime behaviour.
+
+--------------------------------------------------------------------------------
+PR #6 RE-REVIEW — THREE MORE FINDINGS, ALL ACCEPTED
+--------------------------------------------------------------------------------
+Reviewed by Acrius-max at daeeb6a. Changes requested. All three accepted.
+
+1. [HIGH] THE COHORT WAS CHECKED AGAINST ITSELF, NOT AGAINST THE REQUESTED RUN.
+   `armName` was used only in error text, `expect` was always `{}` because no
+   arm declares `expectIdentity`, and nothing compared a leg's arm name, spec
+   hash or declared horizon to what was asked for. A complete, internally
+   consistent panel for a DIFFERENT arm could be measured against this arm's
+   criteria.
+
+   Now the CLI independently derives the requested arm name, the SHA-256 of the
+   SUPPLIED arms.json (same hashing contract as the runner), and the declared
+   horizon, and enforces all three. `expectIdentity` remains available as an
+   ADDITIONAL constraint, not a substitute.
+
+   One improvement over the literal ask: the arm-name check is UNCONDITIONAL,
+   inside evaluateCohort, rather than routed through `expect`. Making it depend
+   on the caller passing `expect` leaves it open to any caller that forgets —
+   and every arm currently declares no expectIdentity, so it would never run.
+
+   Also found while implementing: `declaredTicks` was passed via `expect` but
+   was not in IDENTITY_FIELDS, and the resolved-identity map is populated ONLY
+   from those fields. The expectation could therefore never be satisfied — a
+   check that silently cannot pass. It is now a first-class identity field,
+   which additionally gives it cross-leg agreement checking.
+
+2. [MEDIUM] finalTick WAS NOT CHECKED AGAINST THE COHORT HORIZON. The runner
+   checks it and records a header mismatch, but the verifier must not depend on
+   the thing it audits having noticed. A manifest with finalTick 3000, identity
+   ticks 6000 and an EMPTY headerMismatches would have had a 3000-tick
+   observation measured against a 6000-tick prediction. Now required to match.
+
+3. [LOW] LEGS=08 PASSED VALIDATION THEN DIED IN SHELL ARITHMETIC. Reproduced:
+   `plan-seeds.mjs cli ... 08` exits 0, and dash then fails
+   `$(( (10 + 08 - 1) / 08 ))` because it reads a leading zero as invalid
+   octal. LEGS is passed to /bin/sh unchanged, so it is now rejected at
+   validation time, where the message can say what to type. Seeds do not have
+   this problem: they are re-serialised canonically before anything sees them.
+
+95 fixtures, including cases where the legs agree with each other but disagree
+with the requested arm, spec hash or declared horizon. Verified on real output:
+the same artifacts are INTACT for the requested arm and INVALID for another.
+
+================================================================================
+FIRST HONEST VERDICT FOR consumer-yield UNDER 0.6.0 — FALSIFIED
+================================================================================
+This fell out of verifying the binding above: running a COMPLETE panel at the
+DECLARED horizon, with no override, which no earlier evidence in this repository
+provides for this arm under the corrected engine.
+
+  arm consumer-yield, engine ts-evo-poc/0.6.0, commit daeeb6a
+  declared horizon 6000, NO override, complete 18-seed panel (41001-41018)
+  evidence integrity: INTACT
+  determinism: seed 41001 re-run independently, byte-identical
+
+  consumers-viable          14/18   (needed >= 12)   MET
+  three-guild-persistence    5/18   (needed >= 12)   NOT MET
+
+  VERDICT: FALSIFIED. Both clauses were required; one failed.
+  Exit code 0 — the evidence is trustworthy, the prediction was wrong.
+
+WHAT THIS SAYS. Consumers are MORE viable under 0.6.0 than under the leaky 0.5.0
+engine (14/18 vs 13/18), while three-guild persistence is markedly WORSE
+(5/18 vs 10/18). Seed 41001 shows the mechanism plainly: producers 1080,
+consumers 13651, decomposers 0. Consumers run away and DECOMPOSERS GO EXTINCT.
+
+That is the expected direction. The 0.5.0 numbers were partly produced by the
+decomposer photosynthesis leak this engine fixed, so decomposers were surviving
+partly on an energy input that should not have existed. Removing the leak removed
+the subsidy, and the decomposer loop does not hold up on its own — which is the
+open question the horizon arm was already chasing, now with a second and cleaner
+line of evidence.
+
+WHAT THIS DOES NOT SAY. consumer-yield applies two deliberate lifts
+(producerCaptureScale 0.35, basalFoodPerCell 0.25), so this is an answer to the
+ARM's question under an intervention, not a measurement of baseline ecology. It
+is a local execution on one runtime, not a dispatched Actions ladder run, and it
+supersedes nothing: the 0.5.0 figures remain what they were, earlier-engine
+evidence. It also does not close the decomposer question — it sharpens it, and
+sharpens it in the direction that matters.
