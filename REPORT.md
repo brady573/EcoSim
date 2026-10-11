@@ -4816,3 +4816,54 @@ That is direct evidence, not inference. The conservation verdict now rests on
 the accounting identity, which is what the claim actually needed.
 
 STATUS: 17/17 gates, 11/11 contract checks, typecheck clean.
+
+================================================================================
+STATE AT HANDOFF — READ THIS FIRST
+================================================================================
+
+Engine ts-evo-poc/0.5.0, commit 0572eb7. CI green. 17/17 gates, 11/11 contract
+checks, parity exact at 517 -> 778/169/63 and 24601 -> 597/246/103.
+
+IN FLIGHT — ladder run 38105535184, arm `horizon`, commit 0572eb7.
+  Panel 31002, 31003, 31014, 31017. 24000 ticks. 4 legs. Blank ticks input, so
+  the arm's declared horizon is used and ticksOverrideApplied reads false.
+  This is the first run carrying the LEDGER conservation measurement at the
+  full horizon. Its verdict decides whether the flatline question is closed.
+
+WHAT TO DO WITH IT
+  Read each leg's manifest.json before trusting any summary.csv.
+  - All four seeds residualPct ~ 0 and each reaches extinction
+        -> conservation holds at the horizon. The flatline falsification is
+           confirmed as a horizon artefact, and the balance question opens.
+  - residualPct drifts toward or past 0.5%, or a leg fails on the residual
+        -> there IS a slow leak. Stop balance work and trace it. A residual
+           that is flat at 400 ticks but drifts by 24000 is exactly what
+           population counts and B/D ratios could never have revealed.
+  Judge against the pre-registered falsification conditions in arms.json. Nulls
+  are results; record them.
+
+ALREADY MEASURED, NOT CONTESTED
+  - flatline arm (6000 ticks): 32/36 extinct, 4 survived. FALSIFIED as
+    pre-registered, but the horizon arm showed those 4 are mid-oscillation
+    seeds, not a conservation break (seed 31002 reads 268 decomposers at tick
+    6000 and is extinct by 7000).
+  - consumer-yield arm: consumers > 0 on 13/18 (needed >= 12), all three guilds
+    on 10/18 (needed >= 12). PARTIALLY SUPPORTED, falsified on the balance
+    clause. Correcting the doubled digestion tax did restore consumers.
+
+STILL OPEN
+  - Branch protection on main is DISABLED. CI is advisory, not gating. Needs a
+    Settings -> Branches change; no tooling reaches it.
+  - The flatline arm has never been re-run to a horizon proven sufficient for
+    extinction on all 36 seeds. 24000 is 3x the longest observed extinction,
+    which is not the same as shown sufficient.
+  - tools/ladder/arms.json `consumer-yield` lifts were chosen by reasoning, not
+    by a recorded measurement; the arm is not a replication of the 0.4.1 rung 6
+    and must never be reported as one.
+
+DID NOT HAPPEN, do not assume it
+  - No balance work has been done. Per Owner directive balance waits on a
+    verified baseline.
+  - The 0.4.1 flatline was NOT shown to rest on a live accounting leak. That
+    framing was withdrawn; what survives is that its 6000-tick horizon was
+    calibrated to the defective engine's faster collapse.
