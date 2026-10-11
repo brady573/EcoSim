@@ -71,6 +71,24 @@ if (!arm) {
   process.exit(2);
 }
 
+// A HISTORICAL arm is retained as provenance, not as a live experiment. Marking
+// it in arms.json is not enough: the label has to be enforced, or a dispatch
+// still produces a green run whose result LOOKS current even though the
+// hypothesis it was registered for no longer applies to this engine.
+//
+// Refusing by default is the safe direction. Re-running history is legitimate
+// and sometimes necessary to reproduce a published figure, so it is permitted
+// with an explicit flag that is recorded in the manifest — it just cannot
+// happen by accident.
+const HISTORICAL = typeof arm.status === 'string' && arm.status.startsWith('HISTORICAL');
+const allowHistorical = process.argv.includes('--historical-replay');
+if (HISTORICAL && !allowHistorical) {
+  console.error(`::error::arm '${armName}' is HISTORICAL: ${arm.status}`);
+  console.error(`  Its registered hypothesis was for an earlier engine and is not a current claim.`);
+  console.error(`  Re-run deliberately with --historical-replay to reproduce its provenance figure.`);
+  process.exit(2);
+}
+
 /** Expand "41001:41018,31001:31018" or "41001:41018" into a seed list. */
 function parseSeeds(spec_) {
   const out = [];
@@ -190,6 +208,7 @@ const manifest = {
   seedCount: seeds.length,
   declaredSeedCount: allSeeds.length,
   shard: { index: shardIndex, count: shardCount },
+  historicalReplay: HISTORICAL && allowHistorical,
   ticks,
   declaredTicks,
   ticksOverrideApplied: ticksOverride !== null,
