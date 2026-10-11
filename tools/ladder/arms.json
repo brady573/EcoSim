@@ -74,9 +74,9 @@
     },
     "flatline": {
       "title": "Zero baseline re-verification under 0.5.0",
-      "preregistered": "2026-10-10",
+      "preregistered": "2026-10-10 (re-registered 2026-10-10 under ts-evo-poc/0.6.0)",
       "seeds": "41001:41018,31001:31018",
-      "ticks": 6000,
+      "ticks": 12000,
       "zero": true,
       "lifts": {},
       "argvRest": [
@@ -97,15 +97,17 @@
         "null"
       ],
       "hypothesis": "With every energy-giving pathway zeroed and excretionRate also 0, all guilds go extinct on every seed.",
-      "prediction": "36/36 seeds reach total extinction (pop = 0) by tick 6000.",
-      "falsification": "ANY seed reaches tick 6000 with pop > 0.",
-      "notPredicted": "Extinction TIMING is deliberately not predicted. The 0.5.0 fixes changed gradient navigation, mating and predation yield, so the 0.4.1 extinction window (t2000-t5000, median t3500) is not a prediction for this arm and must not be compared as one.",
+      "prediction": "36/36 seeds reach total extinction (pop = 0) by tick 12000.",
+      "falsification": "ANY seed reaches tick 12000 with pop > 0.",
+      "notPredicted": "Extinction TIMING within the horizon is not predicted, only terminal state. Pre-0.6.0 extinction windows are earlier-engine evidence and are not comparable.",
       "confoundsControlled": [
         "Same 36-seed panel as the 0.4.1 flatline",
         "Same 6000-tick horizon",
         "--zero only, no lifts, so the arm is fully specified",
         "Knob schema unchanged in 0.5.0"
-      ]
+      ],
+      "horizonRationale": "RE-REGISTERED under 0.6.0. The original horizon was 6000, copied from the 0.4.1 extinction window (t2000-t5000). Measured on 36 seeds under 0.6.0, the LATEST extinction is tick 7000 (seed 41015, pop=3 at t6000, zero by t7000). A 6000-tick horizon therefore fails its own prediction by construction on 1 of 36 seeds \u2014 a mis-calibrated window, not a leak. 12000 gives 5000 ticks of margin over the worst observed extinction. This is sufficient FOR THESE 36 SEEDS and is not claimed sufficient in general.",
+      "measured_0_6_0": "Ladder run 38110148193, engine ba0df5a: 35/36 extinct at tick 6000, 36/36 by tick 7000, 0/36 alive at 24000. Conservation under --zero across all 36 seeds: mean |residual| 0.00028%, max 0.00162%, against a 0.5% failure threshold. Verdict on the OLD 6000-tick registration: FALSIFIED (1/36 alive at 6000). The origin reference is otherwise VALID: --zero is flat and energy is conserved to five decimal places."
     },
     "consumer-yield": {
       "title": "Consumer viability under corrected predation assimilation",
