@@ -4712,3 +4712,61 @@ line, and no fix is attempted on a guess.
 STATUS: the flatline arm remains FALSIFIED (4/36 survive). This fix does not
 change that. The origin reference is still not a valid flatline and the
 balance work cannot start on it.
+
+================================================================================
+HORIZON ARM — THERE IS NO LEAK. THE FLATLINE FALSIFICATION WAS A HORIZON ARTEFACT.
+================================================================================
+
+Arm `horizon`, pre-registered 2026-10-10, ladder run#4, engine ts-evo-poc/0.5.0,
+--zero, no lifts. 24000 ticks = 4x the flatline horizon. One variable: ticks.
+
+RESULT (31002, 31003, 31017; seed 31014 timed out and is re-run):
+
+  seed     extinction   decomp B/D at 24000
+  31002    tick 7000    0.99
+  31003    tick 8000    0.99
+  31017    tick 8000    0.99
+
+All three reach TOTAL EXTINCTION, and all three show decomp B/D BELOW
+replacement. H-B is supported and H-A is falsified: the decomposer loop is NOT
+energy-positive. It conserves energy and decays.
+
+I WAS WRONG ABOUT A LEAK. Three hypotheses were tested and falsified —
+decomposer capture (151c192), bioticMineralisation, and the recycle chain —
+and the reason all three failed is the simplest one: there was nothing there
+to find. The flatline arm's 4/36 survivors were not a conservation break. They
+were seeds caught MID-OSCILLATION at the 6000-tick measurement boundary.
+
+THE ACTUAL EXPLANATION. Seed 31002 reads 268 decomposers at tick 6000 — the
+exact tick the flatline arm measured — and is extinct by 7000. The 0.5.0
+gradient fix made decomposers find detritus efficiently, which lengthened the
+decay of the boom-bust loop from under 6000 ticks to roughly 7000-8000. The
+old horizon was calibrated to the DEFECTIVE engine's faster collapse. Under
+the corrected engine it is simply too short to distinguish "still
+oscillating" from "persistently surviving".
+
+So the flatline arm's falsification is a MEASUREMENT ARTEFACT, and its
+pre-registered prediction was mis-calibrated rather than the engine being
+wrong. The honest restatement: at 6000 ticks, 4/36 seeds are still above
+zero; run to 24000, every seed measured reaches extinction.
+
+WHAT THIS DOES NOT CHANGE. The reframing recorded earlier still stands and is
+not withdrawn: the 0.4.1 flatline was never a clean zero-energy reference,
+because a navigation bug was suppressing decomposer throughput. What changes
+is the explanation for the survivors — decay-time extension, not energy
+creation — and therefore the severity. There is no conservation break to find.
+
+CORRECTION TO THE RECORD: earlier in this section I stated the origin
+reference "rests on a defect" and implied a live accounting leak. The
+accounting is sound. The defect was that the origin reference was measured at
+a horizon tuned to the broken engine.
+
+CONSEQUENCE. The flatline must be re-run to a horizon that reaches extinction
+on every seed before it can serve as the origin reference again. 24000 is
+provisional; it is 3x the longest observed extinction and has not been shown
+sufficient for seeds that were not survivors.
+
+The `consumer-yield` result (consumers > 0 on 13/18, all three guilds on
+10/18, prediction required both >= 12/18) is therefore PARTIALLY SUPPORTED and
+falsified on the balance clause. It is no longer provisional on leak grounds,
+because there is no leak.
