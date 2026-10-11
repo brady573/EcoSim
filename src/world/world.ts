@@ -612,9 +612,14 @@ export class World {
    * and a decomposition guild that cannot be ablated cannot be shown to drive
    * anything.
    *
-   * As a measured FLUX it goes to zero when mineralisers are absent, so an
-   * ablation holding initial substrate constant isolates biotic cycling from
-   * background regeneration. G11 asserts exactly that.
+   * As a measured FLUX it goes to zero when mineralisers are absent, so it
+   * separates biotic cycling from background regeneration by construction.
+   *
+   * NOT YET EMPIRICALLY DEMONSTRATED. The obvious ablation test cannot be
+   * written against the current engine: `bioticMineraliser` is recomputed from
+   * role derivation every tick, so clearing it is immediately overwritten.
+   * `bioticMineralised` (the global total) remains the observable. See
+   * REPORT.md, issue #2 P1-3.
    */
   private mineralisedCell = new Float64Array(0);
   /** Diagnostic counters: graze takes split from predation (the ledger merges
@@ -2265,7 +2270,7 @@ export class World {
             if (nutB[ci] > capN) nutB[ci] = capN;
             if (nutC[ci] > capN) nutC[ci] = capN;
             this.bioticMineralised += returned;
-              this.mineralisedCell[ci] += returned;
+            this.mineralisedCell[ci] += returned;
           }
         }
       } else {
