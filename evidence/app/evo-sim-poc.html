@@ -3748,6 +3748,12 @@ __def("world/version.js", function(require, exports, module){/**
 /**
  * Bump on any behavioural change to the simulation.
  *
+ * 0.6.0 closes the energy accounting defects found by independent review
+ * (issue #2). Parity is re-pinned: 517 -> 808/159/58, 24601 -> 558/290/96.
+ * All figures recorded under 0.5.0 describe a LEAKY engine — decomposer
+ * photosynthesis was never actually gated under `--zero` — and are earlier-
+ * engine evidence, not current behaviour.
+ *
  * 0.5.0 corrects three defects found by independent review:
  *   - resource-gradient ascent compared north against east with no south
  *     sample, and probed east on the diagonal;
@@ -3759,9 +3765,9 @@ __def("world/version.js", function(require, exports, module){/**
  * All figures recorded under 0.4.1 describe the DEFECTIVE semantics and are
  * provenance only. See REPORT.md.
  */
-const WORLD_ENGINE_VERSION = 'ts-evo-poc/0.5.0';
+const WORLD_ENGINE_VERSION = 'ts-evo-poc/0.6.0';
 /** Identifier for the credibility-check suite that accompanies this version. */
-const GATE_SUITE_VERSION = 'gates/0.3.0';
+const GATE_SUITE_VERSION = 'gates/0.4.0';
 
 exports.WORLD_ENGINE_VERSION = WORLD_ENGINE_VERSION;
 exports.GATE_SUITE_VERSION = GATE_SUITE_VERSION;
@@ -4298,6 +4304,53 @@ class World {
     }
     /** Cumulative nutrient returned to the substrate by organisms, for the matter ledger. */
     bioticMineralised = 0;
+    /**
+     * Last tick's globally mineralised substrate, and the aggregate nutrient
+     * actually returned from it. Exposed so G9 can assert the recycling
+     * arithmetic DIRECTLY.
+     *
+     * A field-level proxy cannot verify this: uptake and return happen in the
+     * same ticks, so watching the standing nutrient total measures consumption,
+     * not the return path. `recycledLastTick` must equal
+     * `mineralisedLastTick * recyclingRate * 0.5` for ANY cell count.
+     */
+    mineralisedLastTick = 0;
+    recycledLastTick = 0;
+    /**
+     * Flux the cyclic regen term actually SAW last tick. Exposed so a gate can
+     * prove the term is not a kill-switch: if this is 0 while mineralisers are
+     * alive, the read and the clear are misordered and nutrientCyclic silently
+     * suppresses all regeneration.
+     */
+    cyclicFluxLastTick = 0;
+    /**
+     * Nutrient ACTUALLY written into the fields by the recycling loop last tick,
+     * counted inside the loop. `recycledLastTick` is derived algebraically from
+     * the same `share` expression, so it cannot distinguish "the loop ran" from
+     * "the loop was deleted". This counter can: G9 asserts on it.
+     */
+    recycledAppliedLastTick = 0;
+    /**
+     * Per-cell substrate ACTUALLY PROCESSED by mineralising organisms this tick.
+     *
+     * This is what `nutrientCyclic` is driven from. It previously used a
+     * saturation function of STANDING substrate (detritus + sediment + litter),
+     * which is abiotic: a cell holding substrate regenerated nutrients with no
+     * decomposer alive at all. That is a legitimate abiotic abstraction, but it
+     * is not the biotic guild-interdependence coupling the knob was chosen for,
+     * and a decomposition guild that cannot be ablated cannot be shown to drive
+     * anything.
+     *
+     * As a measured FLUX it goes to zero when mineralisers are absent, so it
+     * separates biotic cycling from background regeneration by construction.
+     *
+     * NOT YET EMPIRICALLY DEMONSTRATED. The obvious ablation test cannot be
+     * written against the current engine: `bioticMineraliser` is recomputed from
+     * role derivation every tick, so clearing it is immediately overwritten.
+     * `bioticMineralised` (the global total) remains the observable. See
+     * REPORT.md, issue #2 P1-3.
+     */
+    mineralisedCell = new Float64Array(0);
     /** Diagnostic counters: graze takes split from predation (the ledger merges
      * both kinds). Submissions are already public via submittedByKind[4].
      * Pure observation: incremented, never read by simulation logic. */
@@ -4558,6 +4611,7 @@ class World {
         }
         this.shadeMass = new Float32Array(this.shadeCols * this.shadeRows);
         this.nutrients = [];
+        this.mineralisedCell = new Float64Array(fieldCols * fieldRows);
         for (let nIdx = 0; nIdx < NUTRIENT_COUNT; nIdx++) {
             this.nutrients.push(new ScalarField(`nutrient${nIdx}`, fieldCols, fieldRows, 0));
         }
@@ -4915,8 +4969,7 @@ class World {
         // nutrient returns only where organic matter is actually being worked on
         // — decomposer activity — and a producer-only world slowly starves.
         const cyclic = cfg.nutrientCyclic === true;
-        const sedData = this.sediment.data;
-        const litData = this.litter.data;
+        this.cyclicFluxLastTick = 0;
         for (let nIdx = 0; nIdx < NUTRIENT_COUNT; nIdx++) {
             const nData = this.nutrients[nIdx].data;
             const mod = cfg.nutrientCapacity[nIdx] ?? 1;
@@ -4924,8 +4977,14 @@ class World {
                 const cap = cfg.nutrientPerCell * fert[i] * mod;
                 let rate = cfg.nutrientRegen;
                 if (cyclic) {
+                    // Driven by substrate mineralisers ACTUALLY processed this tick, not
+                    // by standing substrate. Ablate the mineralisers and this term goes
+                    // to zero even with a full substrate pool; that separation is what
+                    // makes it a biotic coupling rather than background regeneration.
                     const sat = Math.max(1e-6, cfg.mixotrophySaturation);
-                    const raw = detritus.data[i] + sedData[i] * 0.8 + litData[i] * 1.2;
+                    const raw = this.mineralisedCell[i];
+                    if (raw > this.cyclicFluxLastTick)
+                        this.cyclicFluxLastTick = raw;
                     rate *= raw / (raw + sat);
                 }
                 nData[i] += (cap - nData[i]) * rate * drain[i];
@@ -4945,6 +5004,15 @@ class World {
             }
             this.nutrients[nIdx].step(cfg.nutrientDiffusivity, cfg.nutrientDecay);
         }
+        // Clear the flux AFTER the regen loop has read it, not before.
+        //
+        // The fill used to sit at the top of this phase, so the cyclic term below
+        // always read 0 and `nutrientCyclic` behaved as a nutrient KILL-SWITCH
+        // rather than a coupling. The loop now reads the PREVIOUS tick's
+        // mineraliser throughput (a deliberate one-tick lag, since mineralisation
+        // itself runs later in actPhase), and the array is cleared here ready for
+        // this tick's accumulation.
+        this.mineralisedCell.fill(0);
         // Detritus mineralises: it leaves the biological loop as it becomes
         // inorganic nutrient. Energy that was in a corpse does NOT come back free.
         // Each pool's decay is booked EXACTLY ONCE, from its own accumulator.
@@ -4988,13 +5056,30 @@ class World {
         this.ledger.recordMineralised(litterMineralised);
         // Mineralised matter returns to the substrate split across the pools, so
         // recycling does not silently become a nutrient-A-only subsidy.
+        // Return the recycled fraction ONCE, split across pools AND cells.
+        //
+        // This previously broadcast `share` to every cell while dividing only by
+        // the pool count, so the aggregate addition was nCells times the quantity
+        // that was actually mineralised. Nutrients are NOT covered by the energy
+        // ledger, so the accounting residual could not see it: the books stayed
+        // balanced while substrate was created from nothing. Dividing by the cell
+        // count as well makes aggregate recycling independent of grid resolution,
+        // which G9 asserts directly.
         const totalMineralised = detritusMineralised + sedimentMineralised + litterMineralised;
-        const share = totalMineralised * cfg.recyclingRate * 0.5 / NUTRIENT_COUNT;
+        const share = (totalMineralised * cfg.recyclingRate * 0.5) / (NUTRIENT_COUNT * nCells);
+        // Record the pair G9 asserts on. The aggregate returned is share * nCells
+        // * NUTRIENT_COUNT, which must collapse back to the intended quantity.
+        this.mineralisedLastTick = totalMineralised;
+        this.recycledLastTick = share * nCells * NUTRIENT_COUNT;
+        let applied = 0;
         for (let nIdx = 0; nIdx < NUTRIENT_COUNT; nIdx++) {
             const nData = this.nutrients[nIdx].data;
-            for (let i = 0; i < nCells; i++)
+            for (let i = 0; i < nCells; i++) {
                 nData[i] += share;
+                applied += share; // measured inside the loop, not derived from the formula
+            }
         }
+        this.recycledAppliedLastTick = applied;
         const t2 = now();
         // --- Phase 3: spatial rebuild -----------------------------------------
         // Build from a LIVE-PACKED position array. Passing the dense bound would
@@ -5745,6 +5830,7 @@ class World {
                             if (nutC[ci] > cap)
                                 nutC[ci] = cap;
                             this.bioticMineralised += returned;
+                            this.mineralisedCell[ci] += returned;
                         }
                     }
                 }
@@ -5807,6 +5893,7 @@ class World {
                             if (nutC[ci] > cap)
                                 nutC[ci] = cap;
                             this.bioticMineralised += returned;
+                            this.mineralisedCell[ci] += returned;
                         }
                     }
                 }
@@ -5885,6 +5972,7 @@ class World {
                         if (nutC[ci] > capN)
                             nutC[ci] = capN;
                         this.bioticMineralised += returned;
+                        this.mineralisedCell[ci] += returned;
                     }
                 }
             }
@@ -7068,9 +7156,15 @@ class World {
             const e = store.energy[slot];
             biomass += e;
             sizeSum += p[o + TRAIT.SIZE];
-            const photo = p[o + TRAIT.PHOTOSYNTHETIC_RATE];
             const toxin = p[o + TRAIT.TOXIN];
-            if (photo > 0.35)
+            // Guild comes from the AUTHORITATIVE derived role, not from a second
+            // threshold. This used to re-derive "producer" as `photo > 0.35` while
+            // deriveRole used `photo > 0.34`, so an organism with photo in
+            // (0.34, 0.35] counted as a PRODUCER in role terms and a CONSUMER in
+            // every snapshot statistic. Two reporting paths disagreeing is how a
+            // measured guild total stops meaning anything.
+            const guild = this.roleOf(slot).trophic;
+            if (guild === TROPHIC.PRODUCER)
                 producers++;
             else
                 consumers++;

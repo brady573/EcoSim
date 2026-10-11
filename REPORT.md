@@ -4851,9 +4851,15 @@ ALREADY MEASURED, NOT CONTESTED
     on 10/18 (needed >= 12). PARTIALLY SUPPORTED, falsified on the balance
     clause. Correcting the doubled digestion tax did restore consumers.
 
+CLOSED
+  - Branch protection on main is ENFORCED. It is a GitHub RULESET (id
+    24848207, name "main", target branch, enforcement active) rather than
+    classic branch protection, so the /branches/main API still reports
+    "enabled: false" and will keep doing so. Verify via /rulesets. It requires
+    the status check context "Typecheck, gates, contract" — which is exactly
+    the CI job name — plus branch deletion and non-fast-forward rules.
+
 STILL OPEN
-  - Branch protection on main is DISABLED. CI is advisory, not gating. Needs a
-    Settings -> Branches change; no tooling reaches it.
   - The flatline arm has never been re-run to a horizon proven sufficient for
     extinction on all 36 seeds. 24000 is 3x the longest observed extinction,
     which is not the same as shown sufficient.
@@ -4867,3 +4873,50 @@ DID NOT HAPPEN, do not assume it
   - The 0.4.1 flatline was NOT shown to rest on a live accounting leak. That
     framing was withdrawn; what survives is that its 6000-tick horizon was
     calibrated to the defective engine's faster collapse.
+
+================================================================================
+ISSUE #2 P2-7 — SCIENTIFIC CLAIMS ALIGNED WITH OBSERVABLES
+================================================================================
+
+The horizon arm is a POPULATION-TRAJECTORY test, not a conservation verdict.
+Both halves of that sentence matter. Population growth does not establish
+energy creation: a conservative system can transiently grow on finite stores,
+and an energy-positive system can reach a density-limited equilibrium.
+Conservation is adjudicated by the ledger identity, and the input components
+are now reported separately precisely so that a mint cannot hide inside a
+balanced total.
+
+THREE GUILD ARENAS ARE NOT THREE TROPHIC LEVELS. They are functional arenas
+that can be occupied by organisms of different sizes and strategies. A guild
+label is a role readout, not a rung on a ladder.
+
+A LINEAGE IS NOT A SPECIES. `lineageId` and `generationDepth` are bookkeeping
+about descent and recombination. They are not a claim about biological
+speciation and must not be reported as one.
+
+COMPETITIVE EXCLUSION — CORRECTED. RESEARCH.md previously asserted that a
+single limiting nutrient makes any stable multi-trophic food web
+mathematically impossible. Gause's principle concerns species competing for
+ONE shared limiting resource under assumptions this simulation does not meet;
+it is not a theorem about guilds with different resource bases. Multiple
+nutrients remain a defensible niche mechanism, not a proved prerequisite for
+coexistence. RESEARCH.md now carries that correction in place.
+
+EXTERNAL VALIDITY — WHAT WOULD ACTUALLY SUPPORT IT. Calibrating to
+persistence or to a target population is not evidence. Comparison would rest
+on several INDEPENDENT observable patterns: production/respiration ratio,
+predator functional response, guild abundance and variability across seeds,
+nutrient turnover, and disturbance recovery. No claim of external validity is
+made here.
+
+P1-3 — nutrientCyclic IS NOW BIOTIC, BUT ITS ABLATION TEST IS NOT WRITTEN.
+The term is driven by substrate mineralisers actually processed per tick
+(World.mineralisedCell) instead of by standing substrate. That is the code fix
+the issue asked for. The ABLATION TEST is not shipped: bioticMineraliser is
+recomputed from role derivation every tick, so clearing the array has no
+effect and both arms came out identical. Writing a real ablation needs an
+engine switch that does not exist, and adding a knob that exists only to
+drive its own test is the dead-knob pattern this repository forbids. The
+coupling is therefore implemented and reasoned but NOT empirically
+demonstrated. Stated plainly rather than papered over with a gate that passes
+without testing it.

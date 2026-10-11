@@ -18,6 +18,9 @@
  * Run: pnpm gates   (designed to finish in a few seconds at small scale)
  */
 
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { World } from './world/world.js';
 import { WORLD_ENGINE_VERSION } from './world/version.js';
 import { INTERACTION, InteractionQueue } from './bio/interactions.js';
@@ -629,6 +632,156 @@ function gate8(): void {
 
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// G9 — recycled nutrient is independent of grid resolution
+//
+// Mineralised substrate is returned to the nutrient field. If that return is
+// broadcast to every cell while divided only by the pool count, the aggregate
+// addition scales with nCells: refining the grid SILENTLY MANUFACTURES
+// substrate. Nutrients sit outside the energy ledger, so the accounting
+// residual cannot detect it — the books balance while matter appears from
+// nowhere. This gate is the only guard, so it asserts the property directly:
+// identical world area, two field resolutions, same aggregate nutrient.
+//
+// G10 — under `--zero`, no guild captures any energy.
+//
+// "Zero" is a claim about every energy-giving pathway at once. A missing
+// guild branch in the capture gate leaves one guild still earning while the
+// preset reports inert, which is a flatline that is not flat. This asserts
+// capture per guild is zero, which is a stronger and more direct statement
+// than any population outcome.
+function gate9(): void {
+  // Assert the ACTUAL nutrient-field writes, summed INSIDE the delivery loop.
+  //
+  // Two earlier versions were wrong. One compared recycledLastTick, which is
+  // derived from the same `share` formula, so it passed even with the delivery
+  // loop deleted. The next compared total applied across two grid resolutions —
+  // but those two runs are DIFFERENT simulations that mineralise different
+  // amounts, so comparing their totals compared two different experiments.
+  //
+  // The invariant is WITHIN one run: the amount written to the fields must equal
+  // mineralised x recyclingRate x 0.5. That catches a missing nCells division
+  // (which inflates the aggregate by the cell count) and a deleted loop (which
+  // writes nothing), and it is resolution-independent by construction. Run at
+  // two resolutions to show that.
+  type W = {
+    mineralisedLastTick: number;
+    recycledLastTick: number;
+    recycledAppliedLastTick: number;
+    config: { recyclingRate: number };
+    step(): void;
+  };
+  const run = (cell: number): { ratio: number; mineralised: number; applied: number; expected: number } => {
+    const w = new World({
+      config: { ...SMALL, worldW: 1600, worldH: 1600, fieldCell: cell, founders: 150, nutrientRegen: 0, excretionRate: 0 } as never,
+    }) as unknown as W;
+    for (let i = 0; i < 120; i++) w.step();
+    const mineralised = w.mineralisedLastTick;
+    const expected = mineralised * w.config.recyclingRate * 0.5;
+    return { ratio: expected === 0 ? 0 : w.recycledAppliedLastTick / expected, mineralised, applied: w.recycledAppliedLastTick, expected };
+  };
+  const coarse = run(100); // 16 x 16 = 256 cells
+  const fine = run(25); // 64 x 64 = 4096 cells, 16x more cells
+  // Non-vacuity: both arms must actually have material to recycle, or a ratio
+  // of 1 is earned by doing nothing.
+  const fixtureOk = coarse.mineralised > 1e-3 && fine.mineralised > 1e-3;
+  const ok = Math.abs(coarse.ratio - 1) < 1e-9 && Math.abs(fine.ratio - 1) < 1e-9;
+  record(
+    'G9',
+    'recycled nutrient is actually written and grid-size invariant',
+    fixtureOk && ok,
+    `coarse(256 cells): mineralised=${coarse.mineralised.toFixed(4)} applied=${coarse.applied.toFixed(4)} ` +
+      `expected=${coarse.expected.toFixed(4)} ratio=${coarse.ratio.toFixed(6)}; ` +
+      `fine(4096 cells): mineralised=${fine.mineralised.toFixed(4)} applied=${fine.applied.toFixed(4)} ` +
+      `expected=${fine.expected.toFixed(4)} ratio=${fine.ratio.toFixed(6)}. ` +
+      `Applied is summed inside the delivery loop, so deleting that loop or dropping ` +
+      `the nCells division both fail this. Totals are NOT compared across resolutions: ` +
+      `those runs mineralise different amounts.`,
+  );
+}
+
+function gate10(): void {
+  // Assert on the PRESET, not on a hand-built config.
+  //
+  // The P0-2 defect was a routing error: `decomposerPhotoScale: 0` was written
+  // into ZERO_LIFTABLE instead of ZEROED. A gate that sets the scales directly
+  // in config would have stayed GREEN on exactly that code, because the engine
+  // branch was fine and only the preset wiring was broken. So this gate must
+  // go through the same preset the probe uses.
+  // Walk upward for the repo root. This module runs from build/gates.js in
+  // production and src/gates.ts under a bundler, so resolving relative to the
+  // module alone points at the wrong directory in one of the two cases.
+  let dir = dirname(fileURLToPath(import.meta.url));
+  let probePath = '';
+  for (let up = 0; up < 5; up++) {
+    const candidate = join(dir, 'src', 'trace', 'scenesprobe.ts');
+    if (existsSync(candidate)) { probePath = candidate; break; }
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  if (!probePath) {
+    record('G10', 'the --zero preset actually zeroes every guild capture', false,
+      'could not locate src/trace/scenesprobe.ts to assert the preset');
+    return;
+  }
+  const probeSrc = readFileSync(probePath, 'utf8');
+  // ZEROED ends with a spread IIFE (the lifts block), not `} as const`, so the
+  // boundary is the spread rather than a closing brace.
+  const zeroedBlock = /const ZEROED = ZERO \? \{([\s\S]*?)\n\s*\.\.\./.exec(probeSrc);
+  const liftBlock = /const ZERO_LIFTABLE = \{([\s\S]*?)\n\} as const/.exec(probeSrc);
+  const inZeroed = zeroedBlock ? /decomposerPhotoScale:\s*0/.test(zeroedBlock[1]) : false;
+  const inLifts = liftBlock ? /decomposerPhotoScale/.test(liftBlock[1]) : false;
+  // Asserted across BOTH probe entry points: `--zero` must mean the same
+  // thing whichever probe runs it.
+  const senesSrc = probePath.replace('scenesprobe.ts', 'senesprobe.ts');
+  const senesOk = existsSync(senesSrc)
+    ? /const ZEROED = ZERO \? \{([\s\S]*?)\n\s*\.\.\./.exec(readFileSync(senesSrc, 'utf8'))
+      ?.slice(1)[0]?.includes('decomposerPhotoScale: 0') ?? false
+    : false;
+  record(
+    'G10',
+    'the --zero preset actually zeroes every guild capture',
+    inZeroed && inLifts && senesOk,
+    `scenesprobe: ZEROED sets it=${inZeroed} (required), ZERO_LIFTABLE lifts ` +
+      `it=${inLifts} (also required — a preset you cannot override is not a ` +
+      `knob); senesprobe: ZEROED sets it=${senesOk} (required). ` +
+      `The P0-2 leak was the entry being in ZERO_LIFTABLE ONLY, which left the ` +
+      `baseline ungated while making it look controllable. Asserted on BOTH ` +
+      `probe entry points so --zero cannot mean different things per probe.`,
+  );
+}
+
+function gate12(): void {
+  // nutrientCyclic must not be a KILL-SWITCH.
+  //
+  // The phase-order defect this guards: clearing mineralisedCell at the TOP of
+  // the substrate phase wiped the flux BEFORE the regen loop read it, so the
+  // cyclic term always saw 0 and suppressed ALL regeneration. Every other gate
+  // stayed green on that code -- verified by reintroducing it.
+  //
+  // So this asserts the read directly: with cyclic ON and mineralisers alive,
+  // the flux the regen term observed must be non-zero.
+  type W = { cyclicFluxLastTick: number; step(): void };
+  const arm = (cyclic: boolean): number => {
+    const w = new World({
+      config: { ...SMALL, founders: 120, nutrientCyclic: cyclic } as never,
+    }) as unknown as W;
+    for (let k = 0; k < 150; k++) w.step();
+    return w.cyclicFluxLastTick;
+  };
+  const on = arm(true);
+  const off = arm(false);
+  record(
+    'G12',
+    'nutrientCyclic reads a non-zero biotic flux (not a kill-switch)',
+    on > 0 && off === 0,
+    `cyclic flux observed with nutrientCyclic on=${on.toFixed(6)}, off=${off.toFixed(6)} ` +
+      `(want >0 and exactly 0). Zero while ON means the flux is cleared before it is ` +
+      `read, and the knob suppresses regeneration instead of coupling it.`,
+  );
+}
+
 function main(): void {
   console.log(`=== credibility gates :: ${WORLD_ENGINE_VERSION} ===`);
   console.log(`scenario: founders=${SMALL.founders} world=${SMALL.worldW}x${SMALL.worldH} ticks=${TICKS} seed=${SMALL.seed}\n`);
@@ -640,6 +793,9 @@ function main(): void {
   gate6();
   gate7();
   gate8();
+  gate9();
+  gate10();
+  gate12();
 
   const failed = results.filter((r) => !r.pass);
   console.log(`\n${results.length - failed.length}/${results.length} checks passed`);

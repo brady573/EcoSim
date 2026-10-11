@@ -70,8 +70,19 @@ constructed — regardless of tuning.
 
 This explains an observation I had been treating as an unexplained failure:
 grazers, predators and scavengers all went to **zero** while producers persisted.
-That is competitive exclusion, observed. It is not a bug in the behaviour
-arbitration, and no amount of tuning subsidy or regen will fix it.
+That is consistent with competitive exclusion, observed. It is not a bug in
+the behaviour arbitration, and no amount of tuning subsidy or regen will fix
+it.
+
+> **Scope correction (issue #2, P2-7).** The original text said a single
+> limiting nutrient makes ANY stable multi-trophic food web mathematically
+> impossible. That is an overstatement. Gause's principle applies to species
+> competing for ONE limiting resource under assumptions this simulation does
+> not satisfy — it concerns pairwise competition for a shared limiting
+> resource, not guilds with different resource bases and behaviours. Multiple
+> nutrients remain a useful niche mechanism and a defensible design; they are
+> not a proved prerequisite for coexistence, and this simulation has not
+> demonstrated coexistence either way.
 
 **Required design change:** multiple genuinely limiting resources, partitioned
 across traits, in the spirit of real C / N / P limitation. This is an
@@ -196,7 +207,7 @@ requires crossing a threshold, not perturbing within a regime.
 | POC finding | Status from literature |
 | --- | --- |
 | Subsidy → unbounded growth → overshoot collapse | **Confirmed and named** (paradox of enrichment). Response is removal, not tuning. |
-| Consumers excluded; producers persist | **Explained** by competitive exclusion. A one-limiting-resource design forbids food webs. |
+| Consumers excluded; producers persist | **Consistent with** competitive exclusion for a shared limiting resource. A one-resource design makes guild separation hard, not food webs formally impossible. See the scope correction above. |
 | Consumers cannot bootstrap on dilute detritus | **Confirmed**; real detrital webs are benthic, i.e. concentrated. |
 | Density dependence needed from competition | **Confirmed** as the correct mechanism. |
 | "No stable equilibrium = failure" | **Refuted as a framing.** Limit cycles are a legitimate stable attractor. |

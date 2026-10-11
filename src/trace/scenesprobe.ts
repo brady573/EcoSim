@@ -125,21 +125,26 @@ for (const arg of process.argv) {
 const ZERO_LIFTABLE = {
   producerCaptureScale: 0,
   consumerPhotoScale: 0,
-  // The guild gate in the photosynthesis path had no decomposer branch, so
-  // this preset previously left decomposer capture live.
-  decomposerPhotoScale: 0,
   basalFoodPerCell: 0,
   nutrientRegen: 0,
   excretionRate: 0,
   meatYieldPerMass: 0,
   grazeYieldScale: 0,
   plantYieldPerMass: 0,
+  // Also in ZEROED: the preset sets the baseline, this authorises the override.
+  // Belonging in BOTH is correct — the P0-2 bug was being in ZERO_LIFTABLE
+  // ONLY, which left the baseline ungated while making it look controllable.
+  decomposerPhotoScale: 0,
 } as const;
 const ZEROED = ZERO ? {
   // No primary energy: producers cannot photosynthesise at all.
   producerCaptureScale: 0,
   // Consumers get no solar income either.
   consumerPhotoScale: 0,
+  // Decomposers had NO branch in the guild capture gate, so they captured at
+  // full demand regardless of the two scales above. That made the decomposer
+  // guild the only one with a live input under --zero.
+  decomposerPhotoScale: 0,
   // No exogenous organic subsidy.
   basalFoodPerCell: 0,
   // No abiotic nutrient regeneration (the free lunch A+C was closing).
@@ -297,6 +302,12 @@ const _biomass = L.biomass(w.store, (slot) => w.aliveAt(slot));
 const _det = w.detritus.total();
 const _dis = L.totalDissipated();
 const _residual = w.accountingResidualFraction();
-console.log(`LEDGER totalInput=${L.totalInput().toFixed(1)} biomass=${_biomass.toFixed(1)} detritus=${_det.toFixed(1)} dissipated=${_dis.toFixed(1)} accounted=${(_biomass + _det + _dis).toFixed(1)} residualPct=${(_residual * 100).toFixed(5)}`);
+// BREAKDOWN, not just the total. A single totalInput figure makes a leak
+// invisible: a system that mints energy and books it as input still balances,
+// so residualPct reads 0 and the books look clean while energy appears from
+// nowhere. Naming the components is what makes that visible. Per-guild capture
+// is included because "no guild may capture" is a claim about guilds.
+const _g = [0, 1, 2].map((i) => L.capturedByGuild[i].toFixed(1)).join('/');
+console.log(`LEDGER totalInput=${L.totalInput().toFixed(1)} founding=${L.foundingBiomass.toFixed(1)} capture=${L.capture.toFixed(1)} organic=${L.injectOrganic.toFixed(1)} captureByGuild=${_g} biomass=${_biomass.toFixed(1)} detritus=${_det.toFixed(1)} dissipated=${_dis.toFixed(1)} accounted=${(_biomass + _det + _dis).toFixed(1)} residualPct=${(_residual * 100).toFixed(5)}`);
 
 console.log(JSON.stringify({ seed: SEED, ticks: TICKS, setting: settingLabel }));

@@ -135,8 +135,8 @@ function probeArgs(over = {}) {
  * must not be compared against figures produced by this engine.
  */
 const PINNED = [
-  { seed: 517, want: [778, 169, 63], retired: '881/187/73 @ ts-evo-poc/0.4.1' },
-  { seed: 24601, want: [597, 246, 103], retired: '658/280/98 @ ts-evo-poc/0.4.1' },
+  { seed: 517, want: [808, 159, 58], retired: '881/187/73 @ 0.4.1; 778/169/63 @ 0.5.0 pre-P0-1' },
+  { seed: 24601, want: [558, 290, 96], retired: '658/280/98 @ 0.4.1; 597/246/103 @ 0.5.0 pre-P0-1' },
 ];
 
 if (!hasBuild) {
