@@ -1,0 +1,208 @@
+{
+  "arm": "producers-with-loop-floor0",
+  "title": "LOOP WITHOUT FLOOR: recycling sustains producers with no abiotic floor?",
+  "preregistered": "2026-10-12",
+  "identity": {
+    "engine": "ts-evo-poc/0.6.0",
+    "gateSuite": "gates/0.4.0",
+    "engineError": null,
+    "commit": "3c42c757fc50299396436ec0c65ee344ce27de47",
+    "ref": "refs/heads/balance/share-brake-diagnostics-run",
+    "runtime": "v24.21.0",
+    "armSpecHash": "c71824ef03db690f268b253017286bf12d90cccabed627a13a69b921debee0ef",
+    "armSpecPath": "tools/ladder/arms.json",
+    "note": "The probe always ran from the current checkout. A historical arm spec applied here is a settings replay, not a reproduction of its original figure."
+  },
+  "capturePolicy": {
+    "zero": true,
+    "permitted": [
+      true,
+      false,
+      false
+    ]
+  },
+  "seedCount": 3,
+  "seeds": [
+    41008,
+    52002,
+    52014
+  ],
+  "declaredSeedCount": 36,
+  "shard": {
+    "index": 7,
+    "count": 12
+  },
+  "historicalSpec": false,
+  "historicalEngineReproduced": false,
+  "ticks": 6000,
+  "declaredTicks": 6000,
+  "ticksOverrideApplied": false,
+  "zero": true,
+  "lifts": {
+    "producerCaptureScale": 0.35,
+    "basalFoodPerCell": 0.01,
+    "grazeYieldScale": 1,
+    "nutrientRegen": 0.0002
+  },
+  "preregistration": {
+    "hypothesis": "Owner-ordered floor removal with construction-stock kickstart. If the recycling loop (engaged regen + cyclic) is real, producers persist on 0.01 rain with zero floor; if the floor was the true carrier, they collapse to initial-stock-only dynamics.",
+    "prediction": "prod > 0 on at least 24/36 seeds at tick 6000 (machine criterion). Coexistence NOT predicted.",
+    "falsification": "FALSIFIED if prod > 0 on fewer than 24/36: without the floor the loop does not carry producers — the floor was load-bearing, and any reliance claim must be restated around it, not around decomposers.",
+    "notPredicted": "Consumer/decomposer endpoints, coexistence rates, capture shares (descriptive).",
+    "confoundsControlled": [
+      "Same horizon, engine, lifts, and 14/15 argvRest entries as graze-viability; differences stated, not hidden: (1) nfloor 0.05 -> 0, (2) seeds 18 -> 36 (adds 52001:52018 to match the alone-floor0 panel for the joint reading; rate bar preserved at two-thirds, 24/36 vs 12/18)",
+      "Kickstart is the existing construction-laid nutrient stock (no new mechanism); a flatline at bootstrap would motivate an explicit pulse, not assume one",
+      "conservation enforced per seed at 0.5%; a seed above it fails the run rather than reporting"
+    ],
+    "criteria": [
+      {
+        "id": "producers-sustained",
+        "metric": "prod",
+        "op": ">",
+        "value": 0,
+        "required": 24,
+        "statement": "producers > 0 at tick 6000 on at least 24/36 seeds"
+      }
+    ]
+  },
+  "runs": [
+    {
+      "seed": 41008,
+      "argv": [
+        "41008",
+        "6000",
+        "off",
+        "4",
+        "0.25",
+        "null",
+        "null",
+        "null",
+        "0.15",
+        "null",
+        "off",
+        "off",
+        "on",
+        "1.0",
+        "null",
+        "0",
+        "30",
+        "--zero",
+        "--zero-lift=producerCaptureScale:0.35",
+        "--zero-lift=basalFoodPerCell:0.01",
+        "--zero-lift=grazeYieldScale:1",
+        "--zero-lift=nutrientRegen:0.0002"
+      ],
+      "header": "SENESCENCE seed=41008 ticks=6000 setting=off photox4 basalx0.25 grazexnull tissuexnull radxnull disx0.15 pioxnull dtboff mixooff cycon sat1 pcapnull nfloor0 rsur30 dfound=0.25 ZERO-BASELINE (probe config)",
+      "prod": 324,
+      "cons": 95,
+      "dec": 0,
+      "pop": 419,
+      "finalTick": 6000,
+      "ledgerStatus": "ok",
+      "ledgerClass": "valid",
+      "totalInput": 281994.3,
+      "residualPct": 0.01361,
+      "capture": 19464.4,
+      "captureByGuild": [
+        19464.4,
+        0,
+        0
+      ],
+      "residualOk": true,
+      "capturePolicyOk": true
+    },
+    {
+      "seed": 52002,
+      "argv": [
+        "52002",
+        "6000",
+        "off",
+        "4",
+        "0.25",
+        "null",
+        "null",
+        "null",
+        "0.15",
+        "null",
+        "off",
+        "off",
+        "on",
+        "1.0",
+        "null",
+        "0",
+        "30",
+        "--zero",
+        "--zero-lift=producerCaptureScale:0.35",
+        "--zero-lift=basalFoodPerCell:0.01",
+        "--zero-lift=grazeYieldScale:1",
+        "--zero-lift=nutrientRegen:0.0002"
+      ],
+      "header": "SENESCENCE seed=52002 ticks=6000 setting=off photox4 basalx0.25 grazexnull tissuexnull radxnull disx0.15 pioxnull dtboff mixooff cycon sat1 pcapnull nfloor0 rsur30 dfound=0.25 ZERO-BASELINE (probe config)",
+      "prod": 0,
+      "cons": 0,
+      "dec": 460,
+      "pop": 460,
+      "finalTick": 6000,
+      "ledgerStatus": "ok",
+      "ledgerClass": "valid",
+      "totalInput": 276215.3,
+      "residualPct": 0.00843,
+      "capture": 12707.2,
+      "captureByGuild": [
+        12707.2,
+        0,
+        0
+      ],
+      "residualOk": true,
+      "capturePolicyOk": true
+    },
+    {
+      "seed": 52014,
+      "argv": [
+        "52014",
+        "6000",
+        "off",
+        "4",
+        "0.25",
+        "null",
+        "null",
+        "null",
+        "0.15",
+        "null",
+        "off",
+        "off",
+        "on",
+        "1.0",
+        "null",
+        "0",
+        "30",
+        "--zero",
+        "--zero-lift=producerCaptureScale:0.35",
+        "--zero-lift=basalFoodPerCell:0.01",
+        "--zero-lift=grazeYieldScale:1",
+        "--zero-lift=nutrientRegen:0.0002"
+      ],
+      "header": "SENESCENCE seed=52014 ticks=6000 setting=off photox4 basalx0.25 grazexnull tissuexnull radxnull disx0.15 pioxnull dtboff mixooff cycon sat1 pcapnull nfloor0 rsur30 dfound=0.25 ZERO-BASELINE (probe config)",
+      "prod": 85,
+      "cons": 0,
+      "dec": 947,
+      "pop": 1032,
+      "finalTick": 6000,
+      "ledgerStatus": "ok",
+      "ledgerClass": "valid",
+      "totalInput": 323493.9,
+      "residualPct": 0.01212,
+      "capture": 64952.5,
+      "captureByGuild": [
+        64952.5,
+        0,
+        0
+      ],
+      "residualOk": true,
+      "capturePolicyOk": true
+    }
+  ],
+  "headerMismatches": [],
+  "failures": [],
+  "warnings": []
+}

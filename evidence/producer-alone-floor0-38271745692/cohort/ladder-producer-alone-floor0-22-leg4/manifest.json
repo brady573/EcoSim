@@ -1,0 +1,229 @@
+{
+  "arm": "producer-alone-floor0",
+  "title": "STRICT ALONE WITHOUT FLOOR: producers fail with no guilds and no floor?",
+  "preregistered": "2026-10-12",
+  "identity": {
+    "engine": "ts-evo-poc/0.6.0",
+    "gateSuite": "gates/0.4.0",
+    "engineError": null,
+    "commit": "3c42c757fc50299396436ec0c65ee344ce27de47",
+    "ref": "refs/heads/balance/share-brake-diagnostics-run",
+    "runtime": "v24.21.0",
+    "armSpecHash": "c71824ef03db690f268b253017286bf12d90cccabed627a13a69b921debee0ef",
+    "armSpecPath": "tools/ladder/arms.json",
+    "note": "The probe always ran from the current checkout. A historical arm spec applied here is a settings replay, not a reproduction of its original figure."
+  },
+  "capturePolicy": {
+    "zero": true,
+    "permitted": [
+      true,
+      false,
+      false
+    ]
+  },
+  "seedCount": 3,
+  "seeds": [
+    41005,
+    41017,
+    52011
+  ],
+  "declaredSeedCount": 36,
+  "shard": {
+    "index": 4,
+    "count": 12
+  },
+  "historicalSpec": false,
+  "historicalEngineReproduced": false,
+  "ticks": 6000,
+  "declaredTicks": 6000,
+  "ticksOverrideApplied": false,
+  "zero": true,
+  "lifts": {
+    "producerCaptureScale": 0.35,
+    "basalFoodPerCell": 0.01,
+    "grazeYieldScale": 0,
+    "nutrientRegen": 0.0002
+  },
+  "preregistration": {
+    "hypothesis": "Owner-ordered strict alone test: the 0.05 floor carried producers alone on 33/36; without it, initial stock plus construction kickstart alone must not carry them. Heterotroph income impossible (graze explicit 0, meat preset 0), no seeded decomposers.",
+    "prediction": "prod == 0 on at least 30/36 seeds at tick 6000 (machine criterion). Nothing else predicted.",
+    "falsification": "FALSIFIED (reliance not obligate even floorless) if prod > 0 on 7 or more of 36 seeds. Sub-cases as before: (a) persist with no decomposers ever sampled — initial stock suffices, clause closed; (b) decomposer roles re-emerge and track recovery — function-dependence holds but seeding-independence fails, clause needs restating.",
+    "notPredicted": "Consumer transients, decomposer re-emergence counts (descriptive), B/D trajectories (descriptive).",
+    "confoundsControlled": [
+      "Same 36 seeds, horizon, engine as producer-alone; differences stated: nfloor 0.05 -> 0 only (founders slot 0 and graze explicit 0 retained)",
+      "Kickstart is the existing construction stock only; abiotic floor fully removed",
+      "Dormancy/spore support retained (support is not seeding); disease/sat/cyc/regen/rsur identical",
+      "conservation enforced per seed at 0.5%; a seed above it fails the run rather than reporting"
+    ],
+    "criteria": [
+      {
+        "id": "producers-fail-alone-floorless",
+        "metric": "prod",
+        "op": "==",
+        "value": 0,
+        "required": 30,
+        "statement": "producers = 0 at tick 6000 on at least 30/36 seeds"
+      }
+    ]
+  },
+  "runs": [
+    {
+      "seed": 41005,
+      "argv": [
+        "41005",
+        "6000",
+        "off",
+        "4",
+        "0.25",
+        "null",
+        "null",
+        "null",
+        "0.15",
+        "null",
+        "off",
+        "off",
+        "on",
+        "1.0",
+        "null",
+        "0",
+        "30",
+        "0",
+        "--zero",
+        "--zero-lift=producerCaptureScale:0.35",
+        "--zero-lift=basalFoodPerCell:0.01",
+        "--zero-lift=grazeYieldScale:0",
+        "--zero-lift=nutrientRegen:0.0002"
+      ],
+      "header": "SENESCENCE seed=41005 ticks=6000 setting=off photox4 basalx0.25 grazexnull tissuexnull radxnull disx0.15 pioxnull dtboff mixooff cycon sat1 pcapnull nfloor0 rsur30 dfound=0 ZERO-BASELINE (probe config)",
+      "prod": 0,
+      "cons": 0,
+      "dec": 0,
+      "pop": 0,
+      "finalTick": 6000,
+      "ledgerStatus": "ok",
+      "ledgerClass": "valid",
+      "totalInput": 323737.3,
+      "residualPct": -0.00014,
+      "capture": 64941.3,
+      "captureByGuild": [
+        64941.3,
+        0,
+        0
+      ],
+      "residualOk": true,
+      "capturePolicyOk": true,
+      "captureVacuous": [
+        "decomposer was empty at every checkpoint, so its zero capture proves nothing"
+      ]
+    },
+    {
+      "seed": 41017,
+      "argv": [
+        "41017",
+        "6000",
+        "off",
+        "4",
+        "0.25",
+        "null",
+        "null",
+        "null",
+        "0.15",
+        "null",
+        "off",
+        "off",
+        "on",
+        "1.0",
+        "null",
+        "0",
+        "30",
+        "0",
+        "--zero",
+        "--zero-lift=producerCaptureScale:0.35",
+        "--zero-lift=basalFoodPerCell:0.01",
+        "--zero-lift=grazeYieldScale:0",
+        "--zero-lift=nutrientRegen:0.0002"
+      ],
+      "header": "SENESCENCE seed=41017 ticks=6000 setting=off photox4 basalx0.25 grazexnull tissuexnull radxnull disx0.15 pioxnull dtboff mixooff cycon sat1 pcapnull nfloor0 rsur30 dfound=0 ZERO-BASELINE (probe config)",
+      "prod": 307,
+      "cons": 0,
+      "dec": 0,
+      "pop": 307,
+      "finalTick": 6000,
+      "ledgerStatus": "ok",
+      "ledgerClass": "valid",
+      "totalInput": 321909,
+      "residualPct": -0.00008,
+      "capture": 61000.5,
+      "captureByGuild": [
+        61000.5,
+        0,
+        0
+      ],
+      "residualOk": true,
+      "capturePolicyOk": true
+    },
+    {
+      "seed": 52011,
+      "argv": [
+        "52011",
+        "6000",
+        "off",
+        "4",
+        "0.25",
+        "null",
+        "null",
+        "null",
+        "0.15",
+        "null",
+        "off",
+        "off",
+        "on",
+        "1.0",
+        "null",
+        "0",
+        "30",
+        "0",
+        "--zero",
+        "--zero-lift=producerCaptureScale:0.35",
+        "--zero-lift=basalFoodPerCell:0.01",
+        "--zero-lift=grazeYieldScale:0",
+        "--zero-lift=nutrientRegen:0.0002"
+      ],
+      "header": "SENESCENCE seed=52011 ticks=6000 setting=off photox4 basalx0.25 grazexnull tissuexnull radxnull disx0.15 pioxnull dtboff mixooff cycon sat1 pcapnull nfloor0 rsur30 dfound=0 ZERO-BASELINE (probe config)",
+      "prod": 26,
+      "cons": 0,
+      "dec": 0,
+      "pop": 26,
+      "finalTick": 6000,
+      "ledgerStatus": "ok",
+      "ledgerClass": "valid",
+      "totalInput": 323500.2,
+      "residualPct": -0.00022,
+      "capture": 63734.3,
+      "captureByGuild": [
+        63734.3,
+        0,
+        0
+      ],
+      "residualOk": true,
+      "capturePolicyOk": true,
+      "captureVacuous": [
+        "decomposer was empty at every checkpoint, so its zero capture proves nothing"
+      ]
+    }
+  ],
+  "headerMismatches": [],
+  "failures": [],
+  "warnings": [
+    {
+      "seed": 41005,
+      "warning": "decomposer was empty at every checkpoint, so its zero capture proves nothing",
+      "evidenceClass": "capture-vacuous"
+    },
+    {
+      "seed": 52011,
+      "warning": "decomposer was empty at every checkpoint, so its zero capture proves nothing",
+      "evidenceClass": "capture-vacuous"
+    }
+  ]
+}

@@ -6277,3 +6277,69 @@ Floor-zero pair (each one dial from its parent, registered below):
 Interpretation order: (b) then (a). Reliance holds iff (b) fails-alone AND
 (a) sustains (floor-0 universal lethality would prove nothing about reliance).
 Both pre-registered; neither predicts coexistence.
+
+--------------------------------------------------------------------------------
+STEP 6 — FLOOR-ZERO PAIR: RELIANCE FALSIFIED TWICE, LOOP WITHOUT FLOOR (2026-10-12)
+--------------------------------------------------------------------------------
+
+ARMS (Owner-ordered). producers-with-loop-floor0 (viability + nfloor -> 0;
+bar prod > 0 on >=24/36) and producer-alone-floor0 (ablation + nfloor -> 0;
+bar prod == 0 on >=30/36). Kickstart = construction-laid stock, no new knob.
+
+RUNS. 38271740961 (loop) and 38271745692 (alone). Both cohorts INTACT, both
+FALSIFIED. Artifacts archived under evidence/producers-with-loop-floor0-38271740961/
+and evidence/producer-alone-floor0-38271745692/.
+
+RESULT.
+  loop-floor0:  prod 20/36 (bar 24 missed by 4); cons 23/36; all-three 9/36.
+    prod>0: 41002,41003,41004,41005,41008,41009,41011,41012,41014,41015,41016,
+    41017,52005,52010,52011,52014,52015,52016,52017,52018.
+  alone-floor0: prod == 0 on 9/36; 27/36 persist (bar missed by 21).
+    persist: 41001,41002,41006,41007,41008,41009,41012,41014,41015,41017,41018,
+    52001,52002,52003,52004,52005,52006,52007,52008,52009,52010,52011,52012,
+    52013,52015,52017,52018 (zeros: 41003,41004,41005,41010,41011,41013,41016,
+    52014,52016).
+    Decomposers at endpoint on 3/36 (41009 D254, 52006 D125, 52016 D918),
+    sampled at >=1 checkpoint on 9/36; 22 persisters never sampled any.
+
+VERDICT. The conjunction resolves against reliance: alone-floor0 was supposed
+to fail (>=30 zeros) and instead 27/36 persist — WITH neither seeded
+decomposers, nor heterotroph income, nor abiotic floor. Initial construction
+stock suffices for producers on most seeds; the floor was sufficient but not
+even necessary. No universal lethality occurred, so the caveat does not
+apply — the test is interpretable, and it falsifies. The loop arm (20/36)
+underperforms the floor configs, consistent with the floor having carried
+roughly a third of seeds all along.
+
+PROGRAM STATE. Config dials are exhausted as an avenue to obligate reliance:
+link restored, subsidy cut 25x, coupling tried three ways, reserve
+exonerated, floor removed with and without guilds — producers persist alone
+regardless. The two remaining authorized items are the approved
+consumer-economics engine rework (variance-tolerance grace) and whatever the
+Owner decides about the reliance clause itself (restate functionally, hold as
+future objective, or close it as falsified). No new arm is registered here.
+
+--------------------------------------------------------------------------------
+OWNER DESIGN CONSTRAINT (2026-10-12): REAL-WORLD EQUIVALENT FOR EVERY MECHANIC
+--------------------------------------------------------------------------------
+
+Constraint: every biological mechanic must have a real-world equivalent. It
+may be simplified, but it must retain the spirit of the equivalent.
+
+ADOPTION (stated, effective immediately): (1) prospectively — every NEW
+mechanic and the approved economics rework must cite its equivalent before
+implementation; a mechanism without one is not registered. (2) No silent
+removals: existing mechanics are NOT ripped out on suspicion. A bounded
+retrospective audit will report equivalents-or-gaps per mechanic; removals,
+if any, are Owner decisions on that evidence, because several rungs of
+evidence were measured through the current set.
+
+COMPLIANCE OF THE PENDING REWORK (assessed before implementation, not
+after): the variance-tolerance grace maps to fasting tolerance — real animals
+do not take damage the instant expenditure exceeds intake; glycogen/fat
+reserves buffer brief deficits and wasting begins after reserves deplete.
+GRACE≈6 ticks is the reserve depth; sustained deficit still kills at full
+rate (starvation physiology, not免 starvation). Spirit retained: survival of
+inter-meal troughs, death on true inability to pay. The implementation entry
+will carry this citation; if review finds the mapping dishonest, the rework
+does not land.
