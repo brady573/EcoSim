@@ -5393,3 +5393,39 @@ Reviewed by Acrius-max at 498697b. Changes requested. Both accepted.
 numbers EXACTLY on a different commit (14/18 and 5/18), which is an incidental
 but real reproducibility signal: 498697b and daeeb6a are different trees and
 produced the same terminal guild state on all 18 seeds.
+
+================================================================================
+PROSPECTIVE GUILD REPLICATION — PREDICTION SUPPORTED ON THE NEW PANEL
+================================================================================
+
+Arm `prospective-guilds` was registered on main before dispatch. GitHub Actions
+run 38151553007 executed it on 2026-10-11, after the registration merge.
+The cohort verifier reports `integrity: INTACT`, `classification: supported`.
+
+  engine ts-evo-poc/0.6.0, commit 54861ad4fe7f1f086e3cdff8f2deac3257a5c0d3
+  registered and executed horizon 6000 ticks; no horizon override
+  seed panel 52001-52018; all 18 measured exactly once across six legs
+  arm-spec SHA-256 1f4a9e01a8a310bd915b5720708c08705f38630be788a3f7fb56ea349e4caa74
+
+  consumers-viable          14/18   (needed >= 12)   MET
+  three-guild-shortfall     11/18   (needed >= 10)   MET
+  all three guilds present   7/18   (required <= 8)   MET
+
+  VERDICT: SUPPORTED. Both preregistered clauses were met on this unseen panel.
+
+Evidence integrity checks passed: all legs recorded the same arm and identity;
+all runs reached tick 6000; no leg failures, duplicate/missing seeds, invalid
+ledgers, or capture-policy failures. Across the 18 runs, mean absolute
+conservation residual was 0.0000356% and the maximum was 0.00008%, below the
+registered 0.5% limit. The verifier output, six leg manifests, per-seed outputs,
+and summaries are preserved under
+`evidence/ladder/prospective-guilds-run-38151553007/`.
+
+INTERPRETATION. This supports the preregistered prediction that consumers remain
+common while three-guild outcomes remain at or below 8/18, for this engine,
+configuration, horizon, and one fresh seed panel. It is not independent
+validation, proof of a general rate, or evidence that balance is impossible.
+The arm uses `--zero` with the registered producer-capture and basal-food lifts;
+it is not the unmodified default ecology. It measures endpoint presence of the
+three broad trophic guilds, not recurrence of all five feeding/role groups over
+time. The broader balance and recurrence objectives therefore remain open.
