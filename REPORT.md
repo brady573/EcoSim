@@ -6718,17 +6718,33 @@ viability-061 endpoints on all three seeds. The tallies below measure the arm
 they claim. (This check also re-confirms the decomposerPhotoScale=0 and
 grazeYieldScale=1.0 corrections: any other effective config diverges.)
 
-RESULT (post-maturity consumer ticks, first-blocking gate in engine order):
-  seed    ticks    cooldown damage  surplus fraction ELIGIBLE
-  41002   92,668   1.2%     30.7%   8.1%    54.3%    5.6%
-  41004   1,407,524 1.8%    33.4%   10.9%   45.6%    8.4%
-  41012   74,827   1.2%     52.7%   8.6%    30.8%    6.7%
-READ. The FRACTION gate (energy/capacity < reproThreshold) is the largest
-blocker on all three seeds (31-54%); damage ceiling second (30-53%);
-surplus — the exonerated suspect — binds only 8-11%; eligibility 6-8%
-everywhere. But composition does NOT separate failer from persisters: 41002's
-shares sit inside the persisters' range. What separates them is SCALE:
-1.4M/75k vs 93k post-maturity ticks — persisters roll the dice orders of
-magnitude more. The constraint is upstream of breeding: recruitment to
-maturity and adult retention, not gate passage. No dial targets this yet;
-maturation/recruitment analysis is next, and no arm is registered here.
+RESULT (v1 WITHDRAWN — see correction below; retained in evidence/ as
+vgates.txt for provenance, not citable for gate precedence).
+
+CORRECTION (2026-10-12, review-driven): the v1 probe replicated gate checks
+by hand, BEFORE the step, in author order (maturity, cooldown, damage,
+surplus, fraction). The engine decides mid-tick in cooldown, fraction,
+maturity, damage, surplus order — so v1's exclusive shares were order
+artifacts. Accepted in full. The probe was rewritten onto the engine's own
+ReproProbe seam (observed at the decision point, engine order, per-seed
+hashState non-perturbation proof); output archived as vgates-engine-order.txt.
+
+RESULT v2 (consumer blocked[] in engine order + roll outcome; digests match
+on all three seeds, censuses re-verified identical):
+  seed   cooldown  fraction   maturity  damage  surplus  sexual  reachedRoll fired
+  41002  1,082     145,605    8,424     1,821   0        829     4,445       52
+  41004  23,721    1,855,967  61,810    29,991  0        13,571  105,752     1,183
+  41012  820       207,209    8,059     1,302   0        572     4,501       41
+READ (corrected). Fraction dominates absolutely at the actual decision point;
+surplus binds ZERO ticks on all three seeds (not 8-11% — those v1 ticks were
+fraction-blocked first under engine order). The exoneration is now far
+stronger than v1 stated: with the engine's own accounting, the drought
+reserve stops nothing. Damage is second but highest on persister 41004
+(29,991), so damage composition does not separate either. Roll conversion is
+~1% everywhere (52/4445, 1183/105752, 41/4501). What separates failer from
+persisters remains SCALE (roll-reaching ticks 4.4k vs 106k/4.5k), i.e.
+recruitment and retention upstream of breeding — the v1 scale conclusion
+survives the method correction even as its shares do not.
+Adjacent (recorded, not fixed here): the pre-existing gateattrib.ts carries
+the same hand-replicated wrong-order attribution for default config; it feeds
+no verdict in this record and is left untouched pending an Owner call.

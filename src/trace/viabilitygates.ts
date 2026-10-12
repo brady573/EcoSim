@@ -1,47 +1,32 @@
 /**
- * VIABILITY GATE ATTRIBUTION — which breeding gate stops consumers in the
- * viability config (diagnostic).
+ * VIABILITY GATE ATTRIBUTION — which reproduction gate stops consumers in the
+ * viability config (diagnostic, engine-ordered).
  *
  * READ-ONLY instrument: constructs Worlds, steps them, reports. Never writes
- * biology. Variant of gateattrib.ts (left untouched) pinned to the
- * viability-061 world config: --zero + lifts producerCaptureScale 0.35,
- * basalFoodPerCell 0.01, grazeYieldScale 1.0, nutrientRegen 0.0002, argvRest
- * off,4,0.25,null,null,null,0.15,null,off,off,on,1.0,null,0.05,30.
+ * biology. Pinned to the viability-061 world config: --zero + lifts
+ * producerCaptureScale 0.35, basalFoodPerCell 0.01, grazeYieldScale 1.0,
+ * nutrientRegen 0.0002, argvRest off,4,0.25,null,null,null,0.15,null,off,off,
+ * on,1.0,null,0.05,30.
  *
- * Two pinned differences from gateattrib, both load-bearing for honesty:
- *   - surplus constant 30 (the arm's rsur), not 90;
- *   - upkeep replicated WITH the configured consumer factor 0.25
- *     (consumerBasalScale), mirroring the engine's shared helper. Without it
- *     the surplus barrier reads 4x too high and every tick misattributes.
- * pioneerBonus is null in this config, so pioneerFactor is 1 throughout.
+ * METHOD (corrected 2026-10-12 after review): v1 of this probe replicated the
+ * gate checks by hand, BEFORE the step, in its own order — so its exclusive
+ * shares could not establish engine gate precedence. This version attaches a
+ * ReproProbeLog through the engine's own observer seam (WorldOptions
+ * reproProbe), which the engine calls at the actual reproduction decision
+ * point, in engine order (cooldown -> fraction -> maturity -> damage ->
+ * surplus -> sexual routing). Each run executes twice (probe off/on) with a
+ * hashState comparison: any divergence is reported as perturbation, not data.
+ *
+ * Config-identity tripwire (unchanged): the effective config must reproduce
+ * the archived viability-061 t6000 endpoints exactly (decomposerPhotoScale 0
+ * closing the P0-2 leak path, grazeYieldScale 1.0). Mismatch voids the run.
  *
  * Run (compiled only): node build/trace/viabilitygates.js [ticks] [seeds...]
  * Defaults: 6000 ticks; contrast seeds 41002 (fail), 41004 + 41012 (persist).
  */
 import { World } from '../world/world.js';
-import { FATAL_DAMAGE } from '../world/world.js';
-import { TRAIT } from '../bio/genome.js';
-import { resolveCapacity } from '../bio/phenotype.js';
-import { TROPHIC } from '../bio/role.js';
-
-const REFERENCE_SIZE = 6.7;
-// Matches the arm under test (rsur 30), NOT the engine default 90.
-const SURPLUS_TICKS = 30;
-// Matches consumerBasalScale 0.25 in the tested config (shared-helper rule:
-// the engine scales all three upkeep sites together).
-const CONSUMER_UPKEEP = 0.25;
-const upkeepOf = (basalCost: number, size: number, massCost: number): number =>
-  basalCost * (1 + massCost * 42 * REFERENCE_SIZE * Math.pow(size / REFERENCE_SIZE, 0.75)) *
-  CONSUMER_UPKEEP;
-
-const GATE = {
-  IMMATURE: 'immature',
-  COOLDOWN: 'cooldown',
-  DAMAGE: 'damageCeiling',
-  SURPLUS: 'reproSurplus',
-  FRACTION: 'fractionGate',
-  ELIGIBLE: 'ELIGIBLE (cleared all gates)',
-} as const;
+import { TROPHIC, TROPHIC_COUNT } from '../bio/role.js';
+import { ReproProbeLog, REPRO_GATE_NAMES } from './reproprobe.js';
 
 const TICKS = Number(process.argv[2] ?? 6000);
 if (!Number.isFinite(TICKS) || TICKS <= 0) {
@@ -55,7 +40,7 @@ if (SEEDS.some((s) => !Number.isFinite(s) || s <= 0)) {
   throw new Error(`bad seeds: ${process.argv.slice(3).join(' ')} (want positive integers)`);
 }
 
-function buildWorld(seed: number): World {
+function buildWorld(seed: number, probe: ReproProbeLog | null): World {
   return new World({
     config: {
       founders: 400, worldW: 2400, worldH: 2400, seed,
@@ -70,67 +55,50 @@ function buildWorld(seed: number): World {
       basalFoodPerCell: 0.01, nutrientRegen: 0.0002,
       excretionRate: 0, meatYieldPerMass: 0,
     },
+    reproProbe: probe ?? undefined,
   });
 }
 
-console.log('VIABILITY GATE ATTRIBUTION (viability-061 config, surplus=30, consumer upkeep x0.25)');
-console.log('Each post-maturity consumer tick attributed to the FIRST gate that blocks it.\n');
-console.log('seed      postMatTicks   immature  cooldown  damageCeil  surplus  fraction  ELIGIBLE   elig%');
-
-for (const seed of SEEDS) {
-  const w = buildWorld(seed);
-  const s = w.store;
-  const tallies: Record<string, number> = {
-    [GATE.IMMATURE]: 0, [GATE.COOLDOWN]: 0, [GATE.DAMAGE]: 0,
-    [GATE.SURPLUS]: 0, [GATE.FRACTION]: 0, [GATE.ELIGIBLE]: 0,
-  };
-  let postMatTicks = 0;
-
-  for (let t = 1; t <= TICKS; t++) {
-    // Attribute BEFORE stepping, so the state is what the engine saw this tick.
-    for (let sl = 0; sl < s.count; sl++) {
-      if (!w.aliveAt(sl)) continue;
-      if (w.roleOf(sl).trophic !== TROPHIC.CONSUMER) continue;
-      const age = s.age[sl];
-      if (age < s.trait(sl, TRAIT.MATURITY_AGE)) continue;
-      postMatTicks++;
-      if (s.reproCooldown[sl] > 0) { tallies[GATE.COOLDOWN]++; continue; }
-      if (s.damage[sl] > FATAL_DAMAGE * 0.45) { tallies[GATE.DAMAGE]++; continue; }
-      const upkeep = upkeepOf(
-        s.trait(sl, TRAIT.BASAL_COST),
-        s.trait(sl, TRAIT.SIZE),
-        s.trait(sl, TRAIT.MASS_COST),
-      );
-      if (s.energy[sl] <= upkeep * SURPLUS_TICKS) { tallies[GATE.SURPLUS]++; continue; }
-      const cap = resolveCapacity(s.phen[sl], s.trait(sl, TRAIT.STORAGE_CAPACITY));
-      if (s.energy[sl] / Math.max(1, cap) < s.trait(sl, TRAIT.REPRO_THRESHOLD)) {
-        tallies[GATE.FRACTION]++; continue;
-      }
-      tallies[GATE.ELIGIBLE]++;
-    }
-    w.step();
-  }
-
-  const pct = (n: number) => ((n / Math.max(1, postMatTicks)) * 100).toFixed(1).padStart(6);
-  console.log(
-    `${String(seed).padStart(6)} ${String(postMatTicks).padStart(15)} ${pct(tallies[GATE.IMMATURE])} ` +
-    `${pct(tallies[GATE.COOLDOWN])} ${pct(tallies[GATE.DAMAGE])} ${pct(tallies[GATE.SURPLUS])} ` +
-    `${pct(tallies[GATE.FRACTION])} ${pct(tallies[GATE.ELIGIBLE])}`,
-  );
-  // Final census: must match the archived viability-061 endpoint for this
-  // seed exactly (same engine + same config => same trajectory). If it does
-  // not, this probe is NOT measuring the arm it claims, and the tallies above
-  // are void. Stated before inspection; checked on read.
+function census(w: World): [number, number, number] {
   let fp = 0, fc = 0, fd = 0;
-  for (let sl = 0; sl < s.count; sl++) {
+  for (let sl = 0; sl < w.store.count; sl++) {
     if (!w.aliveAt(sl)) continue;
     const t = w.roleOf(sl).trophic;
-    if (t === 0) fp++;
-    else if (t === 1) fc++;
+    if (t === TROPHIC.PRODUCER) fp++;
+    else if (t === TROPHIC.CONSUMER) fc++;
     else fd++;
   }
-  console.log(`         final P${fp}/C${fc}/D${fd}`);
-  if (tallies[GATE.SURPLUS] === 0 && postMatTicks > 0) {
-    console.log('         (surplus gate never bound - upkeep replication may be wrong)');
-  }
+  return [fp, fc, fd];
 }
+
+console.log('VIABILITY GATE ATTRIBUTION (engine order, observed at the decision point)');
+console.log('consumer guild blocked[] in REPRO_GATE order + reached-roll/fired.\n');
+
+for (const seed of SEEDS) {
+  const wOff = buildWorld(seed, null);
+  for (let t = 1; t <= TICKS; t++) wOff.step();
+  const digestOff = wOff.hashState();
+
+  const log = new ReproProbeLog(TROPHIC_COUNT);
+  const wOn = buildWorld(seed, log);
+  for (let t = 1; t <= TICKS; t++) wOn.step();
+  const digestOn = wOn.hashState();
+
+  if (digestOff !== digestOn) {
+    console.log(`seed ${seed}: PERTURBATION — probe changed the run (digests differ). Data withheld.`);
+    continue;
+  }
+  const r = log.read(TROPHIC.CONSUMER);
+  if (!r) {
+    console.log(`seed ${seed}: no consumer record.`);
+    continue;
+  }
+  const parts = REPRO_GATE_NAMES.map((n, i) => `${n}=${r.blocked[i] ?? 0}`);
+  const [fp, fc, fd] = census(wOn);
+  console.log(
+    `seed ${seed}: nonperturbing (digest match). consumer { ${parts.join(' ')} } ` +
+    `reachedRoll=${r.reachedRoll} fired=${r.fired} final P${fp}/C${fc}/D${fd}`,
+  );
+}
+console.log('\nGate order is the engine\u2019s (cooldown, fraction, maturity, damage, surplus, sexual).');
+console.log('Final census must match the archived viability-061 endpoints or the run is void (see REPORT).');
