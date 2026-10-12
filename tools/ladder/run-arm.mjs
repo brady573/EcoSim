@@ -33,6 +33,7 @@ import { execFileSync } from 'node:child_process';
 import {
   parseLedgerStrict, classifyLedgerStatus, residualWithinTolerance,
   evaluateCapturePolicy, parseCheckpoints, permittedGuilds,
+  parseSenescenceHeader, senescenceHeaderMismatches,
 } from './evidence.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -185,22 +186,6 @@ function buildArgv(seed) {
     argv.push(`--zero-lift=${dial}:${value}`);
   }
   return argv;
-}
-
-/**
- * Parse the probe's emitted header into a comparable map.
- * Format: SENESCENCE seed=.. ticks=.. setting=.. photox4 basalx.. ... (probe config)
- */
-function parseHeader(line) {
-  if (!line.startsWith('SENESCENCE ')) throw new Error(`unexpected header: ${line.slice(0, 80)}`);
-  const body = line.slice('SENESCENCE '.length);
-  const cfg = {};
-  // setting may contain ':' (e.g. "share:1"), so split on the first '=' only.
-  for (const tok of body.split(/\s+(?=[a-z]+[x=])/)) {
-    const eq = tok.indexOf('=');
-    if (eq > 0) cfg[tok.slice(0, eq)] = tok.slice(eq + 1);
-  }
-  return cfg;
 }
 
 /**
@@ -365,21 +350,18 @@ for (const seed of seeds) {
   const header = lines[0];
   let cfg;
   try {
-    cfg = parseHeader(header);
+    cfg = parseSenescenceHeader(header);
   } catch (err) {
     manifest.failures.push({ seed, error: `header: ${err.message}` });
     continue;
   }
 
   // --- The arm must be the arm we declared. --------------------------------
-  // seed and ticks are the only two we can check against the header directly;
-  // the remaining knobs are zeroed or lifted by the preset and are not all
-  // echoed, so the check is partial BY CONSTRUCTION and is documented as such.
-  const expectSeed = String(seed);
-  const expectTicks = String(ticks);
-  if (cfg.seed !== expectSeed || cfg.ticks !== expectTicks) {
-    manifest.headerMismatches.push({ seed, want: { seed: expectSeed, ticks: expectTicks }, got: cfg });
-  }
+  // The senescence setting, seed and ticks are directly echoed and checked.
+  // Other knobs are not all echoed, so this remains a partial declaration check.
+  manifest.headerMismatches.push(...senescenceHeaderMismatches(cfg, {
+    seed, ticks, setting: arm.argvRest[0],
+  }).map((mismatch) => ({ seed, ...mismatch })));
   const zeroEchoed = /ZERO-BASELINE/.test(header) === !!arm.zero;
   if (!zeroEchoed) {
     manifest.headerMismatches.push({ seed, want: { zero: !!arm.zero }, got: header.slice(0, 200) });

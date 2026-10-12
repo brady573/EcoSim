@@ -24,6 +24,7 @@ import {
   parseLedgerStrict, classifyLedgerStatus, residualWithinTolerance,
   evaluateCapturePolicy, permittedGuilds, parseCheckpoints,
   CAPTURE_ZERO_TOLERANCE, RESIDUAL_TOLERANCE_PCT, GUILD_NAMES,
+  parseSenescenceHeader, senescenceHeaderMismatches,
 } from '../tools/ladder/evidence.mjs';
 import { expandSeeds, allocateShards, parseLegs } from '../tools/diagnostics/plan-seeds.mjs';
 import { summariseManifest } from '../tools/diagnostics/summarise.mjs';
@@ -39,6 +40,35 @@ function check(id, name, pass, detail) {
   results.push({ id, name, pass, detail });
   if (!pass) failed++;
   console.log(`[${pass ? 'PASS' : 'FAIL'}] ${id} ${name}\n         ${detail}`);
+}
+
+{
+  const arms = JSON.parse(readFileSync(join(root, 'tools/ladder/arms.json'), 'utf8')).arms;
+  for (const [name, arm] of Object.entries(arms)) {
+    check(`W8a-${name}`, `${name} declares exactly 15 positional probe settings`,
+      Array.isArray(arm.argvRest) && arm.argvRest.length === 15,
+      `argvRest length=${arm.argvRest?.length}`);
+  }
+}
+
+// Senescence is the single contrast in the balance diagnostic pair. Verify
+// the colon-bearing header value parses intact and a wrong/missing value fails.
+{
+  const line = 'SENESCENCE seed=517 ticks=6000 setting=share:1 photox4 basalxnull (probe config)';
+  const cfg = parseSenescenceHeader(line);
+  const declared = { seed: 517, ticks: 6000, setting: 'share:1' };
+  check('W8s', 'a matching senescence setting passes the emitted-header check',
+    senescenceHeaderMismatches(cfg, declared).length === 0,
+    `setting=${cfg.setting}`);
+  check('W8t', 'a different senescence setting is a header mismatch',
+    senescenceHeaderMismatches(cfg, { ...declared, setting: 'off' }).length === 1,
+    `declared=off emitted=${cfg.setting}`);
+  const missing = parseSenescenceHeader(line.replace(' setting=share:1', ''));
+  check('W8u', 'a missing senescence setting is not accepted as a match',
+    senescenceHeaderMismatches(missing, declared).length === 1,
+    `setting=${missing.setting ?? 'missing'}`);
+  check('W8v', 'a colon-bearing senescence setting remains intact when parsed',
+    cfg.setting === 'share:1', `parsed=${cfg.setting}`);
 }
 
 /**

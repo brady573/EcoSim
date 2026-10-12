@@ -241,6 +241,78 @@
           "statement": "all three guilds non-zero on AT MOST 8/18 seeds \u2014 encoded as its exact complement, at least 10/18 seeds where allGuildsNonZero == 0. Counting the complement is what makes the boundary machine-checkable: 8 versus 9 is the supported/falsified edge."
         }
       ]
+    },
+    "balance-diagnostic-control": {
+      "title": "DIAGNOSTIC control: known balance-failure seeds without dormant-share brake",
+      "preregistered": "2026-10-12",
+      "registrationKind": "KNOWN_SEED_DIAGNOSTIC_NOT_PROSPECTIVE",
+      "seeds": "517,99991,42",
+      "ticks": 6000,
+      "zero": false,
+      "lifts": {},
+      "argvRest": [
+        "off",
+        "4",
+        "null",
+        "null",
+        "null",
+        "null",
+        "null",
+        "null",
+        "null",
+        "off",
+        "off",
+        "0.4",
+        "null",
+        "0",
+        "null"
+      ],
+      "hypothesis": "Measurement-control only: the no-brake arm anchors the current engine's trajectories for three known failure seeds; it makes no prospective ecological claim.",
+      "prediction": "All three runs complete at the declared horizon with headers matching the no-brake configuration; outputs are descriptive matched references, not a supported ecological prediction.",
+      "falsification": "An incomplete run or header/config mismatch invalidates that comparison. No ecological falsification criterion is claimed for this control.",
+      "question": "Descriptive control arm for comparing previously observed exclusion, fade, and runaway trajectories with the accepted dormant-share brake. This known-seed run is not prospective.",
+      "confoundsControlled": [
+        "Known seeds 517, 99991, 42; no new-seed or population-rate claim",
+        "6000-tick horizon and scenesprobe combined-winner configuration",
+        "Paired brake arm changes only the senescence setting from off to share:1"
+      ],
+      "knownLimits": "Diagnostic output only. Cohort integrity is measured; ecological effectiveness is not classified."
+    },
+    "balance-diagnostic-share1": {
+      "title": "DIAGNOSTIC treatment: known balance-failure seeds with accepted share:1 brake",
+      "preregistered": "2026-10-12",
+      "registrationKind": "KNOWN_SEED_DIAGNOSTIC_NOT_PROSPECTIVE",
+      "seeds": "517,99991,42",
+      "ticks": 6000,
+      "zero": false,
+      "lifts": {},
+      "argvRest": [
+        "share:1",
+        "4",
+        "null",
+        "null",
+        "null",
+        "null",
+        "null",
+        "null",
+        "null",
+        "off",
+        "off",
+        "0.4",
+        "null",
+        "0",
+        "null"
+      ],
+      "hypothesis": "Descriptive mechanism check: share-mode senescence acts through dormant-share pressure; this arm asks whether that pressure engages in three known failure trajectories, not whether it rescues them.",
+      "prediction": "Record dormant counts and senescence deaths by checkpoint. If no dormancy is observed, brake efficacy is not measured on this panel; no ecological success threshold is registered.",
+      "falsification": "No balance falsification criterion is claimed. An incomplete run or header/config mismatch invalidates the corresponding comparison; otherwise report trajectories without a supported/falsified ecological verdict.",
+      "question": "Compare the previously observed exclusion, fade, and runaway trajectories against the no-brake control using the accepted dormant-share senescence brake. This known-seed run is not prospective.",
+      "confoundsControlled": [
+        "Known seeds 517, 99991, 42; no new-seed or population-rate claim",
+        "6000-tick horizon and scenesprobe combined-winner configuration",
+        "Paired control arm changes only the senescence setting from off to share:1"
+      ],
+      "knownLimits": "Diagnostic output only. Cohort integrity is measured; ecological effectiveness is not classified."
     }
   }
 }
