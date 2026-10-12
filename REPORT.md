@@ -6058,8 +6058,6 @@ alternative (saturation 2.0) once, then abandon the coupling if it also fails.
 Registered below as graze-nutcyc-sat2. If sat-2.0 fails, the program steps
 back to analysis (floor level and capture scale become suspects) rather than
 pushing dials blind.
-<<<<<<< HEAD
-=======
 
 --------------------------------------------------------------------------------
 STEP 3b — SAT-2.0 RESULT: FALSIFIED, AND THE DIAL IS VOID (2026-10-12)
@@ -6142,4 +6140,42 @@ this tests it where food demonstrably pays — a different experiment, not a
 repeat. If consumers still fail, viability needs engine-level economics, and
 that decision goes to the Owner with this record attached. Registered below
 as graze-viability.
->>>>>>> 2fdc20b (Record engaged-coupling split; register breeding-reserve viability arm)
+
+--------------------------------------------------------------------------------
+STEP 4 — VIABILITY (rsur-30): RESERVE EXONERATED, ENGINE ECONOMICS NEXT (2026-10-12)
+--------------------------------------------------------------------------------
+
+ARM. graze-viability: nutregen config with positional rsur null -> 30 (only
+change). Bars: cons >=12/18 AND prod >=12/18 (both machine). Pre-registered
+branch: on falsification, no rsur -> 0, no compensating moves — the decision
+goes to the Owner with the record attached.
+
+RUN. GitHub Actions 38265743162. Cohort INTACT / FALSIFIED. Per-seed headers
+spot-checked for rsur30 (review mitigation from registration review — all six
+manifests reference it). Artifacts archived under
+evidence/graze-viability-38265743162/cohort/.
+
+RESULT (machine counts from summary CSVs, not eyes): prod > 0 on 13/18
+(zeros 41001, 41006, 41010, 41013, 41014 — bar MET); cons > 0 on 11/18
+(zeros 41002, 41005, 41007, 41015, 41016, 41017, 41018 — bar missed by one,
+falsification condition met exactly at 7 zeros). Decomposers > 0 on 9/18.
+All-three endpoints 4/18 (41003, 41004, 41011, 41012 — descriptive).
+
+VERDICT. FALSIFIED as specified. Consumer persistence is IDENTICAL at reserve
+90 and reserve 30 (11/18 both, overlapping but shifted zero-sets) while
+producers improved 12 -> 13/18 (the shared helper means the reserve binds all
+guilds, not just consumers). The breeding reserve is therefore NOT the
+binding constraint on consumers. Combined with Step-3c (food pays, B/D<1 from
+launch, disease negligible), the remaining suspects are upkeep/damage
+economics inside the engine — beyond any null-default dial tested so far.
+
+DECISION (pre-registered branch taken). Stop dial-turning. No new arm is
+registered in this entry. The program returns two open questions to the
+Owner: (1) whether to authorize engine-level consumer-economics work
+(upkeep scaling that reaches ALL viability gates at once, damage/breeding-gate
+rework, or a nutritional-requirement redesign — each changes declared
+behavior and needs re-pinning discussion, hence Owner-gated); (2) whether to
+run the obligate-reliance ablation on the best available config (viability:
+prod 13 / cons 11) to bank the reliance clause while economics are decided.
+Recommendation in the report: ablation first (it needs no new mechanism and
+cannot regress), economics direction owned by the Owner.
