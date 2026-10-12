@@ -5352,7 +5352,7 @@ provides for this arm under the corrected engine.
 WHAT THIS SAYS. Consumers are MORE viable under 0.6.0 than under the leaky 0.5.0
 engine (14/18 vs 13/18), while three-guild persistence is markedly WORSE
 (5/18 vs 10/18). Seed 41001 shows the mechanism plainly: producers 1080,
-consumers 13651, decomposers 0. Consumers run away and DECOMPOSERS GO EXTINCT.
+consumers 13651, decomposers 0.
 
 That is the expected direction. The 0.5.0 numbers were partly produced by the
 decomposer photosynthesis leak this engine fixed, so decomposers were surviving
@@ -5360,6 +5360,20 @@ partly on an energy input that should not have existed. Removing the leak remove
 the subsidy, and the decomposer loop does not hold up on its own — which is the
 open question the horizon arm was already chasing, now with a second and cleaner
 line of evidence.
+
+CORRECTED 2026-10-11 after review, against the full panel rather than seed 41001
+and against the prospective replication. Two things above are wrong as written:
+
+  1. "DECOMPOSERS GO EXTINCT" was generalised from ONE seed. Across the whole
+     18-seed panel decomposers are present on 8/18 and extinct on 10/18 — a
+     majority, so the direction holds, but it is a majority and not a law.
+  2. "the decomposer loop does not hold up on its own" does NOT survive the
+     prospective panel, where decomposers are present on 14/18 seeds. Whatever
+     differs between the two panels, decomposer persistence under 0.6.0 is not
+     a settled mechanism. It is open, and now open in a more specific form than
+     before: what limits three-guild coexistence is not decomposers alone, since
+     the prospective panel has decomposers on 14/18 and still only 7/18 with all
+     three.
 
 WHAT THIS DOES NOT SAY. consumer-yield applies two deliberate lifts
 (producerCaptureScale 0.35, basalFoodPerCell 0.25), so this is an answer to the
@@ -5511,12 +5525,26 @@ distinction between what is still live and what is history, and the corrections
 made to this file as a result.
 
 ACTIVE — measured on ts-evo-poc/0.6.0
-  - The three-guild shortfall. `consumer-yield` FALSIFIED on 41001-41018 at the
-    declared horizon (14/18 consumers, 5/18 three-guild), and REPLICATED on the
-    prospectively-registered, previously unseen 52001-52018 panel via Actions run
-    38151553007 (14/18, 7/18). Two independent 18-seed panels, both below the
-    12/18 the prediction required. Decomposers go extinct on most seeds, and
-    that is now a replicated result rather than an open suspicion.
+  - LOW THREE-GUILD COEXISTENCE, on two independent 18-seed panels.
+    `consumer-yield` on 41001-41018 at the declared horizon: consumers>0 on
+    14/18, all-three-guilds>0 on 5/18. `prospective-guilds` on the
+    prospectively-registered, previously unseen 52001-52018 panel (Actions run
+    38151553007): consumers>0 on 14/18, all-three-guilds>0 on 7/18. Both sit
+    below the 12/18 the original prediction required, and the shortfall itself
+    is reproduced.
+
+    WHAT IS NOT REPRODUCED, corrected 2026-10-11 after review: an earlier
+    revision of this file called "decomposers go extinct on most seeds" a
+    replicated result. It is not. Decomposers were present on 8/18 seeds of the
+    consumer-yield panel (extinct on 10/18) but on 14/18 of the prospective
+    panel (extinct on only 4/18). Majority decomposer extinction holds on one
+    panel and is REVERSED on the other.
+
+    The limit that reproduces is low three-guild coexistence; the guild that
+    limits it does not. In the prospective panel decomposers are present on
+    14/18 and producers on 12/18, yet all three co-occur on only 7/18 — so
+    something in the JOINT requirement, not decomposer persistence alone, is
+    binding there. That is a live open question, not a settled mechanism.
   - The evidence layer itself: strict ledger validation, per-guild capture policy,
     cohort verification binding evidence to the requested experiment, and the exit
     policy that a falsified prediction is a result and not a workflow failure.

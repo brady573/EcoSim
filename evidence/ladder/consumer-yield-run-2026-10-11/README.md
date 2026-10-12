@@ -38,16 +38,45 @@ cross-engine caveats, which do not apply here because every run used Node 24.
 
 ## Relationship to the prospective panel
 
-This panel and `../prospective-guilds-run-38151553007/` are two independent
-18-seed measurements of the same falsified prediction:
+This panel and `../prospective-guilds-run-38151553007/` are two 18-seed
+measurements of the same *system*, on disjoint seed panels, with matching engine
+settings. **They are not two measurements of the same registered prediction** —
+the two arms made opposing calls, and each was scored against its own.
 
-| Panel | Seeds | Run type | consumers > 0 | all three guilds |
-|---|---|---|---|---|
-| consumer-yield | 41001-41018 | local (this directory) | 14/18 | **5/18** |
-| prospective-guilds | 52001-52018 | Actions 38151553007 | 14/18 | **7/18** |
+| | `consumer-yield` | `prospective-guilds` |
+|---|---|---|
+| seeds | 41001-41018 | 52001-52018 (unseen at registration) |
+| run type | local (this directory) | Actions 38151553007 |
+| registered prediction | three-guild **at least 12/18** | three-guild **at most 8/18** |
+| measured, all three guilds | **5/18** | **7/18** |
+| verdict | **FALSIFIED** | **SUPPORTED** |
 
-The three-guild shortfall replicated on a prospectively-registered, previously
-unseen seed panel. Both are below the 12/18 the prediction required.
+The second arm was registered to test whether the *shortfall* generalised, and
+it did — not as a second attempt at the original >=12/18 claim, which this panel
+had already refuted. Reading them as "the same falsified prediction, twice"
+would erase that the prospective registration predicted a different outcome and
+was confirmed.
+
+## What reproduces, and what does not
+
+Per-guild presence, recomputed from the per-seed CSVs of both runs:
+
+| Guild | `consumer-yield` 41001-41018 | `prospective-guilds` 52001-52018 |
+|---|---|---|
+| producers > 0 | 14/18 | 12/18 |
+| consumers > 0 | 14/18 | 14/18 |
+| **decomposers > 0** | **8/18** (extinct 10/18) | **14/18** (extinct 4/18) |
+| all three > 0 | 5/18 | 7/18 |
+
+**Low three-guild coexistence reproduces** (5/18 and 7/18, both below 12/18).
+**Decomposer extinction does not.** Decomposers were gone on a majority of
+`consumer-yield` seeds but on only 4 of 18 prospective seeds. Any earlier framing
+of "decomposers go extinct on most seeds" as a replicated result is wrong and is
+corrected in `REPORT.md`.
+
+Note also what the prospective panel implies: decomposers are present on 14/18
+and producers on 12/18, yet all three co-occur on only 7/18. There the binding
+constraint is the *joint* requirement, not decomposer persistence alone.
 
 ## Contents
 
