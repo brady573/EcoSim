@@ -838,6 +838,125 @@
         }
       ]
     },
+    "cheap-upkeep": {
+      "title": "S2 PROMOTION: cheaper consumer upkeep (0.25 -> 0.1) converts to replacement?",
+      "preregistered": "2026-10-12",
+      "registrationKind": "KNOWN_SEED_DIAGNOSTIC_NOT_PROSPECTIVE",
+      "seeds": "41001:41018",
+      "ticks": 6000,
+      "zero": true,
+      "lifts": {
+        "producerCaptureScale": 0.35,
+        "basalFoodPerCell": 0.01,
+        "grazeYieldScale": 1.0,
+        "nutrientRegen": 0.0002
+      },
+      "argvRest": [
+        "off",
+        "4",
+        "0.1",
+        "null",
+        "null",
+        "null",
+        "0.15",
+        "null",
+        "off",
+        "off",
+        "on",
+        "1.0",
+        "null",
+        "0.05",
+        "30"
+      ],
+      "hypothesis": "S2 screen: basal 0.1 read C101 B/D 1.05 (41002) and C87 B/D 1.03 (41005) where base reads C0 — the shared-helper era may let upkeep discounts reach the gates they previously missed. Full-panel test.",
+      "prediction": "cons > 0 on at least 12/18 AND prod > 0 on at least 12/18 seeds at tick 6000 (both machine). Coexistence NOT predicted.",
+      "falsification": "FALSIFIED if cons = 0 on 7 or more of 18: cheaper upkeep does not convert at panel scale — the screen read was seed luck. No further upkeep descent in this line.",
+      "notPredicted": "Coexistence rates, capture shares, B/D distributions (descriptive).",
+      "confoundsControlled": [
+        "Same 18-seed panel, horizon, engine, lifts, and 14/15 argvRest entries as viability-061; the ONLY difference is basal 0.25 -> 0.1",
+        "Screen seeds are a subset of this panel; the panel result rules, not the screen",
+        "conservation enforced per seed at 0.5%; a seed above it fails the run rather than reporting"
+      ],
+      "knownLimits": "Single-dial promotion. A pass moves to combination tests; a fail closes the upkeep line.",
+      "criteria": [
+        {
+          "id": "consumers-viable",
+          "metric": "cons",
+          "op": ">",
+          "value": 0,
+          "required": 12,
+          "statement": "consumers > 0 at tick 6000 on at least 12/18 seeds"
+        },
+        {
+          "id": "producers-fed",
+          "metric": "prod",
+          "op": ">",
+          "value": 0,
+          "required": 12,
+          "statement": "producers > 0 at tick 6000 on at least 12/18 seeds"
+        }
+      ]
+    },
+    "excretion-return": {
+      "title": "S2 PROMOTION: biotic excretion return (0 -> 0.06) with regen converts?",
+      "preregistered": "2026-10-12",
+      "registrationKind": "KNOWN_SEED_DIAGNOSTIC_NOT_PROSPECTIVE",
+      "seeds": "41001:41018",
+      "ticks": 6000,
+      "zero": true,
+      "lifts": {
+        "producerCaptureScale": 0.35,
+        "basalFoodPerCell": 0.01,
+        "grazeYieldScale": 1.0,
+        "nutrientRegen": 0.0002,
+        "excretionRate": 0.06
+      },
+      "argvRest": [
+        "off",
+        "4",
+        "0.25",
+        "null",
+        "null",
+        "null",
+        "0.15",
+        "null",
+        "off",
+        "off",
+        "on",
+        "1.0",
+        "null",
+        "0.05",
+        "30"
+      ],
+      "hypothesis": "S2 screen: excretion 0.06 read C41 (41002) and C226 B/D 1.08 (41005) where base reads C0. Rung 3 tested excretion WITHOUT regen and failed; this is WITH regen (0.0002 lift) — different experiment, not a repeat.",
+      "prediction": "cons > 0 on at least 12/18 AND prod > 0 on at least 12/18 seeds at tick 6000 (both machine). Coexistence NOT predicted.",
+      "falsification": "FALSIFIED if cons = 0 on 7 or more of 18: biotic return does not convert at panel scale. No escalation (no 0.12, no pairing) inside this line.",
+      "notPredicted": "Coexistence rates, capture shares, B/D distributions (descriptive).",
+      "confoundsControlled": [
+        "Same 18-seed panel, horizon, engine, argvRest as viability-061; the ONLY difference is +excretionRate:0.06 lift",
+        "Matched against viability-061 (no excretion) to isolate the biotic return",
+        "conservation enforced per seed at 0.5%; a seed above it fails the run rather than reporting"
+      ],
+      "knownLimits": "Single-dial promotion. A pass moves to combination tests; a fail closes the excretion line in the regen context.",
+      "criteria": [
+        {
+          "id": "consumers-viable",
+          "metric": "cons",
+          "op": ">",
+          "value": 0,
+          "required": 12,
+          "statement": "consumers > 0 at tick 6000 on at least 12/18 seeds"
+        },
+        {
+          "id": "producers-fed",
+          "metric": "prod",
+          "op": ">",
+          "value": 0,
+          "required": 12,
+          "statement": "producers > 0 at tick 6000 on at least 12/18 seeds"
+        }
+      ]
+    },
     "balance-diagnostic-control": {
       "title": "DIAGNOSTIC control: known balance-failure seeds without dormant-share brake",
       "preregistered": "2026-10-12",

@@ -6516,3 +6516,27 @@ S2 (registered): identical matrix at 6000 ticks, where base is validated
 0/3/3. Same promote bar (>=2/3 with base 0/3). Local compiled runs; if any
 seed times out locally it moves to a ladder leg instead of being
 half-reported.
+
+--------------------------------------------------------------------------------
+SCREEN S2 (6000 TICKS): TWO PROMOTIONS, ONE RUNAWAY WARNING (2026-10-12)
+--------------------------------------------------------------------------------
+
+MATRIX. Identical to S1 at the decisive horizon (base validated C=0 on 3/3:
+41002 P0/C0/D672, 41005 P194/C0/D323, 41016 P363/C0/D0 — sensitivity holds).
+Files archived under evidence/screen-s2-6000/ (21 runs, all exit 0).
+
+RESULT (t6000 consumers; promote bar C>0 on >=2/3):
+  nodis    1/3 (41002 C41) — no.
+  cheap    2/3 (41002 C101 B/D 1.05, 41005 C87 B/D 1.03; 41016 zero) — PROMOTE.
+           Cheaper upkeep converts to replacement-level breeding on 2/3.
+  pcap10   1/3 (41016 C9) with producer blooms to 51,122 and D=0 everywhere —
+           NO (enrichment runaway + monoculture; cap nears at 51k/60k).
+           Descriptive warning: feeding producers collapses the web upward.
+  graze16  1/3 (41002 C64 B/D 1.01) — no.
+  tissue14 1/3 (41002 C62 B/D 1.00) — no.
+  excr006  2/3 (41002 C41, 41005 C226 B/D 1.08; 41016 zero) — PROMOTE.
+           Biotic return converts on 2/3 (rung 3 tested it WITHOUT regen and
+           failed; this is WITH regen — different experiment, not a repeat).
+VERDICT. Two promotions (cheap, excr006) to one reviewed ladder batch on the
+standard 18-seed panel. No combos yet: singles read first, combinations only
+on unclear singles. pcap10's bloom is recorded as the anti-result it is.
