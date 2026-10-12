@@ -6026,3 +6026,35 @@ risks producer collapse. The plan's Step 3 comes forward: couple producers
 to decomposer recycling (nutrientCyclic + floor + saturation as one
 mechanism) on the 0.01 config FIRST, then remove the last rain. Registered
 below as graze-nutcyc.
+
+--------------------------------------------------------------------------------
+STEP 3 — COUPLING RESULT: FALSIFIED (7/18 PRODUCER-ZERO), SATURATION NEXT (2026-10-12)
+--------------------------------------------------------------------------------
+
+ARM. graze-nutcyc: 0.01 config + nutrientCyclic on + floor 0.05 + sat 1.0.
+Bars: prod > 0 on >=12/18 AND cons > 0 on >=12/18 (both machine).
+
+RUN. GitHub Actions 38263833420. Cohort INTACT / FALSIFIED. Artifacts archived
+under evidence/graze-nutcyc-38263833420/cohort/.
+
+RESULT (endpoint P/C/D):
+  41001 0/516/0 | 41002 2/22/597 | 41003 0/37/635 | 41004 0/454/519
+  41005 475/0/0 | 41006 0/15/540 | 41007 14/219/0 | 41008 1/233/11
+  41009 520/222/0 | 41010 0/20/860 | 41011 11/17/689 | 41012 15125/38/750
+  41013 0/0/191 | 41014 0/385/16 | 41015 289/0/0 | 41016 371/0/0
+  41017 1236/3/0 | 41018 652/0/0
+
+VERDICT. Producers > 0 on 11/18 (zeros 41001, 41003, 41004, 41006, 41010,
+41013, 41014); consumers > 0 on 13/18 (zeros 41005, 41013, 41015, 41016, 41018
+— consumer bar MET). Producer bar missed by one seed (11 vs 12) and the
+falsification condition (prod = 0 on >=7/18) is met exactly at 7: arm
+FALSIFIED as specified. All-three endpoints 4/18 (41002, 41008, 41011, 41012 —
+descriptive).
+Notable: seed 41012 bloomed (15125/38/750) — the coupling CAN feed producers
+explosively on one seed while leaving seven at zero. Uneven, not absent.
+
+DECISION. Per the arm's own branch: do not raise light; try the stated
+alternative (saturation 2.0) once, then abandon the coupling if it also fails.
+Registered below as graze-nutcyc-sat2. If sat-2.0 fails, the program steps
+back to analysis (floor level and capture scale become suspects) rather than
+pushing dials blind.

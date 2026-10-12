@@ -440,6 +440,64 @@
         }
       ]
     },
+    "graze-nutcyc-sat2": {
+      "title": "COUPLING VARIANT: saturation 2.0 — the stated alternative after sat-1.0 falsified?",
+      "preregistered": "2026-10-12",
+      "registrationKind": "KNOWN_SEED_DIAGNOSTIC_NOT_PROSPECTIVE",
+      "seeds": "41001:41018",
+      "ticks": 6000,
+      "zero": true,
+      "lifts": {
+        "producerCaptureScale": 0.35,
+        "basalFoodPerCell": 0.01,
+        "grazeYieldScale": 1.0
+      },
+      "argvRest": [
+        "off",
+        "4",
+        "0.25",
+        "null",
+        "null",
+        "null",
+        "0.15",
+        "null",
+        "off",
+        "off",
+        "on",
+        "2.0",
+        "null",
+        "0.05",
+        "null"
+      ],
+      "hypothesis": "graze-nutcyc (sat 1.0) falsified at exactly 7/18 producer-zero; one seed (41012) bloomed, so the coupling is uneven rather than absent. The arm's stated alternative is one saturation step looser before abandonment.",
+      "prediction": "prod > 0 on at least 12/18 AND cons > 0 on at least 12/18 seeds at tick 6000 (both machine criteria). Coexistence rate NOT predicted.",
+      "falsification": "FALSIFIED if prod = 0 on 7 or more of 18 seeds: the coupling is abandoned entirely — no sat 4.0, no light rescue. The program steps back to analysis (floor level and producer capture scale become suspects on fresh evidence, not blind dial pushes). If cons = 0 on >=7/18 while producers recover, the failure is consumer viability, a separate mechanism.",
+      "notPredicted": "Coexistence rates, capture shares, extinction counts (descriptive), decomposer endpoints.",
+      "confoundsControlled": [
+        "Same 18-seed panel, horizon, engine, lifts as graze-nutcyc; the ONLY difference is sat 1.0 -> 2.0",
+        "Matched comparison against the archived sat-1.0 run isolates the saturation effect",
+        "conservation enforced per seed at 0.5%; a seed above it fails the run rather than reporting"
+      ],
+      "knownLimits": "Last coupling variant. A second falsification closes the coupling line; it does not close the program.",
+      "criteria": [
+        {
+          "id": "producers-fed",
+          "metric": "prod",
+          "op": ">",
+          "value": 0,
+          "required": 12,
+          "statement": "producers > 0 at tick 6000 on at least 12/18 seeds"
+        },
+        {
+          "id": "consumers-persist",
+          "metric": "cons",
+          "op": ">",
+          "value": 0,
+          "required": 12,
+          "statement": "consumers > 0 at tick 6000 on at least 12/18 seeds"
+        }
+      ]
+    },
     "balance-diagnostic-control": {
       "title": "DIAGNOSTIC control: known balance-failure seeds without dormant-share brake",
       "preregistered": "2026-10-12",
