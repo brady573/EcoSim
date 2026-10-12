@@ -6594,3 +6594,52 @@ fire (4 zeros), but the machine verdict and the joint-outcome deterioration
 (7/18 vs 10/18) close the question the arm asked — the mechanisms interfere.
 Per the arm text: no triple-stacks, no escalation; back to mechanism
 analysis, not bigger combos. No new arm is registered here.
+
+--------------------------------------------------------------------------------
+POST-REBASE RECONCILIATION — G24 RE-WITNESSED ON THE MERGED TREE (2026-10-12)
+--------------------------------------------------------------------------------
+
+REBASE. Branch replayed onto origin/main (968442d: genomeV2 diagnostic +
+viewer fixes) cleanly except REPORT.md append/append conflicts, resolved by
+union with marker sweeps verified at zero. My redundant viewer edits were
+discarded in favor of main's merged fixes. No evidence file was altered by
+the rebase; all verdicts below re-verify rather than assume.
+
+MERGED-TREE VALIDATION. Typecheck clean, both tsconfigs build, all 20 ladder
+arms present, 0.6.1 parity pins HOLD byte-identical on the merged tree
+(517 -> 813/135/81), contract 11/11, workflow 153/153. genomeV2 null-default
+is confirmed inert by the unchanged pins — no version bump, no re-pin.
+
+G24 FAILURE AND FIX (same witness-fragility class as G5b, fixed the same way).
+Pristine main: 33/33. Merged tree: 32/33 with G24 reading 40 matings / 40
+clones / 0 genuine splices. Discrimination, measured not assumed:
+- Disagreeing bearer pairs are abundant under grace (2.4k-12k positional
+  VALUE disagreements alive every round, measured alongside 12k-74k
+  length-only differences) — the population is diverse, so establishment
+  ecology is not the cause.
+- The gate's round-robin neighbour pick served prefix-identical pairs, and no
+  child of prefix-identical parents can satisfy wonByA>0 AND wonByB>0
+  simultaneously — the strict signature is unsatisfiable by construction on
+  such pairs, so 40/40 clones was guaranteed regardless of recombination.
+- A first fix (length-difference search + scan-all-newborns) still read 40/40
+  for exactly this reason; length-only disagreement was the wrong predicate.
+Fix (src/gates.ts, scenario-only, mechanism untouched): drive the first
+bearer pair with positional VALUE disagreement inside the shared span, and
+scan EVERY newborn for the strict splice signature instead of judging only
+the first new id (background asexual births share the tick, and a healthier
+population breeds more of them — judging one mistakes background rate for
+mechanism). Result: 33/33 on three consecutive runs.
+No new arm is registered here.
+
+REVIEW FOLLOW-UP (same entry, no new run). Independent review returned CLEAN
+with two notes, both handled: (1) the "never false-pass" comment overstated —
+softened to negligible-probability coincidence, bounded empirically by the
+pre-fix 0/40 run (a background *sexual* birth matching the driven splice
+would still prove live recombination, so the existential claim survives even
+the misattribution case); (2) 20 stale compiled `src/**/*.js` files are
+TRACKED in git alongside sources (committed in early history, pre-genomeV2
+and pre-grace — recombination absent there). Gates run via tsx so unaffected,
+but executing the stray `.js` directly would run a stale engine. Adjacent
+finding, recorded not fixed: deletion + a `src/**/*.js` gitignore rule is
+recommended; left for explicit Owner authorization since it removes tracked
+files. Gates re-run after the wording edit: 33/33.

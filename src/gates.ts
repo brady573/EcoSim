@@ -1321,10 +1321,34 @@ function gate24(): void {
       if (w.live[i] && st.moduleCount[i] >= 2) bearers.push(i);
     }
     if (bearers.length < 2) continue;
-    const a = bearers[round % bearers.length];
-    let b = bearers[(round + 1) % bearers.length];
-    if (b === a) b = bearers[(round + 2) % bearers.length];
-    if (b === a) continue;
+    // Drive a pair that actually DISAGREES. Founders draw ~7 modules from 7
+    // kinds, so round-robin neighbours usually agree and every mating then
+    // reads as a clone no matter what recombination did. The gate asserts
+    // recombination through the real queue, so disagreeing parents are its
+    // precondition — searched, not hoped for. (Under fasting tolerance the
+    // ambient trajectory stopped serving a disagreeing neighbour within 40
+    // rounds while thousands of disagreeing pairs were alive every round;
+    // measured, not assumed.)
+    //
+    // Disagreement must be positional VALUE disagreement inside the shared
+    // span, not mere length difference: length-only pairs share every value,
+    // so no child can resolve a disagreement in each parent's favour and the
+    // strict signature below is unsatisfiable by construction.
+    let a = -1;
+    let b = -1;
+    for (let x = 0; x < bearers.length && a < 0; x++) {
+      for (let y = x + 1; y < bearers.length; y++) {
+        const xa = kindsOf(bearers[x]);
+        const xb = kindsOf(bearers[y]);
+        const span = Math.min(xa.length, xb.length);
+        let differ = false;
+        for (let i = 0; i < span; i++) {
+          if (xa[i] !== xb[i]) { differ = true; break; }
+        }
+        if (differ) { a = bearers[x]; b = bearers[y]; break; }
+      }
+    }
+    if (a < 0) continue;
 
     const ka = kindsOf(a);
     const kb = kindsOf(b);
@@ -1337,60 +1361,71 @@ function gate24(): void {
     w.queueBirth(a, 1, -1, b);
     w.step();
 
-    let child = -1;
+    // Scan EVERY newborn, not just the first: background asexual births share
+    // the tick, and a healthier population breeds more of them. Judging only
+    // the first new id mistakes the background birth rate for the
+    // recombination mechanism. Each candidate is tested for the strict splice
+    // signature against the driven parents, so background children can only
+    // fail the checks (or count as the clones they are) — a false pass would
+    // need a third parent already carrying the driven splice, negligible over
+    // a 7^7 sequence space and bounded empirically by the pre-fix 0/40 run.
+    const newborns: number[] = [];
     for (let i = 0; i < st.capacity; i++) {
-      if (w.live[i] && !idsBefore.has(st.id[i])) { child = i; break; }
+      if (w.live[i] && !idsBefore.has(st.id[i])) newborns.push(i);
     }
-    if (child < 0 || st.moduleCount[child] === 0) continue;
+    for (const child of newborns) {
+      if (st.moduleCount[child] === 0) continue;
 
-    const kc = kindsOf(child);
+      const kc = kindsOf(child);
 
-    // The precise signature of this operator: the child is parent A's modules
-    // [0..cut) followed by parent B's modules [cut..bCount), for some interior
-    // cut. Asserting "contains something only A had" would be meaningless —
-    // founders draw ~7 modules from 7 kinds, so both parents usually carry
-    // every kind and such a test passes on a clone.
-    let cut = -1;
-    for (let c = 1; c < kc.length; c++) {
-      let ok = true;
-      for (let i = 0; i < c && i < ka.length; i++) {
-        if (kc[i] !== ka[i]) { ok = false; break; }
+      // The precise signature of this operator: the child is parent A's modules
+      // [0..cut) followed by parent B's modules [cut..bCount), for some interior
+      // cut. Asserting "contains something only A had" would be meaningless —
+      // founders draw ~7 modules from 7 kinds, so both parents usually carry
+      // every kind and such a test passes on a clone.
+      let cut = -1;
+      for (let c = 1; c < kc.length; c++) {
+        let ok = true;
+        for (let i = 0; i < c && i < ka.length; i++) {
+          if (kc[i] !== ka[i]) { ok = false; break; }
+        }
+        if (!ok) continue;
+        for (let i = c; i < kc.length; i++) {
+          if (i >= kb.length || kc[i] !== kb[i]) { ok = false; break; }
+        }
+        if (ok) { cut = c; break; }
       }
-      if (!ok) continue;
-      for (let i = c; i < kc.length; i++) {
-        if (i >= kb.length || kc[i] !== kb[i]) { ok = false; break; }
-      }
-      if (ok) { cut = c; break; }
-    }
 
-    const foreign = kc.filter((k) => !ka.includes(k) && !kb.includes(k));
-    const cloneOfA = kc.length === ka.length && kc.every((k, i) => k === ka[i]);
-    const cloneOfB = kc.length === kb.length && kc.every((k, i) => k === kb[i]);
-    if (cloneOfA || cloneOfB) { clones++; continue; }
+      const foreign = kc.filter((k) => !ka.includes(k) && !kb.includes(k));
+      const cloneOfA = kc.length === ka.length && kc.every((k, i) => k === ka[i]);
+      const cloneOfB = kc.length === kb.length && kc.every((k, i) => k === kb[i]);
+      if (cloneOfA || cloneOfB) { clones++; continue; }
 
-    // A splice is only EVIDENCE of two-parent inheritance if the two parents
-    // actually disagree somewhere, and the child resolves a disagreement in
-    // each parent's favour. Without this, two identical genomes "recombine"
-    // into something indistinguishable from a clone and the gate passes on an
-    // outcome that proves nothing. Review caught that clones were counted but
-    // not excluded.
-    let wonByA = 0, wonByB = 0;
-    if (cut > 0) {
-      for (let i = 0; i < cut && i < ka.length; i++) {
-        if (ka[i] !== kb[i] && kc[i] === ka[i]) wonByA++;
+      // A splice is only EVIDENCE of two-parent inheritance if the two parents
+      // actually disagree somewhere, and the child resolves a disagreement in
+      // each parent's favour. Without this, two identical genomes "recombine"
+      // into something indistinguishable from a clone and the gate passes on an
+      // outcome that proves nothing. Review caught that clones were counted but
+      // not excluded.
+      let wonByA = 0, wonByB = 0;
+      if (cut > 0) {
+        for (let i = 0; i < cut && i < ka.length; i++) {
+          if (ka[i] !== kb[i] && kc[i] === ka[i]) wonByA++;
+        }
+        for (let i = cut; i < kc.length; i++) {
+          if (i < kb.length && kb[i] !== ka[i] && kc[i] === kb[i]) wonByB++;
+        }
       }
-      for (let i = cut; i < kc.length; i++) {
-        if (i < kb.length && kb[i] !== ka[i] && kc[i] === kb[i]) wonByB++;
-      }
-    }
 
-    if (cut > 0 && foreign.length === 0 && wonByA > 0 && wonByB > 0) {
-      mixed++;
-      detail = `parent slot ${a} [${ka.join(',')}] x parent slot ${b} [${kb.join(',')}] ` +
-        `-> child slot ${child} [${kc.join(',')}] = first ${cut} module(s) of the ` +
-        `first parent + modules ${cut}.. of the second. The parents disagree at ` +
-        `${wonByA} position(s) resolved for the first parent and ${wonByB} for ` +
-        'the second, none foreign, and the child is a clone of neither.';
+      if (cut > 0 && foreign.length === 0 && wonByA > 0 && wonByB > 0) {
+        mixed++;
+        detail = `parent slot ${a} [${ka.join(',')}] x parent slot ${b} [${kb.join(',')}] ` +
+          `-> child slot ${child} [${kc.join(',')}] = first ${cut} module(s) of the ` +
+          `first parent + modules ${cut}.. of the second. The parents disagree at ` +
+          `${wonByA} position(s) resolved for the first parent and ${wonByB} for ` +
+          'the second, none foreign, and the child is a clone of neither.';
+        break;
+      }
     }
   }
 
