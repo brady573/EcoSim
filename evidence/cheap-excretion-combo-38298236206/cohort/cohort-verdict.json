@@ -1,0 +1,57 @@
+{
+  "arm": "cheap-excretion-combo",
+  "title": "COMBINATION: cheap upkeep + biotic return together — additive or redundant?",
+  "preregistered": "2026-10-12",
+  "classification": "falsified",
+  "integrity": "INTACT",
+  "headline": "**PREDICTION FALSIFIED** — the pre-registered outcome did NOT occur. This run is trustworthy evidence and a negative result. The workflow is GREEN because the evidence is sound, NOT because anything was confirmed.",
+  "numerators": {
+    "consumers-viable": 14,
+    "producers-fed": 11
+  },
+  "denominators": {
+    "consumers-viable": 18,
+    "producers-fed": 18
+  },
+  "notMet": [
+    "producers-fed: 11/18 met 'producers > 0 at tick 6000 on at least 12/18 seeds' (needed >= 12)"
+  ],
+  "identity": {
+    "arm": "cheap-excretion-combo",
+    "engine": "ts-evo-poc/0.6.1",
+    "commit": "83d675320c22f223330cd6a922d8af310bc5bc51",
+    "armSpecHash": "4734b75942a454ea8d1b9c2babedde7f29af0b0b91f1fb1ed44ed15fdfb7f9b0",
+    "ticks": 6000,
+    "declaredTicks": 6000
+  },
+  "seedsMeasured": [
+    41001,
+    41002,
+    41003,
+    41004,
+    41005,
+    41006,
+    41007,
+    41008,
+    41009,
+    41010,
+    41011,
+    41012,
+    41013,
+    41014,
+    41015,
+    41016,
+    41017,
+    41018
+  ],
+  "exitPolicy": {
+    "greenMeans": "the evidence is trustworthy",
+    "greenDoesNotMean": "the hypothesis was correct",
+    "nonzeroReservedFor": [
+      "evidence-integrity violation",
+      "execution failure"
+    ]
+  },
+  "prediction": "cons > 0 on at least 12/18 AND prod > 0 on at least 12/18 seeds at tick 6000 (both machine). Coexistence NOT predicted.",
+  "falsification": "FALSIFIED as additive if cons = 0 on 7 or more of 18: the combination adds nothing over the singles — mechanisms redundant or interfering. No triple-stacks, no escalation; the result sends the program to mechanism analysis, not to bigger combos."
+}

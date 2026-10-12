@@ -6564,3 +6564,33 @@ subsidy. Recorded so the combination test below has a baseline to beat.
 VERDICT. The screen-to-panel pipeline works: both S2 promotions convert at
 full-panel scale. Per the trial-and-error plan, singles read first — now the
 combination (cheap 0.1 + excretion 0.06) is the next arm. Registered below.
+
+--------------------------------------------------------------------------------
+COMBO: INTERFERENCE, NOT ADDITIVITY (2026-10-12)
+--------------------------------------------------------------------------------
+
+RUN. cheap-excretion-combo 38298236206. Cohort INTACT / FALSIFIED. Artifacts
+archived under evidence/cheap-excretion-combo-38298236206/cohort/.
+
+RESULT (machine counts). cons 14/18 (zeros 41005,41013,41016,41018 — consumer
+bar MET, best consumer count yet); prod 11/18 (zeros 41001,41003,41006,41009,
+41010,41013,41015 — producer bar missed). All-three 7/18
+(41002,41004,41007,41011,41012,41014,41017 — descriptive, below excretion's
+10/18, equal to cheap's 7/18).
+
+MECHANISM READ (pooled B/D + ledger totals across the three archives):
+  arm        pooled prod B/D   pooled cons B/D   total grazeEnergy
+  cheap      1.17              1.043             8,626
+  excretion  1.31              1.039             8,873
+  combo      0.97              1.068             9,157
+Consumers improve marginally while producers fall BELOW replacement (0.97)
+under similar total grazing. Inference (labeled): viable consumers graze
+producers down — the predator-prey tradeoff made visible. The combination
+interferes; it does not add.
+
+VERDICT. Arm FALSIFIED (machine, via producers). Note on the letter of the
+pre-registered clause: its as-additive falsifier (cons >=7 zeros) did not
+fire (4 zeros), but the machine verdict and the joint-outcome deterioration
+(7/18 vs 10/18) close the question the arm asked — the mechanisms interfere.
+Per the arm text: no triple-stacks, no escalation; back to mechanism
+analysis, not bigger combos. No new arm is registered here.
