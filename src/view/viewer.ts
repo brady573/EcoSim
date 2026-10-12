@@ -52,15 +52,19 @@ const ROLE_COLOR: Record<number, number> = {
 const app = new Application();
 await app.init({
   background: 0x0b0f14,
-  // Resize against the VISUAL viewport, not the layout viewport. On mobile the
-  // two differ whenever the address bar is shown, a keyboard is open, or the
-  // page is zoomed, and `resizeTo: window` then sizes the canvas to an area the
-  // user cannot actually see — the world appears offset with dead space below.
+  // `resizeTo: window` stays. Passing `window.visualViewport` here looks
+  // correct and is not: PixiJS's ResizePlugin reads `clientWidth`/`clientHeight`
+  // off any target that is not `window`, and VisualViewport has neither (it
+  // exposes width/height/offsetLeft/scale). That yields
+  // renderer.resize(undefined, undefined), collapsing the canvas to 0x0 —
+  // nothing renders and nothing is hittable, which presents as "zoom is
+  // broken" because no gesture can reach the canvas at all.
   //
-  // Typed as Window because PixiJS's resizeTo does not accept VisualViewport;
-  // the element exposes the same width/height/addEventListener surface, which
-  // is all resizeTo uses.
-  resizeTo: (window.visualViewport ?? window) as unknown as Window,
+  // The visual viewport is still honoured, by driving renderer.resize()
+  // ourselves on visualViewport resize/scroll (see the mobile viewport block).
+  // That keeps the correct mobile behaviour without feeding PixiJS an object
+  // it cannot measure.
+  resizeTo: window,
   antialias: false,
   // Explicitly cap resolution: rendering must not be allowed to imply a
   // simulation budget, and we want honest frame timings on a phone. A 3x DPR
@@ -70,6 +74,24 @@ await app.init({
   preference: 'webgl',
 });
 document.getElementById('stage')!.appendChild(app.canvas);
+
+// A zero-sized canvas is indistinguishable, to the user, from "zoom doesn't
+// work" — nothing renders and no gesture can reach a 0x0 element. Fail loudly
+// instead, so the next such regression reports itself rather than looking like
+// an input bug.
+if (app.screen.width < 2 || app.screen.height < 2) {
+  const msg =
+    'viewer: canvas initialised at ' + app.screen.width + 'x' + app.screen.height +
+    ' — gestures cannot reach it. This is a sizing fault, not a touch fault.';
+  console.error(msg);
+  const warn = document.createElement('pre');
+  warn.textContent = msg;
+  warn.style.cssText =
+    'position:fixed;inset:auto 8px 8px 8px;z-index:99;margin:0;padding:10px;' +
+    'background:#2a1414;color:#ffb4b4;border:1px solid #7a3030;border-radius:6px;' +
+    'font:12px/1.4 ui-monospace,monospace;white-space:pre-wrap';
+  document.body.appendChild(warn);
+}
 
 // --- Scene graph -----------------------------------------------------------
 const worldLayer = new Container();
@@ -806,12 +828,18 @@ if (COARSE) {
 const vv = window.visualViewport;
 if (vv) {
   const syncViewport = () => {
-    app.renderer.resize(Math.round(vv.width), Math.round(vv.height));
+    // width/height here are VisualViewport's own, which do exist. Guard against
+    // a zero during the address-bar collapse animation: resizing to 0x0 blanks
+    // the canvas and the next gesture then hits nothing.
+    const w = Math.round(vv.width);
+    const h = Math.round(vv.height);
+    if (w > 0 && h > 0) app.renderer.resize(w, h);
   };
   vv.addEventListener('resize', syncViewport);
   vv.addEventListener('scroll', syncViewport);
   // Rotation changes the visual viewport on some Android browsers without
-  // firing resize on window at all.
+  // firing resize on window at all. The delay lets the rotation settle; without
+  // it the sync reads the pre-rotation viewport.
   window.addEventListener('orientationchange', () => setTimeout(syncViewport, 120));
 }
 
