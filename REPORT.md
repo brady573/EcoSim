@@ -5904,3 +5904,46 @@ lift grazeYieldScale to the declared 1.0 on the identical config (one dial),
 predicting grazeEnergy > 0; tissue basis becomes a follow-up only if per-win
 size disappoints. Predation (meatYieldPerMass=0) stays zeroed in Step 1 by
 design — one path at a time.
+
+--------------------------------------------------------------------------------
+STEP 1 — GRAZE-LINK RESULT: FLUX RESTORED 18/18, LINK TEST SUPPORTED (2026-10-12)
+--------------------------------------------------------------------------------
+
+ARM. graze-link (registered 2026-10-12, commit 6df61d1): exact consumer-yield
+copy (seeds 41001:41018, 6000 ticks, --zero) plus ONE lift grazeYieldScale:1.0
+(declared value). Meat stays zeroed. No machine criteria by design (verifier
+has no graze metric); verdict human-read from intact B/D lines, stated before
+inspection. PREDICTION: grazeEnergy > 0 on >=12/18. FALSIFICATION: =0 on >=7/18.
+Coexistence explicitly NOT predicted.
+
+RUN. GitHub Actions 38261798238, branch balance/share-brake-diagnostics-run.
+Cohort INTACT (identity arm graze-link, engine ts-evo-poc/0.6.0, commit
+6df61d1, 18/18 seeds measured, ledgers valid). Artifacts archived under
+evidence/graze-link-38261798238/cohort/.
+
+RESULT (per-seed endpoint P/C/D + grazeEnergy):
+  41001 599/11938/0 29412 | 41002 0/0/3203 1367 | 41003 88/3617/0 4308
+  41004 19433/367/40200 57030 | 41005 0/198/4267 1960 | 41006 0/0/2829 369
+  41007 907/3759/0 2998 | 41008 328/11540/0 28179 | 41009 21236/17/11751 4636
+  41010 2811/378/11029 4159 | 41011 454/3893/1 18574 | 41012 11/506/7037 3087
+  41013 28/10737/0 1849 | 41014 3/3737/0 3988 | 41015 18361/33/13733 31875
+  41016 1871/760/0 17408 | 41017 727/28438/0 15024 | 41018 2757/6/0 6020
+
+VERDICT. Flux > 0 on 18/18 (range 369-57,030): link test SUPPORTED, margin 6
+seeds above the bar. Zero seeds at zero — the falsification condition is
+nowhere near triggered. The Step-0 mechanism is confirmed end-to-end:
+resolver takes existed, the preset zeroed them, the declared scale restores
+them. Contest losses (27-34% at Step 0) remain visible in submit/win ratios
+(e.g. 41004: 603,687 submits / 158,455 wins) but do not block paying flux.
+
+DESCRIPTIVE, NOT PREDICTED. All-three-present endpoints: 6/18
+(41004,41009,41010,41011,41012,41015) vs 5/18 on the matched control. This
+difference is NOT a finding — the arm predicted nothing about coexistence,
+and rung 4 already established that paying food does not imply coexistence.
+It is recorded so a future reader cannot misread it as either success or
+setback. Consumer B/D sits mostly above replacement (up to 1.55); decomposer
+B/D remains <1.0 where extinct — viability questions untouched by this arm.
+
+NEXT (Step 2): descend the subsidy. First step basalFoodPerCell 0.25 -> 0.05
+on the graze-link config; consumers must persist while the income base shifts.
+Registered separately below; one dial per arm is retained throughout.

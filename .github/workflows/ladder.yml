@@ -40,6 +40,7 @@ on:
           - balance-diagnostic-control
           - balance-diagnostic-share1
           - graze-link
+          - graze-subsidy05
           # `horizon` is deliberately NOT offered. It is retained in arms.json as
           # provenance with status HISTORICAL: its registered hypothesis was for
           # the 0.5.0 LEAKY engine, whose four seeds are not 0.6.0 survivors, so a
