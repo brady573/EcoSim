@@ -5429,3 +5429,32 @@ The arm uses `--zero` with the registered producer-capture and basal-food lifts;
 it is not the unmodified default ecology. It measures endpoint presence of the
 three broad trophic guilds, not recurrence of all five feeding/role groups over
 time. The broader balance and recurrence objectives therefore remain open.
+
+================================================================================
+REPEATABILITY CHECK — ALL 18 SEED OUTPUTS REPRODUCED BYTE-FOR-BYTE
+================================================================================
+
+At the Owner's direction, the complete `prospective-guilds` arm was dispatched
+again as GitHub Actions run 38192419928. This is an exact-repeatability check on
+the already observed panel, not a new prospective ecological test.
+
+  first run 38151553007: engine commit 54861ad4fe7f1f086e3cdff8f2deac3257a5c0d3
+  repeat run 38192419928: engine commit 1185003dad38c556a057980fb9f02eb38ae42904
+  both: engine ts-evo-poc/0.6.0; seeds 52001-52018; 6000 ticks; same arm-spec hash
+
+The second commit adds only the first run's report/evidence record; `src/`, the
+arm registration, runner scripts and package inputs are unchanged between the
+two commits. On the same GitHub Node runtime, all 18 per-seed output files and
+all six per-leg CSV summaries are byte-identical. Comparing the two manifests
+per seed also found identical argv, emitted headers, guild/population counts,
+final ticks, ledger and capture measurements, and validity fields. Only run
+identity metadata (notably the commit SHA) differs.
+
+The repeat cohort independently passes the verifier as `INTACT / SUPPORTED`:
+consumers 14/18, three-guild shortfall 11/18 (equivalently, all three present
+on 7/18). Full repeat artifacts are preserved under
+`evidence/ladder/prospective-guilds-repeat-38192419928/`.
+
+INTERPRETATION. This establishes byte-for-byte per-seed repeatability for these
+inputs on this fixed Node runtime. It adds no independent seed evidence and
+does not broaden the original ecological conclusion beyond its one panel.
