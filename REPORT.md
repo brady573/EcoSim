@@ -6540,3 +6540,27 @@ RESULT (t6000 consumers; promote bar C>0 on >=2/3):
 VERDICT. Two promotions (cheap, excr006) to one reviewed ladder batch on the
 standard 18-seed panel. No combos yet: singles read first, combinations only
 on unclear singles. pcap10's bloom is recorded as the anti-result it is.
+
+--------------------------------------------------------------------------------
+S2 PROMOTIONS CONVERT: CHEAP + EXCRETION BOTH SUPPORTED (2026-10-12)
+--------------------------------------------------------------------------------
+
+RUNS. cheap-upkeep 38295919001 and excretion-return 38295922789. Both cohorts
+INTACT / SUPPORTED. Artifacts archived under evidence/cheap-upkeep-38295919001/
+and evidence/excretion-return-38295922789/.
+
+RESULT (machine counts from summary CSVs).
+  cheap-upkeep: cons 13/18 (zeros 41003,41010,41013,41016,41018), prod 15/18
+    (zeros 41004,41006,41010). Both bars met.
+  excretion-return: cons 13/18 (zeros 41006,41010,41013,41016,41018), prod
+    14/18 (zeros 41003,41004,41010,41013). Both bars met.
+DESCRIPTIVE three-guild endpoints: cheap 7/18
+(41002,41005,41008,41011,41012,41014,41015), excretion 10/18
+(41002,41005,41007,41008,41009,41011,41012,41014,41015,41017). Not predicted,
+not verdicts — but excretion's 10/18 is the highest joint-endpoint count
+measured on this panel under any arm, and it arrived via biotic return, not
+subsidy. Recorded so the combination test below has a baseline to beat.
+
+VERDICT. The screen-to-panel pipeline works: both S2 promotions convert at
+full-panel scale. Per the trial-and-error plan, singles read first — now the
+combination (cheap 0.1 + excretion 0.06) is the next arm. Registered below.

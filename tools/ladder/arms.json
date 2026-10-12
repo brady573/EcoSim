@@ -957,6 +957,66 @@
         }
       ]
     },
+    "cheap-excretion-combo": {
+      "title": "COMBINATION: cheap upkeep + biotic return together — additive or redundant?",
+      "preregistered": "2026-10-12",
+      "registrationKind": "KNOWN_SEED_DIAGNOSTIC_NOT_PROSPECTIVE",
+      "seeds": "41001:41018",
+      "ticks": 6000,
+      "zero": true,
+      "lifts": {
+        "producerCaptureScale": 0.35,
+        "basalFoodPerCell": 0.01,
+        "grazeYieldScale": 1.0,
+        "nutrientRegen": 0.0002,
+        "excretionRate": 0.06
+      },
+      "argvRest": [
+        "off",
+        "4",
+        "0.1",
+        "null",
+        "null",
+        "null",
+        "0.15",
+        "null",
+        "off",
+        "off",
+        "on",
+        "1.0",
+        "null",
+        "0.05",
+        "30"
+      ],
+      "hypothesis": "Both singles converted (cons 13/18 each) via different paths (upkeep economics vs biotic nutrient return). If the mechanisms are independent, the combination should hold both bars with margin to spare; if they share one bottleneck, it reads like the better single.",
+      "prediction": "cons > 0 on at least 12/18 AND prod > 0 on at least 12/18 seeds at tick 6000 (both machine). Coexistence NOT predicted.",
+      "falsification": "FALSIFIED as additive if cons = 0 on 7 or more of 18: the combination adds nothing over the singles — mechanisms redundant or interfering. No triple-stacks, no escalation; the result sends the program to mechanism analysis, not to bigger combos.",
+      "notPredicted": "Coexistence rates (descriptive against excretion's 10/18 baseline), capture shares, B/D distributions.",
+      "confoundsControlled": [
+        "Same 18-seed panel, horizon, engine as both singles; the ONLY differences vs viability-061 are basal 0.25 -> 0.1 AND +excretionRate:0.06 (the two promoted singles, combined)",
+        "Read against both single-arm archives to separate additive from redundant",
+        "conservation enforced per seed at 0.5%; a seed above it fails the run rather than reporting"
+      ],
+      "knownLimits": "Two-dial combination by design (the plan's singles-first rule is satisfied: both singles converted). A pass does not establish coexistence or reliance.",
+      "criteria": [
+        {
+          "id": "consumers-viable",
+          "metric": "cons",
+          "op": ">",
+          "value": 0,
+          "required": 12,
+          "statement": "consumers > 0 at tick 6000 on at least 12/18 seeds"
+        },
+        {
+          "id": "producers-fed",
+          "metric": "prod",
+          "op": ">",
+          "value": 0,
+          "required": 12,
+          "statement": "producers > 0 at tick 6000 on at least 12/18 seeds"
+        }
+      ]
+    },
     "balance-diagnostic-control": {
       "title": "DIAGNOSTIC control: known balance-failure seeds without dormant-share brake",
       "preregistered": "2026-10-12",
