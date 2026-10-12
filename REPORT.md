@@ -6679,3 +6679,56 @@ go extinct on 2/3 where base holds them. The coupling as configured is a
 trap, not a bridge: producers that need substrate to photosynthesize cannot
 earn the energy to reach it. Null result, recorded; not promoted, no ladder
 arm. The reliance question stays open with one fewer candidate mechanism.
+
+--------------------------------------------------------------------------------
+VIABILITY ATTRIBUTION PROBE (PRE-REGISTERED 2026-10-12): WHICH GATE STOPS BREEDING
+--------------------------------------------------------------------------------
+
+RATIONALE. Consumers fail with food paying, reserve exonerated (90 = 30),
+upkeep discounted, grace inert, disease negligible. The remaining question is
+mechanical, not parametric: which breeding gate actually stops them —
+maturity, cooldown, damage ceiling, surplus, or fraction gate. gateattrib.ts
+answers this but hardcodes default config + 90 surplus, so a viability-config
+variant is registered here (new file src/trace/viabilitygates.ts; existing
+instrument untouched): identical attribution order, viability-061 world
+config (--zero + lifts 0.35/0.01/1.0/0.0002, rsur 30), surplus constant 30,
+upkeep replicated WITH the configured consumer factor 0.25, seeds from argv.
+No engine change; read-only instrument.
+
+MATRIX. Contrast seeds on the 0.6.1 viability config, 6000 ticks: 41002
+(C0, B/D ~0.7, chronic failer) vs 41004 (C1042, B/D 1.15, persister) vs 41012
+(bloom seed). READ: the gate distribution on the failer vs the persisters —
+if one gate dominates failer ticks while persisters clear it, that gate is
+the binding constraint and the next dial targets it; if distributions match,
+the constraint is upstream of breeding (maturation/recruitment, not gates).
+No promotion bar: this is diagnosis, and its output selects (not executes)
+the next screen.
+
+--------------------------------------------------------------------------------
+VIABILITY ATTRIBUTION RESULT: FRACTION GATE DOMINATES, SCALE SEPARATES (2026-10-12)
+--------------------------------------------------------------------------------
+
+RUN. viabilitygates.js (new read-only probe; gateattrib.ts untouched), 6000
+ticks, seeds 41002 (fail) / 41004 + 41012 (persist), compiled on the merged
+0.6.1 tree. Output archived under evidence/viability-gates-41002-41004-41012/.
+
+CONFIG IDENTITY (pre-registered tripwire): final censuses read P0/C0/D672,
+P11/C432/D441, P3100/C142/D2170 — byte-exact against the archived
+viability-061 endpoints on all three seeds. The tallies below measure the arm
+they claim. (This check also re-confirms the decomposerPhotoScale=0 and
+grazeYieldScale=1.0 corrections: any other effective config diverges.)
+
+RESULT (post-maturity consumer ticks, first-blocking gate in engine order):
+  seed    ticks    cooldown damage  surplus fraction ELIGIBLE
+  41002   92,668   1.2%     30.7%   8.1%    54.3%    5.6%
+  41004   1,407,524 1.8%    33.4%   10.9%   45.6%    8.4%
+  41012   74,827   1.2%     52.7%   8.6%    30.8%    6.7%
+READ. The FRACTION gate (energy/capacity < reproThreshold) is the largest
+blocker on all three seeds (31-54%); damage ceiling second (30-53%);
+surplus — the exonerated suspect — binds only 8-11%; eligibility 6-8%
+everywhere. But composition does NOT separate failer from persisters: 41002's
+shares sit inside the persisters' range. What separates them is SCALE:
+1.4M/75k vs 93k post-maturity ticks — persisters roll the dice orders of
+magnitude more. The constraint is upstream of breeding: recruitment to
+maturity and adult retention, not gate passage. No dial targets this yet;
+maturation/recruitment analysis is next, and no arm is registered here.
