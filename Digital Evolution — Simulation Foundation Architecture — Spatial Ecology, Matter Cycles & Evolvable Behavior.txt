@@ -1,0 +1,452 @@
+﻿Digital Evolution — Simulation Foundation Architecture
+
+
+Status: APPROVED DESIGN
+Primary lane: Game & Evolution
+Program priority: Simulation Foundation First / Priority 1
+Implementation authorization: NONE
+
+
+1. Purpose
+
+
+Create a durable simulation architecture that can support richer ecology without turning each new mechanic into a bespoke subsystem or forcing a full engine rewrite.
+
+
+The architecture must support consequential spatial opportunity and occupancy, detritus and recycling, dynamic abiotic environmental axes, genuinely evolvable behavior, and later reciprocal relationships while preserving deterministic replay, exact checkpoints/forks, sim-core biological authority, read-only analysis, reproducible experiments, offline operation, and current validated biology unless explicitly superseded.
+
+
+The goal is not a generic simulation framework. It is a small set of biological primitives that make meaningful evolutionary mechanics composable.
+
+
+2. Architectural diagnosis
+
+
+Current sim-core already has strong foundations: continuous toroidal organism positions, gridded nutrient and Waste fields, inherited quantitative traits, capability/opportunity process descriptors, deterministic RNG streams, lineage/clade genealogy, exact checkpoints, resource accounting, local sensing, and ecological analysis outside biological causation.
+
+
+The limiting structure is the organism step itself. Most maintained biology is resolved inside one sequential per-organism loop: environment update → dormancy decision → sensing → movement → energetic costs → Waste effects/cleanup → resource consumption → reproduction/death.
+
+
+That loop is adequate for independent consumers of environmental fields. It becomes fragile when same-tick neighbors, occupancy, reciprocal interaction, local competition, behavior choice, or shared opportunity matter.
+
+
+The engine should therefore evolve around two common primitives:
+
+
+A. Local Ecological Context — a deterministic read-only description of the local world at the start of an action stage.
+B. Staged Biological Resolution — agents observe and choose against stable state, then consequences resolve according to explicit stage semantics.
+
+
+3. Authoritative state domains
+
+
+Organism state owns genealogy, position/orientation, energy and physiological state, inherited traits, future behavior-policy genes/capabilities, and accumulated biological state that affects future behavior.
+
+
+Environmental state owns Nutrient A/B/C, Waste, future detritus, future abiotic variables, and future physical substrate properties when modeled.
+
+
+Spatial ecology state owns local occupancy/space opportunity, organism neighborhood indexing, colonizable/occupied substrate if introduced, and local density/crowding facts. No lineage ownership is implied.
+
+
+Transient stage state may contain read-only local context, organism intents, interaction claims, pending resource/space transfers, and birth/death outcomes awaiting commit. It is deterministic and ephemeral and should not be checkpointed unless it can persist across supported tick boundaries.
+
+
+4. World topology and neighborhood service
+
+
+Preserve the current continuous 600×600 toroidal organism world unless a later Owner decision changes it. Environmental processes may continue using gridded fields.
+
+
+Introduce one reusable spatial-neighborhood service inside sim-core supporting deterministic radius queries, nearest-neighbor queries when needed, local occupancy summaries, stable ordering by organism id when ordering is required, and shared toroidal distance semantics.
+
+
+Individual mechanics must not create private full-population scans or incompatible neighborhood systems.
+
+
+Context7/Mesa ContinuousSpace is a reference pattern only; Digital Evolution implements the principle within its own deterministic TypeScript engine.
+
+
+5. Local Ecological Context
+
+
+At explicit stages, build a read-only context for active organisms containing only biologically available information. Candidate facts include local nutrient opportunity, detritus opportunity, Waste/abiotic conditions, occupancy/free-space pressure, nearby organism density, and gradients available through modeled sensing.
+
+
+Context must be derived from authoritative pre-stage state, order-independent, identity-neutral unless an accepted mechanic explicitly models recognition, deterministic, and cheap enough for maintained population scales.
+
+
+Local context is biology, not analysis.
+
+
+6. Staged tick architecture
+
+
+The long-term target tick semantics are:
+
+
+Stage 0 — External/environment forcing
+Apply accepted interventions occurring at the tick boundary.
+
+
+Stage 1 — Autonomous environment
+Resolve regeneration, diffusion, decay, passive abiotic dynamics, and other non-agent environmental evolution.
+
+
+Stage 2 — Context snapshot
+Update the spatial index and construct immutable local ecological facts needed for organism decisions.
+
+
+Stage 3 — Physiological state transitions
+Resolve dormancy/wake and future equivalent physiological mode changes against the stable context.
+
+
+Stage 4 — Behavioral intent
+Active organisms choose movement/action intent from inherited behavior policy plus local context. No authoritative world mutation occurs merely because an organism was processed earlier in an array.
+
+
+Stage 5 — Movement and spatial resolution
+Resolve movement and occupancy constraints. Where space is consequential, conflicts use deterministic biological rules rather than incidental iteration order.
+
+
+Stage 6 — Local biological process and interaction resolution
+Resolve nutrient uptake, cleanup, future detritus use, and later reciprocal interactions. Shared finite opportunities use explicit deterministic arbitration or simultaneous allocation semantics.
+
+
+Stage 7 — Physiology and energetic settlement
+Apply maintenance costs, exposure burdens, process gains/costs, and state consequences.
+
+
+Stage 8 — Reproduction and birth placement
+Evaluate reproduction after realized energetic outcomes. If space is limiting, birth placement is a biological constraint here.
+
+
+Stage 9 — Death and matter return
+Remove dead organisms and convert modeled biomass or matter into environmental consequences such as detritus when that mechanic is active.
+
+
+Stage 10 — Commit and biological facts
+Commit births, deaths, field deltas, and authoritative interval/lineage facts from actual resolved transformations.
+
+
+Stage 11 — Observation boundary
+sim-analysis may observe immutable biological facts and snapshots; it never alters earlier stages.
+
+
+Existing biology does not need to be migrated all at once. New foundation work should conform to this model, and existing code should move only when a real mechanic requires the stage boundary or when order dependence would otherwise be introduced.
+
+
+7. Determinism and conflict resolution
+
+
+Each contested stage must explicitly choose one model:
+
+
+A. Simultaneous accumulation — agents compute contributions from the same pre-stage state; commutative deltas are combined and committed.
+
+
+B. Deterministic allocation — finite local opportunity is allocated by an explicit biological rule plus stable tie-breaking.
+
+
+C. Seeded stochastic allocation — only when biological randomness is intended, using a dedicated deterministic RNG stream and stable candidate ordering.
+
+
+D. Intentional sequential biology — only when earlier action should biologically affect later action within the stage. The ordering rule must itself be part of the model.
+
+
+Accidental JavaScript array order must never become biology.
+
+
+Context7/Mesa compute→advance and staged activation are reference examples for making these semantics explicit.
+
+
+8. Consequential spatial ecology
+
+
+The first foundation consumer should make space a finite ecological opportunity without making it arbitrary territory.
+
+
+Candidate minimal semantics:
+- local cells/neighborhoods have soft or hard occupancy capacity;
+- organism presence consumes spatial opportunity;
+- crowding can constrain movement success, resource access, or reproduction placement;
+- offspring need viable nearby placement;
+- vacancy created by death, movement, or declining competitors becomes real local opportunity;
+- no lineage owns a location;
+- any organism satisfying the same physical rules may occupy available space.
+
+
+The exact biological framing—packing, attachment surface, colonizable substrate, or abstract ecological space—requires separate design acceptance.
+
+
+Spatial opportunity should enable persistent local patterns, colonization fronts, local competition, refugia/boundaries, and a reusable substrate for later competition, cooperation, predation, colonies, and habitat engineering.
+
+
+It must not impose target population, scripted territory, lineage ownership, or direct combat by itself.
+
+
+9. Matter and resource-cycle architecture
+
+
+Biological processes should increasingly be expressible as:
+
+
+inherited capability + local opportunity
+→ substrates consumed
+→ products generated
+→ energy gain/cost
+→ environmental side effects
+→ authoritative biological accounting facts.
+
+
+The existing NutrientProcess and Waste cleanup structures are a useful starting point.
+
+
+Future detritus must be an environmental substance produced by modeled death/biomass turnover, not an arbitrary reward.
+
+
+Target causal cycle:
+
+
+abiotic nutrients
+→ living biomass/energy
+→ death
+→ detritus
+→ scavenger/decomposer metabolism
+→ energy and/or regenerated environmental nutrient
+→ new growth.
+
+
+The exact stoichiometry may remain abstract, but declared transfers must close under the model's accounting rules.
+
+
+10. Dynamic environmental-axis architecture
+
+
+Dynamic abiotic variables belong to environmental authority, not presentation or ad hoc organism status effects.
+
+
+Each accepted axis must specify:
+- environmental update rule;
+- spatial scale and diffusion/advection if applicable;
+- external forcing;
+- biologically available sensing;
+- inherited tolerance/preference/capability effects;
+- energetic or process consequences;
+- observation facts available to analysis afterward.
+
+
+Possible future examples include temperature, moisture, oxygen, acidity, salinity, or an abstract habitat-quality field.
+
+
+The architecture may support multiple axes, but implementation should introduce only one high-leverage axis first.
+
+
+11. Evolvable behavior architecture
+
+
+Do not jump directly to neural networks.
+
+
+Introduce a small deterministic inherited behavior policy capable of weighting biologically perceptible signals.
+
+
+Potential policy inputs include resource gradient, detritus gradient, abiotic suitability, crowding/nearby-organism density, Waste/hazard gradient, habitat/home tendency, and exploration tendency.
+
+
+Initial policy output may remain movement heading and movement commitment, with later action selection only when a real mechanic requires it.
+
+
+Constraints:
+- inputs are biologically available local context;
+- weights/parameters are heritable and mutable;
+- identical state + seed + commands remains deterministic;
+- policy never reads lineage ids, analysis labels, History, UI state, or global metrics;
+- behavioral mutation must change visible action tendencies, not merely hidden efficiency coefficients.
+
+
+Existing fixed nutrient pursuit remains a valid baseline behavior during migration.
+
+
+12. Reciprocal interaction seam
+
+
+Future reciprocal mechanics should follow a common conceptual lifecycle:
+
+
+local opportunity
+→ actor capability
+→ intent
+→ recipient/environment eligibility
+→ deterministic resolution
+→ actor cost
+→ recipient/environment effect
+→ biological facts.
+
+
+This may later support competition, interference, parasitism, predation, exchange, cooperation, and colony processes.
+
+
+Do not build a universal interaction engine speculatively. Establish only the smallest interfaces required by the first successful reciprocal mechanic after the spatial, matter, environmental, and behavior foundations exist.
+
+
+13. Experiment and evidence architecture
+
+
+Simulation logic and experiment definition remain separate.
+
+
+Repository-native experiments should define:
+- exact engine/configuration;
+- explicit seed set;
+- starting state or fork;
+- command sequence;
+- treatment/control delta;
+- horizon;
+- measured outcomes;
+- stop/failure conditions.
+
+
+This matches Context7/Mesa's seeded batch/scenario separation in principle.
+
+
+Add a simulation-richness evidence dimension: regime diversity.
+
+
+Do not score “fun” inside sim-core. Instead characterize across seeds/configurations:
+- distinct persistent spatial organizations;
+- distinct resource-cycle roles;
+- distinct behavioral strategies;
+- distinct life-state strategies;
+- reciprocal dependency/competition structures;
+- succession after disturbances;
+- extinctions and recoveries;
+- whether worlds converge to the same qualitative attractor.
+
+
+Claims that the simulation is materially richer require more than higher trait variance or population abundance.
+
+
+14. Checkpoint/version architecture
+
+
+Anything that affects future biology must be checkpointed.
+
+
+Examples include new environmental fields, persistent occupancy/substrate state that cannot be reconstructed from organisms, detritus, abiotic field values, inherited behavior-policy genes, and persistent interaction structures.
+
+
+Ephemeral context and intents should normally exist only inside a tick. Supported checkpoint boundaries should remain between complete ticks.
+
+
+Schema changes require explicit versioning, backfill, and migration behavior under existing Foundation rules.
+
+
+15. Performance architecture
+
+
+The architecture must remain viable for thousands-scale populations.
+
+
+Principles:
+- spatial index rebuilt or updated once per relevant stage/tick, not independently by each mechanic;
+- local neighbor queries are spatially bounded;
+- field updates remain compact and array-based;
+- avoid unnecessary per-agent object allocation in hot loops;
+- analysis and presentation never participate in biological hot paths;
+- each foundation slice includes representative thousands-scale profiling.
+
+
+A world with several thousand organisms and consequential ecological interactions is more valuable to the product than a much larger world of nearly independent particles, but performance tradeoffs must be measured rather than assumed.
+
+
+16. Incremental migration
+
+
+Do not rewrite sim-core wholesale.
+
+
+Phase A — Architecture seam
+Define deterministic spatial-neighborhood/local-context primitives and staged execution scaffolding around one bounded new mechanic while preserving parity for unchanged biology.
+
+
+Phase B — Consequential spatial opportunity
+Use the seam to create local competition, colonization, and vacancy without direct combat.
+
+
+Phase C — Matter cycle
+Add detritus/recycling through the process and death/matter-return stages.
+
+
+Phase D — Dynamic abiotic axis
+Add one spatial/temporal environmental property that creates moving habitat opportunity.
+
+
+Phase E — Evolvable behavior
+Move organism intent from fixed nutrient seeking toward an inherited local-context policy.
+
+
+The phase order after A is a roadmap preference, not a locked dependency chain.
+
+
+17. Architecture acceptance criteria
+
+
+AA1. sim-core remains sole biological authority.
+AA2. Current supported runs remain reproducible for unchanged engine/config semantics.
+AA3. New local interactions cannot depend on accidental organism-array iteration order.
+AA4. One reusable spatial-neighborhood service supports new local mechanics.
+AA5. Local biological context remains distinct from sim-analysis interpretation.
+AA6. Environment, intent, interaction, physiology, reproduction, death, and observation have explicit ordering semantics.
+AA7. Space can become a finite ecological opportunity without lineage ownership.
+AA8. New matter/resource pathways use explicit accounting.
+AA9. Dynamic abiotic state lives in environmental authority, not presentation.
+AA10. Evolvable behavior reads only biologically available local signals.
+AA11. Experiment definitions and regime surveys remain outside biological behavior.
+AA12. Checkpoints contain all persistent future-affecting state and exclude ordinary transient within-tick context.
+AA13. Architecture is introduced incrementally through bounded mechanics; no speculative full-engine rewrite is authorized.
+AA14. New foundation mechanics must create observable causal topology, not merely more scalar variation.
+AA15. Performance is measured at representative thousands-scale populations for each new foundational slice.
+
+
+18. First implementation-design target
+
+
+The first separately designed slice after this architecture is Consequential Spatial Opportunity / Occupancy.
+
+
+Reason:
+- directly addresses the largest simulation audit gap;
+- creates local competition without combat;
+- creates colonization fronts and meaningful vacancy;
+- gives local suppression and death real spatial consequences;
+- supports future detritus, environmental gradients, reciprocal relationships, colonies, and evolvable behavior;
+- establishes the neighborhood/context/staging seam needed by later Priority 1 work.
+
+
+This architecture does not itself authorize implementation of the spatial slice. A bounded design and Coding Agent handoff must follow.
+
+
+19. Context7 reference notes
+
+
+Current Mesa documentation was used only as implementation-pattern reference:
+- ContinuousSpace demonstrates radius and nearest-neighbor queries in a toroidal continuous world.
+- Cell spaces/property layers demonstrate separating location properties from agent state and allowing locations to track or limit occupants.
+- Simultaneous compute→advance and staged activation demonstrate explicit handling of order effects.
+- Seeded batch runs and scenario/data collection patterns reinforce separation of experiments from model behavior.
+
+
+Digital Evolution should implement equivalent principles inside its current TypeScript deterministic engine where useful, not adopt Mesa APIs or Python architecture.
+20. Tracking
+
+
+GitHub architecture issue: https://github.com/brady573/Digital-Evolution-Ecosystem/issues/97
+
+
+Issue #97 tracks architecture conformance and the transition into separately authorized simulation-foundation slices. It does not itself authorize implementation of Consequential Spatial Opportunity / Occupancy.
+
+
+21. Validated outcome — Foundation Slice 1
+Foundation Slice 1 — Consequential Spatial Opportunity / Occupancy — returned DESIGN ALIGNED and merged in PR #98 as main commit 21540c0, engine 0.24.0. The maintained implementation now includes finite identity-free local occupancy, deterministic movement settlement, atomic birth placement, same-tick vacancy release, and a reusable SpatialIndex/local-context staging seam. The pinned patchwork niche-construction trajectory changed as a legitimate downstream ecological consequence, while niche-construction capability remains protected by separate reachability evidence. This outcome validates the first consumer of this architecture; later foundation slices remain separately authorized work.

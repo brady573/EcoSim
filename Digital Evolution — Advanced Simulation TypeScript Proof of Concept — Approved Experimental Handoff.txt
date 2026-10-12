@@ -1,0 +1,68 @@
+﻿Digital Evolution — Advanced Simulation TypeScript Proof of Concept
+Status: APPROVED — EXPERIMENTAL ONLY
+Owner decision: Authorizes a fast, isolated, disposable proof of concept to test the biological sophistication and performance limits of TypeScript. This is an exception to normal production delivery workflow, not authorization to weaken maintained product safeguards.
+
+
+Purpose
+Develop a runnable, rich evolutionary ecosystem quickly and measure whether TypeScript can sustain the desired simulation complexity and procedural organism generation. Prioritize biological emergence and empirical profiling over production readiness.
+
+
+Experimental scope
+- Procedurally generated inherited morphology and appearance, with organism genotype-to-phenotype linkage.
+- Mutating inherited metabolic, sensing, locomotion, reproductive, physiological, and behavioral properties.
+- Autonomous ecological competition, predation/scavenging and candidate reciprocal interactions, with energetic costs and genuine local opportunities; do not implement fixed outcome labels masquerading as evolution.
+- Spatial environments, crowding and colonization, nutrient/death-detritus/recycling loops, a dynamic abiotic axis, and explicit environmental disturbances.
+- Individual life histories, lineage change, population composition, extinction and adaptation.
+- Minimal PixiJS viewing, organism inspection, simulation speed controls, and headless execution/benchmarking. No polished product UI needed.
+
+
+Experiment conduct
+- Coding Agent owns implementation strategy and execution. Use an isolated experimental branch or worktree; avoid edits to maintained production packages and do not merge unvalidated POC code into main.
+- Bypass routine production CI, comprehensive regression/release gates, migration compatibility work, and ordinary incremental feature slicing for this experiment.
+- Retain only credibility-critical checks: seeded repeatability within a fixed experimental version, finite/valid state, causal resource accounting sufficient for the model, consistent births/deaths, and explicit deterministic resolution of contested interactions.
+- Explicitly disclose biological abstractions, shortcuts, approximations and modeling assumptions. Unexpected behavior, ecological collapse, and runs that fail to evolve are valid evidence, not targets to conceal.
+- Do not claim production scientific validation, determinism across arbitrary platforms, or production readiness from this experiment.
+
+
+Performance protocol
+Run increasing organism population scenarios starting with 1,000 / 5,000 / 10,000 and advancing toward 25,000 / 50,000 when useful and sustainable. Test different seeds and ecological densities. Record simulation ticks/sec, average and tail tick time, update costs by subsystem, memory growth/GC, procedural phenotype generation overhead, rendering FPS, and any long-run degradation. Separate headless simulation capacity from PixiJS rendering throughput. Include representative constrained/mobile hardware when feasible rather than making unsupported general claims.
+
+
+Deliverables and decision
+Provide reproducible run instructions, the executable experimental world, test configurations/seeds, quantitative capacity results, sample observed evolutionary/ecological histories, limitations, and a recommendation: retain TypeScript; optimize TypeScript architecture; accelerate specific kernels (possibly WASM); or investigate a different execution approach. Production adoption requires a separate design decision, review and normal validation.
+
+
+Authority and boundaries
+Approved current-turn Owner decision. The Living Design Document and approved Simulation Foundation Architecture remain authoritative for the product's intended biological principles. Current GitHub main remains the maintained implementation baseline. No production engine replacement, architecture rewrite, automatic promotion, or production CI bypass is approved.
+
+
+Approved scope amendment — Whole-Ecosystem Simulation and Advanced-Organism Compatibility
+Owner decision: The POC must simulate the entire causally interacting ecosystem and must be forward-compatible with advanced organisms. These requirements supersede any interpretation of the earlier scope as a microbe-only, organism-only, or resource-backdrop benchmark.
+
+
+Whole-ecosystem simulation meaning
+- The simulated world is a coupled dynamical system: environmental substrate and spatial structure, abiotic conditions and cycles, nutrients/energy/matter pathways, producers or primary resource generation, consumers, predators, decomposers, detritus, ecological relationships, organisms and populations, and environmental changes all evolve through explicit causal processes.
+- Organisms change their environment through consumption, excretion, reproduction, death, movement, ecological engineering where modeled, and biological interactions. The changed environment feeds back into organism opportunity, fitness and selection.
+- Resource producers and decomposition must be represented through plausible modeled processes rather than inexhaustible decorative supply; abstractions and external forcing must be clearly declared, including system boundaries for energy and matter accounting.
+- Represent heterogeneous habitats, limiting factors, local niches, disturbances, and recovery. The model should permit ecological succession, competitive displacement, collapse, and restoration as possible results, not forced outcomes.
+- Not every biological kingdom or organism class needs exhaustive detail in the initial experiment. However all essential ecosystem roles and transfers must exist as active simulated processes, not static scenery or purely scripted data.
+
+
+Forward compatibility with advanced organisms
+- Avoid assumptions that every organism is a point-like, single-cell, asexual, independently motile consumer. Organism representation and environmental occupancy must admit diverse scale, shape, mobility, physiology, life stage, reproduction mode, trophic role, sensory ability, action repertoire, and interaction reach.
+- Leave extensible seams for multicellularity, articulated morphology, modular body plans, developmental growth, sexual reproduction, plants or sessile organisms, animals, advanced behavior and memory, cooperation/colonies, and potential neural control without requiring all of these to be implemented immediately.
+- Genetics should be capable of expressing meaningful organism structure, physiology, and behavior, not only scalar stat changes. Procedural appearance must be a readout of phenotype, not a source of biological authority.
+- Organisms act on locally available biological information; selection and population structure emerge from resolved processes. No scripted species progression or predetermined advanced-organism ladder.
+- Where current simplified mechanics would block future advanced organisms, prefer explicit extensible boundaries to implicit fixed assumptions. Avoid speculative universal frameworks that delay the experiment.
+
+
+Additional acceptance evidence
+- Demonstrate at least one closed or explicitly source/sink-accounted nutrient/matter transfer cycle linking abiotic environment, primary production, consumers, death, and recycling.
+- Demonstrate bidirectional organism/environment feedback and at least two ecological roles interacting over multiple generations.
+- Demonstrate contrasting habitats and an environmental disturbance with observable ecosystem consequences, with no required successful recovery or specific evolved endpoint.
+- Demonstrate the data and interaction model can represent a sessile producer and a motile consumer with distinct geometry, sensing, and behavior, and show one advanced-organism extension seam by design or lightweight executable example.
+- Performance results must separate ecology-field dynamics, organism biology, interaction resolution, lineage bookkeeping, phenotype generation and rendering; report the model's complexity and ecosystem composition alongside counts.
+- Evaluate credible long-run ecosystem dynamics, not only one-tick throughput or maximum organism count.
+
+
+This amendment changes the POC design and handoff only. Production architecture and release rules remain unchanged.
