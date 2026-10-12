@@ -265,4 +265,19 @@ tested the helper and not the world. Four more rules follow from that:
   evidence of biology.** Enabling the knob draws extra randomness, so the arms
   diverge on the stochastic trajectory before anything is compared. This
   repository published such a figure as "measurably different" and withdrew it.
+- **A trait-level assertion cannot see a structural one.** Module traits
+  materialised correctly for the entire life of this feature while every module
+  that altered body plan was a no-op, because the expressed structural view was
+  seeded from the inherited genotype after the module deltas had been applied.
+  Anything that changes STRUCTURE must be asserted on structure and on the
+  geometry derived from it (G25).
+- **A gate that counts bad outcomes has not excluded them.** G24 counted
+  single-parent clones while asserting two-parent inheritance, and founders draw
+  ~7 modules from 7 kinds, so two parents usually agree on every kind and a
+  splice between them is indistinguishable from a clone. An inheritance claim
+  must require the parents to DISAGREE and the child to resolve a disagreement
+  in each parent's favour (G24).
+- **Quote measured bytes, not derived ones.** This section published "80
+  bytes/organism" for a buffer that is 256. The allocation is unconditional, so
+  the cost is paid with the knob off.
 

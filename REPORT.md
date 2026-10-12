@@ -5675,6 +5675,36 @@ a cut at or beyond the second parent's length produced a "recombinant" that was 
 pure clone of the first parent while the operator still reported success. Both
 parents now necessarily contribute whenever both carry two or more modules.
 
+Re-review of the fixes found two more:
+
+  7. Module-driven body structure was discarded before the body was built. The
+     expressed structural view was seeded with the inherited body genes AFTER
+     the module deltas had been applied into it, so the seed overwrote them and
+     `this.body` was assembled from the un-extended inherited vector. Since hit
+     radius reads shell and spines, and sensing radius reads eyeCount, EVERY
+     module that altered body plan was a complete no-op. The trait-level gates
+     could not see this: module TRAITS moved correctly the whole time. The
+     inherited genotype is now seeded FIRST and modules add onto it. Measured
+     on a live organism: segments 2->4, eyeCount 2->6, shell 1->3, hitRadius
+     1.4979->1.8955, senseRadius 66.67->159.72, inherited genotype unchanged.
+     G25 asserts body structure AND its derived geometry move in the engine.
+  8. G24 counted single-parent clones without excluding them, so a mating that
+     produced a clone could satisfy a gate asserting two-parent inheritance.
+     Worse, founders draw ~7 modules from 7 kinds, so both parents usually
+     carry every kind and a splice between two identical genomes is
+     indistinguishable from a clone by construction. G24 now requires the
+     parents to actually disagree and the child to resolve a disagreement in
+     EACH parent's favour; clones are excluded rather than merely counted.
+
+MEMORY FOOTPRINT CORRECTION. An earlier version of this section quoted the
+module genome as "stride 4 -> 80 bytes/organism". That was wrong. It is
+Float32Array(capacity * MAX_MODULES * MODULE_STRIDE) = 16 * 4 * 4 = **256 bytes
+per allocated slot**, about 12.2 MB at 50,000 slots. The buffer is allocated
+UNCONDITIONALLY, with the knob off, deliberately so that no array offset can
+become conditional on a config flag; the cost is therefore always paid. procSeed
+(Uint32) and moduleCount (Uint8) add 5 bytes, for 261 bytes per slot total.
+No scaling conclusion may be drawn from the withdrawn 80-byte figure.
+
 CORRECTION TO AN EARLIER FIGURE IN THIS SECTION. The previous text recorded:
   genomeV2=null  pop 601, modules 0, meanSize 5.374
   genomeV2=true  pop 881, modules 4778, meanSize 5.439  <- "measurably different"

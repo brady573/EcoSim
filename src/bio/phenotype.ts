@@ -106,6 +106,13 @@ export class Phenotype {
     }
     const P = this.physical;
 
+    // Seed the expressed structural view with the INHERITED genotype. This
+    // happens unconditionally, before the module block, because modules ADD to
+    // an existing body plan rather than defining one. With genomeV2 off this is
+    // the whole story: structGenes is a copy of bodyGenes and the body plan is
+    // exactly as declared.
+    this.structGenes.set(bodyGenes);
+
     // --- Modular genome v2 (diagnostic, genomeV2). -------------------------
     //
     // Modules are INHERITED INSTRUCTIONS; this is where they become biology.
@@ -133,24 +140,28 @@ export class Phenotype {
       }
       // Structure also shows. Appearance follows biology, never the reverse.
       //
-      // Written into `this.structGenes`, NOT into the caller's `bodyGenes`.
-      // That array is the INHERITED genotype: writing expressed structure back
-      // into it makes a readout heritable, and a re-derivation at a later age
-      // would then ADD to it again, accumulating structure into the DNA with
-      // every refresh. A phenotype is a pure function of its genome, so it must
-      // not be able to edit the genome it was derived from.
+      // Added onto `this.structGenes`, which is ALREADY seeded with the
+      // inherited genotype (see the seed below). The caller's `bodyGenes` is
+      // never written to: that array is the INHERITED genotype, and writing
+      // expressed structure back into it makes a readout heritable — a
+      // re-derivation at a later age would then ADD to it again, accumulating
+      // structure into the DNA with every refresh. A phenotype is a pure
+      // function of its genome, so it must not be able to edit the genome it
+      // was derived from.
       for (let b = 0; b < BODY_GENE_COUNT; b++) {
         if (!structGenes[b]) continue;
         const spec = BODY_GENES[b];
-        this.structGenes[b] = Math.max(spec.lo, Math.min(spec.hi, bodyGenes[b] + structGenes[b]));
+        this.structGenes[b] = Math.max(spec.lo, Math.min(spec.hi, this.structGenes[b] + structGenes[b]));
       }
     }
 
     // --- Resolve the body plan from discrete genes. ---
-    // Structural view used for appearance AND for every derived quantity.
-    // Starts as the inherited genotype and may be extended by modules below.
-    // The caller's array is never written to.
-    this.structGenes.set(bodyGenes);
+    //
+    // `this.body` is the EXPRESSED structure: the inherited genotype extended
+    // by whatever modules built on it. Every derived quantity (hit radius,
+    // sensing radius, rendering) must read this view, never the caller's raw
+    // `bodyGenes`, or a module's structural instruction changes nothing about
+    // the body it was supposed to build.
     this.body = {
       segments: this.structGenes[BODY_GENE.SEGMENTS],
       limbPairs: this.structGenes[BODY_GENE.LIMB_PAIRS],

@@ -31,6 +31,7 @@ import {
   expressModules, inheritModules, recombineModules, seedFounderModules,
 } from './bio/modgenome.js';
 import { OrganismStore } from './core/soa.js';
+import type { Phenotype } from './bio/phenotype.js';
 import { Rng } from './core/rng.js';
 import { INTENT } from './world/world.js';
 
@@ -1167,6 +1168,89 @@ function gate23(): void {
   );
 }
 
+function gate25(): void {
+  // MODULE-DRIVEN STRUCTURE MUST REACH THE BODY IN THE LIVE WORLD.
+  //
+  // Review found this was silently lost: the expressed structural view was
+  // seeded with the inherited body genes AFTER the module deltas had been
+  // applied into it, so the seed clobbered them. `this.body` was then built
+  // from the un-extended inherited vector, and hit/sense radius — which read
+  // shell, spines and eyeCount — never saw a module's structural effect at all.
+  //
+  // A trait-level gate cannot catch this: module TRAITS moved correctly while
+  // every module that alters body plan was a no-op. The assertion is on BODY
+  // STRUCTURE and the geometry derived from it.
+  type W = {
+    store: {
+      capacity: number; moduleCount: Uint8Array; bodyGenes: Uint8Array;
+      phen: Phenotype[]; hitRadius: Float32Array;
+    };
+    live: Uint8Array; step(): void; config: { genomeV2: boolean | null };
+  };
+  const w = new World({
+    config: { ...SMALL, genomeV2: true } as never,
+  }) as unknown as W;
+  const st = w.store;
+
+  let watched = -1;
+  for (let tick = 0; tick < 700 && watched < 0; tick++) {
+    w.step();
+    for (let i = 0; i < st.capacity; i++) {
+      if (w.live[i] && st.moduleCount[i] > 0) { watched = i; break; }
+    }
+  }
+  if (watched < 0) {
+    record('G25', 'module structure reaches the body plan in the live world', false,
+      'no module-bearing organism observed; cannot test structural expression');
+    return;
+  }
+
+  // The INHERITED genotype, captured once. It must not move: a phenotype is a
+  // pure function of its genome and must never write structure back into it.
+  const bg0 = Array.from(st.bodyGenes.subarray(watched * BODY_GENE_COUNT, (watched + 1) * BODY_GENE_COUNT));
+  const b0 = st.phen[watched].body;
+  const born = {
+    segments: b0.segments, eyeCount: b0.eyeCount, shell: b0.shell, spines: b0.spines,
+  };
+  const hit0 = st.phen[watched].hitRadius;
+  const sense0 = st.phen[watched].senseRadius;
+
+  let peak = { ...born };
+  let peakHit = hit0, peakSense = sense0;
+  for (let tick = 0; tick < 400; tick++) {
+    w.step();
+    if (!w.live[watched]) break;
+    const b = st.phen[watched].body;
+    if (b.segments > peak.segments) peak.segments = b.segments;
+    if (b.eyeCount > peak.eyeCount) peak.eyeCount = b.eyeCount;
+    if (b.shell > peak.shell) peak.shell = b.shell;
+    if (b.spines > peak.spines) peak.spines = b.spines;
+    if (st.phen[watched].hitRadius > peakHit) peakHit = st.phen[watched].hitRadius;
+    if (st.phen[watched].senseRadius > peakSense) peakSense = st.phen[watched].senseRadius;
+  }
+
+  const structureChanged =
+    peak.segments !== born.segments || peak.eyeCount !== born.eyeCount
+    || peak.shell !== born.shell || peak.spines !== born.spines;
+  const geometryChanged =
+    Math.abs(peakHit - hit0) > 1e-6 || Math.abs(peakSense - sense0) > 1e-6;
+  const bg1 = Array.from(st.bodyGenes.subarray(watched * BODY_GENE_COUNT, (watched + 1) * BODY_GENE_COUNT));
+  const genotypeIntact = bg0.every((v, i) => v === bg1[i]);
+
+  record(
+    'G25',
+    'module structure reaches the body plan and its derived geometry',
+    structureChanged && geometryChanged && genotypeIntact,
+    `slot ${watched}: segments ${born.segments}->${peak.segments}, ` +
+      `eyeCount ${born.eyeCount}->${peak.eyeCount}, shell ${born.shell}->${peak.shell}, ` +
+      `spines ${born.spines}->${peak.spines}; hitRadius ${hit0.toFixed(4)}->${peakHit.toFixed(4)}, ` +
+      `senseRadius ${sense0.toFixed(2)}->${peakSense.toFixed(2)}. ` +
+      `Inherited genotype ${genotypeIntact ? 'UNCHANGED' : 'MUTATED (heritable readout!)'}. ` +
+      'Unchanged structure means modules build traits but no body, and the ' +
+      'geometry derived from structure never moves.',
+  );
+}
+
 function gate24(): void {
   // A LIVE MATING must produce DNA from BOTH parents.
   //
@@ -1252,16 +1336,35 @@ function gate24(): void {
       }
       if (ok) { cut = c; break; }
     }
+
     const foreign = kc.filter((k) => !ka.includes(k) && !kb.includes(k));
     const cloneOfA = kc.length === ka.length && kc.every((k, i) => k === ka[i]);
     const cloneOfB = kc.length === kb.length && kc.every((k, i) => k === kb[i]);
-    if (cloneOfA || cloneOfB) clones++;
+    if (cloneOfA || cloneOfB) { clones++; continue; }
 
-    if (cut > 0 && foreign.length === 0) {
+    // A splice is only EVIDENCE of two-parent inheritance if the two parents
+    // actually disagree somewhere, and the child resolves a disagreement in
+    // each parent's favour. Without this, two identical genomes "recombine"
+    // into something indistinguishable from a clone and the gate passes on an
+    // outcome that proves nothing. Review caught that clones were counted but
+    // not excluded.
+    let wonByA = 0, wonByB = 0;
+    if (cut > 0) {
+      for (let i = 0; i < cut && i < ka.length; i++) {
+        if (ka[i] !== kb[i] && kc[i] === ka[i]) wonByA++;
+      }
+      for (let i = cut; i < kc.length; i++) {
+        if (i < kb.length && kb[i] !== ka[i] && kc[i] === kb[i]) wonByB++;
+      }
+    }
+
+    if (cut > 0 && foreign.length === 0 && wonByA > 0 && wonByB > 0) {
       mixed++;
       detail = `parent slot ${a} [${ka.join(',')}] x parent slot ${b} [${kb.join(',')}] ` +
         `-> child slot ${child} [${kc.join(',')}] = first ${cut} module(s) of the ` +
-        `first parent + modules ${cut}.. of the second, none foreign.`;
+        `first parent + modules ${cut}.. of the second. The parents disagree at ` +
+        `${wonByA} position(s) resolved for the first parent and ${wonByB} for ` +
+        'the second, none foreign, and the child is a clone of neither.';
     }
   }
 
@@ -1270,10 +1373,11 @@ function gate24(): void {
     'a live mating produces module DNA from BOTH parents',
     mixed > 0,
     mixed > 0
-      ? `${detail} (${attempts} forced mating(s) through the real birth queue; ` +
-        `${clones} produced a pure single-parent clone)`
-      : `no child combined modules from both parents across ${attempts} forced ` +
-        'mating(s) driven through the real birth queue. If the mate guard in the ' +
+      ? `${detail} (${attempts} mating(s) attempted through the real birth ` +
+        `queue; ${clones} produced a pure single-parent clone and were excluded)`
+      : `no child combined modules from BOTH parents with each parent's ` +
+        `distinctive modules actually present across ${attempts} mating(s) ` +
+        `(${clones} excluded as single-parent clones). If the mate guard in the ` +
         'birth path does not pass, recombination never runs and every sexual ' +
         'birth is an asexual clone.',
   );
@@ -1349,6 +1453,7 @@ function main(): void {
   gate22();
   gate23();
   gate24();
+  gate25();
 
   const failed = results.filter((r) => !r.pass);
   console.log(`\n${results.length - failed.length}/${results.length} checks passed`);
