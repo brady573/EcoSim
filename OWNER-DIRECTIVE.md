@@ -17,7 +17,7 @@ reproduced verbatim. Two references in the status line do not resolve inside
 this standalone repository:
 
 - **Scientific Method MCP case `66d8c7ba`** — the MCP was retired by the Owner
-  on 2026-10-20 as a failed experiment. The scientific method it was meant to
+  on 2026-10-10 as a failed experiment. The scientific method it was meant to
   enforce is now applied directly and written into `AGENTS.md` ("Evidence
   rules") and `REPORT.md`. No case store is reachable from this repository.
 - **The Living Design Document** — not present in this tree. It was advisory

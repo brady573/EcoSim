@@ -7,7 +7,7 @@ boxes; no-species-table rule retained). Recorded in Scientific Method MCP case
 
 > **Provenance note (2026-10-10).** The MCP case reference above is retained as
 > written but no longer resolves: the MCP was retired by the Owner on
-> 2026-10-20. The direction itself stands. The "balance first" ordering below
+> 2026-10-10. The direction itself stands. The "balance first" ordering below
 > has since been overtaken by a measured dependency ladder — see `REPORT.md`
 > entries for the sealed zeroed baseline and the 18-seed rungs — which reached
 > the same conclusion (no class work until a rung produces three-guild worlds
