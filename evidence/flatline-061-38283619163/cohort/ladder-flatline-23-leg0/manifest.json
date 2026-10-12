@@ -1,0 +1,185 @@
+{
+  "arm": "flatline",
+  "title": "Flatline zero-energy regression baseline (replay on known seeds)",
+  "preregistered": "2026-10-10 (original 6000-tick registration)",
+  "identity": {
+    "engine": "ts-evo-poc/0.6.1",
+    "gateSuite": "gates/0.4.0",
+    "engineError": null,
+    "commit": "40432edf52bda1e02418a52cc09389518493ccad",
+    "ref": "refs/heads/balance/share-brake-diagnostics-run",
+    "runtime": "v24.21.0",
+    "armSpecHash": "c71824ef03db690f268b253017286bf12d90cccabed627a13a69b921debee0ef",
+    "armSpecPath": "tools/ladder/arms.json",
+    "note": "The probe always ran from the current checkout. A historical arm spec applied here is a settings replay, not a reproduction of its original figure."
+  },
+  "capturePolicy": {
+    "zero": true,
+    "permitted": [
+      false,
+      false,
+      false
+    ]
+  },
+  "seedCount": 3,
+  "seeds": [
+    41001,
+    41013,
+    31007
+  ],
+  "declaredSeedCount": 36,
+  "shard": {
+    "index": 0,
+    "count": 12
+  },
+  "historicalSpec": false,
+  "historicalEngineReproduced": false,
+  "ticks": 12000,
+  "declaredTicks": 12000,
+  "ticksOverrideApplied": false,
+  "zero": true,
+  "lifts": {},
+  "preregistration": {
+    "hypothesis": "With every energy-giving pathway zeroed, all guilds go extinct. This is a REGRESSION CRITERION on a seed panel whose outcomes are already known, not a prospective ecological test: a deterministic replay of the same seeds and engine cannot confirm anything it did not already show.",
+    "prediction": "REPLAY CRITERION: all 36 seeds read pop = 0 at tick 12000. A prospective ecological claim would require a NEW seed panel registered BEFORE its outcomes are inspected; that panel is not yet registered and no verdict is claimed for it.",
+    "falsification": "Any of the 36 seeds reads pop > 0 at tick 12000 (would mean the correction is not deterministic, or extinction regressed).",
+    "notPredicted": "Extinction TIMING within the horizon is not predicted, only terminal state. Pre-0.6.0 extinction windows are earlier-engine evidence and are not comparable.",
+    "confoundsControlled": [
+      "Same 36-seed panel as every prior flatline run (41001-41018, 31001-31018)",
+      "--zero only, no lifts, so the arm remains fully specified",
+      "Declared INPUTS controlled: seeds, horizon, and every zeroed pathway identical across runs.",
+      "NOT controlled — SCHEMA AND SEMANTICS CHANGED: the knob schema is NOT unchanged between 0.4.1 and 0.6.0. decomposerPhotoScale was ADDED, the guild capture gate gained a decomposer branch, and the mineralisation return gained an nCells divisor. Declared input values were held constant; engine semantics were not.",
+      "NOT controlled: the horizon changed from 6000 to 12000. This is a re-registration, not a matched comparison, and must not be read as one.",
+      "NOT independent: outcomes at 12000 were already observed on these seeds before the horizon was set. See registrationKind."
+    ],
+    "criteria": null
+  },
+  "runs": [
+    {
+      "seed": 41001,
+      "argv": [
+        "41001",
+        "12000",
+        "off",
+        "4",
+        "null",
+        "null",
+        "null",
+        "null",
+        "null",
+        "null",
+        "off",
+        "off",
+        "off",
+        "0.4",
+        "null",
+        "0",
+        "null",
+        "--zero"
+      ],
+      "header": "SENESCENCE seed=41001 ticks=12000 setting=off photox4 basalxnull grazexnull tissuexnull radxnull disxnull pioxnull dtboff mixooff cycoff sat0.4 pcapnull nfloor0 rsurnull dfound=0.25 ZERO-BASELINE (probe config)",
+      "prod": 0,
+      "cons": 0,
+      "dec": 0,
+      "pop": 0,
+      "finalTick": 12000,
+      "ledgerStatus": "ok",
+      "ledgerClass": "valid",
+      "totalInput": 45701.8,
+      "residualPct": 0.00028,
+      "capture": 0,
+      "captureByGuild": [
+        0,
+        0,
+        0
+      ],
+      "residualOk": true,
+      "capturePolicyOk": true
+    },
+    {
+      "seed": 41013,
+      "argv": [
+        "41013",
+        "12000",
+        "off",
+        "4",
+        "null",
+        "null",
+        "null",
+        "null",
+        "null",
+        "null",
+        "off",
+        "off",
+        "off",
+        "0.4",
+        "null",
+        "0",
+        "null",
+        "--zero"
+      ],
+      "header": "SENESCENCE seed=41013 ticks=12000 setting=off photox4 basalxnull grazexnull tissuexnull radxnull disxnull pioxnull dtboff mixooff cycoff sat0.4 pcapnull nfloor0 rsurnull dfound=0.25 ZERO-BASELINE (probe config)",
+      "prod": 0,
+      "cons": 0,
+      "dec": 0,
+      "pop": 0,
+      "finalTick": 12000,
+      "ledgerStatus": "ok",
+      "ledgerClass": "valid",
+      "totalInput": 47085.4,
+      "residualPct": 0.00023,
+      "capture": 0,
+      "captureByGuild": [
+        0,
+        0,
+        0
+      ],
+      "residualOk": true,
+      "capturePolicyOk": true
+    },
+    {
+      "seed": 31007,
+      "argv": [
+        "31007",
+        "12000",
+        "off",
+        "4",
+        "null",
+        "null",
+        "null",
+        "null",
+        "null",
+        "null",
+        "off",
+        "off",
+        "off",
+        "0.4",
+        "null",
+        "0",
+        "null",
+        "--zero"
+      ],
+      "header": "SENESCENCE seed=31007 ticks=12000 setting=off photox4 basalxnull grazexnull tissuexnull radxnull disxnull pioxnull dtboff mixooff cycoff sat0.4 pcapnull nfloor0 rsurnull dfound=0.25 ZERO-BASELINE (probe config)",
+      "prod": 0,
+      "cons": 0,
+      "dec": 0,
+      "pop": 0,
+      "finalTick": 12000,
+      "ledgerStatus": "ok",
+      "ledgerClass": "valid",
+      "totalInput": 42699.5,
+      "residualPct": -0.00067,
+      "capture": 0,
+      "captureByGuild": [
+        0,
+        0,
+        0
+      ],
+      "residualOk": true,
+      "capturePolicyOk": true
+    }
+  ],
+  "headerMismatches": [],
+  "failures": [],
+  "warnings": []
+}

@@ -779,6 +779,65 @@
         }
       ]
     },
+    "viability-061": {
+      "title": "0.6.1 RETEST: does fasting tolerance move consumer viability at identical config?",
+      "preregistered": "2026-10-12",
+      "registrationKind": "KNOWN_SEED_DIAGNOSTIC_NOT_PROSPECTIVE",
+      "seeds": "41001:41018",
+      "ticks": 6000,
+      "zero": true,
+      "lifts": {
+        "producerCaptureScale": 0.35,
+        "basalFoodPerCell": 0.01,
+        "grazeYieldScale": 1.0,
+        "nutrientRegen": 0.0002
+      },
+      "argvRest": [
+        "off",
+        "4",
+        "0.25",
+        "null",
+        "null",
+        "null",
+        "0.15",
+        "null",
+        "off",
+        "off",
+        "on",
+        "1.0",
+        "null",
+        "0.05",
+        "30"
+      ],
+      "hypothesis": "Engine-contrast test, not a config test: identical settings to graze-viability (which scored cons 11/18, prod 13/18 on 0.6.0), executed on 0.6.1 where starvation damage ramps over 6 deficit ticks. If consumer failure was variance-intolerance, replacement should rise with per-capita intake flat (conversion, not subsidy).",
+      "prediction": "cons > 0 on at least 12/18 AND prod > 0 on at least 12/18 seeds at tick 6000 (both machine criteria — consumer bar requires +1 over 0.6.0's 11/18; producer bar 12/18 admits one seed of slippage from 13/18). Human-read: consumer B/D distribution shifted up vs the 0.6.0 viability run with per-capita graze intake (grazeEnergy/pop) flat. Coexistence rate NOT predicted.",
+      "falsification": "FALSIFIED if cons > 0 on fewer than 12/18 (no improvement over 0.6.0's 11/18): fasting tolerance does not convert to viability. If consumers improve while per-capita intake rises, the mechanism is subsidy-like, not conversion — report as confounded, not supported.",
+      "notPredicted": "Coexistence rates, capture shares, extinction counts (descriptive), decomposer endpoints.",
+      "confoundsControlled": [
+        "Settings byte-identical to graze-viability (same lifts, same 15 slots incl. rsur 30, same 18 seeds, same horizon); the ONLY difference is the engine (0.6.0 -> 0.6.1)",
+        "Matched engine contrast: any rate/B-D/intake difference is attributable to fasting tolerance",
+        "conservation enforced per seed at 0.5%; a seed above it fails the run rather than reporting"
+      ],
+      "knownLimits": "Engine-contrast diagnostic. Says nothing about balance, reliance, or prospective rates.",
+      "criteria": [
+        {
+          "id": "consumers-viable-061",
+          "metric": "cons",
+          "op": ">",
+          "value": 0,
+          "required": 12,
+          "statement": "consumers > 0 at tick 6000 on at least 12/18 seeds"
+        },
+        {
+          "id": "producers-fed-061",
+          "metric": "prod",
+          "op": ">",
+          "value": 0,
+          "required": 12,
+          "statement": "producers > 0 at tick 6000 on at least 12/18 seeds"
+        }
+      ]
+    },
     "balance-diagnostic-control": {
       "title": "DIAGNOSTIC control: known balance-failure seeds without dormant-share brake",
       "preregistered": "2026-10-12",

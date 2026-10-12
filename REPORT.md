@@ -6396,3 +6396,19 @@ byte-identical per seed+config (also across the two pin runs each).
 Owed before 0.6.1 is fully verified: --zero flatline re-run (dispatched as
 the registered flatline arm post-push) and the viability-config ladder
 retest with per-capita intake flat (registered post-push).
+
+--------------------------------------------------------------------------------
+0.6.1 CEILING: --ZERO FLATLINE HOLDS 36/36 (2026-10-12)
+--------------------------------------------------------------------------------
+
+RUN. Registered flatline arm on engine 0.6.1, GitHub Actions 38283619163.
+Cohort INTACT (regression-replay design: classification "not measured").
+Artifacts archived under evidence/flatline-061-38283619163/cohort/.
+
+RESULT. All 36 seeds extinct by tick 12000 (0 alive at end). Max absolute
+ledger residual 0.00109% against the 0.5% failure threshold. Bounded grace
+does not leak: with no income every deficit is sustained, streaks saturate
+in 6 ticks, and killing proceeds at full rate — the ceiling the proposal
+required. 0.6.1 is now fully verified to the repository contract:
+typecheck, 20/20 gates, re-pinned parity (twice byte-identical),
+determinism, 11/11 contract, 145/145 workflow, flatline intact.
