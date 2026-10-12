@@ -2,7 +2,12 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+    <!-- viewport-fit=cover lets the layout reach under a notch, with the panels
+         inset by env(safe-area-inset-*) so nothing hides beneath it.
+         maximum-scale/user-scalable are deliberately NOT disabled: pinch-zoom on
+         the page is an accessibility affordance, and the canvas handles its own
+         zoom via pointer events, so browser zoom does not conflict with it. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>DE evolution POC — experimental viewer</title>
     <style>
       /* Minimal functional UI. Deliberately not polished: this exists to make
@@ -23,7 +28,18 @@
         overscroll-behavior: none;
       }
       #stage { position: fixed; inset: 0; }
-      canvas { display: block; touch-action: none; }
+      canvas {
+        display: block;
+        /* Own every gesture on the canvas. Without this the browser claims
+           one-finger panning and two-finger pinch for page zoom, so panning the
+           world scrolls the page and pinch-zooms the document instead of the
+           simulation. */
+        touch-action: none;
+        /* A long press over the canvas otherwise raises the iOS/Android
+           selection callout and starts a text selection mid-drag. */
+        -webkit-touch-callout: none; user-select: none; -webkit-user-select: none;
+        -webkit-tap-highlight-color: transparent;
+      }
 
       .panel {
         position: fixed; background: color-mix(in srgb, var(--panel) 88%, transparent);
@@ -33,12 +49,51 @@
            previous fixed 240px/210px widths collided: 240 + 210 + margins
            exceeds a 412px viewport, so the controls and stats panels overlapped
            and swallowed each other's taps. */
-        max-width: calc(100vw - 16px);
+        max-width: calc(100vw - 16px - env(safe-area-inset-left) - env(safe-area-inset-right));
       }
-      #controls { top: 8px; left: 8px; width: 240px; }
-      #stats { top: 8px; right: 8px; min-width: 210px; }
-      #inspect { bottom: 8px; left: 8px; width: min(46vw, 420px); max-height: 52vh; overflow: auto; display: none; }
-      #legend { bottom: 8px; right: 8px; width: 210px; }
+      #controls { top: calc(8px + env(safe-area-inset-top)); left: calc(8px + env(safe-area-inset-left)); width: 240px; }
+      #stats { top: calc(8px + env(safe-area-inset-top)); right: calc(8px + env(safe-area-inset-right)); min-width: 210px; }
+      #inspect {
+        bottom: calc(8px + env(safe-area-inset-bottom));
+        left: calc(8px + env(safe-area-inset-left));
+        width: min(46vw, 420px);
+        /* dvh tracks the collapsing address bar; vh does not, which let the
+           panel run under the browser chrome on mobile. */
+        max-height: 52dvh; max-height: 52vh; overflow: auto; display: none;
+      }
+      #legend { bottom: calc(8px + env(safe-area-inset-bottom)); right: calc(8px + env(safe-area-inset-right)); width: 210px; }
+
+      /* --- Touch targets ---------------------------------------------------
+         44px is the smallest reliably tappable target. The desktop controls are
+         ~24px tall and sit shoulder to shoulder, which on a phone produced
+         mis-taps between adjacent buttons. Touch-only, via pointer: coarse, so
+         a desktop mouse keeps the dense layout. */
+      @media (pointer: coarse) {
+        button {
+          min-height: 44px; padding: 8px 14px; font-size: 13px;
+          /* A tap must not also select text or raise a long-press callout. */
+          touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+          user-select: none; -webkit-user-select: none;
+        }
+        input[type='range'] { width: 100%; min-height: 44px; }
+        input[type='number'] {
+          width: 84px; min-height: 40px; font: inherit; font-size: 14px;
+          background: #1a2331; color: inherit;
+          border: 1px solid var(--line); border-radius: 4px; padding: 4px 6px;
+        }
+        .row { gap: 8px; }
+        .panel { padding: 10px 12px; }
+        h1 { font-size: 12px; }
+      }
+
+      /* --- Landscape phones ------------------------------------------------
+         Vertical space is the scarce axis when the device is on its side, and
+         the panels are anchored to top and bottom. Cap their heights and let
+         them scroll rather than pushing into each other. */
+      @media (max-height: 460px) and (orientation: landscape) {
+        #controls, #stats, #legend, #inspect { max-height: 44dvh; max-height: 44vh; overflow: auto; }
+        #inspect { width: min(46vw, 300px); }
+      }
 
       /* Collapsible panels. Four fixed corners cannot all fit on a small
          screen, so each panel collapses to just its header. Collapsing is what
@@ -47,6 +102,12 @@
       .panel > h1 {
         cursor: pointer; user-select: none; display: flex; align-items: center;
         justify-content: space-between; gap: 8px; margin-bottom: 0;
+        /* Enlarge the tap target for the disclosure toggle without changing how
+           the header looks: padding expands the hit area, not the glyphs. */
+        padding: 2px 0; min-height: 24px;
+      }
+      @media (pointer: coarse) {
+        .panel > h1 { min-height: 40px; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
       }
       .panel > h1::after { content: '\25BE'; font-size: 9px; opacity: .6; }
       .panel.collapsed { padding: 5px 9px; }
@@ -108,8 +169,8 @@
         <button id="btn-genome" aria-pressed="false" title="Diagnostic: modular genome v2. Off = declared behaviour (null).">Genome&nbsp;v2</button>
         <span class="tiny" id="genome-note">off &mdash; declared behaviour</span>
       </div>
-      <div class="row tiny">
-        drag to pan &middot; wheel to zoom &middot; click an organism to inspect
+      <div class="row tiny" id="hint">
+        <span id="hint-pointer">drag to pan &middot; pinch or wheel to zoom &middot; tap an organism to inspect</span>
       </div>
     </div>
 

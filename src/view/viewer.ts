@@ -52,10 +52,19 @@ const ROLE_COLOR: Record<number, number> = {
 const app = new Application();
 await app.init({
   background: 0x0b0f14,
-  resizeTo: window,
+  // Resize against the VISUAL viewport, not the layout viewport. On mobile the
+  // two differ whenever the address bar is shown, a keyboard is open, or the
+  // page is zoomed, and `resizeTo: window` then sizes the canvas to an area the
+  // user cannot actually see — the world appears offset with dead space below.
+  //
+  // Typed as Window because PixiJS's resizeTo does not accept VisualViewport;
+  // the element exposes the same width/height/addEventListener surface, which
+  // is all resizeTo uses.
+  resizeTo: (window.visualViewport ?? window) as unknown as Window,
   antialias: false,
   // Explicitly cap resolution: rendering must not be allowed to imply a
-  // simulation budget, and we want honest frame timings on a phone.
+  // simulation budget, and we want honest frame timings on a phone. A 3x DPR
+  // phone would otherwise ask for 9x the pixels of a 1x desktop.
   resolution: Math.min(2, window.devicePixelRatio || 1),
   autoDensity: true,
   preference: 'webgl',
@@ -132,7 +141,23 @@ let showDisturbances = true;
 let selected = -1;
 let selectedId = -1;
 
-/** Camera, in world units. */
+/**
+ * Camera, in world units.
+ *
+ * Zoom bounds are shared by wheel and pinch so the two gestures cannot drift
+ * apart, and so a pinch cannot drive the camera somewhere a wheel could not.
+ */
+const MIN_ZOOM = 0.12;
+const MAX_ZOOM = 14;
+/**
+ * Movement in CSS pixels still counted as a tap.
+ *
+ * 6px was a mouse-sized threshold. A fingertip routinely drifts more than that
+ * while pressing, which made taps unreliable on touch: the view panned a few
+ * pixels and nothing was selected. 12px sits above resting tremor and below a
+ * deliberate drag.
+ */
+const TAP_SLOP = 12;
 const cam = { x: 0, y: 0, zoom: 1 };
 
 /**
@@ -331,42 +356,111 @@ interface MorphShape {
 }
 
 // --- Interaction -----------------------------------------------------------
-let dragging = false;
+//
+// Pointer Events rather than mouse/touch events, because they unify mouse,
+// touch and pen in one path. That is what makes the SAME code serve a desktop
+// mouse and a phone: the only thing that genuinely differs is how many pointers
+// are down at once.
+//
+// Zoom was previously wheel-only. A phone has no wheel, so on mobile the world
+// could not be zoomed at all — you could pan across 4000 world units at a fixed
+// scale and organisms were sub-pixel. Two-finger pinch is the touch equivalent
+// of the wheel and is handled below.
+//
+// Tracking every active pointer in a Map rather than a single "last pointer"
+// is what makes pinch possible: with only the most recent pointer retained, a
+// second finger's movement is indistinguishable from a drag and the view
+// jitters instead of scaling.
+const pointers = new Map<number, { x: number; y: number }>();
 let dragMoved = 0;
-let lastPointer = { x: 0, y: 0 };
+let pinchMoved = false;
+
+/** Distance between the first two active pointers, or 0 if fewer than two. */
+function pinchDistance(): number {
+  const [a, b] = [...pointers.values()];
+  if (!a || !b) return 0;
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+function pinchMidpoint(): { x: number; y: number } {
+  const [a, b] = [...pointers.values()];
+  if (!a || !b) return { x: 0, y: 0 };
+  return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+}
+
+/** Zoom about a screen anchor so the world point under it stays put. */
+function zoomAbout(factor: number, cx: number, cy: number): void {
+  const before = worldToScreenFromClient(cx, cy);
+  cam.zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, cam.zoom * factor));
+  const after = worldToScreenFromClient(cx, cy);
+  cam.x += before.x - after.x;
+  cam.y += before.y - after.y;
+}
 
 app.canvas.addEventListener('pointerdown', (e) => {
-  dragging = true;
-  dragMoved = 0;
-  lastPointer = { x: e.clientX, y: e.clientY };
-  app.canvas.setPointerCapture(e.pointerId);
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (pointers.size === 1) {
+    dragMoved = 0;
+    pinchMoved = false;
+  }
+  try {
+    app.canvas.setPointerCapture(e.pointerId);
+  } catch {
+    /* capture is best-effort */
+  }
 });
+
 app.canvas.addEventListener('pointermove', (e) => {
-  if (!dragging) return;
-  const dx = e.clientX - lastPointer.x;
-  const dy = e.clientY - lastPointer.y;
+  const prev = pointers.get(e.pointerId);
+  if (!prev) return;
+  const next = { x: e.clientX, y: e.clientY };
+
+  if (pointers.size >= 2) {
+    // Pinch: scale by the ratio of distances, anchored at the midpoint so the
+    // world point between the fingers stays under the fingers.
+    const beforeDist = pinchDistance();
+    const mid = pinchMidpoint();
+    pointers.set(e.pointerId, next);
+    const afterDist = pinchDistance();
+    if (beforeDist > 0 && afterDist > 0) {
+      pinchMoved = true;
+      zoomAbout(afterDist / beforeDist, mid.x, mid.y);
+    }
+    return;
+  }
+
+  pointers.set(e.pointerId, next);
+  const dx = next.x - prev.x;
+  const dy = next.y - prev.y;
   dragMoved += Math.abs(dx) + Math.abs(dy);
   cam.x -= dx / cam.zoom;
   cam.y -= dy / cam.zoom;
-  lastPointer = { x: e.clientX, y: e.clientY };
 });
-app.canvas.addEventListener('pointerup', (e) => {
-  dragging = false;
+
+function endPointer(e: PointerEvent): void {
+  const wasSingle = pointers.size === 1;
+  pointers.delete(e.pointerId);
   try {
     app.canvas.releasePointerCapture(e.pointerId);
   } catch {
     /* pointer already released */
   }
-  if (dragMoved < 6) selectAt(e);
-});
+  // Only a genuine tap selects. A pinch, or a drag, must not pick whatever
+  // happens to sit under the last finger to lift.
+  if (wasSingle && !pinchMoved && dragMoved < TAP_SLOP) selectAt(e);
+}
+
+app.canvas.addEventListener('pointerup', endPointer);
+app.canvas.addEventListener('pointercancel', endPointer);
+// A pointer can leave the window entirely (task switcher, incoming call) and
+// never deliver pointerup. Without this the map leaks entries and every later
+// gesture is misread as a multi-touch one.
+window.addEventListener('blur', () => pointers.clear());
+
 app.canvas.addEventListener('wheel', (e) => {
   e.preventDefault();
-  const before = worldToScreenFromClient(e.clientX, e.clientY);
   const factor = e.deltaY < 0 ? 1.14 : 1 / 1.14;
-  cam.zoom = Math.max(0.12, Math.min(14, cam.zoom * factor));
-  const after = worldToScreenFromClient(e.clientX, e.clientY);
-  cam.x += before.x - after.x;
-  cam.y += before.y - after.y;
+  zoomAbout(factor, e.clientX, e.clientY);
 }, { passive: false });
 
 function worldToScreenFromClient(cx: number, cy: number): { x: number; y: number } {
@@ -685,6 +779,40 @@ if (window.innerWidth < 760) {
   for (const id of ['stats', 'legend']) {
     document.getElementById(id)?.classList.add('collapsed');
   }
+}
+
+// --- Input affordances ----------------------------------------------------
+// The hint line names the gesture the device actually has. A phone has no
+// wheel, so telling a touch user to "wheel to zoom" describes an interaction
+// they cannot perform.
+const hintPointer = document.getElementById('hint-pointer') as HTMLElement;
+const COARSE = window.matchMedia('(pointer: coarse)').matches;
+if (!COARSE) {
+  hintPointer.textContent = 'drag to pan \u00b7 wheel to zoom \u00b7 click an organism to inspect';
+}
+if (COARSE) {
+  // A phone cannot scroll the page usefully — the canvas owns every gesture —
+  // so the document must not bounce or pull-to-refresh when a drag starts near
+  // an edge. `overscroll-behavior` is the only thing that reliably suppresses
+  // this on both iOS Safari and Android Chrome.
+  document.documentElement.style.overscrollBehavior = 'none';
+}
+
+// --- Mobile viewport ------------------------------------------------------
+// The visual viewport changes without a window resize event on mobile: the
+// address bar collapsing, a keyboard opening, or a pinch-zoom of the page all
+// alter it. Left unhandled, the canvas keeps the stale size and the rendered
+// world sits under the browser chrome.
+const vv = window.visualViewport;
+if (vv) {
+  const syncViewport = () => {
+    app.renderer.resize(Math.round(vv.width), Math.round(vv.height));
+  };
+  vv.addEventListener('resize', syncViewport);
+  vv.addEventListener('scroll', syncViewport);
+  // Rotation changes the visual viewport on some Android browsers without
+  // firing resize on window at all.
+  window.addEventListener('orientationchange', () => setTimeout(syncViewport, 120));
 }
 
 // --- Main loop -------------------------------------------------------------
