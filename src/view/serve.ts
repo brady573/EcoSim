@@ -14,6 +14,7 @@
 
 import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { extname, join, normalize, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -32,7 +33,19 @@ const EXPERIMENT_ROOT = resolve(HERE, '..', '..');
  */
 const BUILD_ROOT = resolve(EXPERIMENT_ROOT, 'build');
 const REPO_ROOT = resolve(EXPERIMENT_ROOT, '..', '..');
-const PIXI_ENTRY = resolve(REPO_ROOT, 'node_modules', 'pixi.js', 'dist', 'pixi.mjs');
+/**
+ * PixiJS location.
+ *
+ * The experiment normally sits two levels below a repository root that owns
+ * node_modules, so REPO_ROOT is tried first. When the experiment IS the
+ * repository root — which is the case here — node_modules sits beside the
+ * experiment instead, and the REPO_ROOT-only lookup resolves to `/node_modules`
+ * and throws at read time. Both layouts are tried rather than assuming one.
+ */
+const PIXI_ENTRY = [
+  resolve(REPO_ROOT, 'node_modules', 'pixi.js', 'dist', 'pixi.mjs'),
+  resolve(EXPERIMENT_ROOT, 'node_modules', 'pixi.js', 'dist', 'pixi.mjs'),
+].find((candidate) => existsSync(candidate)) ?? resolve(EXPERIMENT_ROOT, 'node_modules', 'pixi.js', 'dist', 'pixi.mjs');
 
 const PORT = Number(process.env.PORT ?? 5178);
 

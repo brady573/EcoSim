@@ -219,3 +219,65 @@ or the meaning of a knob that other evidence depends on; multiple materially
 different biological meanings are possible; a required dependency is missing;
 or a verdict would depend on a threshold nobody has set. The Owner sets
 thresholds and seeds. Do not invent them.
+
+### Modular genome v2 (`genomeV2`)
+
+`genomeV2: boolean | null`, **null = declared behaviour, exactly**. When set, a
+genome becomes a short ordered sequence of MODULES — inherited construction
+instructions carrying a magnitude, a developmental onset and an optional
+condition gate — which express into the existing 42 traits. No new biological
+mechanism is introduced; the trophic and competitive machinery is untouched.
+
+It exists because **eight of the twelve v1 structural genes are decorative**.
+Measured against the engine: only `eyeCount` (sensing radius) and `shell` /
+`spines` (collision radius) have any survival consequence. `limbPairs`,
+`fins`, `antennae`, `tail`, `segments` and all four pigment genes are inherited,
+mutated, and read by nothing. A genome whose heritable variation mostly drives
+appearance is a decorative system wearing a data structure.
+
+Three rules hold it together, each pinned by a gate:
+
+- **Every module carries an upkeep cost** (G14). A free capability would be
+  selected for unconditionally and evolution would have nothing to choose.
+- **Modules move traits, not just body genes** (G13). Expression adds to the
+  existing trait GENES before materialisation, so structure that changes nothing
+  biological is a failure, not a body plan.
+- **A knob that is inert when off and active when on** (G19). Otherwise it is
+  the dead-knob class: it parses, it prints, it may do nothing.
+
+Five of those gates were green while the engine did nothing at all, because they
+tested the helper and not the world. Four more rules follow from that:
+
+- **A gate that proves a mechanism exists is not a gate that proves it runs.**
+  Call `expressModules` directly and it will demonstrate development, condition
+  gating and recombination perfectly while the engine applies none of them.
+  Anything claimed about the simulation must be observed in a running world.
+  G20-G24 exist for exactly this and may not be replaced by helper tests.
+- **Assert the NET charge, not the metadata.** G14 checked that `upkeep > 0` was
+  declared and passed while the cost was double-booked to exactly zero. A
+  declared cost that does not reach the ledger is the knob-discipline failure
+  wearing a different hat (G20).
+- **Compare against the unexpressed baseline, not against a later snapshot.**
+  Expressed traits rise with age and then FALL BACK as energy cannot sustain
+  them. A begin/end comparison on one organism reads "unchanged" while
+  development plainly happened in between (G21, G23).
+- **A population difference between knob-set and knob-unset arms is not
+  evidence of biology.** Enabling the knob draws extra randomness, so the arms
+  diverge on the stochastic trajectory before anything is compared. This
+  repository published such a figure as "measurably different" and withdrew it.
+- **A trait-level assertion cannot see a structural one.** Module traits
+  materialised correctly for the entire life of this feature while every module
+  that altered body plan was a no-op, because the expressed structural view was
+  seeded from the inherited genotype after the module deltas had been applied.
+  Anything that changes STRUCTURE must be asserted on structure and on the
+  geometry derived from it (G25).
+- **A gate that counts bad outcomes has not excluded them.** G24 counted
+  single-parent clones while asserting two-parent inheritance, and founders draw
+  ~7 modules from 7 kinds, so two parents usually agree on every kind and a
+  splice between them is indistinguishable from a clone. An inheritance claim
+  must require the parents to DISAGREE and the child to resolve a disagreement
+  in each parent's favour (G24).
+- **Quote measured bytes, not derived ones.** This section published "80
+  bytes/organism" for a buffer that is 256. The allocation is unconditional, so
+  the cost is paid with the knob off.
+

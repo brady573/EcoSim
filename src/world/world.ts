@@ -28,6 +28,9 @@
  * modelled as a local density penalty rather than explicit interference.
  */
 
+import {
+  MAX_MODULES, MODULE_STRIDE, inheritModules, recombineModules, seedFounderModules,
+} from '../bio/modgenome.js';
 import { Rng } from '../core/rng.js';
 import { ScalarField } from '../core/field.js';
 import { SpatialGrid } from '../core/spatial.js';
@@ -653,6 +656,10 @@ export class World {
 
   // --- Phase queues --------------------------------------------------------
   private birthParentSlot: Int32Array<ArrayBuffer>;
+  /** Second parent for sexual births (genomeV2 recombination). -1 = asexual. */
+  private birthMateSlot: Int32Array<ArrayBuffer>;
+  /** Organism id of the second parent, -1 when asexual. Validates slot reuse. */
+  private birthMateId: Int32Array<ArrayBuffer>;
   private birthCount: Int32Array<ArrayBuffer>;
   /**
    * Lineage to assign to each queued birth, or -1 to inherit the parent's.
@@ -960,6 +967,8 @@ export class World {
     this.localMods = emptyModifiers();
 
     this.birthParentSlot = new Int32Array(this.store.capacity * 2);
+    this.birthMateSlot = new Int32Array(this.store.capacity * 2).fill(-1);
+    this.birthMateId = new Int32Array(this.store.capacity * 2).fill(-1);
     this.birthCount = new Int32Array(this.store.capacity * 2);
     this.birthLineage = new Int32Array(this.store.capacity * 2).fill(-1);
     this.birthParentId = new Int32Array(this.store.capacity * 2).fill(-1);
@@ -1031,9 +1040,22 @@ export class World {
         body[b] = v < spec.lo ? spec.lo : v > spec.hi ? spec.hi : v;
       }
 
+      // Modular genome v2 founding. Seeded only when the diagnostic is on; a
+      // v1 founder carries no modules at all. Founders get a plausible spread
+      // rather than a uniform draw, because a lineage that starts with four
+      // DEFENSE modules and no sensory organ is a corpse, not a founder. This
+      // is a STARTING CONDITION, not a fitness claim.
+      let fModules: Float32Array | null = null;
+      let fCount = 0;
+      if (this.config.genomeV2 === true) {
+        const seeded = seedFounderModules(this.rng, 3 + this.rng.int(5));
+        fModules = seeded.modules;
+        fCount = seeded.count;
+      }
+
       const slot = this.store.allocate();
       if (slot < 0) return;
-      this.populateSlot(slot, genome, body, -1, this.nextId - 1, 0);
+      this.populateSlot(slot, genome, body, -1, this.nextId - 1, 0, fModules, fCount);
       // Founders are their own lineage. Reserve a dense index first so the
       // biological key and the bookkeeping index cannot collide.
       this.store.lineage[slot] = this.denseLineage(this.store.id[slot]);
@@ -1075,14 +1097,41 @@ export class World {
     parentId: number,
     lineage: number,
     bornTick: number,
+    geneModules?: Float32Array | null,
+    moduleCount = 0,
   ): void {
     const seed = (this.rng.nextU32() ^ (slot * 0x9e3779b1)) >>> 0;
+    // Retained so the phenotype can be RE-DERIVED later with identical
+    // geometry. Development re-expression must not re-roll an individual's
+    // silhouette every time it crosses a developmental threshold.
+    this.store.procSeed[slot] = seed;
+
+    // FIX: module state is RESET on every allocation, not only when modules are
+    // written. Structural deletion can yield a child with zero modules; if that
+    // child reuses a freed slot, the previous occupant's moduleCount and block
+    // would otherwise survive and be inherited again — a zero-module organism
+    // carrying its dead neighbour's DNA.
+    this.store.moduleCount[slot] = 0;
+    if (geneModules && moduleCount > 0) {
+      this.store.geneModules.fill(0, slot * MAX_MODULES * MODULE_STRIDE,
+        (slot + 1) * MAX_MODULES * MODULE_STRIDE);
+    }
     // Procedural phenotype generation is timed SEPARATELY from per-tick
     // biology, because in a birth-heavy world it is a different cost curve
     // from anything the tick loop does. The Owner asked for this split
     // explicitly, so it must not be buried inside a birth-phase total.
     const phenT0 = this.profiling ? now() : 0;
-    const phen = new Phenotype(genome, bodyGenes, seed);
+    // Store the module block BEFORE deriving the phenotype, so the phenotype
+    // can read it and so a re-derivation later has the genome to re-read.
+    if (geneModules && moduleCount > 0) {
+      const off = slot * MAX_MODULES * MODULE_STRIDE;
+      this.store.geneModules.set(geneModules.subarray(0, MAX_MODULES * MODULE_STRIDE), off);
+      this.store.moduleCount[slot] = moduleCount;
+    }
+    const phen = new Phenotype(genome, bodyGenes, seed,
+      this.store.geneModules.subarray(slot * MAX_MODULES * MODULE_STRIDE,
+        slot * MAX_MODULES * MODULE_STRIDE + MAX_MODULES * MODULE_STRIDE),
+      this.store.moduleCount[slot], 0, 1);
     if (this.profiling) this.phenotypeMs += now() - phenT0;
     this.store.phenotypeDerivations++;
 
@@ -2401,6 +2450,19 @@ export class World {
       // organism in ROLE_REFRESH_EVERY is refreshed per tick, which keeps the
       // amortised cost near 6% rather than paying it every tick for everyone.
       if (age % ROLE_REFRESH_EVERY === 0) {
+        // Modular genome v2 (diagnostic): re-express modules at the CURRENT
+        // developmental age before deriving the role.
+        //
+        // Without this, development never happens in the live world. Phenotypes
+        // are derived ONCE at birth, and a newborn is age 0, where
+        // developmentFactor(0, onset) is zero for every valid onset — so every
+        // module was gated to zero at birth and never re-expressed. The module
+        // deltas, their upkeep and the whole developmental claim were therefore
+        // inert in the engine while the standalone helper demonstrated them
+        // perfectly. G21 asserts this on a LIVE organism.
+        if (this.config.genomeV2 === true && store.moduleCount[slot] > 0) {
+          this.reexpressModules(slot, age);
+        }
         this.writeRole(slot, deriveRole(p, o, age + 1));
       }
 
@@ -2589,8 +2651,11 @@ export class World {
         const lb = store.lineage[b];
         const laNew = this.mintRecombinantLineage(la, lb);
         const lbNew = this.mintRecombinantLineage(lb, la);
-        this.queueBirth(a, 1, laNew);
-        this.queueBirth(b, 1, lbNew);
+        // genomeV2: the mate is threaded through so the child can be built by
+        // CROSSOVER rather than by copying one parent. v1 birth drew from a
+        // single parent, so mating never mixed genes.
+        this.queueBirth(a, 1, laNew, b);
+        this.queueBirth(b, 1, lbNew, a);
       },
       (as, ds) => {
         // Contact cost for a scavenge-contest winner. The energy transfer itself
@@ -2844,7 +2909,47 @@ export class World {
     }
   }
 
-  private queueBirth(parentSlot: number, count: number, lineageOverride = -1): void {
+  /**
+   * Re-derive one organism's expressed traits from its module genome at the
+   * organism's CURRENT age and energy state.
+   *
+   * Regenerates the whole phenotype rather than only the trait block, so the
+   * derived quantities (hit radius, sensing radius, max step, capacity) follow
+   * the newly expressed structure instead of staying frozen at birth. The
+   * individual's procedural seed is reused, so its silhouette is stable across
+   * re-expression — a phenotype must remain a pure function of
+   * (genome, seed, age, condition).
+   */
+  private reexpressModules(slot: number, age: number): void {
+    const store = this.store;
+    const go = slot * TRAIT_COUNT;
+    const bo = slot * BODY_GENE_COUNT;
+    const mo = slot * MAX_MODULES * MODULE_STRIDE;
+    const count = store.moduleCount[slot];
+    if (count <= 0) return;
+
+    const lifespan = Math.max(1, store.trait(slot, TRAIT.LIFESPAN));
+    const ageFraction = Math.max(0, Math.min(1, age / lifespan));
+    const energyFraction = this.capacityOf(slot) > 0
+      ? Math.max(0, Math.min(1, store.energy[slot] / this.capacityOf(slot)))
+      : 0;
+
+    const genome = store.genome.subarray(go, go + TRAIT_COUNT);
+    const bodyGenes = store.bodyGenes.subarray(bo, bo + BODY_GENE_COUNT);
+    const phen = new Phenotype(
+      genome, bodyGenes, store.procSeed[slot],
+      store.geneModules.subarray(mo, mo + MAX_MODULES * MODULE_STRIDE),
+      count, ageFraction, energyFraction,
+    );
+
+    store.physical.set(phen.physical, go);
+    store.phen[slot] = phen;
+    store.hitRadius[slot] = phen.hitRadius;
+    store.senseRadius[slot] = phen.senseRadius;
+    store.maxStep[slot] = phen.maxStep;
+  }
+
+  private queueBirth(parentSlot: number, count: number, lineageOverride = -1, mateSlot = -1): void {
     // Grow rather than silently drop: a high-fecundity ecology must not have
     // its births censored without being counted anywhere.
     if (this.pendingBirths + count > this.birthParentSlot.length) {
@@ -2861,6 +2966,12 @@ export class World {
       const gi = new Int32Array(next).fill(-1);
       gi.set(this.birthParentId);
       this.birthParentId = gi;
+      const gm = new Int32Array(next).fill(-1);
+      gm.set(this.birthMateSlot);
+      this.birthMateSlot = gm;
+      const gi2 = new Int32Array(next).fill(-1);
+      gi2.set(this.birthMateId);
+      this.birthMateId = gi2;
       this.birthDrops++;
     }
     const parentId = this.store.id[parentSlot];
@@ -2869,6 +2980,8 @@ export class World {
       this.birthCount[this.pendingBirths] = count;
       this.birthLineage[this.pendingBirths] = lineageOverride;
       this.birthParentId[this.pendingBirths] = parentId;
+      this.birthMateSlot[this.pendingBirths] = mateSlot;
+      this.birthMateId[this.pendingBirths] = mateSlot >= 0 ? this.store.id[mateSlot] : -1;
       this.pendingBirths++;
     }
   }
@@ -3094,6 +3207,41 @@ export class World {
       // asexual children stay in it. Either way the genome is inherited and
       // mutated here, so morphology and physiology are both heritable.
       this.inherit(parent, genome, body);
+
+      // --- Modular genome v2 (diagnostic) -----------------------------------
+      // Null-default: with genomeV2 unset this block is skipped entirely and
+      // no organism carries modules, so declared behaviour is unchanged.
+      let modCount = 0;
+      let modBlock: Float32Array | null = null;
+      if (this.config.genomeV2 === true) {
+        const store = this.store;
+        const rate = store.trait(parent, TRAIT.MUTATION_RATE);
+        modBlock = new Float32Array(MAX_MODULES * MODULE_STRIDE);
+        const mate = this.birthMateSlot[q];
+        if (mate >= 0 && mate !== parent && this.live[mate]
+            && this.birthMateId[q] >= 0 && store.id[mate] === this.birthMateId[q]) {
+          // Recombination: single-point crossover at a module boundary. Both
+          // parents contribute. Guarded so a recycled slot cannot be read as a
+          // second parent.
+          modCount = recombineModules(
+            this.rng,
+            store.geneModules.subarray(parent * MAX_MODULES * MODULE_STRIDE,
+              parent * MAX_MODULES * MODULE_STRIDE + store.moduleCount[parent] * MODULE_STRIDE),
+            store.moduleCount[parent],
+            store.geneModules.subarray(mate * MAX_MODULES * MODULE_STRIDE,
+              mate * MAX_MODULES * MODULE_STRIDE + store.moduleCount[mate] * MODULE_STRIDE),
+            store.moduleCount[mate],
+            modBlock, rate,
+          );
+        } else {
+          modCount = inheritModules(
+            this.rng,
+            store.geneModules.subarray(parent * MAX_MODULES * MODULE_STRIDE,
+              parent * MAX_MODULES * MODULE_STRIDE + store.moduleCount[parent] * MODULE_STRIDE),
+            store.moduleCount[parent], modBlock, rate,
+          );
+        }
+      }
       const override = this.birthLineage[q];
       const lineageId =
         override >= 0 ? this.denseLineage(override) : store.lineage[parent];
@@ -3117,7 +3265,7 @@ export class World {
       if (slot < 0) break;
       this.ledger.recordTransferOut(perChild, this.roleOf(parent).trophic);
 
-      this.populateSlot(slot, genome, body, store.id[parent], lineageId, this.tick);
+      this.populateSlot(slot, genome, body, store.id[parent], lineageId, this.tick, modBlock, modCount);
       this.noteSlot(slot);
       // Generation depth increments only on recombination.
       store.generationDepth[slot] =

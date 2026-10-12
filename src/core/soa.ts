@@ -28,10 +28,16 @@
  * every genome in the world is misread.
  */
 import { TRAIT_COUNT as TC, BODY_GENE_COUNT as BGC } from '../bio/genome.js';
+import { MAX_MODULES as MM, MODULE_STRIDE as MS } from '../bio/modgenome.js';
 
 /** Re-exported so every module has exactly one definition of the layout. */
 export const TRAIT_COUNT = TC;
 export const BODY_GENE_COUNT = BGC;
+
+/** Stride of one organism's modular-genome block, in float slots. */
+export const MODULE_STRIDE = MS;
+/** Module slots per organism (capacity of the block). */
+export const MAX_MODULES = MM;
 /**
  * Stride of the cached role/stage readout block: trophic, motility, maturation
  * quantised, stage, reach quantised. Kept small and flat so it costs one byte
@@ -87,6 +93,27 @@ export class OrganismStore {
   genome!: Float32Array;
   /** `capacity * BODY_GENE_COUNT` discrete structural genes. */
   bodyGenes!: Uint8Array;
+  /**
+   * Modular genome v2 block: `capacity * MAX_MODULES * MODULE_STRIDE`.
+   *
+   * Present unconditionally in the store so the store layout does not depend on
+   * a config flag — a genome whose storage appeared and vanished with a knob
+   * would make every offset in the engine conditional. Populated ONLY when
+   * `genomeV2` is on; `moduleCount[slot]` is the authority for how much of the
+   * block is meaningful.
+   */
+  geneModules!: Float32Array;
+  /** Populated module count per slot. 0 = no modular genome. */
+  moduleCount!: Uint8Array;
+  /**
+   * Procedural geometry seed per slot.
+   *
+   * Retained so a phenotype can be re-derived — for developmental
+   * re-expression — with IDENTICAL geometry. A phenotype is otherwise a pure
+   * function of (genome, seed); without this, crossing a developmental
+   * threshold would re-roll the individual's silhouette.
+   */
+  procSeed!: Uint32Array;
 
   // --- Spatial --------------------------------------------------------------
   x: Float32Array;
@@ -177,6 +204,9 @@ export class OrganismStore {
 
     this.genome = new Float32Array(cap * TRAIT_COUNT);
     this.bodyGenes = new Uint8Array(cap * BODY_GENE_COUNT);
+    this.geneModules = new Float32Array(cap * MAX_MODULES * MODULE_STRIDE);
+    this.moduleCount = new Uint8Array(cap);
+    this.procSeed = new Uint32Array(cap);
 
     this.x = new Float32Array(cap);
     this.y = new Float32Array(cap);
@@ -262,6 +292,9 @@ export class OrganismStore {
     this.genome = growFloat32(this.genome, cap * TRAIT_COUNT);
     this.physical = growFloat32(this.physical, cap * TRAIT_COUNT);
     this.bodyGenes = growUint8(this.bodyGenes, cap * BODY_GENE_COUNT);
+    this.geneModules = growFloat32(this.geneModules, cap * MAX_MODULES * MODULE_STRIDE);
+    this.moduleCount = growUint8(this.moduleCount, cap);
+    this.procSeed = growUint32(this.procSeed, cap);
     this.x = growFloat32(this.x, cap);
     this.y = growFloat32(this.y, cap);
     this.heading = growFloat32(this.heading, cap);

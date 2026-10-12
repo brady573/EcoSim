@@ -12,7 +12,8 @@
  * same body, which is what makes morphology heredity observable at all.
  */
 
-import { BODY_GENE, MODULE, TRAIT, TRAITS, TRAIT_COUNT, express, type TraitSpec } from './genome.js';
+import { BODY_GENE, BODY_GENE_COUNT, BODY_GENES, MODULE, TRAIT, TRAITS, TRAIT_COUNT, express, type TraitSpec } from './genome.js';
+import { expressModules } from './modgenome.js';
 import { Rng } from '../core/rng.js';
 
 /** Resolved structural body plan. */
@@ -57,6 +58,11 @@ export class Phenotype {
   /** Expressed physical trait values, indexed like TRAITS. Hot-path read. */
   readonly physical = new Float32Array(TRAIT_COUNT);
   readonly body: BodyPlan;
+  /**
+   * Structural genes AS EXPRESSED: inherited genotype plus whatever modules
+   * built on it. Local to this phenotype, never written back to the genome.
+   */
+  readonly structGenes = new Uint8Array(BODY_GENE_COUNT);
   readonly spine: MorphSegment[];
   readonly parts: MorphPart[];
 
@@ -68,6 +74,10 @@ export class Phenotype {
    * to a predator. Capacity is therefore scaled by mass at derivation time.
    */
   readonly capacityForTrait: number;
+
+  /** Modular genome v2: total expressed structure and its upkeep price. */
+  moduleTotal = 0;
+  moduleUpkeep = 0;
 
   /** Collision radius, world units. Derived from body mass and proportions. */
   readonly hitRadius: number;
@@ -84,7 +94,11 @@ export class Phenotype {
   /** Secondary accent colour used for eyes/parts. */
   accentHue: number;
 
-  constructor(genome: Float32Array, bodyGenes: Uint8Array, individualSeed: number) {
+  constructor(
+    genome: Float32Array, bodyGenes: Uint8Array, individualSeed: number,
+    geneModules?: Float32Array | null, moduleCount = 0,
+    ageFraction = 1, energyFraction = 1,
+  ) {
     // --- Express every trait once. The hot loop reads `physical` only. ---
     for (let i = 0; i < TRAIT_COUNT; i++) {
       const spec: TraitSpec = TRAITS[i];
@@ -92,16 +106,71 @@ export class Phenotype {
     }
     const P = this.physical;
 
+    // Seed the expressed structural view with the INHERITED genotype. This
+    // happens unconditionally, before the module block, because modules ADD to
+    // an existing body plan rather than defining one. With genomeV2 off this is
+    // the whole story: structGenes is a copy of bodyGenes and the body plan is
+    // exactly as declared.
+    this.structGenes.set(bodyGenes);
+
+    // --- Modular genome v2 (diagnostic, genomeV2). -------------------------
+    //
+    // Modules are INHERITED INSTRUCTIONS; this is where they become biology.
+    // The delta they produce is added to the expressed trait GENE before
+    // materialisation, so the existing 42 traits, their consumers and all the
+    // trophic machinery are untouched. With genomeV2 off, `geneModules` is
+    // null and this block is never entered — declared behaviour is unchanged.
+    if (geneModules && moduleCount > 0) {
+      const deltas = new Float32Array(TRAIT_COUNT);
+      const structGenes = new Uint8Array(BODY_GENE_COUNT);
+      const tally = expressModules(
+        geneModules, moduleCount, ageFraction, energyFraction, deltas, structGenes,
+      );
+      this.moduleTotal = tally.total;
+      this.moduleUpkeep = tally.upkeep;
+      for (let i = 0; i < TRAIT_COUNT; i++) {
+        if (deltas[i] === 0) continue;
+        const spec = TRAITS[i];
+        // Gene-space addition, clamped: a module pushes the trait it builds,
+        // and the existing bounds still apply. Clamping here rather than
+        // letting a module invert a trait is deliberate — a module that could
+        // drive a cost trait negative would create free energy.
+        const g = Math.max(0, Math.min(1, genome[i] + deltas[i]));
+        P[i] = express(g, spec);
+      }
+      // Structure also shows. Appearance follows biology, never the reverse.
+      //
+      // Added onto `this.structGenes`, which is ALREADY seeded with the
+      // inherited genotype (see the seed below). The caller's `bodyGenes` is
+      // never written to: that array is the INHERITED genotype, and writing
+      // expressed structure back into it makes a readout heritable — a
+      // re-derivation at a later age would then ADD to it again, accumulating
+      // structure into the DNA with every refresh. A phenotype is a pure
+      // function of its genome, so it must not be able to edit the genome it
+      // was derived from.
+      for (let b = 0; b < BODY_GENE_COUNT; b++) {
+        if (!structGenes[b]) continue;
+        const spec = BODY_GENES[b];
+        this.structGenes[b] = Math.max(spec.lo, Math.min(spec.hi, this.structGenes[b] + structGenes[b]));
+      }
+    }
+
     // --- Resolve the body plan from discrete genes. ---
+    //
+    // `this.body` is the EXPRESSED structure: the inherited genotype extended
+    // by whatever modules built on it. Every derived quantity (hit radius,
+    // sensing radius, rendering) must read this view, never the caller's raw
+    // `bodyGenes`, or a module's structural instruction changes nothing about
+    // the body it was supposed to build.
     this.body = {
-      segments: bodyGenes[BODY_GENE.SEGMENTS],
-      limbPairs: bodyGenes[BODY_GENE.LIMB_PAIRS],
-      eyeCount: bodyGenes[BODY_GENE.EYE_COUNT],
-      shell: bodyGenes[BODY_GENE.SHELL],
-      spines: bodyGenes[BODY_GENE.SPINES],
-      fins: bodyGenes[BODY_GENE.FINS],
-      antennae: bodyGenes[BODY_GENE.ANTENNAE],
-      tail: bodyGenes[BODY_GENE.TAIL],
+      segments: this.structGenes[BODY_GENE.SEGMENTS],
+      limbPairs: this.structGenes[BODY_GENE.LIMB_PAIRS],
+      eyeCount: this.structGenes[BODY_GENE.EYE_COUNT],
+      shell: this.structGenes[BODY_GENE.SHELL],
+      spines: this.structGenes[BODY_GENE.SPINES],
+      fins: this.structGenes[BODY_GENE.FINS],
+      antennae: this.structGenes[BODY_GENE.ANTENNAE],
+      tail: this.structGenes[BODY_GENE.TAIL],
       modules: 0,
     };
 
@@ -276,6 +345,12 @@ export function derivePhenotype(
   genome: Float32Array,
   bodyGenes: Uint8Array,
   individualSeed: number,
+  geneModules?: Float32Array | null,
+  moduleCount = 0,
+  ageFraction = 1,
+  energyFraction = 1,
 ): Phenotype {
-  return new Phenotype(genome, bodyGenes, individualSeed);
+  return new Phenotype(
+    genome, bodyGenes, individualSeed, geneModules, moduleCount, ageFraction, energyFraction,
+  );
 }

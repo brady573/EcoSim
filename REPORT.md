@@ -5583,3 +5583,166 @@ DOCUMENT DEFECTS FOUND AND CORRECTED
     should respect caps" is answered: it was a confirmed defect, fixed in 0.6.0.
     Its balance-first ordering was already overtaken by the measured dependency
     ladder, as its own provenance note records.
+
+================================================================================
+MODULAR GENOME v2 — DIGITAL DNA AS INHERITED INSTRUCTIONS
+================================================================================
+Branch `genome-v2`. Engine `ts-evo-poc/0.6.0` UNCHANGED and parity EXACT —
+808/159/58 (seed 517) and 558/290/D96 (24601). The mechanism is a null-default
+diagnostic (`genomeV2`), so declared behaviour is bit-for-bit unchanged.
+
+THE DEFECT THIS ADDRESSES, MEASURED RATHER THAN ASSUMED. Of the twelve v1
+structural genes, only THREE have a survival consequence:
+
+  eyeCount   -> sensing radius
+  shell      -> collision radius (bulk)
+  spines     -> collision radius (bulk)
+
+The other NINE — `limbPairs`, `fins`, `antennae`, `tail`, `segments`,
+`pigmentHue`, `pigmentSat`, `pigmentVal`, `pattern` — are inherited, mutated,
+rendered, and read by nothing that has a consequence. The `CHROMATOPHORE` module
+flag derived from pigment saturation is written and never acted upon.
+
+That is a genome whose heritable variation mostly drives APPEARANCE, which is
+the one thing this repository forbids as an authority. Appearance was a readout
+of biology; in the genome it had become the only thing the structural half did.
+
+Birth also inherited from ONE parent only. Mating forked a lineage but never
+mixed genes, so `consumer-yield` was correct to call mating "association
+without consent" at the genetic level: no child had two parents' DNA.
+
+WHAT WAS BUILT. `src/bio/modgenome.ts`: a CLOSED vocabulary of seven
+construction instructions (segment, light-capture, locomotor, sensory, anchor,
+defense, trophic), each with magnitude, developmental onset and condition gate.
+Modules express into the EXISTING 42 traits, so every downstream consumer of
+those traits — the whole trophic, competitive and energy machinery — is reused
+unchanged. Structural duplication and deletion change genome length; a
+single-point crossover at module boundaries supplies the two-parent inheritance
+that v1 never had, with bounded genome length serving as the compatibility rule.
+
+COSTS ARE THE POINT. Every module carries upkeep, paid through the existing
+basal-cost accounting rather than a second ledger. Locomotor appendages buy
+speed and maneuverability and cost upkeep; defense buys armour and mass and costs
+speed; anchoring buys terrain affinity and blocks dispersal. A genome of free
+capabilities would be a thermometer: every lineage converges on maximal structure
+and the trade-off the design rests on disappears.
+
+VALIDATION — 32/32 gates, 11/11 contract (parity exact), 102/102 workflow
+fixtures. Seven gates cover the module mechanism in isolation:
+  G13 modules move real traits, not only body genes (15 of 42 traits shift)
+  G14 every module carries a maintenance cost
+  G15 the same genome expresses different structure at different life stages
+  G16 a gated module is expressed conditionally, not only by age
+  G17 duplication and deletion change genome length
+  G18 recombination draws modules from both parents
+  G19 the knob is inert when unset and active when set
+
+FIVE DEFECTS FOUND BY INDEPENDENT REVIEW, all real, all fixed. They are
+recorded here rather than quietly patched because every one of them is a way to
+make a gate stay green while the biology does nothing:
+
+  1. Development never happened in the live world. Phenotypes are derived ONCE
+     at birth, a newborn is age 0, and developmentFactor(0, onset) is zero for
+     every valid onset — so every module was gated to zero at birth and never
+     re-expressed. G15 proved the development curve perfectly in isolation while
+     the engine applied no module at all. Fixed by re-expressing modules in the
+     existing periodic refresh, reusing the individual's stored procedural seed
+     so its silhouette is stable across re-derivation. G21 now asserts it on a
+     live organism.
+  2. Module upkeep cancelled algebraically. Every MODULE_SPECS entry listed
+     BASAL_COST in its `cost` list AND declared the same figure as `upkeep`; the
+     cost loop subtracted it and the charge added back the same quantity, so the
+     net basal-cost delta was identically ZERO for every module. G14 checked the
+     METADATA said upkeep > 0 and passed while the organism was free. This is the
+     exact failure the knob discipline in AGENTS.md warns about. G20 now asserts
+     the net expressed figure.
+  3. Recombination never fired. The birth path validated the mate slot with
+     `store.id[mate] === birthParentId + 1`, which is not how ids relate, so the
+     guard essentially never passed and every sexual birth was an asexual clone.
+     Fixed by recording the mate's real organism id at queue time. G24 drives an
+     actual birth through the real queue and asserts the splice.
+  4. A zero-module child reused a dead neighbour's genome. Module state was only
+     written when count > 0, so a child with no modules occupying a freed slot
+     inherited the previous occupant's modules and bred with them. Fixed by
+     resetting on every allocation. G22 asserts it.
+  5. Phenotype derivation mutated the caller's genotype array in place, making
+     expressed structure heritable and accumulating it into the DNA on every
+     refresh. A phenotype is a pure function of its genome and must not edit it.
+
+A sixth defect was found while fixing these: recombineModules clamped its
+crossover point against the first parent's module count but not the second's, so
+a cut at or beyond the second parent's length produced a "recombinant" that was a
+pure clone of the first parent while the operator still reported success. Both
+parents now necessarily contribute whenever both carry two or more modules.
+
+Re-review of the fixes found two more:
+
+  7. Module-driven body structure was discarded before the body was built. The
+     expressed structural view was seeded with the inherited body genes AFTER
+     the module deltas had been applied into it, so the seed overwrote them and
+     `this.body` was assembled from the un-extended inherited vector. Since hit
+     radius reads shell and spines, and sensing radius reads eyeCount, EVERY
+     module that altered body plan was a complete no-op. The trait-level gates
+     could not see this: module TRAITS moved correctly the whole time. The
+     inherited genotype is now seeded FIRST and modules add onto it. Measured
+     on a live organism: segments 2->4, eyeCount 2->6, shell 1->3, hitRadius
+     1.4979->1.8955, senseRadius 66.67->159.72, inherited genotype unchanged.
+     G25 asserts body structure AND its derived geometry move in the engine.
+  8. G24 counted single-parent clones without excluding them, so a mating that
+     produced a clone could satisfy a gate asserting two-parent inheritance.
+     Worse, founders draw ~7 modules from 7 kinds, so both parents usually
+     carry every kind and a splice between two identical genomes is
+     indistinguishable from a clone by construction. G24 now requires the
+     parents to actually disagree and the child to resolve a disagreement in
+     EACH parent's favour; clones are excluded rather than merely counted.
+
+MEMORY FOOTPRINT CORRECTION. An earlier version of this section quoted the
+module genome as "stride 4 -> 80 bytes/organism". That was wrong. It is
+Float32Array(capacity * MAX_MODULES * MODULE_STRIDE) = 16 * 4 * 4 = **256 bytes
+per allocated slot**, about 12.2 MB at 50,000 slots. The buffer is allocated
+UNCONDITIONALLY, with the knob off, deliberately so that no array offset can
+become conditional on a config flag; the cost is therefore always paid. procSeed
+(Uint32) and moduleCount (Uint8) add 5 bytes, for 261 bytes per slot total.
+No scaling conclusion may be drawn from the withdrawn 80-byte figure.
+
+CORRECTION TO AN EARLIER FIGURE IN THIS SECTION. The previous text recorded:
+  genomeV2=null  pop 601, modules 0, meanSize 5.374
+  genomeV2=true  pop 881, modules 4778, meanSize 5.439  <- "measurably different"
+That comparison was evidence of nothing but the extra RNG draws made while
+seeding founder modules. Under defects 1 and 2 the modules applied no traits and
+charged no cost, so that population difference was a change in the stochastic
+trajectory, not a change in biology. It should never have been offered as
+evidence and is withdrawn.
+
+Re-measured after the fixes, 400 ticks, founders 400, 3000x3000:
+  seed  517  null: pop 916, modules    0, meanArmor 0.31626, meanBasal 0.02660
+  seed  517  true: pop 777, modules 3937, meanArmor 0.34284, meanBasal 0.03564
+  seed 24601 null: pop 722, modules    0, meanArmor 0.33772, meanBasal 0.02508
+  seed 24601 true: pop 461, modules 2242, meanArmor 0.32234, meanBasal 0.04135
+
+The SIGN of the population effect has reversed: modules now REDUCE the
+population on both seeds, which is what a real per-module upkeep charge should
+do. Basal cost rises, as it must, now that the charge is not cancelling.
+
+That reversal is a demonstration of why the old figure was worthless, and the
+population delta STILL IS NOT EVIDENCE. Enabling the knob draws additional
+randomness while seeding and inheriting, so the two arms diverge on the
+stochastic trajectory before any biology is compared. The evidence that modules
+change biology is the within-run direct observation in G21-G24 — an individual
+whose expressed armour departs from its unexpressed birth state by 0.193 and
+whose structure regresses as its energy falls; a charged upkeep that reaches the
+ledger; and a live mating that yields a genuine two-parent splice.
+
+WHAT IS NOT YET MEASURED, and matters more than any of the above. The mechanism
+is now proven to exist, to express in a live organism, to cost real energy, and
+to recombine from two parents. It is NOT yet shown that module structure EVOLVES
+— that duplication and deletion spread, that lineages acquire modules their
+ancestors lacked, or that any module reaches fixation. Existence, variation and
+selection are three different claims and only the first two have been
+established. Any balance claim from genomeV2 today would be exactly the
+"capability that exists" confused with "capability that spreads", which is the
+same error this repository has already corrected twice.
+
+Also unmeasured: the cost weights in MODULE_SPECS are calibrated to produce
+visible consequences, not fitted to anything. They are a starting condition for
+selection to act on, not a biological claim.

@@ -24,8 +24,14 @@ import { fileURLToPath } from 'node:url';
 import { World } from './world/world.js';
 import { WORLD_ENGINE_VERSION } from './world/version.js';
 import { INTERACTION, InteractionQueue } from './bio/interactions.js';
-import { TRAIT, TRAIT_COUNT } from './bio/genome.js';
+import { TRAIT, TRAIT_COUNT, TRAITS, BODY_GENE_COUNT } from './bio/genome.js';
+import {
+  GENE_MODULE, GENE_MODULE_COUNT, MAX_MODULES, MODULE_SPECS, MODULE_STRIDE, MODULE_STRIDE_GATE,
+  MODULE_STRIDE_KIND, MODULE_STRIDE_MAG, MODULE_STRIDE_ONSET,
+  expressModules, inheritModules, recombineModules, seedFounderModules,
+} from './bio/modgenome.js';
 import { OrganismStore } from './core/soa.js';
+import type { Phenotype } from './bio/phenotype.js';
 import { Rng } from './core/rng.js';
 import { INTENT } from './world/world.js';
 
@@ -782,6 +788,645 @@ function gate12(): void {
   );
 }
 
+// ---------------------------------------------------------------------------
+// G13-G18 — Modular genome v2.
+//
+// These assert the PROPERTIES the design rests on, before the mechanism is
+// trusted to run inside a world. Each is a failure this repository has already
+// committed once: a gene that changes nothing but appearance, a capability with
+// no cost, a genome that does not reproduce, a default that is not really the
+// default.
+// ---------------------------------------------------------------------------
+
+/** Run the module expression pipeline and return deltas + tally. */
+function expressOne(
+  modules: Float32Array, count: number, age: number, energy: number,
+): { deltas: Float32Array; body: Uint8Array; total: number; upkeep: number } {
+  const deltas = new Float32Array(TRAIT_COUNT);
+  const body = new Uint8Array(BODY_GENE_COUNT);
+  const t = expressModules(modules, count, age, energy, deltas, body);
+  return { deltas, body, total: t.total, upkeep: t.upkeep };
+}
+
+function gate13(): void {
+  // A modular genome must change BIOLOGY, not appearance.
+  //
+  // The defect this guards is the state of v1: 8 of 12 structural genes are
+  // inherited and mutated and read by nothing. If a module genome can be built,
+  // changed and passed on while leaving every trait untouched, then it is the
+  // same decorative apparatus wearing a new data structure.
+  const rng = new Rng(90210);
+  const { modules, count } = seedFounderModules(rng, 7);
+  const adult = expressOne(modules, count, 1, 1);
+  const touched: string[] = [];
+  for (let t = 0; t < TRAIT_COUNT; t++) {
+    if (Math.abs(adult.deltas[t]) > 1e-6) touched.push(TRAITS[t].name);
+  }
+  record(
+    'G13',
+    'module genome expresses into real traits, not just appearance',
+    touched.length >= 6,
+    `${count} modules -> ${touched.length} of ${TRAIT_COUNT} traits shifted: ` +
+      `${touched.slice(0, 8).join(', ')}${touched.length > 8 ? '...' : ''}. ` +
+      'A genome that moved only body genes would be v1 with extra steps.',
+  );
+}
+
+function gate14(): void {
+  // Every capability must COST something.
+  //
+  // A module with no upkeep would be selected for unconditionally, so the
+  // genome would be a thermometer: every lineage converges on maximal
+  // structure and the trade-off the design is built around disappears.
+  let unpaid = 0;
+  const prices: string[] = [];
+  for (const spec of MODULE_SPECS) {
+    prices.push(`${spec.name}=${spec.upkeep}`);
+    if (!(spec.upkeep > 0)) unpaid++;
+  }
+  record(
+    'G14',
+    'every module carries a maintenance cost',
+    unpaid === 0,
+    `upkeep per unit magnitude: ${prices.join(' ')}. ` +
+      `${unpaid} module(s) with no cost — a free capability is selected for ` +
+      'unconditionally and evolution has nothing to choose between.',
+  );
+}
+
+function gate15(): void {
+  // Development: the SAME genome must express differently with age.
+  //
+  // This is the difference between a body plan and a life history. If a genome
+  // expresses identically at every age, then `onset` is decoration and the
+  // developmental claim is unfalsifiable.
+  const rng = new Rng(31337);
+  const { modules, count } = seedFounderModules(rng, 6);
+  const juvenile = expressOne(modules, count, 0.05, 1);
+  const adult = expressOne(modules, count, 1.0, 1);
+  record(
+    'G15',
+    'the same genome expresses different structure at different life stages',
+    juvenile.total < adult.total * 0.98,
+    `structure expressed: juvenile=${juvenile.total.toFixed(4)} adult=${adult.total.toFixed(4)}. ` +
+      'Identical values would mean onset is decorative and development is not real.',
+  );
+}
+
+function gate16(): void {
+  // Condition gating: the same genome in a starved body is a different animal.
+  //
+  // Regulation that only ever tracks age is a timer, not a regulatory system.
+  const mods = new Float32Array(MAX_MODULES * MODULE_STRIDE);
+  mods[MODULE_STRIDE_KIND] = GENE_MODULE.DEFENSE;
+  mods[MODULE_STRIDE_MAG] = 1;
+  mods[MODULE_STRIDE_ONSET] = 0;
+  mods[MODULE_STRIDE_GATE] = 0.6; // needs 60% reserve to express
+  const fed = expressOne(mods, 1, 1.0, 0.9);
+  const starved = expressOne(mods, 1, 1.0, 0.2);
+  record(
+    'G16',
+    'a gated module is expressed conditionally, not only by age',
+    fed.total > 0.5 && starved.total === 0,
+    `gated DEFENSE at 90% reserve -> ${fed.total.toFixed(3)}; at 20% reserve -> ` +
+      `${starved.total.toFixed(3)}. A gate that ignored condition would express ` +
+      'both, which is an age timer wearing a gate.',
+  );
+}
+
+function gate17(): void {
+  // Structural evolution: duplication and deletion must actually move the body.
+  const rng = new Rng(4242);
+  const { modules, count } = seedFounderModules(rng, 6);
+  const child = new Float32Array(MAX_MODULES * MODULE_STRIDE);
+
+  // Duplication at certainty must grow the genome.
+  const duped = inheritModules(rng, modules, count, child, 0, 1, 0);
+  // Deletion at certainty must shrink it toward empty.
+  const deleted = inheritModules(rng, modules, count, child, 0, 0, 1);
+
+  record(
+    'G17',
+    'duplication and deletion change genome length (structural evolution)',
+    duped > count && deleted < count,
+    `parent=${count} modules -> duplication=${duped} -> deletion=${deleted}. ` +
+      'Point mutation alone cannot change body PLAN; only these operators can.',
+  );
+}
+
+function gate18(): void {
+  // Recombination: the child must draw from BOTH parents.
+  //
+  // v1 birth draws from one parent, so mating has never mixed genes. The test
+  // builds parents with DISJOINT module vocabularies, so any child carrying a
+  // B-only kind can only have got it from B. Testing against two founders
+  // seeded round-robin proves nothing: both would hold the same kind set and a
+  // whole-genome take would be indistinguishable from a real crossover.
+  const rng = new Rng(777);
+  const a = genomeOf([GENE_MODULE.SEGMENT, GENE_MODULE.LIGHT_CAPTURE, GENE_MODULE.LOCOMOTOR]);
+  const b = genomeOf([GENE_MODULE.SENSORY, GENE_MODULE.DEFENSE, GENE_MODULE.ANCHOR]);
+  const child = new Float32Array(MAX_MODULES * MODULE_STRIDE);
+
+  let bothParents = 0;
+  let neitherB = 0;
+  const trials = 40;
+  for (let t = 0; t < trials; t++) {
+    const n = recombineModules(rng, a, 3, b, 3, child, 0);
+    const kinds = new Set<number>();
+    for (let i = 0; i < n; i++) kinds.add(child[i * MODULE_STRIDE + MODULE_STRIDE_KIND] | 0);
+    const fromA = [...kinds].some((k) => k === GENE_MODULE.SEGMENT || k === GENE_MODULE.LIGHT_CAPTURE || k === GENE_MODULE.LOCOMOTOR);
+    const fromB = [...kinds].some((k) => k === GENE_MODULE.SENSORY || k === GENE_MODULE.DEFENSE || k === GENE_MODULE.ANCHOR);
+    if (fromA && fromB) bothParents++;
+    if (!fromB) neitherB++;
+  }
+  record(
+    'G18',
+    'recombination draws modules from both parents',
+    bothParents > trials * 0.8 && neitherB <= trials * 0.2,
+    `${bothParents}/${trials} children carried modules from BOTH parents; ` +
+      `${neitherB}/${trials} carried none from B. Parents hold disjoint module ` +
+      'vocabularies, so a B-only kind in a child can only have come from B.',
+  );
+}
+
+/** Build a module genome from an explicit kind list; magnitudes vary by seed. */
+function genomeOf(kinds: readonly number[]): Float32Array {
+  const modules = new Float32Array(MAX_MODULES * MODULE_STRIDE);
+  for (let i = 0; i < kinds.length; i++) {
+    const b = i * MODULE_STRIDE;
+    modules[b + MODULE_STRIDE_KIND] = kinds[i];
+    modules[b + MODULE_STRIDE_MAG] = 0.4 + 0.1 * i;
+    modules[b + MODULE_STRIDE_ONSET] = 0;
+    modules[b + MODULE_STRIDE_GATE] = 1;
+  }
+  return modules;
+}
+
+function gate19(): void {
+  // The null-default contract, asserted AT THE ENGINE rather than on the module.
+  //
+  // G13-G18 prove the module machinery. This proves the DIAGNOSTIC framing: with
+  // `genomeV2` unset the world must be bit-identical to declared behaviour, and
+  // with it set the world must actually differ. A knob that is neither inert
+  // when off nor active when on is the dead-knob class this repository forbids:
+  // it parses, it prints, and it may do nothing at all.
+  const arm = (v2: boolean | null): { pop: number; size: number; modules: number } => {
+    const w = new World({
+      config: { ...SMALL, genomeV2: v2 } as never,
+    }) as unknown as {
+      store: { capacity: number; moduleCount: Uint8Array; physical: Float32Array };
+      live: Uint8Array;
+      step(): void;
+    };
+    for (let k = 0; k < 250; k++) w.step();
+    const st = w.store;
+    let pop = 0, size = 0, mods = 0;
+    for (let i = 0; i < st.capacity; i++) {
+      if (!w.live[i]) continue;
+      pop++;
+      size += st.physical[i * TRAIT_COUNT + TRAIT.SIZE];
+      mods += st.moduleCount[i];
+    }
+    return { pop, size: Number(size.toFixed(4)), modules: mods };
+  };
+  const off = arm(null);
+  const on = arm(true);
+  record(
+    'G19',
+    'genomeV2 is inert when unset and active when set (no dead knob)',
+    off.modules === 0 && on.modules > 0 && (off.pop !== on.pop || off.size !== on.size),
+    `genomeV2=null -> pop=${off.pop} sizeSum=${off.size} modules=${off.modules}; ` +
+      `genomeV2=true -> pop=${on.pop} sizeSum=${on.size} modules=${on.modules}. ` +
+      'Unset must carry no modules at all and reproduce declared behaviour exactly; ' +
+      'set must actually change the world, or the knob is decorative.',
+  );
+}
+
+function gate20(): void {
+  // The module upkeep must actually be CHARGED, not merely declared.
+  //
+  // G14 checks that the metadata says upkeep > 0. That passed while the NET
+  // basal-cost delta was identically zero: the cost list subtracted the upkeep
+  // and the charge added back the same quantity. Metadata is not payment. This
+  // asserts the net expressed figure a world would actually pay.
+
+  let worst = 0;
+  const lines: string[] = [];
+  for (let k = 0; k < GENE_MODULE_COUNT; k++) {
+    const m = new Float32Array(MAX_MODULES * MODULE_STRIDE);
+    m[MODULE_STRIDE_KIND] = k;
+    m[MODULE_STRIDE_MAG] = 1;
+    m[MODULE_STRIDE_ONSET] = 0;
+    m[MODULE_STRIDE_GATE] = 1;
+    const d = new Float32Array(TRAIT_COUNT);
+    expressModules(m, 1, 1, 1, d, new Uint8Array(BODY_GENE_COUNT));
+    const net = d[TRAIT.BASAL_COST];
+    const declared = MODULE_SPECS[k].upkeep;
+    if (Math.abs(net - declared) > 1e-9) worst++;
+    lines.push(`${MODULE_SPECS[k].name}=${net.toFixed(4)}/${declared}`);
+  }
+  record(
+    'G20',
+    'module upkeep is actually CHARGED to basal cost, not double-booked away',
+    worst === 0,
+    `net basal-cost delta vs declared upkeep: ${lines.join(' ')}. ` +
+      `${worst} module(s) mismatch — a cost that cancels algebraically is a ` +
+      'capability the organism is never charged for.',
+  );
+}
+
+function gate21(): void {
+  // DEVELOPMENT IN THE LIVE WORLD, not just in the helper.
+  //
+  // G15 proved the development curve in isolation. This proves an organism in
+  // a running world actually departs from its UNEXPRESSED birth state as it
+  // matures. The defect this guards: phenotypes are derived once at birth, a
+  // newborn is age 0, and developmentFactor(0, onset) is zero for every valid
+  // onset — so modules were gated to zero at birth and never re-expressed.
+  // Every standalone gate stayed green while development did nothing.
+  //
+  // Measured against the birth baseline, NOT against a single later snapshot:
+  // a mature organism's expressed traits then fall back toward the baseline
+  // once its energy cannot sustain them (that is the condition gate, asserted
+  // separately in G23), so a begin/end comparison can read as "unchanged"
+  // while development plainly happened in between.
+  type W = {
+    store: {
+      capacity: number; moduleCount: Uint8Array;
+      physical: Float32Array; age: Int32Array; hitRadius: Float32Array;
+    };
+    live: Uint8Array; step(): void; config: { genomeV2: boolean | null };
+  };
+  const w = new World({
+    config: { ...SMALL, genomeV2: true } as never,
+  }) as unknown as W;
+  const st = w.store;
+
+  let watched = -1;
+  for (let tick = 0; tick < 700 && watched < 0; tick++) {
+    w.step();
+    for (let i = 0; i < st.capacity; i++) {
+      if (w.live[i] && st.moduleCount[i] > 0) { watched = i; break; }
+    }
+  }
+  if (watched < 0) {
+    record('G21', 'module structure develops in the live world', false,
+      'no organism carrying modules was observed; cannot test development');
+    return;
+  }
+
+  // Birth baseline: every module is developmentally gated to zero at age 0,
+  // so this IS the unexpressed organism.
+  const baseArmor = st.physical[watched * TRAIT_COUNT + TRAIT.ARMOR];
+  const baseHit = st.hitRadius[watched];
+  const bornAge = st.age[watched];
+  let peakArmor = baseArmor, peakHit = baseHit, peakAge = bornAge;
+
+  for (let tick = 0; tick < 400; tick++) {
+    w.step();
+    if (!w.live[watched]) break;
+    const a = st.physical[watched * TRAIT_COUNT + TRAIT.ARMOR];
+    const h = st.hitRadius[watched];
+    if (Math.abs(a - baseArmor) > Math.abs(peakArmor - baseArmor)) {
+      peakArmor = a; peakAge = st.age[watched];
+    }
+    if (Math.abs(h - baseHit) > Math.abs(peakHit - baseHit)) peakHit = h;
+  }
+
+  const devArmor = Math.abs(peakArmor - baseArmor);
+  const devHit = Math.abs(peakHit - baseHit);
+  const developed = devArmor > 1e-4 || devHit > 1e-4;
+  record(
+    'G21',
+    'module structure develops in the live world (not only in the helper)',
+    developed,
+    `organism slot ${watched} (born age ${bornAge}, ${st.moduleCount[watched]} modules) ` +
+      `departed from its unexpressed birth state: armor ${baseArmor.toFixed(5)} -> ` +
+      `${peakArmor.toFixed(5)} (peak at age ${peakAge}, deviation ${devArmor.toFixed(5)}), ` +
+      `hitRadius ${baseHit.toFixed(4)} -> ${peakHit.toFixed(4)} (deviation ${devHit.toFixed(4)}). ` +
+      'Unchanged values mean phenotypes are frozen at birth and development is inert.',
+  );
+}
+
+function gate23(): void {
+  // CONDITIONAL REGULATION IN THE LIVE WORLD.
+  //
+  // G16 proved the condition gate in isolation. This proves it bites in the
+  // engine: a module costs upkeep, an organism that cannot pay must shed it.
+  // Scanned across the whole population rather than one tracked organism, so it
+  // cannot be defeated by an individual that simply outlives the observation
+  // window or dies mid-scan.
+  type W = {
+    store: {
+      capacity: number; moduleCount: Uint8Array;
+      physical: Float32Array; energy: Float32Array;
+    };
+    live: Uint8Array; step(): void; config: { genomeV2: boolean | null };
+  };
+  const w = new World({
+    config: { ...SMALL, genomeV2: true } as never,
+  }) as unknown as W;
+  const st = w.store;
+  const armorOf = (i: number) => st.physical[i * TRAIT_COUNT + TRAIT.ARMOR];
+
+  const prevArmor = new Float64Array(st.capacity);
+  const prevEnergy = new Float64Array(st.capacity);
+  const tracked = new Uint8Array(st.capacity);
+
+  let sheddings = 0;
+  let first = '';
+  for (let tick = 0; tick < 600 && sheddings === 0; tick++) {
+    w.step();
+    for (let i = 0; i < st.capacity; i++) {
+      const a = armorOf(i);
+      if (tracked[i] && w.live[i] && st.moduleCount[i] > 0
+        && a < prevArmor[i] - 1e-6 && st.energy[i] < prevEnergy[i]) {
+        sheddings++;
+        if (!first) {
+          first = `slot ${i}: armor ${prevArmor[i].toFixed(5)} -> ${a.toFixed(5)} ` +
+            `while energy fell ${prevEnergy[i].toFixed(2)} -> ${st.energy[i].toFixed(2)}`;
+        }
+      }
+      if (w.live[i] && st.moduleCount[i] > 0) {
+        tracked[i] = 1; prevArmor[i] = a; prevEnergy[i] = st.energy[i];
+      } else {
+        tracked[i] = 0;
+      }
+    }
+  }
+  record(
+    'G23',
+    'module expression is shed under energy stress in the live world',
+    sheddings > 0,
+    sheddings > 0
+      ? `conditional regulation observed in-engine: ${first}. A module's upkeep ` +
+        'is only paid while the organism can afford it, so expressed traits fall ' +
+        'back toward the unexpressed baseline as energy declines.'
+      : 'no module-bearing organism shed expressed traits as its energy declined. ' +
+        'Either condition gates never reach the engine, or upkeep is not ' +
+        'actually charged — check G20 before trusting this.',
+  );
+}
+
+function gate25(): void {
+  // MODULE-DRIVEN STRUCTURE MUST REACH THE BODY IN THE LIVE WORLD.
+  //
+  // Review found this was silently lost: the expressed structural view was
+  // seeded with the inherited body genes AFTER the module deltas had been
+  // applied into it, so the seed clobbered them. `this.body` was then built
+  // from the un-extended inherited vector, and hit/sense radius — which read
+  // shell, spines and eyeCount — never saw a module's structural effect at all.
+  //
+  // A trait-level gate cannot catch this: module TRAITS moved correctly while
+  // every module that alters body plan was a no-op. The assertion is on BODY
+  // STRUCTURE and the geometry derived from it.
+  type W = {
+    store: {
+      capacity: number; moduleCount: Uint8Array; bodyGenes: Uint8Array;
+      phen: Phenotype[]; hitRadius: Float32Array;
+    };
+    live: Uint8Array; step(): void; config: { genomeV2: boolean | null };
+  };
+  const w = new World({
+    config: { ...SMALL, genomeV2: true } as never,
+  }) as unknown as W;
+  const st = w.store;
+
+  let watched = -1;
+  for (let tick = 0; tick < 700 && watched < 0; tick++) {
+    w.step();
+    for (let i = 0; i < st.capacity; i++) {
+      if (w.live[i] && st.moduleCount[i] > 0) { watched = i; break; }
+    }
+  }
+  if (watched < 0) {
+    record('G25', 'module structure reaches the body plan in the live world', false,
+      'no module-bearing organism observed; cannot test structural expression');
+    return;
+  }
+
+  // The INHERITED genotype, captured once. It must not move: a phenotype is a
+  // pure function of its genome and must never write structure back into it.
+  const bg0 = Array.from(st.bodyGenes.subarray(watched * BODY_GENE_COUNT, (watched + 1) * BODY_GENE_COUNT));
+  const b0 = st.phen[watched].body;
+  const born = {
+    segments: b0.segments, eyeCount: b0.eyeCount, shell: b0.shell, spines: b0.spines,
+  };
+  const hit0 = st.phen[watched].hitRadius;
+  const sense0 = st.phen[watched].senseRadius;
+
+  let peak = { ...born };
+  let peakHit = hit0, peakSense = sense0;
+  for (let tick = 0; tick < 400; tick++) {
+    w.step();
+    if (!w.live[watched]) break;
+    const b = st.phen[watched].body;
+    if (b.segments > peak.segments) peak.segments = b.segments;
+    if (b.eyeCount > peak.eyeCount) peak.eyeCount = b.eyeCount;
+    if (b.shell > peak.shell) peak.shell = b.shell;
+    if (b.spines > peak.spines) peak.spines = b.spines;
+    if (st.phen[watched].hitRadius > peakHit) peakHit = st.phen[watched].hitRadius;
+    if (st.phen[watched].senseRadius > peakSense) peakSense = st.phen[watched].senseRadius;
+  }
+
+  const structureChanged =
+    peak.segments !== born.segments || peak.eyeCount !== born.eyeCount
+    || peak.shell !== born.shell || peak.spines !== born.spines;
+  const geometryChanged =
+    Math.abs(peakHit - hit0) > 1e-6 || Math.abs(peakSense - sense0) > 1e-6;
+  const bg1 = Array.from(st.bodyGenes.subarray(watched * BODY_GENE_COUNT, (watched + 1) * BODY_GENE_COUNT));
+  const genotypeIntact = bg0.every((v, i) => v === bg1[i]);
+
+  record(
+    'G25',
+    'module structure reaches the body plan and its derived geometry',
+    structureChanged && geometryChanged && genotypeIntact,
+    `slot ${watched}: segments ${born.segments}->${peak.segments}, ` +
+      `eyeCount ${born.eyeCount}->${peak.eyeCount}, shell ${born.shell}->${peak.shell}, ` +
+      `spines ${born.spines}->${peak.spines}; hitRadius ${hit0.toFixed(4)}->${peakHit.toFixed(4)}, ` +
+      `senseRadius ${sense0.toFixed(2)}->${peakSense.toFixed(2)}. ` +
+      `Inherited genotype ${genotypeIntact ? 'UNCHANGED' : 'MUTATED (heritable readout!)'}. ` +
+      'Unchanged structure means modules build traits but no body, and the ' +
+      'geometry derived from structure never moves.',
+  );
+}
+
+function gate24(): void {
+  // A LIVE MATING must produce DNA from BOTH parents.
+  //
+  // The review found the crossover guard in the birth path could never pass:
+  // it compared the mate slot's organism id against `parentId + 1`, which is
+  // not how ids relate, so recombination silently never fired and every sexual
+  // birth was really an asexual clone. Helper-level tests cannot catch that —
+  // they call recombineModules directly and never travel the birth path.
+  //
+  // This drives an actual birth through the real queue, records both parents'
+  // module genomes beforehand, and inspects the resulting child.
+  type W = {
+    store: {
+      capacity: number; moduleCount: Uint8Array; geneModules: Float32Array; id: Int32Array;
+    };
+    live: Uint8Array; step(): void; config: { genomeV2: boolean | null };
+    queueBirth(parentSlot: number, count: number, lineageOverride?: number, mateSlot?: number): void;
+  };
+  const w = new World({
+    config: { ...SMALL, genomeV2: true } as never,
+  }) as unknown as W;
+  const st = w.store;
+
+  const kindsOf = (slot: number): number[] => {
+    const n = st.moduleCount[slot];
+    const base = slot * MAX_MODULES * MODULE_STRIDE;
+    const out: number[] = [];
+    for (let i = 0; i < n; i++) out.push(st.geneModules[base + i * MODULE_STRIDE + MODULE_STRIDE_KIND]);
+    return out;
+  };
+
+  let mixed = 0;
+  let clones = 0;
+  let detail = '';
+  let attempts = 0;
+
+  for (let round = 0; round < 40 && mixed === 0; round++) {
+    for (let i = 0; i < 30; i++) w.step();
+
+    const bearers: number[] = [];
+    for (let i = 0; i < st.capacity; i++) {
+      if (w.live[i] && st.moduleCount[i] >= 2) bearers.push(i);
+    }
+    if (bearers.length < 2) continue;
+    const a = bearers[round % bearers.length];
+    let b = bearers[(round + 1) % bearers.length];
+    if (b === a) b = bearers[(round + 2) % bearers.length];
+    if (b === a) continue;
+
+    const ka = kindsOf(a);
+    const kb = kindsOf(b);
+    if (ka.length === 0 || kb.length === 0) continue;
+
+    const idsBefore = new Set<number>();
+    for (let i = 0; i < st.capacity; i++) if (w.live[i]) idsBefore.add(st.id[i]);
+
+    attempts++;
+    w.queueBirth(a, 1, -1, b);
+    w.step();
+
+    let child = -1;
+    for (let i = 0; i < st.capacity; i++) {
+      if (w.live[i] && !idsBefore.has(st.id[i])) { child = i; break; }
+    }
+    if (child < 0 || st.moduleCount[child] === 0) continue;
+
+    const kc = kindsOf(child);
+
+    // The precise signature of this operator: the child is parent A's modules
+    // [0..cut) followed by parent B's modules [cut..bCount), for some interior
+    // cut. Asserting "contains something only A had" would be meaningless —
+    // founders draw ~7 modules from 7 kinds, so both parents usually carry
+    // every kind and such a test passes on a clone.
+    let cut = -1;
+    for (let c = 1; c < kc.length; c++) {
+      let ok = true;
+      for (let i = 0; i < c && i < ka.length; i++) {
+        if (kc[i] !== ka[i]) { ok = false; break; }
+      }
+      if (!ok) continue;
+      for (let i = c; i < kc.length; i++) {
+        if (i >= kb.length || kc[i] !== kb[i]) { ok = false; break; }
+      }
+      if (ok) { cut = c; break; }
+    }
+
+    const foreign = kc.filter((k) => !ka.includes(k) && !kb.includes(k));
+    const cloneOfA = kc.length === ka.length && kc.every((k, i) => k === ka[i]);
+    const cloneOfB = kc.length === kb.length && kc.every((k, i) => k === kb[i]);
+    if (cloneOfA || cloneOfB) { clones++; continue; }
+
+    // A splice is only EVIDENCE of two-parent inheritance if the two parents
+    // actually disagree somewhere, and the child resolves a disagreement in
+    // each parent's favour. Without this, two identical genomes "recombine"
+    // into something indistinguishable from a clone and the gate passes on an
+    // outcome that proves nothing. Review caught that clones were counted but
+    // not excluded.
+    let wonByA = 0, wonByB = 0;
+    if (cut > 0) {
+      for (let i = 0; i < cut && i < ka.length; i++) {
+        if (ka[i] !== kb[i] && kc[i] === ka[i]) wonByA++;
+      }
+      for (let i = cut; i < kc.length; i++) {
+        if (i < kb.length && kb[i] !== ka[i] && kc[i] === kb[i]) wonByB++;
+      }
+    }
+
+    if (cut > 0 && foreign.length === 0 && wonByA > 0 && wonByB > 0) {
+      mixed++;
+      detail = `parent slot ${a} [${ka.join(',')}] x parent slot ${b} [${kb.join(',')}] ` +
+        `-> child slot ${child} [${kc.join(',')}] = first ${cut} module(s) of the ` +
+        `first parent + modules ${cut}.. of the second. The parents disagree at ` +
+        `${wonByA} position(s) resolved for the first parent and ${wonByB} for ` +
+        'the second, none foreign, and the child is a clone of neither.';
+    }
+  }
+
+  record(
+    'G24',
+    'a live mating produces module DNA from BOTH parents',
+    mixed > 0,
+    mixed > 0
+      ? `${detail} (${attempts} mating(s) attempted through the real birth ` +
+        `queue; ${clones} produced a pure single-parent clone and were excluded)`
+      : `no child combined modules from BOTH parents with each parent's ` +
+        `distinctive modules actually present across ${attempts} mating(s) ` +
+        `(${clones} excluded as single-parent clones). If the mate guard in the ` +
+        'birth path does not pass, recombination never runs and every sexual ' +
+        'birth is an asexual clone.',
+  );
+}
+
+function gate22(): void {
+  // Slot reuse must not resurrect a dead neighbour's genome.
+  //
+  // A structural deletion can produce a child with ZERO modules. If that child
+  // reuses a freed slot and module state is only written when count > 0, the
+  // previous occupant's moduleCount and block survive — a zero-module organism
+  // carrying its dead neighbour's DNA, which then breeds.
+  const w = new World({ config: { ...SMALL, genomeV2: true } as never }) as unknown as {
+    store: { capacity: number; moduleCount: Uint8Array };
+    step(): void;
+  };
+  const st = w.store;
+  for (let i = 0; i < 200; i++) w.step();
+
+  // Force the failure directly: a live slot is given a stale non-zero module
+  // count, then released and re-allocated. The re-allocation must reset it.
+  let dirty = -1;
+  for (let i = 0; i < st.capacity; i++) if (st.moduleCount[i] > 0) { dirty = i; break; }
+  if (dirty < 0) {
+    record('G22', 'module state resets on slot reuse', false, 'no module-bearing organism found');
+    return;
+  }
+  // Simulate the stale-occupant condition the review identified: a non-zero
+  // count sitting on a slot that is about to be handed to a zero-module child.
+  const internals = w as unknown as {
+    store: { moduleCount: Uint8Array; live: Uint8Array };
+    live: Uint8Array; populateSlot: (slot: number, g: Float32Array, b: Uint8Array,
+      pid: number, lin: number, born: number, mods?: Float32Array | null, n?: number) => void;
+  };
+  const slot = dirty;
+  const g = new Float32Array(TRAIT_COUNT);
+  const b = new Uint8Array(BODY_GENE_COUNT);
+  internals.live[slot] = 0;
+  internals.populateSlot(slot, g, b, -1, -1, 0, null, 0);
+  record(
+    'G22',
+    'a zero-module child resets stale module state on slot reuse',
+    internals.store.moduleCount[slot] === 0,
+    `slot ${slot} reused by a zero-module child: moduleCount now ` +
+      `${internals.store.moduleCount[slot]} (want 0). A non-zero value means the ` +
+      'previous occupant\'s genome is still readable and would be inherited.',
+  );
+}
+
 function main(): void {
   console.log(`=== credibility gates :: ${WORLD_ENGINE_VERSION} ===`);
   console.log(`scenario: founders=${SMALL.founders} world=${SMALL.worldW}x${SMALL.worldH} ticks=${TICKS} seed=${SMALL.seed}\n`);
@@ -796,6 +1441,19 @@ function main(): void {
   gate9();
   gate10();
   gate12();
+  gate13();
+  gate14();
+  gate15();
+  gate16();
+  gate17();
+  gate18();
+  gate19();
+  gate20();
+  gate21();
+  gate22();
+  gate23();
+  gate24();
+  gate25();
 
   const failed = results.filter((r) => !r.pass);
   console.log(`\n${results.length - failed.length}/${results.length} checks passed`);
