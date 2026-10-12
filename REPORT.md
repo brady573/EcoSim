@@ -6179,3 +6179,31 @@ run the obligate-reliance ablation on the best available config (viability:
 prod 13 / cons 11) to bank the reliance clause while economics are decided.
 Recommendation in the report: ablation first (it needs no new mechanism and
 cannot regress), economics direction owned by the Owner.
+
+--------------------------------------------------------------------------------
+PROBE SEAM: TRAILING DFOUND SLOT FOR ABLATION (2026-10-12, NO ENGINE CHANGE)
+--------------------------------------------------------------------------------
+
+Ablation (producers-alone) needs decomposerFounders 0.25 -> 0, which no probe
+argv slot expressed. Change, identical in scenesprobe.ts + senesprobe.ts:
+trailing slot 19 DFOUND, "null"/missing/flag -> 0.25 (standing default),
+explicit 0..1, loud otherwise; config decomposerFounders reads it; header
+echoes effective dfound= value. run-arm.mjs accepts optional argvExtra
+(string array, max 4, appended after argvRest, recorded in manifest argv);
+workflow fixtures cover argvExtra shape (W8aX) and dfound header tolerance
+(W8aY). No engine file touched; knobs-unset behavior unchanged.
+
+SMOKE CAUGHT A REAL BUG BEFORE DISPATCH. First cut read argv[19] directly:
+with exactly 15 positionals, argv[19] is the --zero FLAG, so every ladder run
+would have thrown. Fixed by positional discipline (trailing values precede
+flags; a flag in slot 19 reads as not-provided). Verified compiled:
+default-vs-explicit-0.25 byte-identical; dfound=0 runs with header echo;
+"2"/"abc" throw loudly. Rejects and identity proof in shell log; typecheck +
+build + 135/135 workflow fixtures green.
+Early read from the smoke (descriptive, 200 ticks): zero founders still shows
+dec 4 by t200 via role fluidity — re-emergence is tracked, not excluded, in
+the ablation verdict (sub-case b).
+
+Registered below (pre-registration IS the arm entry): producer-alone —
+viability config + founders 0 + graze lift to 0, 36 seeds, prod == 0 on
+>=30/36 predicts reliance; >=7 persisting falsifies it (sub-cases a/b).

@@ -617,6 +617,62 @@
         }
       ]
     },
+    "producer-alone": {
+      "title": "ABLATION: producers without seeded decomposers or heterotroph income must fail?",
+      "preregistered": "2026-10-12",
+      "registrationKind": "KNOWN_SEED_DIAGNOSTIC_NOT_PROSPECTIVE",
+      "seeds": "41001:41018,52001:52018",
+      "ticks": 6000,
+      "zero": true,
+      "lifts": {
+        "producerCaptureScale": 0.35,
+        "basalFoodPerCell": 0.01,
+        "grazeYieldScale": 0,
+        "nutrientRegen": 0.0002
+      },
+      "argvRest": [
+        "off",
+        "4",
+        "0.25",
+        "null",
+        "null",
+        "null",
+        "0.15",
+        "null",
+        "off",
+        "off",
+        "on",
+        "1.0",
+        "null",
+        "0.05",
+        "30"
+      ],
+      "argvExtra": [
+        "0"
+      ],
+      "hypothesis": "The viability config (prod 13/18, cons 11/18) couples producers to decomposer recycling. With no seeded decomposers (founders slot 0) and heterotroph income impossible (graze explicitly 0, meat preset 0), producers should fail: the abiotic floor alone must not carry them.",
+      "prediction": "prod == 0 on at least 30/36 seeds at tick 6000 (machine criterion). Coexistence NOT predicted; nothing about consumers or decomposers is predicted.",
+      "falsification": "FALSIFIED (reliance not obligate as configured) if prod > 0 on 7 or more of 36 seeds. Two honest sub-cases, both reported descriptively: (a) producers persist with NO decomposers ever present — the abiotic floor or initial stock carries them, and the reliance clause fails cleanly; (b) decomposer roles re-emerge via fluidity and producers persist with them — reliance on the FUNCTION holds but seeding-independence fails, and the clause needs restating, not re-running.",
+      "notPredicted": "Consumer transients (founded consumers starve on initial detritus; momentary presence is expected, not a finding), decomposer re-emergence counts (descriptive), B/D trajectories (descriptive), bloom sizes.",
+      "confoundsControlled": [
+        "Same horizon, engine, and 15-slot argvRest as graze-viability (rsur 30 kept); differences stated, not hidden: founders slot 0.25 -> 0 AND graze lift 1.0 -> 0 (heterotroph income impossible)",
+        "Abiotic floor 0.05 retained deliberately: it is not a guild, so keeping it tests guild reliance specifically — if the floor alone carries producers, that is sub-case (a), a clean falsification, not a confound",
+        "Dormancy/spore support retained (support is not seeding); disease, sat, cyc, regen identical to base",
+        "36 seeds span both established panels (41001-41018, 52001-52018); no new seeds, no prospective claim",
+        "conservation enforced per seed at 0.5%; a seed above it fails the run rather than reporting"
+      ],
+      "knownLimits": "Ablation of seeding + income, not of guild fluidity: roles derive from traits, so decomposers can re-evolve. That possibility is tracked (sub-case b), not excluded.",
+      "criteria": [
+        {
+          "id": "producers-fail-alone",
+          "metric": "prod",
+          "op": "==",
+          "value": 0,
+          "required": 30,
+          "statement": "producers = 0 at tick 6000 on at least 30/36 seeds"
+        }
+      ]
+    },
     "balance-diagnostic-control": {
       "title": "DIAGNOSTIC control: known balance-failure seeds without dormant-share brake",
       "preregistered": "2026-10-12",

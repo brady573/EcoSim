@@ -33,7 +33,7 @@ import { execFileSync } from 'node:child_process';
 import {
   parseLedgerStrict, classifyLedgerStatus, residualWithinTolerance,
   evaluateCapturePolicy, parseCheckpoints, permittedGuilds,
-  parseSenescenceHeader, senescenceHeaderMismatches,
+  parseSenescenceHeader, senescenceHeaderMismatches, dfoundMismatch,
 } from './evidence.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -174,13 +174,23 @@ const allSeeds = parseSeeds(arm.seeds);
 // short-horizon seed in one leg and unbalance the wall clock.
 const seeds = allSeeds.filter((_, i) => i % shardCount === shardIndex);
 
-/** The declared 17-slot argv, tail slots 2..16, exactly as passed to the probe. */
+/** The declared 17-slot argv, tail slots 2..16, exactly as passed to the probe.
+ * An arm may append trailing slots via argvExtra (e.g. slot 19+ probe dials);
+ * those travel verbatim after argvRest and are recorded in the manifest argv.
+ * The probe itself validates their values loudly. */
 function buildArgv(seed) {
   const rest = arm.argvRest.slice();
   if (rest.length !== 15) {
     throw new Error(`argvRest must hold slots 2..16 (15 entries), got ${rest.length}`);
   }
-  const argv = [String(seed), String(ticks), ...rest];
+  const extra = arm.argvExtra ?? [];
+  if (!Array.isArray(extra) || extra.some((s) => typeof s !== 'string')) {
+    throw new Error('argvExtra must be a string array');
+  }
+  if (extra.length > 4) {
+    throw new Error(`argvExtra holds at most 4 trailing slots, got ${extra.length}`);
+  }
+  const argv = [String(seed), String(ticks), ...rest, ...extra];
   if (arm.zero) argv.push('--zero');
   for (const [dial, value] of Object.entries(arm.lifts ?? {})) {
     argv.push(`--zero-lift=${dial}:${value}`);
@@ -366,6 +376,10 @@ for (const seed of seeds) {
   if (!zeroEchoed) {
     manifest.headerMismatches.push({ seed, want: { zero: !!arm.zero }, got: header.slice(0, 200) });
   }
+  // The founders dial is the whole contrast of ablation arms: a probe that
+  // ignored or dropped slot 19 must fail here, not downstream as a verdict.
+  manifest.headerMismatches.push(...dfoundMismatch(cfg, arm)
+    .map((mismatch) => ({ seed, ...mismatch })));
 
 
   let final;

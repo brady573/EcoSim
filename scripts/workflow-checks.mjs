@@ -24,7 +24,7 @@ import {
   parseLedgerStrict, classifyLedgerStatus, residualWithinTolerance,
   evaluateCapturePolicy, permittedGuilds, parseCheckpoints,
   CAPTURE_ZERO_TOLERANCE, RESIDUAL_TOLERANCE_PCT, GUILD_NAMES,
-  parseSenescenceHeader, senescenceHeaderMismatches,
+  parseSenescenceHeader, senescenceHeaderMismatches, dfoundMismatch,
 } from '../tools/ladder/evidence.mjs';
 import { expandSeeds, allocateShards, parseLegs } from '../tools/diagnostics/plan-seeds.mjs';
 import { summariseManifest } from '../tools/diagnostics/summarise.mjs';
@@ -48,7 +48,50 @@ function check(id, name, pass, detail) {
     check(`W8a-${name}`, `${name} declares exactly 15 positional probe settings`,
       Array.isArray(arm.argvRest) && arm.argvRest.length === 15,
       `argvRest length=${arm.argvRest?.length}`);
+    check(`W8aX-${name}`, `${name} trailing argvExtra, if any, is a short string array`,
+      arm.argvExtra === undefined ||
+      (Array.isArray(arm.argvExtra) && arm.argvExtra.length <= 4 &&
+        arm.argvExtra.every((s) => typeof s === 'string')),
+      `argvExtra=${JSON.stringify(arm.argvExtra ?? null)}`);
   }
+}
+
+// Trailing probe slots (e.g. dfound=) must not disturb header identity parsing.
+// Note: the last header token absorbs the " (probe config)" trailer (rsur does
+// today), so dfound is asserted by prefix, not equality.
+{
+  const line = 'SENESCENCE seed=517 ticks=6000 setting=share:1 photox4 basalxnull dfound=0 (probe config)';
+  const cfg = parseSenescenceHeader(line);
+  const declared = { seed: 517, ticks: 6000, setting: 'share:1' };
+  check('W8aY', 'a header carrying a trailing dfound= token still parses identity',
+    senescenceHeaderMismatches(cfg, declared).length === 0 && String(cfg.dfound ?? '').startsWith('0'),
+    `dfound=${cfg.dfound ?? 'missing'}`);
+}
+
+// The founders echo is machine-compared to the declaration: a stale probe or
+// a dropped slot must fail as a mismatch, never as a verdict on the wrong config.
+{
+  const noExtra = {};
+  const zeroExtra = { argvExtra: ['0'] };
+  const nullExtra = { argvExtra: ['null'] };
+  check('W8aZ-match', 'echoed dfound=0 satisfies a founders-0 declaration',
+    dfoundMismatch({ dfound: '0 (probe config)' }, zeroExtra).length === 0,
+    `mismatches=${dfoundMismatch({ dfound: '0 (probe config)' }, zeroExtra).length}`);
+  check('W8aZ-stale', 'a missing echo fails closed (stale probe cannot pass)',
+    dfoundMismatch({ setting: 'off' }, noExtra).length === 1,
+    `absent echo must mismatch, got ${dfoundMismatch({ setting: 'off' }, noExtra).length}`);
+  check('W8aZ-mismatch', 'echoed default trips a founders-0 declaration',
+    dfoundMismatch({ dfound: '0.25 (probe config)' }, zeroExtra).length === 1,
+    `mismatches=${dfoundMismatch({ dfound: '0.25 (probe config)' }, zeroExtra).length}`);
+  check('W8aZ-null', 'explicit null extra resolves to the 0.25 default',
+    dfoundMismatch({ dfound: '0.25 (probe config)' }, nullExtra).length === 0,
+    `mismatches=${dfoundMismatch({ dfound: '0.25 (probe config)' }, nullExtra).length}`);
+  check('W8aZ-default-ok', 'echoed default satisfies an arm with no founders slot',
+    dfoundMismatch({ dfound: '0.25 (probe config)' }, noExtra).length === 0,
+    `mismatches=${dfoundMismatch({ dfound: '0.25 (probe config)' }, noExtra).length}`);
+  check('W8aZ-empty-closed', 'a missing echo fails a founders-0 declaration (empty is not zero)',
+    dfoundMismatch({}, zeroExtra).length === 1,
+    `mismatches=${dfoundMismatch({}, zeroExtra).length}`);
 }
 
 // Senescence is the single contrast in the balance diagnostic pair. Verify

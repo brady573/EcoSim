@@ -188,6 +188,17 @@ const RSUR = RSURRAW === 'null' ? null : Number(RSURRAW);
 if (RSUR !== null && (!Number.isFinite(RSUR) || RSUR < 0)) {
   throw new Error(`bad reproSurplusTicks: ${RSURRAW} (want >=0 or null)`);
 }
+// DFOUND: decomposer founder fraction (trailing slot 19). "null"/missing =
+// the probe's standing 0.25, so every existing arm runs byte-identical.
+// Explicit 0..1 for ablation arms; loud on anything else.
+// Positional discipline: trailing values precede --zero flags (as all slots
+// do), so a flag in slot 19 reads as "not provided", never as a value.
+const _DFDRAW = process.argv[19] ?? 'null';
+const DFOUNDRAW = _DFDRAW.startsWith('--') ? 'null' : _DFDRAW;
+const DFOUND = DFOUNDRAW === 'null' ? 0.25 : Number(DFOUNDRAW);
+if (DFOUNDRAW.trim() === '' || !Number.isFinite(DFOUND) || DFOUND < 0 || DFOUND > 1) {
+  throw new Error(`bad decomposerFounders: ${DFOUNDRAW} (want 0..1 or null)`);
+}
 // PCAP: producerCaptureScale — multiplies PRODUCER photosynthesis demand.
 // "null"/missing = declared. With mixo+cyc on, producers are light-starved;
 // this is the light dial that sets how slowly (or fast) they regrow.
@@ -237,14 +248,14 @@ const STEP = 1000;
 const w = new World({
   config: {
     founders: 400, worldW: 2400, worldH: 2400, seed: SEED,
-    consumerPhotoScale: PHOTO, consumerBasalScale: BASAL, decomposerFounders: 0.25,
+    consumerPhotoScale: PHOTO, consumerBasalScale: BASAL, decomposerFounders: DFOUND,
     decomposerDormancy: 0.05, sporeDispersal: 1, grazeYieldScale: GRAZE,
     plantYieldPerMass: TISSUE, radiation: RADIATION, foodDisease: DISEASE,
     pioneerBonus: PIONEER, dormantSenescence: senescence,
     dormantThreatBlind: DORMANT_THREAT_BLIND,
     mixotrophyCarbon: MIXOTROPHY, mixotrophySaturation: SAT,
     nutrientCyclic: NUTRIENT_CYCLIC, producerCaptureScale: PCAP,
-    nutrientFloor: NFLOOR,
+    nutrientFloor: NFLOOR, reproSurplusTicks: RSUR,
     // The zero preset overrides the energy-giving dials above. Spread last so
     // it cannot be silently undone by a positional argument.
     ...(ZEROED ?? {}),
@@ -252,7 +263,7 @@ const w = new World({
 });
 const s = w.store;
 
-console.log(`SENESCENCE seed=${SEED} ticks=${TICKS} setting=${settingLabel} photox${PHOTO} basalx${BASALRAW} grazex${GRAZERAW} tissuex${TISSUERAW} radx${RADRAW} disx${DISRAW} piox${PIORAW} dtb${DTRAW} mixo${MIXORAW} cyc${CYCRAW} sat${SAT} pcap${PCAPRAW} nfloor${NFRAW} rsur${RSURRAW}${ZERO ? ' ZERO-BASELINE' : ''} (probe config)`);
+console.log(`SENESCENCE seed=${SEED} ticks=${TICKS} setting=${settingLabel} photox${PHOTO} basalx${BASALRAW} grazex${GRAZERAW} tissuex${TISSUERAW} radx${RADRAW} disx${DISRAW} piox${PIORAW} dtb${DTRAW} mixo${MIXORAW} cyc${CYCRAW} sat${SAT} pcap${PCAPRAW} nfloor${NFRAW} rsur${RSURRAW} dfound=${DFOUND}${ZERO ? ' ZERO-BASELINE' : ''} (probe config)`);
 console.log('tick      pop   prod  cons  decomp | dormant  senescDeaths');
 
 for (let t = 1; t <= TICKS; t++) {

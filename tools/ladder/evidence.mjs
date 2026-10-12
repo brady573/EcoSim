@@ -69,6 +69,28 @@ export function senescenceHeaderMismatches(cfg, { seed, ticks, setting }) {
   return Object.keys(mismatch).length ? [{ want, got: cfg, mismatch }] : [];
 }
 
+/**
+ * Compare the echoed decomposer-founder value against the arm declaration.
+ * The probe echoes the EFFECTIVE value (dfound=0.25 default, explicit number
+ * otherwise); the last header token absorbs the " (probe config)" trailer, so
+ * the first whitespace-delimited field is compared numerically. A missing or
+ * unparseable echo fails: a stale probe that ignores slot 19 must fail open
+ * into a mismatch, never into a verdict on the wrong config.
+ */
+export function dfoundMismatch(cfg, arm) {
+  const raw = (arm.argvExtra ?? [])[0];
+  const want = raw === undefined || raw === 'null' ? 0.25 : Number(raw);
+  const echo = String(cfg.dfound ?? '').split(/\s/)[0];
+  // An absent echo is missing evidence, not a zero: Number('') === 0 would
+  // otherwise let a stale probe pass a founders-0 declaration. Fail closed.
+  if (echo === '') return [{ want: { dfound: String(want) }, got: null }];
+  const got = Number(echo);
+  if (!Number.isFinite(got) || got !== want) {
+    return [{ want: { dfound: String(want) }, got: cfg.dfound ?? null }];
+  }
+  return [];
+}
+
 /** Every numeric field the LEDGER line must carry. */
 export const LEDGER_NUMERIC_FIELDS = [
   'totalInput', 'founding', 'capture', 'organic',
