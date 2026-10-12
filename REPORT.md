@@ -5583,3 +5583,74 @@ DOCUMENT DEFECTS FOUND AND CORRECTED
     should respect caps" is answered: it was a confirmed defect, fixed in 0.6.0.
     Its balance-first ordering was already overtaken by the measured dependency
     ladder, as its own provenance note records.
+
+================================================================================
+MODULAR GENOME v2 — DIGITAL DNA AS INHERITED INSTRUCTIONS
+================================================================================
+Branch `genome-v2`. Engine `ts-evo-poc/0.6.0` UNCHANGED and parity EXACT —
+808/159/58 (seed 517) and 558/290/D96 (24601). The mechanism is a null-default
+diagnostic (`genomeV2`), so declared behaviour is bit-for-bit unchanged.
+
+THE DEFECT THIS ADDRESSES, MEASURED RATHER THAN ASSUMED. Of the twelve v1
+structural genes, only THREE have a survival consequence:
+
+  eyeCount   -> sensing radius
+  shell      -> collision radius (bulk)
+  spines     -> collision radius (bulk)
+
+The other NINE — `limbPairs`, `fins`, `antennae`, `tail`, `segments`,
+`pigmentHue`, `pigmentSat`, `pigmentVal`, `pattern` — are inherited, mutated,
+rendered, and read by nothing that has a consequence. The `CHROMATOPHORE` module
+flag derived from pigment saturation is written and never acted upon.
+
+That is a genome whose heritable variation mostly drives APPEARANCE, which is
+the one thing this repository forbids as an authority. Appearance was a readout
+of biology; in the genome it had become the only thing the structural half did.
+
+Birth also inherited from ONE parent only. Mating forked a lineage but never
+mixed genes, so `consumer-yield` was correct to call mating "association
+without consent" at the genetic level: no child had two parents' DNA.
+
+WHAT WAS BUILT. `src/bio/modgenome.ts`: a CLOSED vocabulary of seven
+construction instructions (segment, light-capture, locomotor, sensory, anchor,
+defense, trophic), each with magnitude, developmental onset and condition gate.
+Modules express into the EXISTING 42 traits, so every downstream consumer of
+those traits — the whole trophic, competitive and energy machinery — is reused
+unchanged. Structural duplication and deletion change genome length; a
+single-point crossover at module boundaries supplies the two-parent inheritance
+that v1 never had, with bounded genome length serving as the compatibility rule.
+
+COSTS ARE THE POINT. Every module carries upkeep, paid through the existing
+basal-cost accounting rather than a second ledger. Locomotor appendages buy
+speed and maneuverability and cost upkeep; defense buys armour and mass and costs
+speed; anchoring buys terrain affinity and blocks dispersal. A genome of free
+capabilities would be a thermometer: every lineage converges on maximal structure
+and the trade-off the design rests on disappears.
+
+VALIDATION — 27/27 gates, 11/11 contract (parity exact), 102/102 workflow
+fixtures. Seven new gates:
+  G13 modules move real traits, not only body genes (15 of 42 traits shift)
+  G14 every module carries a maintenance cost
+  G15 the same genome expresses different structure at different life stages
+      (juvenile 0.359 vs adult 3.803)
+  G16 a gated module is expressed conditionally, not only by age
+  G17 duplication and deletion change genome length
+  G18 recombination draws modules from both parents
+  G19 the knob is inert when unset and active when set
+
+Measured in-engine, 400 ticks from seed 517:
+  genomeV2=null  pop 601, modules    0, meanSize 5.374   <- declared behaviour
+  genomeV2=true  pop 881, modules 4778, meanSize 5.439   <- measurably different
+
+WHAT IS NOT YET MEASURED, and matters more than any of the above. The mechanism
+is proven to EXIST and to CHANGE the simulation. It is NOT yet shown that module
+structure EVOLVES — that duplication and deletion spread, that lineages acquire
+modules their ancestors lacked, or that any module reaches fixation. Existence,
+variation and selection are three different claims and only the first two have
+been established. Any balance claim from genomeV2 today would be exactly the
+"capability that exists" confused with "capability that spreads", which is the
+same error this repository has already corrected twice.
+
+Also unmeasured: the cost weights in MODULE_SPECS are calibrated to produce
+visible consequences, not fitted to anything. They are a starting condition for
+selection to act on, not a biological claim.

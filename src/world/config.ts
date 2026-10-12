@@ -543,6 +543,26 @@ export interface WorldConfig {
    */
   nutrientCyclic: boolean | null;
   /**
+   * Diagnostic: modular genome v2 (default null = OFF, declared behaviour).
+   *
+   * Turns the fixed 42-trait + 12-body-gene genome into a short ordered
+   * sequence of MODULES — inherited construction instructions, each with a
+   * magnitude, a developmental onset and an optional condition gate. Modules
+   * express into the EXISTING traits, so no new biological mechanism is
+   * introduced; what changes is the heritable structure producing those traits.
+   *
+   * This exists because measured against the engine, EIGHT of the twelve
+   * v1 structural genes are inherited, mutated, and read by nothing:
+   * `limbPairs`, `fins`, `antennae`, `tail`, `segments` and all four pigment
+   * genes have no survival consequence. A genome whose heritable variation
+   * mostly drives appearance is a decorative system wearing a data structure.
+   *
+   * NULL IS THE POINT. With this unset, no organism carries modules and the
+   * expression path is never entered, so declared behaviour is unchanged
+   * bit-for-bit and the parity pins remain valid. Rollback is exact.
+   */
+  genomeV2: boolean | null;
+  /**
    * Diagnostic: abiotic nutrient floor as a FRACTION of capacity (0..1,
    * default 0 = off).
    *
@@ -802,6 +822,8 @@ export const DEFAULT_CONFIG: WorldConfig = {
   mixotrophyCarbon: null,
   mixotrophySaturation: 0.4,
   nutrientCyclic: null,
+  // Modular genome v2 (see field comment). null = declared behaviour, exactly.
+  genomeV2: null,
   nutrientFloor: 0,
   sporeDispersal: null,
   dormantSenescence: null,

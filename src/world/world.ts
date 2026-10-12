@@ -28,6 +28,9 @@
  * modelled as a local density penalty rather than explicit interference.
  */
 
+import {
+  MAX_MODULES, MODULE_STRIDE, inheritModules, recombineModules, seedFounderModules,
+} from '../bio/modgenome.js';
 import { Rng } from '../core/rng.js';
 import { ScalarField } from '../core/field.js';
 import { SpatialGrid } from '../core/spatial.js';
@@ -653,6 +656,8 @@ export class World {
 
   // --- Phase queues --------------------------------------------------------
   private birthParentSlot: Int32Array<ArrayBuffer>;
+  /** Second parent for sexual births (genomeV2 recombination). -1 = asexual. */
+  private birthMateSlot: Int32Array<ArrayBuffer>;
   private birthCount: Int32Array<ArrayBuffer>;
   /**
    * Lineage to assign to each queued birth, or -1 to inherit the parent's.
@@ -960,6 +965,7 @@ export class World {
     this.localMods = emptyModifiers();
 
     this.birthParentSlot = new Int32Array(this.store.capacity * 2);
+    this.birthMateSlot = new Int32Array(this.store.capacity * 2).fill(-1);
     this.birthCount = new Int32Array(this.store.capacity * 2);
     this.birthLineage = new Int32Array(this.store.capacity * 2).fill(-1);
     this.birthParentId = new Int32Array(this.store.capacity * 2).fill(-1);
@@ -1031,9 +1037,22 @@ export class World {
         body[b] = v < spec.lo ? spec.lo : v > spec.hi ? spec.hi : v;
       }
 
+      // Modular genome v2 founding. Seeded only when the diagnostic is on; a
+      // v1 founder carries no modules at all. Founders get a plausible spread
+      // rather than a uniform draw, because a lineage that starts with four
+      // DEFENSE modules and no sensory organ is a corpse, not a founder. This
+      // is a STARTING CONDITION, not a fitness claim.
+      let fModules: Float32Array | null = null;
+      let fCount = 0;
+      if (this.config.genomeV2 === true) {
+        const seeded = seedFounderModules(this.rng, 3 + this.rng.int(5));
+        fModules = seeded.modules;
+        fCount = seeded.count;
+      }
+
       const slot = this.store.allocate();
       if (slot < 0) return;
-      this.populateSlot(slot, genome, body, -1, this.nextId - 1, 0);
+      this.populateSlot(slot, genome, body, -1, this.nextId - 1, 0, fModules, fCount);
       // Founders are their own lineage. Reserve a dense index first so the
       // biological key and the bookkeeping index cannot collide.
       this.store.lineage[slot] = this.denseLineage(this.store.id[slot]);
@@ -1075,6 +1094,8 @@ export class World {
     parentId: number,
     lineage: number,
     bornTick: number,
+    geneModules?: Float32Array | null,
+    moduleCount = 0,
   ): void {
     const seed = (this.rng.nextU32() ^ (slot * 0x9e3779b1)) >>> 0;
     // Procedural phenotype generation is timed SEPARATELY from per-tick
@@ -1082,7 +1103,17 @@ export class World {
     // from anything the tick loop does. The Owner asked for this split
     // explicitly, so it must not be buried inside a birth-phase total.
     const phenT0 = this.profiling ? now() : 0;
-    const phen = new Phenotype(genome, bodyGenes, seed);
+    // Store the module block BEFORE deriving the phenotype, so the phenotype
+    // can read it and so a re-derivation later has the genome to re-read.
+    if (geneModules && moduleCount > 0) {
+      const off = slot * MAX_MODULES * MODULE_STRIDE;
+      this.store.geneModules.set(geneModules.subarray(0, MAX_MODULES * MODULE_STRIDE), off);
+      this.store.moduleCount[slot] = moduleCount;
+    }
+    const phen = new Phenotype(genome, bodyGenes, seed,
+      this.store.geneModules.subarray(slot * MAX_MODULES * MODULE_STRIDE,
+        slot * MAX_MODULES * MODULE_STRIDE + MAX_MODULES * MODULE_STRIDE),
+      this.store.moduleCount[slot], 0, 1);
     if (this.profiling) this.phenotypeMs += now() - phenT0;
     this.store.phenotypeDerivations++;
 
@@ -2589,8 +2620,11 @@ export class World {
         const lb = store.lineage[b];
         const laNew = this.mintRecombinantLineage(la, lb);
         const lbNew = this.mintRecombinantLineage(lb, la);
-        this.queueBirth(a, 1, laNew);
-        this.queueBirth(b, 1, lbNew);
+        // genomeV2: the mate is threaded through so the child can be built by
+        // CROSSOVER rather than by copying one parent. v1 birth drew from a
+        // single parent, so mating never mixed genes.
+        this.queueBirth(a, 1, laNew, b);
+        this.queueBirth(b, 1, lbNew, a);
       },
       (as, ds) => {
         // Contact cost for a scavenge-contest winner. The energy transfer itself
@@ -2844,7 +2878,7 @@ export class World {
     }
   }
 
-  private queueBirth(parentSlot: number, count: number, lineageOverride = -1): void {
+  private queueBirth(parentSlot: number, count: number, lineageOverride = -1, mateSlot = -1): void {
     // Grow rather than silently drop: a high-fecundity ecology must not have
     // its births censored without being counted anywhere.
     if (this.pendingBirths + count > this.birthParentSlot.length) {
@@ -2861,6 +2895,9 @@ export class World {
       const gi = new Int32Array(next).fill(-1);
       gi.set(this.birthParentId);
       this.birthParentId = gi;
+      const gm = new Int32Array(next).fill(-1);
+      gm.set(this.birthMateSlot);
+      this.birthMateSlot = gm;
       this.birthDrops++;
     }
     const parentId = this.store.id[parentSlot];
@@ -2869,6 +2906,7 @@ export class World {
       this.birthCount[this.pendingBirths] = count;
       this.birthLineage[this.pendingBirths] = lineageOverride;
       this.birthParentId[this.pendingBirths] = parentId;
+      this.birthMateSlot[this.pendingBirths] = mateSlot;
       this.pendingBirths++;
     }
   }
@@ -3094,6 +3132,41 @@ export class World {
       // asexual children stay in it. Either way the genome is inherited and
       // mutated here, so morphology and physiology are both heritable.
       this.inherit(parent, genome, body);
+
+      // --- Modular genome v2 (diagnostic) -----------------------------------
+      // Null-default: with genomeV2 unset this block is skipped entirely and
+      // no organism carries modules, so declared behaviour is unchanged.
+      let modCount = 0;
+      let modBlock: Float32Array | null = null;
+      if (this.config.genomeV2 === true) {
+        const store = this.store;
+        const rate = store.trait(parent, TRAIT.MUTATION_RATE);
+        modBlock = new Float32Array(MAX_MODULES * MODULE_STRIDE);
+        const mate = this.birthMateSlot[q];
+        if (mate >= 0 && mate !== parent && this.live[mate]
+            && store.id[mate] === this.birthParentId[q] + 1) {
+          // Recombination: single-point crossover at a module boundary. Both
+          // parents contribute. Guarded so a recycled slot cannot be read as a
+          // second parent.
+          modCount = recombineModules(
+            this.rng,
+            store.geneModules.subarray(parent * MAX_MODULES * MODULE_STRIDE,
+              parent * MAX_MODULES * MODULE_STRIDE + store.moduleCount[parent] * MODULE_STRIDE),
+            store.moduleCount[parent],
+            store.geneModules.subarray(mate * MAX_MODULES * MODULE_STRIDE,
+              mate * MAX_MODULES * MODULE_STRIDE + store.moduleCount[mate] * MODULE_STRIDE),
+            store.moduleCount[mate],
+            modBlock, rate,
+          );
+        } else {
+          modCount = inheritModules(
+            this.rng,
+            store.geneModules.subarray(parent * MAX_MODULES * MODULE_STRIDE,
+              parent * MAX_MODULES * MODULE_STRIDE + store.moduleCount[parent] * MODULE_STRIDE),
+            store.moduleCount[parent], modBlock, rate,
+          );
+        }
+      }
       const override = this.birthLineage[q];
       const lineageId =
         override >= 0 ? this.denseLineage(override) : store.lineage[parent];
@@ -3117,7 +3190,7 @@ export class World {
       if (slot < 0) break;
       this.ledger.recordTransferOut(perChild, this.roleOf(parent).trophic);
 
-      this.populateSlot(slot, genome, body, store.id[parent], lineageId, this.tick);
+      this.populateSlot(slot, genome, body, store.id[parent], lineageId, this.tick, modBlock, modCount);
       this.noteSlot(slot);
       // Generation depth increments only on recombination.
       store.generationDepth[slot] =

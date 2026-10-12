@@ -219,3 +219,28 @@ or the meaning of a knob that other evidence depends on; multiple materially
 different biological meanings are possible; a required dependency is missing;
 or a verdict would depend on a threshold nobody has set. The Owner sets
 thresholds and seeds. Do not invent them.
+
+### Modular genome v2 (`genomeV2`)
+
+`genomeV2: boolean | null`, **null = declared behaviour, exactly**. When set, a
+genome becomes a short ordered sequence of MODULES — inherited construction
+instructions carrying a magnitude, a developmental onset and an optional
+condition gate — which express into the existing 42 traits. No new biological
+mechanism is introduced; the trophic and competitive machinery is untouched.
+
+It exists because **eight of the twelve v1 structural genes are decorative**.
+Measured against the engine: only `eyeCount` (sensing radius) and `shell` /
+`spines` (collision radius) have any survival consequence. `limbPairs`,
+`fins`, `antennae`, `tail`, `segments` and all four pigment genes are inherited,
+mutated, and read by nothing. A genome whose heritable variation mostly drives
+appearance is a decorative system wearing a data structure.
+
+Three rules hold it together, each pinned by a gate:
+
+- **Every module carries an upkeep cost** (G14). A free capability would be
+  selected for unconditionally and evolution would have nothing to choose.
+- **Modules move traits, not just body genes** (G13). Expression adds to the
+  existing trait GENES before materialisation, so structure that changes nothing
+  biological is a failure, not a body plan.
+- **A knob that is inert when off and active when on** (G19). Otherwise it is
+  the dead-knob class: it parses, it prints, it may do nothing.

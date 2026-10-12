@@ -24,7 +24,12 @@ import { fileURLToPath } from 'node:url';
 import { World } from './world/world.js';
 import { WORLD_ENGINE_VERSION } from './world/version.js';
 import { INTERACTION, InteractionQueue } from './bio/interactions.js';
-import { TRAIT, TRAIT_COUNT } from './bio/genome.js';
+import { TRAIT, TRAIT_COUNT, TRAITS, BODY_GENE_COUNT } from './bio/genome.js';
+import {
+  GENE_MODULE, MAX_MODULES, MODULE_SPECS, MODULE_STRIDE, MODULE_STRIDE_GATE,
+  MODULE_STRIDE_KIND, MODULE_STRIDE_MAG, MODULE_STRIDE_ONSET,
+  expressModules, inheritModules, recombineModules, seedFounderModules,
+} from './bio/modgenome.js';
 import { OrganismStore } from './core/soa.js';
 import { Rng } from './core/rng.js';
 import { INTENT } from './world/world.js';
@@ -782,6 +787,220 @@ function gate12(): void {
   );
 }
 
+// ---------------------------------------------------------------------------
+// G13-G18 — Modular genome v2.
+//
+// These assert the PROPERTIES the design rests on, before the mechanism is
+// trusted to run inside a world. Each is a failure this repository has already
+// committed once: a gene that changes nothing but appearance, a capability with
+// no cost, a genome that does not reproduce, a default that is not really the
+// default.
+// ---------------------------------------------------------------------------
+
+/** Run the module expression pipeline and return deltas + tally. */
+function expressOne(
+  modules: Float32Array, count: number, age: number, energy: number,
+): { deltas: Float32Array; body: Uint8Array; total: number; upkeep: number } {
+  const deltas = new Float32Array(TRAIT_COUNT);
+  const body = new Uint8Array(BODY_GENE_COUNT);
+  const t = expressModules(modules, count, age, energy, deltas, body);
+  return { deltas, body, total: t.total, upkeep: t.upkeep };
+}
+
+function gate13(): void {
+  // A modular genome must change BIOLOGY, not appearance.
+  //
+  // The defect this guards is the state of v1: 8 of 12 structural genes are
+  // inherited and mutated and read by nothing. If a module genome can be built,
+  // changed and passed on while leaving every trait untouched, then it is the
+  // same decorative apparatus wearing a new data structure.
+  const rng = new Rng(90210);
+  const { modules, count } = seedFounderModules(rng, 7);
+  const adult = expressOne(modules, count, 1, 1);
+  const touched: string[] = [];
+  for (let t = 0; t < TRAIT_COUNT; t++) {
+    if (Math.abs(adult.deltas[t]) > 1e-6) touched.push(TRAITS[t].name);
+  }
+  record(
+    'G13',
+    'module genome expresses into real traits, not just appearance',
+    touched.length >= 6,
+    `${count} modules -> ${touched.length} of ${TRAIT_COUNT} traits shifted: ` +
+      `${touched.slice(0, 8).join(', ')}${touched.length > 8 ? '...' : ''}. ` +
+      'A genome that moved only body genes would be v1 with extra steps.',
+  );
+}
+
+function gate14(): void {
+  // Every capability must COST something.
+  //
+  // A module with no upkeep would be selected for unconditionally, so the
+  // genome would be a thermometer: every lineage converges on maximal
+  // structure and the trade-off the design is built around disappears.
+  let unpaid = 0;
+  const prices: string[] = [];
+  for (const spec of MODULE_SPECS) {
+    prices.push(`${spec.name}=${spec.upkeep}`);
+    if (!(spec.upkeep > 0)) unpaid++;
+  }
+  record(
+    'G14',
+    'every module carries a maintenance cost',
+    unpaid === 0,
+    `upkeep per unit magnitude: ${prices.join(' ')}. ` +
+      `${unpaid} module(s) with no cost — a free capability is selected for ` +
+      'unconditionally and evolution has nothing to choose between.',
+  );
+}
+
+function gate15(): void {
+  // Development: the SAME genome must express differently with age.
+  //
+  // This is the difference between a body plan and a life history. If a genome
+  // expresses identically at every age, then `onset` is decoration and the
+  // developmental claim is unfalsifiable.
+  const rng = new Rng(31337);
+  const { modules, count } = seedFounderModules(rng, 6);
+  const juvenile = expressOne(modules, count, 0.05, 1);
+  const adult = expressOne(modules, count, 1.0, 1);
+  record(
+    'G15',
+    'the same genome expresses different structure at different life stages',
+    juvenile.total < adult.total * 0.98,
+    `structure expressed: juvenile=${juvenile.total.toFixed(4)} adult=${adult.total.toFixed(4)}. ` +
+      'Identical values would mean onset is decorative and development is not real.',
+  );
+}
+
+function gate16(): void {
+  // Condition gating: the same genome in a starved body is a different animal.
+  //
+  // Regulation that only ever tracks age is a timer, not a regulatory system.
+  const mods = new Float32Array(MAX_MODULES * MODULE_STRIDE);
+  mods[MODULE_STRIDE_KIND] = GENE_MODULE.DEFENSE;
+  mods[MODULE_STRIDE_MAG] = 1;
+  mods[MODULE_STRIDE_ONSET] = 0;
+  mods[MODULE_STRIDE_GATE] = 0.6; // needs 60% reserve to express
+  const fed = expressOne(mods, 1, 1.0, 0.9);
+  const starved = expressOne(mods, 1, 1.0, 0.2);
+  record(
+    'G16',
+    'a gated module is expressed conditionally, not only by age',
+    fed.total > 0.5 && starved.total === 0,
+    `gated DEFENSE at 90% reserve -> ${fed.total.toFixed(3)}; at 20% reserve -> ` +
+      `${starved.total.toFixed(3)}. A gate that ignored condition would express ` +
+      'both, which is an age timer wearing a gate.',
+  );
+}
+
+function gate17(): void {
+  // Structural evolution: duplication and deletion must actually move the body.
+  const rng = new Rng(4242);
+  const { modules, count } = seedFounderModules(rng, 6);
+  const child = new Float32Array(MAX_MODULES * MODULE_STRIDE);
+
+  // Duplication at certainty must grow the genome.
+  const duped = inheritModules(rng, modules, count, child, 0, 1, 0);
+  // Deletion at certainty must shrink it toward empty.
+  const deleted = inheritModules(rng, modules, count, child, 0, 0, 1);
+
+  record(
+    'G17',
+    'duplication and deletion change genome length (structural evolution)',
+    duped > count && deleted < count,
+    `parent=${count} modules -> duplication=${duped} -> deletion=${deleted}. ` +
+      'Point mutation alone cannot change body PLAN; only these operators can.',
+  );
+}
+
+function gate18(): void {
+  // Recombination: the child must draw from BOTH parents.
+  //
+  // v1 birth draws from one parent, so mating has never mixed genes. The test
+  // builds parents with DISJOINT module vocabularies, so any child carrying a
+  // B-only kind can only have got it from B. Testing against two founders
+  // seeded round-robin proves nothing: both would hold the same kind set and a
+  // whole-genome take would be indistinguishable from a real crossover.
+  const rng = new Rng(777);
+  const a = genomeOf([GENE_MODULE.SEGMENT, GENE_MODULE.LIGHT_CAPTURE, GENE_MODULE.LOCOMOTOR]);
+  const b = genomeOf([GENE_MODULE.SENSORY, GENE_MODULE.DEFENSE, GENE_MODULE.ANCHOR]);
+  const child = new Float32Array(MAX_MODULES * MODULE_STRIDE);
+
+  let bothParents = 0;
+  let neitherB = 0;
+  const trials = 40;
+  for (let t = 0; t < trials; t++) {
+    const n = recombineModules(rng, a, 3, b, 3, child, 0);
+    const kinds = new Set<number>();
+    for (let i = 0; i < n; i++) kinds.add(child[i * MODULE_STRIDE + MODULE_STRIDE_KIND] | 0);
+    const fromA = [...kinds].some((k) => k === GENE_MODULE.SEGMENT || k === GENE_MODULE.LIGHT_CAPTURE || k === GENE_MODULE.LOCOMOTOR);
+    const fromB = [...kinds].some((k) => k === GENE_MODULE.SENSORY || k === GENE_MODULE.DEFENSE || k === GENE_MODULE.ANCHOR);
+    if (fromA && fromB) bothParents++;
+    if (!fromB) neitherB++;
+  }
+  record(
+    'G18',
+    'recombination draws modules from both parents',
+    bothParents > trials * 0.8 && neitherB <= trials * 0.2,
+    `${bothParents}/${trials} children carried modules from BOTH parents; ` +
+      `${neitherB}/${trials} carried none from B. Parents hold disjoint module ` +
+      'vocabularies, so a B-only kind in a child can only have come from B.',
+  );
+}
+
+/** Build a module genome from an explicit kind list; magnitudes vary by seed. */
+function genomeOf(kinds: readonly number[]): Float32Array {
+  const modules = new Float32Array(MAX_MODULES * MODULE_STRIDE);
+  for (let i = 0; i < kinds.length; i++) {
+    const b = i * MODULE_STRIDE;
+    modules[b + MODULE_STRIDE_KIND] = kinds[i];
+    modules[b + MODULE_STRIDE_MAG] = 0.4 + 0.1 * i;
+    modules[b + MODULE_STRIDE_ONSET] = 0;
+    modules[b + MODULE_STRIDE_GATE] = 1;
+  }
+  return modules;
+}
+
+function gate19(): void {
+  // The null-default contract, asserted AT THE ENGINE rather than on the module.
+  //
+  // G13-G18 prove the module machinery. This proves the DIAGNOSTIC framing: with
+  // `genomeV2` unset the world must be bit-identical to declared behaviour, and
+  // with it set the world must actually differ. A knob that is neither inert
+  // when off nor active when on is the dead-knob class this repository forbids:
+  // it parses, it prints, and it may do nothing at all.
+  const arm = (v2: boolean | null): { pop: number; size: number; modules: number } => {
+    const w = new World({
+      config: { ...SMALL, genomeV2: v2 } as never,
+    }) as unknown as {
+      store: { capacity: number; moduleCount: Uint8Array; physical: Float32Array };
+      live: Uint8Array;
+      step(): void;
+    };
+    for (let k = 0; k < 250; k++) w.step();
+    const st = w.store;
+    let pop = 0, size = 0, mods = 0;
+    for (let i = 0; i < st.capacity; i++) {
+      if (!w.live[i]) continue;
+      pop++;
+      size += st.physical[i * TRAIT_COUNT + TRAIT.SIZE];
+      mods += st.moduleCount[i];
+    }
+    return { pop, size: Number(size.toFixed(4)), modules: mods };
+  };
+  const off = arm(null);
+  const on = arm(true);
+  record(
+    'G19',
+    'genomeV2 is inert when unset and active when set (no dead knob)',
+    off.modules === 0 && on.modules > 0 && (off.pop !== on.pop || off.size !== on.size),
+    `genomeV2=null -> pop=${off.pop} sizeSum=${off.size} modules=${off.modules}; ` +
+      `genomeV2=true -> pop=${on.pop} sizeSum=${on.size} modules=${on.modules}. ` +
+      'Unset must carry no modules at all and reproduce declared behaviour exactly; ' +
+      'set must actually change the world, or the knob is decorative.',
+  );
+}
+
 function main(): void {
   console.log(`=== credibility gates :: ${WORLD_ENGINE_VERSION} ===`);
   console.log(`scenario: founders=${SMALL.founders} world=${SMALL.worldW}x${SMALL.worldH} ticks=${TICKS} seed=${SMALL.seed}\n`);
@@ -796,6 +1015,13 @@ function main(): void {
   gate9();
   gate10();
   gate12();
+  gate13();
+  gate14();
+  gate15();
+  gate16();
+  gate17();
+  gate18();
+  gate19();
 
   const failed = results.filter((r) => !r.pass);
   console.log(`\n${results.length - failed.length}/${results.length} checks passed`);

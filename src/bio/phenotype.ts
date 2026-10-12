@@ -12,7 +12,8 @@
  * same body, which is what makes morphology heredity observable at all.
  */
 
-import { BODY_GENE, MODULE, TRAIT, TRAITS, TRAIT_COUNT, express, type TraitSpec } from './genome.js';
+import { BODY_GENE, BODY_GENE_COUNT, BODY_GENES, MODULE, TRAIT, TRAITS, TRAIT_COUNT, express, type TraitSpec } from './genome.js';
+import { expressModules } from './modgenome.js';
 import { Rng } from '../core/rng.js';
 
 /** Resolved structural body plan. */
@@ -69,6 +70,10 @@ export class Phenotype {
    */
   readonly capacityForTrait: number;
 
+  /** Modular genome v2: total expressed structure and its upkeep price. */
+  moduleTotal = 0;
+  moduleUpkeep = 0;
+
   /** Collision radius, world units. Derived from body mass and proportions. */
   readonly hitRadius: number;
   /** Sensing radius, world units. */
@@ -84,13 +89,50 @@ export class Phenotype {
   /** Secondary accent colour used for eyes/parts. */
   accentHue: number;
 
-  constructor(genome: Float32Array, bodyGenes: Uint8Array, individualSeed: number) {
+  constructor(
+    genome: Float32Array, bodyGenes: Uint8Array, individualSeed: number,
+    geneModules?: Float32Array | null, moduleCount = 0,
+    ageFraction = 1, energyFraction = 1,
+  ) {
     // --- Express every trait once. The hot loop reads `physical` only. ---
     for (let i = 0; i < TRAIT_COUNT; i++) {
       const spec: TraitSpec = TRAITS[i];
       this.physical[i] = express(genome[i], spec);
     }
     const P = this.physical;
+
+    // --- Modular genome v2 (diagnostic, genomeV2). -------------------------
+    //
+    // Modules are INHERITED INSTRUCTIONS; this is where they become biology.
+    // The delta they produce is added to the expressed trait GENE before
+    // materialisation, so the existing 42 traits, their consumers and all the
+    // trophic machinery are untouched. With genomeV2 off, `geneModules` is
+    // null and this block is never entered — declared behaviour is unchanged.
+    if (geneModules && moduleCount > 0) {
+      const deltas = new Float32Array(TRAIT_COUNT);
+      const structGenes = new Uint8Array(BODY_GENE_COUNT);
+      const tally = expressModules(
+        geneModules, moduleCount, ageFraction, energyFraction, deltas, structGenes,
+      );
+      this.moduleTotal = tally.total;
+      this.moduleUpkeep = tally.upkeep;
+      for (let i = 0; i < TRAIT_COUNT; i++) {
+        if (deltas[i] === 0) continue;
+        const spec = TRAITS[i];
+        // Gene-space addition, clamped: a module pushes the trait it builds,
+        // and the existing bounds still apply. Clamping here rather than
+        // letting a module invert a trait is deliberate — a module that could
+        // drive a cost trait negative would create free energy.
+        const g = Math.max(0, Math.min(1, genome[i] + deltas[i]));
+        P[i] = express(g, spec);
+      }
+      // Structure also shows. Appearance follows biology, never the reverse.
+      for (let b = 0; b < BODY_GENE_COUNT; b++) {
+        if (!structGenes[b]) continue;
+        const spec = BODY_GENES[b];
+        bodyGenes[b] = Math.max(spec.lo, Math.min(spec.hi, bodyGenes[b] + structGenes[b]));
+      }
+    }
 
     // --- Resolve the body plan from discrete genes. ---
     this.body = {
@@ -276,6 +318,12 @@ export function derivePhenotype(
   genome: Float32Array,
   bodyGenes: Uint8Array,
   individualSeed: number,
+  geneModules?: Float32Array | null,
+  moduleCount = 0,
+  ageFraction = 1,
+  energyFraction = 1,
 ): Phenotype {
-  return new Phenotype(genome, bodyGenes, individualSeed);
+  return new Phenotype(
+    genome, bodyGenes, individualSeed, geneModules, moduleCount, ageFraction, energyFraction,
+  );
 }
