@@ -4288,7 +4288,7 @@ recycling must be restored first — one of nutrientRegen (abiotic) or
 excretionRate (biotic, producer-fed). Recorded as a hypothesis for rung 3;
 the two are cleanly separable because they are separate dials in the preset.
 
-# SLIDER LADDER, RUNG 3 (2026-10-20): abiotic nutrient is load-bearing, biotic is not
+# SLIDER LADDER, RUNG 3 (2026-10-10): abiotic nutrient is load-bearing, biotic is not
 
 Declared light (capture 1.0) PLUS one nutrient source, 3 seeds, 6000 ticks:
 
@@ -4323,7 +4323,7 @@ whether consumers return once BOTH the substrate cycle and a food route are
 open. That is the first configuration in this ladder that could plausibly
 carry all three guilds.
 
-# SLIDER LADDER, RUNG 4 (2026-10-20): consumers eat, and still die — viability, not supply
+# SLIDER LADDER, RUNG 4 (2026-10-10): consumers eat, and still die — viability, not supply
 
 Declared light + abiotic nutrient + one transfer path, 3 seeds, 6000 ticks:
 
@@ -4358,7 +4358,7 @@ basal) at 0.5, on top of the rung-4 graze configuration. consumerBasalScale
 is a cost dial, not an energy source, so it is deliberately NOT part of the
 zero preset and is passed positionally.
 
-# SLIDER LADDER, RUNG 5 (2026-10-20): DEFECT FOUND — consumerBasalScale is half-wired
+# SLIDER LADDER, RUNG 5 (2026-10-10): DEFECT FOUND — consumerBasalScale is half-wired
 
 First attempt was invalid and self-detecting: three supposedly different
 basal values produced BYTE-IDENTICAL output. Cause was mine — the value was
@@ -4402,7 +4402,7 @@ the same way pioneerFactor is applied. Then re-run rung 5.
 
 ---
 
-# LADDER PHASE (2026-10-20): 18 seeds per rung, pre-registered
+# LADDER PHASE (2026-10-10): 18 seeds per rung, pre-registered
 
 Owner instruction: the scientific MCP is retired; the method is applied
 directly here. Every rung from this point is PRE-REGISTERED before its runs
@@ -4412,7 +4412,7 @@ not-measured. Nulls are results.
 
 Standing validity checks carried into every rung:
   - byte-identical output across different inputs => the variable never
-    varied (caught the argv-slot error on 2026-10-20);
+    varied (caught the argv-slot error on 2026-10-10);
   - header verification before trusting any number (caught photox/basalx
     slot slip);
   - knobs-unset parity exact (517 P881/C187/D73, 24601 P658/C280/D98).
@@ -5083,11 +5083,23 @@ Real-run observations, recorded because they are evidence rather than claims:
     INVALID with the 16 missing seeds listed. No override complaint, confirming
     the declared path is distinguishable from the overridden one.
 
-NOT YET DONE. No multi-leg ladder has been dispatched through GitHub Actions,
-so the cohort JOB (artifact download layout in particular) is proven at the
-script level and by fixture, not on Actions. `flatline` and `horizon` have no
-machine-readable criteria and would report "not measured" by design; adding them
-is the Owner's call, since it makes a prose prediction executable.
+NOT YET DONE. SUPERSEDED 2026-10-11 — see the correction below; the gap this
+paragraph described has since been closed. It originally read:
+
+  "No multi-leg ladder has been dispatched through GitHub Actions, so the cohort
+   JOB (artifact download layout in particular) is proven at the script level
+   and by fixture, not on Actions. `flatline` and `horizon` have no
+   machine-readable criteria and would report 'not measured' by design; adding
+   them is the Owner's call, since it makes a prose prediction executable."
+
+CORRECTION, 2026-10-11. Both halves of that have moved. Actions run 38151553007
+executed the `prospective-guilds` arm across six legs, and the cohort stage
+assembled the panel from the downloaded artifacts and reported
+`integrity: INTACT` — so the artifact-download layout is now proven on Actions,
+not only by fixture. `horizon` is additionally marked HISTORICAL and removed from
+the dispatch options. `flatline` still carries no machine-readable criteria and
+would report "not measured" by design; making a prose prediction executable
+remains the Owner's call.
 
 --------------------------------------------------------------------------------
 EXIT POLICY — OWNER DECISION, 2026-10-11
@@ -5135,8 +5147,13 @@ says it is not confirmation, and an INVALID cohort never issues a scientific
 verdict at all.
 
 WHAT THIS DOES NOT CHANGE. No scientific verdict has been issued under this
-policy yet. `consumer-yield` and `flatline` have not been re-run at 0.6.0 with
-complete panels, and every 0.5.0 figure for those arms describes a leaky engine.
+policy yet. CORRECTED 2026-10-11: `consumer-yield` HAS now been re-run at 0.6.0
+on a complete 18-seed panel at its declared horizon — FALSIFIED, artifacts in
+`evidence/ladder/consumer-yield-run-2026-10-11/` — and it was then replicated on
+a prospective unseen panel (`prospective-guilds`, Actions 38151553007) with the
+same outcome. `flatline` has still not been re-run to a horizon proven sufficient
+for extinction on all 36 seeds. Every 0.5.0 figure for these arms still
+describes a leaky engine.
 The first honest use of this policy is a full `consumer-yield` dispatch, which
 is an Actions run and not yet performed.
 
@@ -5335,7 +5352,7 @@ provides for this arm under the corrected engine.
 WHAT THIS SAYS. Consumers are MORE viable under 0.6.0 than under the leaky 0.5.0
 engine (14/18 vs 13/18), while three-guild persistence is markedly WORSE
 (5/18 vs 10/18). Seed 41001 shows the mechanism plainly: producers 1080,
-consumers 13651, decomposers 0. Consumers run away and DECOMPOSERS GO EXTINCT.
+consumers 13651, decomposers 0.
 
 That is the expected direction. The 0.5.0 numbers were partly produced by the
 decomposer photosynthesis leak this engine fixed, so decomposers were surviving
@@ -5343,6 +5360,20 @@ partly on an energy input that should not have existed. Removing the leak remove
 the subsidy, and the decomposer loop does not hold up on its own — which is the
 open question the horizon arm was already chasing, now with a second and cleaner
 line of evidence.
+
+CORRECTED 2026-10-11 after review, against the full panel rather than seed 41001
+and against the prospective replication. Two things above are wrong as written:
+
+  1. "DECOMPOSERS GO EXTINCT" was generalised from ONE seed. Across the whole
+     18-seed panel decomposers are present on 8/18 and extinct on 10/18 — a
+     majority, so the direction holds, but it is a majority and not a law.
+  2. "the decomposer loop does not hold up on its own" does NOT survive the
+     prospective panel, where decomposers are present on 14/18 seeds. Whatever
+     differs between the two panels, decomposer persistence under 0.6.0 is not
+     a settled mechanism. It is open, and now open in a more specific form than
+     before: what limits three-guild coexistence is not decomposers alone, since
+     the prospective panel has decomposers on 14/18 and still only 7/18 with all
+     three.
 
 WHAT THIS DOES NOT SAY. consumer-yield applies two deliberate lifts
 (producerCaptureScale 0.35, basalFoodPerCell 0.25), so this is an answer to the
@@ -5458,3 +5489,97 @@ on 7/18). Full repeat artifacts are preserved under
 INTERPRETATION. This establishes byte-for-byte per-seed repeatability for these
 inputs on this fixed Node runtime. It adds no independent seed evidence and
 does not broaden the original ecological conclusion beyond its one panel.
+
+================================================================================
+DATELINE CORRECTION — Owner-authorised, 2026-10-11
+================================================================================
+Seven datelines reading `2026-10-20` were corrected to `2026-10-10` by Owner
+decision. Recorded here rather than applied silently, because a silently
+rewritten record is indistinguishable from a record that was always right.
+
+  REPORT.md           rungs 3/4/5 and the LADDER PHASE headings (was 2026-10-20)
+                      plus the inline argv-slot note
+  OWNER-DIRECTIVE.md  the MCP retirement dateline
+  NEXT-PUSH.md        the same dateline in its provenance note
+
+WHY. These sections were introduced by commit 0b8a427, authored and committed
+2026-10-10 — ten days BEFORE the dateline they carried. The dates were wrong on
+arrival, not altered afterwards.
+
+WHY IT MATTERED. AGENTS.md makes dates load-bearing: "Never retroactively certify
+old logs" is only meaningful if a reader can tell which log predates which change.
+A heading dated ten days after the commit that introduced it makes the chronology
+of the slider-ladder rungs unreadable, and would lead a reader to believe that
+evidence postdates the engine changes it was used to justify.
+
+WHAT WAS NOT DONE. No finding, number or verdict was altered. Only the datelines.
+The Owner made this call on 2026-10-11; this note exists so the change is
+discoverable by anyone reading the file later.
+
+================================================================================
+STATE RECONCILIATION — 2026-10-11
+================================================================================
+The experimental record was reconciled against current `main` (1185003) with
+NEXT-PUSH.md, README.md and the two open GitHub issues. What follows is the
+distinction between what is still live and what is history, and the corrections
+made to this file as a result.
+
+ACTIVE — measured on ts-evo-poc/0.6.0
+  - LOW THREE-GUILD COEXISTENCE, on two independent 18-seed panels.
+    `consumer-yield` on 41001-41018 at the declared horizon: consumers>0 on
+    14/18, all-three-guilds>0 on 5/18. `prospective-guilds` on the
+    prospectively-registered, previously unseen 52001-52018 panel (Actions run
+    38151553007): consumers>0 on 14/18, all-three-guilds>0 on 7/18. Both sit
+    below the 12/18 the original prediction required, and the shortfall itself
+    is reproduced.
+
+    WHAT IS NOT REPRODUCED, corrected 2026-10-11 after review: an earlier
+    revision of this file called "decomposers go extinct on most seeds" a
+    replicated result. It is not. Decomposers were present on 8/18 seeds of the
+    consumer-yield panel (extinct on 10/18) but on 14/18 of the prospective
+    panel (extinct on only 4/18). Majority decomposer extinction holds on one
+    panel and is REVERSED on the other.
+
+    The limit that reproduces is low three-guild coexistence; the guild that
+    limits it does not. In the prospective panel decomposers are present on
+    14/18 and producers on 12/18, yet all three co-occur on only 7/18 — so
+    something in the JOINT requirement, not decomposer persistence alone, is
+    binding there. That is a live open question, not a settled mechanism.
+  - The evidence layer itself: strict ledger validation, per-guild capture policy,
+    cohort verification binding evidence to the requested experiment, and the exit
+    policy that a falsified prediction is a result and not a workflow failure.
+
+HISTORICAL — do not compare against current behaviour
+  - Everything above line 4821 describes 0.4.1 or 0.5.0 and is self-marked
+    RETIRED or LEAKY.
+  - The `horizon` arm: marked HISTORICAL, removed from dispatch. Its four seeds
+    were 0.5.0 survivors and the contrast it was registered for has no
+    counterpart under the corrected engine.
+  - `evidence/ladder/*.txt` at the top level are 0.4.1/0.5.0 knob sweeps, not
+    cohort artifacts.
+
+STILL OPEN
+  - Decomposer persistence. The replicated shortfall sharpens this rather than
+    closing it: the question is now precisely why the decomposer loop does not
+    hold once its photosynthesis leak is removed.
+  - `flatline` has not been re-run to a horizon proven sufficient for extinction
+    on all 36 seeds. It is a regression replay, not a prospective test, and would
+    report "not measured" by design until the Owner decides to make its prose
+    prediction executable.
+
+DOCUMENT DEFECTS FOUND AND CORRECTED
+  - Two paragraphs in this file were rendered false by later work and are
+    corrected above in place: the "no multi-leg ladder dispatched on Actions"
+    note, and the "consumer-yield has not been re-run at 0.6.0" note. Each is
+    marked SUPERSEDED with the original text quoted, so the correction is
+    readable rather than invisible.
+  - Seven datelines reading 2026-10-20 were corrected to 2026-10-10 by Owner
+    decision; see the dateline-correction note above.
+  - README.md is stale in a way worth naming: it still claims "all five
+    credibility gates (7/7 checks)" where the suite is now 20 checks, and it
+    predates the 0.6.0 engine entirely. Not corrected here because it makes
+    claims about biological outcomes, which are the Owner's to restate.
+  - NEXT-PUSH.md's open question "whether the unclamped mineralization deposit
+    should respect caps" is answered: it was a confirmed defect, fixed in 0.6.0.
+    Its balance-first ordering was already overtaken by the measured dependency
+    ladder, as its own provenance note records.

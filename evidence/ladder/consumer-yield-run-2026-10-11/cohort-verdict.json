@@ -1,0 +1,57 @@
+{
+  "arm": "consumer-yield",
+  "title": "Consumer viability under corrected predation assimilation",
+  "preregistered": "2026-10-10",
+  "classification": "falsified",
+  "integrity": "INTACT",
+  "headline": "**PREDICTION FALSIFIED** — the pre-registered outcome did NOT occur. This run is trustworthy evidence and a negative result. The workflow is GREEN because the evidence is sound, NOT because anything was confirmed.",
+  "numerators": {
+    "consumers-viable": 14,
+    "three-guild-persistence": 5
+  },
+  "denominators": {
+    "consumers-viable": 18,
+    "three-guild-persistence": 18
+  },
+  "notMet": [
+    "three-guild-persistence: 5/18 met 'all three guilds non-zero at tick 6000' (needed >= 12)"
+  ],
+  "identity": {
+    "arm": "consumer-yield",
+    "engine": "ts-evo-poc/0.6.0",
+    "commit": "1185003dad38c556a057980fb9f02eb38ae42904",
+    "armSpecHash": "1f4a9e01a8a310bd915b5720708c08705f38630be788a3f7fb56ea349e4caa74",
+    "ticks": 6000,
+    "declaredTicks": 6000
+  },
+  "seedsMeasured": [
+    41001,
+    41002,
+    41003,
+    41004,
+    41005,
+    41006,
+    41007,
+    41008,
+    41009,
+    41010,
+    41011,
+    41012,
+    41013,
+    41014,
+    41015,
+    41016,
+    41017,
+    41018
+  ],
+  "exitPolicy": {
+    "greenMeans": "the evidence is trustworthy",
+    "greenDoesNotMean": "the hypothesis was correct",
+    "nonzeroReservedFor": [
+      "evidence-integrity violation",
+      "execution failure"
+    ]
+  },
+  "prediction": "consumers > 0 on at least 12/18 seeds at tick 6000, AND all three guilds non-zero on at least 12/18 seeds.",
+  "falsification": "consumers == 0 on 7 or more of 18 seeds, or all three guilds non-zero on fewer than 12/18 seeds."
+}
