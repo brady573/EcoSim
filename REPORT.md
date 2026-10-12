@@ -6207,3 +6207,48 @@ the ablation verdict (sub-case b).
 Registered below (pre-registration IS the arm entry): producer-alone —
 viability config + founders 0 + graze lift to 0, 36 seeds, prod == 0 on
 >=30/36 predicts reliance; >=7 persisting falsifies it (sub-cases a/b).
+
+--------------------------------------------------------------------------------
+STEP 5 — ABLATION VERDICT: PRODUCERS SURVIVE ALONE 33/36, RELIANCE FAILS (2026-10-12)
+--------------------------------------------------------------------------------
+
+ARM. producer-alone: viability config + founders slot 0 + graze lift to
+explicit 0 (meat preset 0), floor/dormancy/spores/disease/sat/cyc/regen/rsur
+identical. 36 seeds, 6000 ticks. Bar: prod == 0 on >=30/36 (machine);
+>=7 persisting falsifies, split into (a) floor-carry vs (b) fluidity-rescue.
+
+RUN. GitHub Actions 38267693804 (12 legs x 3). Cohort INTACT / FALSIFIED.
+Headers read dfound=0 on 36/36 legs — the new machine gate held live with no
+mismatches. Artifacts archived under evidence/producer-alone-38267693804/cohort/.
+
+RESULT (machine counts from summary CSVs). prod == 0 on 3/36 (41003, 41013,
+52016) — the bar is missed by 27 seeds, not borderline. 33/36 producers
+persist alone, including thousands-strong stands (41011 P3580, 41018 P2729,
+52004 P2219, 41017 P1455). Of the 33: 25 never show a decomposer at ANY
+1000-tick checkpoint (pure sub-case a); 8 show transient/relic decomposers,
+only two retain any at endpoint (41009 D287, 52006 D15 — the sole all-three
+endpoint is 41009, 1/36). Checkpoint-observation caveat: brief
+inter-checkpoint presence cannot be excluded — lifetime B/D lines show a
+handful of decomposer births on some checkpoint-pure seeds (41005: 3, 41014:
+1, 52013: 1, 52017: 1), so sub-case (a) is checkpoint-observational, not
+lifetime-proven. But no trajectory shows producer recovery tracking D: D is
+transient/relic where present, retained at endpoint on only two seeds.
+Founded consumers starve as designed (C endpoint 0 on most; 41004 C1030 and
+41013 C467 persist at endpoint on remnant detritus — descriptive, expected).
+
+VERDICT. Reliance is NOT obligate as configured: the abiotic floor (0.05) plus
+initial stock carries producers alone on 33/36 seeds. The falsification is
+clean (sub-case a dominates), so no restatement rescue applies — the clause
+fails on its own terms. The floor that prevents deadlock extinction is the
+same floor that voids obligate reliance: that tension is now measured, not
+theoretical.
+
+DECISION. No new arm in this entry. Two questions go to the Owner (asked
+directly, program holds): (1) the scoped consumer-economics rework proposal
+(variance-tolerance grace, re-pin required) — approve, redirect, or hold;
+(2) the reliance-vs-floor tension — remove the floor and risk deadlock
+return, restate reliance functionally (dependence on recycling for vigor
+rather than survival), or hold the clause as a future-engine objective.
+Dial-turning is suspended until both are answered; the repeated lesson of
+this ladder is that each mechanism tested cleanly and the goal needs a
+decision, not another dial.

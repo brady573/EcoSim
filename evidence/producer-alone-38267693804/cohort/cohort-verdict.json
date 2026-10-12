@@ -1,0 +1,73 @@
+{
+  "arm": "producer-alone",
+  "title": "ABLATION: producers without seeded decomposers or heterotroph income must fail?",
+  "preregistered": "2026-10-12",
+  "classification": "falsified",
+  "integrity": "INTACT",
+  "headline": "**PREDICTION FALSIFIED** — the pre-registered outcome did NOT occur. This run is trustworthy evidence and a negative result. The workflow is GREEN because the evidence is sound, NOT because anything was confirmed.",
+  "numerators": {
+    "producers-fail-alone": 3
+  },
+  "denominators": {
+    "producers-fail-alone": 36
+  },
+  "notMet": [
+    "producers-fail-alone: 3/36 met 'producers = 0 at tick 6000 on at least 30/36 seeds' (needed >= 30)"
+  ],
+  "identity": {
+    "arm": "producer-alone",
+    "engine": "ts-evo-poc/0.6.0",
+    "commit": "f0bae2ec2dcfeffe5cd7713001220b33246f2418",
+    "armSpecHash": "44a29cbdaadf8808ac10edf5e45d38ae4b425daea5b38d3123a09b9ac6e369d4",
+    "ticks": 6000,
+    "declaredTicks": 6000
+  },
+  "seedsMeasured": [
+    41001,
+    41002,
+    41003,
+    41004,
+    41005,
+    41006,
+    41007,
+    41008,
+    41009,
+    41010,
+    41011,
+    41012,
+    41013,
+    41014,
+    41015,
+    41016,
+    41017,
+    41018,
+    52001,
+    52002,
+    52003,
+    52004,
+    52005,
+    52006,
+    52007,
+    52008,
+    52009,
+    52010,
+    52011,
+    52012,
+    52013,
+    52014,
+    52015,
+    52016,
+    52017,
+    52018
+  ],
+  "exitPolicy": {
+    "greenMeans": "the evidence is trustworthy",
+    "greenDoesNotMean": "the hypothesis was correct",
+    "nonzeroReservedFor": [
+      "evidence-integrity violation",
+      "execution failure"
+    ]
+  },
+  "prediction": "prod == 0 on at least 30/36 seeds at tick 6000 (machine criterion). Coexistence NOT predicted; nothing about consumers or decomposers is predicted.",
+  "falsification": "FALSIFIED (reliance not obligate as configured) if prod > 0 on 7 or more of 36 seeds. Two honest sub-cases, both reported descriptively: (a) producers persist with NO decomposers ever present — the abiotic floor or initial stock carries them, and the reliance clause fails cleanly; (b) decomposer roles re-emerge via fluidity and producers persist with them — reliance on the FUNCTION holds but seeding-independence fails, and the clause needs restating, not re-running."
+}
