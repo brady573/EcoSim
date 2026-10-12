@@ -46,6 +46,8 @@ on:
           - graze-nutcyc-sat2
           - graze-nutregen
           - producer-alone
+          - producers-with-loop-floor0
+          - producer-alone-floor0
           - graze-viability
           # `horizon` is deliberately NOT offered. It is retained in arms.json as
           # provenance with status HISTORICAL: its registered hypothesis was for

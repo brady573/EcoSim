@@ -6252,3 +6252,28 @@ rather than survival), or hold the clause as a future-engine objective.
 Dial-turning is suspended until both are answered; the repeated lesson of
 this ladder is that each mechanism tested cleanly and the goal needs a
 decision, not another dial.
+
+--------------------------------------------------------------------------------
+OWNER DECISIONS (2026-10-12, direct): FLOOR-ZERO PAIR + ECONOMICS REWORK (2026-10-12)
+--------------------------------------------------------------------------------
+
+On the ablation falsification the Owner decided: (1) reliance tension —
+REMOVE the floor, with a kickstarter at run start; (2) engine economics —
+APPROVE the scoped variance-tolerance rework for implementation under the
+full pipeline. No dial-turning beyond what serves these two orders.
+
+KICKSTARTER (stated, no new mechanism): the world-construction initial
+nutrient stock (nutrientPerCell laid at build) is the run-start pulse. No new
+pulse knob is introduced unless the floor-zero runs flatline at bootstrap —
+YAGNI applies; an explicit pulse is designed only on demonstrated need.
+
+Floor-zero pair (each one dial from its parent, registered below):
+  (a) producers-with-loop-floor0 = viability config + nfloor 0.05 -> 0.
+      Tests whether the recycling loop sustains producers with NO abiotic
+      floor. Bar: prod > 0 on >=24/36 (machine). Falsified below 24.
+  (b) producer-alone-floor0 = producer-alone config + nfloor 0.05 -> 0.
+      The strict alone test without floor. Bar: prod == 0 on >=30/36
+      (machine); >=7 persisting falsifies.
+Interpretation order: (b) then (a). Reliance holds iff (b) fails-alone AND
+(a) sustains (floor-0 universal lethality would prove nothing about reliance).
+Both pre-registered; neither predicts coexistence.
