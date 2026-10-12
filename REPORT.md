@@ -6412,3 +6412,50 @@ in 6 ticks, and killing proceeds at full rate — the ceiling the proposal
 required. 0.6.1 is now fully verified to the repository contract:
 typecheck, 20/20 gates, re-pinned parity (twice byte-identical),
 determinism, 11/11 contract, 145/145 workflow, flatline intact.
+
+--------------------------------------------------------------------------------
+0.6.1 RETEST — VIABILITY UNMOVED, HYPOTHESIS FALSIFIED (2026-10-12)
+--------------------------------------------------------------------------------
+
+ARM. viability-061: settings-identical retest of graze-viability on engine
+0.6.1 (the ONLY contrast is the engine). Bars: cons >=12/18 AND prod >=12/18
+(machine); human-read B/D shift with per-capita intake flat; confound branch
+(intake rises -> confounded, not supported) pre-stated.
+
+RUN. GitHub Actions 38289225385. Cohort INTACT / FALSIFIED. Artifacts archived
+under evidence/viability-061-38289225385/cohort/.
+
+RESULT (machine counts from summary CSVs). cons > 0 on 11/18 (zeros 41002,
+41005, 41007, 41010, 41013, 41016, 41018 — same rate as 0.6.0 with churned
+membership: 41015 recovered, 41010 and 41013 newly zero); prod > 0 on 10/18 (zeros 41001,
+41002, 41003, 41006, 41009, 41010, 41011, 41013); dec > 0 on 10/18; all-three
+endpoints 3/18 (41004, 41012, 41014 — descriptive). Both bars missed.
+
+COHORT-LEVEL COMPARISON (archived B/D + LEDGER lines, both 18-seed runs;
+B/D is pooled births / pooled deaths):
+  engine   pooled cons B/D   per-capita graze intake   total pop
+  0.6.0    1.017             0.64                     13,418
+  0.6.1    1.017             0.42                     21,042
+Identical replacement to three decimals, lower per-capita intake, larger
+populations, fewer producer seeds. Intake did NOT rise, so the confound
+branch does not trigger — this is a clean falsification, not a confounded
+read: fasting tolerance does not convert to viability at endpoint level.
+
+VERDICT. The improvement hypothesis is falsified as specified. Consumers
+fail identically with food paying (win rates sustained, disease negligible),
+reserve at 90 or 30, upkeep already discounted 4x (consumerBasalScale 0.25
+has ridden along since the first consumer-yield arm), and now grace at 6.
+Every named suspect on the viability list is eliminated except damage-gate
+genetics, mating success, and lifespan economics — each untested and each
+needing its own diagnostic before any arm. No new arm is registered here;
+dial-turning on consumers is suspended as spent (four()))
+
+PROGRAM ASSESSMENT (for the Owner record). After eleven 0.6.x arms plus the
+engine rework: grazing restored, subsidy cut 25x, coupling tried three ways,
+reserve exonerated, floor removed with and without guilds, grace implemented
+and falsified. Obligate reliance falsified in its strict form (producers
+persist alone with and without floor). Majority-time coexistence on all seeds
+remains distant (best joint endpoints 9/18, descriptive). The goal needs a
+decision, not another dial: restate reliance functionally, hold the program,
+or authorize a fresh diagnostic line (damage/mating/lifespan) with
+understanding that each is a long shot against a five-deep elimination.
