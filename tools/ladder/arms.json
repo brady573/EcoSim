@@ -498,6 +498,125 @@
         }
       ]
     },
+    "graze-nutregen": {
+      "title": "COUPLING ENGAGED: nonzero base regen for cyclic to scale (rung-3 value) on the floor config?",
+      "preregistered": "2026-10-12",
+      "registrationKind": "KNOWN_SEED_DIAGNOSTIC_NOT_PROSPECTIVE",
+      "seeds": "41001:41018",
+      "ticks": 6000,
+      "zero": true,
+      "lifts": {
+        "producerCaptureScale": 0.35,
+        "basalFoodPerCell": 0.01,
+        "grazeYieldScale": 1.0,
+        "nutrientRegen": 0.0002
+      },
+      "argvRest": [
+        "off",
+        "4",
+        "0.25",
+        "null",
+        "null",
+        "null",
+        "0.15",
+        "null",
+        "off",
+        "off",
+        "on",
+        "1.0",
+        "null",
+        "0.05",
+        "null"
+      ],
+      "hypothesis": "Step 3b proved the sat dial void: rate = nutrientRegen * raw/(raw+sat) with nutrientRegen = 0, so the cyclic term was 0 at every saturation and only the floor acted (prod 11/18). Rung 3 measured nutrientRegen:0.0002 alone restoring decomposers decisively. A nonzero base rate engages the coupling the last two arms only named.",
+      "prediction": "prod > 0 on at least 12/18 AND cons > 0 on at least 12/18 seeds at tick 6000 (both machine criteria). Must beat floor-alone (11/18 prod) or the concept adds nothing. Coexistence rate NOT predicted.",
+      "falsification": "FALSIFIED if prod = 0 on 7 or more of 18 seeds: engaged cyclic coupling does not feed producers — the coupling line is abandoned entirely (no further saturation/floor/base variations blind). The program steps back to analysis. If cons = 0 on >=7/18 while producers recover, the failure is consumer viability, a separate mechanism.",
+      "notPredicted": "Coexistence rates, capture shares, extinction counts (descriptive), decomposer endpoints, bloom sizes.",
+      "confoundsControlled": [
+        "Same 18-seed panel, horizon, engine, and argvRest as graze-nutcyc (cyc on, sat 1.0, floor 0.05); the ONLY difference is +nutrientRegen:0.0002 lift. Baselines against the void sat-2.0 run only through the shared sat-1.0 run",
+        "Matched comparison against the archived sat runs isolates the base-rate effect: floor-alone vs floor+engaged-cyclic",
+        "conservation enforced per seed at 0.5%; a seed above it fails the run rather than reporting"
+      ],
+      "knownLimits": "Last coupling test. A second falsification closes the line; the program returns to analysis rather than pushing dials.",
+      "criteria": [
+        {
+          "id": "producers-fed",
+          "metric": "prod",
+          "op": ">",
+          "value": 0,
+          "required": 12,
+          "statement": "producers > 0 at tick 6000 on at least 12/18 seeds"
+        },
+        {
+          "id": "consumers-persist",
+          "metric": "cons",
+          "op": ">",
+          "value": 0,
+          "required": 12,
+          "statement": "consumers > 0 at tick 6000 on at least 12/18 seeds"
+        }
+      ]
+    },
+    "graze-viability": {
+      "title": "VIABILITY: breeding reserve 90 -> 30 where food demonstrably pays?",
+      "preregistered": "2026-10-12",
+      "registrationKind": "KNOWN_SEED_DIAGNOSTIC_NOT_PROSPECTIVE",
+      "seeds": "41001:41018",
+      "ticks": 6000,
+      "zero": true,
+      "lifts": {
+        "producerCaptureScale": 0.35,
+        "basalFoodPerCell": 0.01,
+        "grazeYieldScale": 1.0,
+        "nutrientRegen": 0.0002
+      },
+      "argvRest": [
+        "off",
+        "4",
+        "0.25",
+        "null",
+        "null",
+        "null",
+        "0.15",
+        "null",
+        "off",
+        "off",
+        "on",
+        "1.0",
+        "null",
+        "0.05",
+        "30"
+      ],
+      "hypothesis": "Step-3c analysis showed grazing income does not separate persisting from failing consumers (failures carry equal or greater graze energy; disease negligible; B/D<1 from the first checkpoints). The mapped gates point at the 90-tick breeding reserve against small consumer incomes. Rung 6 falsified rsur-30 in a different ecology (0.25 subsidy, uncoupled, unpaid graze); this tests the same dial where food demonstrably pays.",
+      "prediction": "cons > 0 on at least 12/18 AND prod > 0 on at least 12/18 seeds at tick 6000 (both machine criteria). Coexistence rate NOT predicted.",
+      "falsification": "FALSIFIED if cons = 0 on 7 or more of 18 seeds: the reserve is not the binding constraint — viability needs engine-level upkeep/damage economics, and that decision goes to the Owner with this record attached. No further reserve descent (30 -> 0 would breed from nothing and break the closed budget); no compensating light or subsidy moves.",
+      "notPredicted": "Coexistence rates, capture shares, extinction counts (descriptive), decomposer endpoints, per-win sizes.",
+      "confoundsControlled": [
+        "Same 18-seed panel, horizon, engine, lifts, and 14/15 argvRest entries as graze-nutregen; the ONLY difference is positional rsur null -> 30 (argv slot 18)",
+        "Matched comparison against the archived nutregen run isolates the reserve effect",
+        "Null default (90) preserved in config; the arm exercises the sanctioned config path only",
+        "conservation enforced per seed at 0.5%; a seed above it fails the run rather than reporting"
+      ],
+      "knownLimits": "Viability test only. A pass does not establish coexistence or reliance; ablation and the majority-time evaluation remain ahead.",
+      "criteria": [
+        {
+          "id": "consumers-viable",
+          "metric": "cons",
+          "op": ">",
+          "value": 0,
+          "required": 12,
+          "statement": "consumers > 0 at tick 6000 on at least 12/18 seeds"
+        },
+        {
+          "id": "producers-fed",
+          "metric": "prod",
+          "op": ">",
+          "value": 0,
+          "required": 12,
+          "statement": "producers > 0 at tick 6000 on at least 12/18 seeds"
+        }
+      ]
+    },
     "balance-diagnostic-control": {
       "title": "DIAGNOSTIC control: known balance-failure seeds without dormant-share brake",
       "preregistered": "2026-10-12",

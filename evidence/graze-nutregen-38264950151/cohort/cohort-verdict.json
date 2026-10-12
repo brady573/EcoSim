@@ -1,0 +1,57 @@
+{
+  "arm": "graze-nutregen",
+  "title": "COUPLING ENGAGED: nonzero base regen for cyclic to scale (rung-3 value) on the floor config?",
+  "preregistered": "2026-10-12",
+  "classification": "falsified",
+  "integrity": "INTACT",
+  "headline": "**PREDICTION FALSIFIED** — the pre-registered outcome did NOT occur. This run is trustworthy evidence and a negative result. The workflow is GREEN because the evidence is sound, NOT because anything was confirmed.",
+  "numerators": {
+    "producers-fed": 12,
+    "consumers-persist": 11
+  },
+  "denominators": {
+    "producers-fed": 18,
+    "consumers-persist": 18
+  },
+  "notMet": [
+    "consumers-persist: 11/18 met 'consumers > 0 at tick 6000 on at least 12/18 seeds' (needed >= 12)"
+  ],
+  "identity": {
+    "arm": "graze-nutregen",
+    "engine": "ts-evo-poc/0.6.0",
+    "commit": "8bc2fcb40d81dd8538d84956d06d005292f89f91",
+    "armSpecHash": "524a5c08987da0e59ac97550c8f7f2e3cc8b26fd171646c03981a6b2dc2d3357",
+    "ticks": 6000,
+    "declaredTicks": 6000
+  },
+  "seedsMeasured": [
+    41001,
+    41002,
+    41003,
+    41004,
+    41005,
+    41006,
+    41007,
+    41008,
+    41009,
+    41010,
+    41011,
+    41012,
+    41013,
+    41014,
+    41015,
+    41016,
+    41017,
+    41018
+  ],
+  "exitPolicy": {
+    "greenMeans": "the evidence is trustworthy",
+    "greenDoesNotMean": "the hypothesis was correct",
+    "nonzeroReservedFor": [
+      "evidence-integrity violation",
+      "execution failure"
+    ]
+  },
+  "prediction": "prod > 0 on at least 12/18 AND cons > 0 on at least 12/18 seeds at tick 6000 (both machine criteria). Must beat floor-alone (11/18 prod) or the concept adds nothing. Coexistence rate NOT predicted.",
+  "falsification": "FALSIFIED if prod = 0 on 7 or more of 18 seeds: engaged cyclic coupling does not feed producers — the coupling line is abandoned entirely (no further saturation/floor/base variations blind). The program steps back to analysis. If cons = 0 on >=7/18 while producers recover, the failure is consumer viability, a separate mechanism."
+}

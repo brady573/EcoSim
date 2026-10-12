@@ -6058,3 +6058,88 @@ alternative (saturation 2.0) once, then abandon the coupling if it also fails.
 Registered below as graze-nutcyc-sat2. If sat-2.0 fails, the program steps
 back to analysis (floor level and capture scale become suspects) rather than
 pushing dials blind.
+<<<<<<< HEAD
+=======
+
+--------------------------------------------------------------------------------
+STEP 3b — SAT-2.0 RESULT: FALSIFIED, AND THE DIAL IS VOID (2026-10-12)
+--------------------------------------------------------------------------------
+
+ARM. graze-nutcyc-sat2: sat 1.0 -> 2.0, everything else identical. Same bars.
+
+RUN. GitHub Actions 38264321163. Cohort INTACT / FALSIFIED (prod 11/18, cons
+13/18 — same counts as sat-1.0). Artifacts archived under
+evidence/graze-nutcyc-sat2-38264321163/cohort/.
+
+RESULT. All 18 per-seed files are BYTE-IDENTICAL to the sat-1.0 run except
+the header line (sat1 vs sat2): 2 diff lines per file, 0 non-header, on all
+18 seeds. Endpoints, B/D ratios, ledgers, residuals — all identical.
+
+VERDICT. Falsified (same 7/18 producer-zero), but the important finding is
+stronger than the verdict: the saturation dial did not vary. world.ts scales
+the BASE rate: rate = nutrientRegen * raw/(raw+sat). Under --zero,
+nutrientRegen = 0 and no arm lifts it, so the cyclic term is 0 * anything = 0
+at every saturation. The "coupling" tested in Step 3 was floor-0.05 only; the
+cyclic half was never engaged. This is the void-knob failure mode AGENTS.md
+names: a dial whose variation never reaches the dynamics (the zero base rate
+nulls the product at every saturation, though the value itself is handed to
+the engine).
+
+CORRECTION TO STEP 3. Its falsification verdict stands (the numbers are the
+numbers), but its mechanism attribution is superseded: sat-1.0 did not test
+cyclic coupling. The producer gain 8 -> 11/18 endpoints came from the floor.
+No conclusion about cyclic coupling follows from either run.
+
+NEXT (Step 3c): engage the coupling for real — lift nutrientRegen to the
+rung-3 value 0.0002 (a base rate for cyclic to scale) on the identical
+config. One addition, stated: graze-nutcyc + nutrientRegen:0.0002.
+Prediction: prod > 0 AND cons > 0, each >=12/18. Falsification: prod = 0 on
+>=7/18 closes the coupling line (floor alone: 11/18; floor+engaged-cyclic
+must beat it or the concept is out). Registered below as graze-nutregen.
+
+--------------------------------------------------------------------------------
+STEP 3c — ENGAGED COUPLING: PRODUCERS RECOVER TO BAR, CONSUMERS NOW BIND (2026-10-12)
+--------------------------------------------------------------------------------
+
+ARM. graze-nutregen: nutcyc config + nutrientRegen:0.0002 lift (base rate for
+cyclic to scale). Bars: prod >=12/18 AND cons >=12/18 (both machine).
+
+RUN. GitHub Actions 38264950151. Cohort INTACT / FALSIFIED (split decision).
+Artifacts archived under evidence/graze-nutregen-38264950151/cohort/.
+
+RESULT (endpoint P/C/D):
+  41001 0/272/0 | 41002 14/0/762 | 41003 1/41/709 | 41004 0/1042/0
+  41005 2/2/346 | 41006 0/78/458 | 41007 1006/0/0 | 41008 935/124/0
+  41009 436/306/0 | 41010 0/0/372 | 41011 37/20/493 | 41012 3390/81/2614
+  41013 0/0/409 | 41014 0/309/111 | 41015 278/0/0 | 41016 175/0/0
+  41017 8/356/158 | 41018 795/0/0
+
+VERDICT. Producers 12/18 (zeros 41001,41004,41006,41010,41013,41014 — bar MET
+exactly); consumers 11/18 (zeros 41002,41007,41010,41013,41015,41016,41018 —
+bar missed by one). Falsification's second clause fires as written: producers
+recovered while consumers failed on 7/18, so the failure is CONSUMER
+VIABILITY, a separate mechanism. All-three endpoints 5/18
+(41003,41005,41011,41012,41017 — descriptive).
+
+ANALYSIS (no new runs; cross-arm read of archived B/D lines). Grazing income
+does NOT separate persisting from failing consumers: failing seeds carry as
+much or more graze energy (41005: 1,068-1,612 at C≈0; 41016: 543-548 at C=0;
+41017@0.01: 730 at C=0) as persisting ones (41006: 205-239 at C>0; 41011:
+216-461), with win rates ~41-84% and positive flux on all 18 seeds, and
+disease deaths negligible (mostly <10). Food pays and consumers still fade:
+failing seeds read cons B/D 0.72-0.86 on the whole-run line while their
+checkpoint rows show C near zero early — failure to launch, not late
+starvation. This replicates
+rung 4's "viability, not supply" verdict inside the new coupled config.
+Binding suspects from the mapped gates: the 90-tick breeding reserve against
+small consumer incomes, and upkeep economics — NOT food supply, NOT disease.
+
+DECISION. No more nutrient dials. Next is a single viability arm in the
+identical config: breeding reserve 90 -> 30 (positional rsur; sanctioned
+config path, null default preserved). Rung 6 tested rsur-30 in a DIFFERENT
+ecology (0.25 subsidy, no coupling, no paying graze) and falsified there;
+this tests it where food demonstrably pays — a different experiment, not a
+repeat. If consumers still fail, viability needs engine-level economics, and
+that decision goes to the Owner with this record attached. Registered below
+as graze-viability.
+>>>>>>> 2fdc20b (Record engaged-coupling split; register breeding-reserve viability arm)
