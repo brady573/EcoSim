@@ -6459,3 +6459,60 @@ remains distant (best joint endpoints 9/18, descriptive). The goal needs a
 decision, not another dial: restate reliance functionally, hold the program,
 or authorize a fresh diagnostic line (damage/mating/lifespan) with
 understanding that each is a long shot against a five-deep elimination.
+
+--------------------------------------------------------------------------------
+TRIAL-AND-ERROR SCREEN S1 (PRE-REGISTERED 2026-10-12): SIX ONE-DIAL VARIANTS
+--------------------------------------------------------------------------------
+
+MODE CHANGE (Owner order): this POC now iterates by trial and error. Method:
+cheap compiled screens triage bold ideas; only winners are promoted to
+reviewed ladder arms. Screens are diagnostics (short horizon, known seeds),
+never prospective evidence. Kept: no forced coexistence, cohort integrity
+for promotions, honest nulls, independent review before dispatch. Relaxed:
+single-variable crawl — variants may be bold, and several promote together.
+
+BASE. viability-061 settings on the 0.6.1 tree (lifts 0.35/0.01/1.0/0.0002 +
+rsur 30, cyc on, sat 1.0, floor 0.05), compiled scenesprobe (the ladder
+probe), 2000 ticks. Seeds 41002, 41005, 41016 — C=0 at t6000 on BOTH engines
+in the viability runs, so any establishment reads against failure.
+
+VARIANTS (one dial each from base):
+  S1a disease off: argv dis 0.15 -> null (remove disease load on breeding).
+  S1b cheaper upkeep: basal 0.25 -> 0.1 (shared-helper era retest).
+  S1c fed producers: lift producerCaptureScale 0.35 -> 1.0 (bigger takes).
+  S1d richer takes: lift grazeYieldScale 1.0 -> 1.6 (rung-4 precedent).
+  S1e tissue basis: + lift plantYieldPerMass 14 (body-mass takes).
+  S1f biotic return: + lift excretionRate 0.06 (with regen, unlike rung 3).
+PROMOTE BAR: base must read C=0 at t2000 on 3/3 (screen sensitivity check);
+a variant promotes on C>0 at t2000 on >=2/3, with no cap-hit and no
+all-guild extinction. B/D and trajectories human-read. Losers recorded here,
+never promoted. Winners become one reviewed ladder batch.
+
+--------------------------------------------------------------------------------
+SCREEN S1 (2000 TICKS): SENSITIVITY PREMISE WRONG, NO PROMOTIONS (2026-10-12)
+--------------------------------------------------------------------------------
+
+MATRIX. Base viability-061 settings + 6 one-dial variants (disease off,
+cheaper upkeep, fed producers, richer takes, tissue basis, biotic return) on
+seeds 41002/41005/41016, 2000 ticks, compiled scenesprobe on the 0.6.1 tree.
+Files archived under evidence/screen-s1-2000/ (21 runs, all exit 0).
+
+SENSITIVITY FAILURE (owned, not hidden). The pre-registration demanded base
+C=0 at t2000 on 3/3. Base reads C49/C16/C23 — consumers fade by t6000, not
+by t2000, so the absolute >=2/3 bar is void (base itself scores 3/3). The
+screen is re-read comparatively, and the follow-up runs at the decisive
+6000-tick horizon (S2, registered below).
+
+COMPARATIVE READ (t2000 consumers, base 49/16/23):
+  nodis 40/0/2 (kills 41005) | cheap 40/22/14 (marginal) | pcap10 0/2/0 B/D
+  0.79/0.82/0.76 (WORSE — feeding producers collapses consumers faster, a
+  small enrichment-paradox signal, descriptive) | graze16 19/0/8 (worse) |
+  tissue14 26/1/4 (worse) | excr006 19/55/5 with 41005 at B/D 1.00 (one-seed
+  spark, the only variant beating base anywhere).
+VERDICT. Nothing promotes. Five variants underperform base; excretion shows
+a one-seed spark worth re-testing at full horizon, not a promotion.
+
+S2 (registered): identical matrix at 6000 ticks, where base is validated
+0/3/3. Same promote bar (>=2/3 with base 0/3). Local compiled runs; if any
+seed times out locally it moves to a ladder leg instead of being
+half-reported.
