@@ -32,7 +32,7 @@ import { resolveCapacity } from '../bio/phenotype.js';
 import { TRAITS, TRAIT, TRAIT_COUNT } from '../bio/genome.js';
 import {
   MODULE_NAMES, MODULE_STRIDE, MODULE_STRIDE_GATE,
-  MODULE_STRIDE_KIND, MODULE_STRIDE_MAG, MODULE_STRIDE_ONSET, MAX_MODULES,
+  MODULE_STRIDE_KIND, MODULE_STRIDE_MAG, MODULE_STRIDE_ONSET, MAX_MODULES, ONSET_WINDOW,
 } from '../bio/modgenome.js';
 
 /** Ticks to advance per animation frame, per speed setting. */
@@ -133,16 +133,39 @@ function makeRingTexture(): Texture {
 const discTexture = makeDiscTexture();
 const ringTexture = makeRingTexture();
 
-/** Pool of reusable sprites, grown on demand and never shrunk. */
+// Anchor is a Sprite property in PixiJS v8, not a Texture one — and it must be
+// set per sprite because pooled sprites switch textures. Sprites were
+// previously positioned with their texture's TOP-LEFT corner on the organism's
+// centre, so every dot appeared offset up-and-left by half its diameter and
+// tap-picking did not line up with the visible centre. Setting the anchor at
+// creation makes sprite position mean centre, matching what picking tests.
+
+/**
+ * Pool of reusable sprites, grown on demand and never shrunk.
+ *
+ * Indexed by the caller's per-frame counter, NOT by the pool's own length.
+ * The previous version did `spritePool[spritePool.length]`, which is always
+ * `undefined` — an out-of-bounds read that can never hit. It therefore
+ * allocated a fresh Sprite on every call, so the pool grew by the number of
+ * visible organisms EVERY FRAME, while the hide loop then hid every sprite from
+ * `poolUsed` onward. Net effect: the first N sprites kept their frame-1
+ * coordinates forever (the visible world appeared frozen) while tens of
+ * thousands of invisible sprites piled into worldLayer.children.
+ *
+ * A pool must be indexed by consumption position. Growth is bounded by the
+ * high-water mark of simultaneously VISIBLE organisms, which is what the pool
+ * is for.
+ */
 const spritePool: Sprite[] = [];
-function acquireSprite(): Sprite {
-  const existing = spritePool[spritePool.length];
+function spriteAt(index: number): Sprite {
+  const existing = spritePool[index];
   if (existing) {
     existing.visible = true;
     return existing;
   }
   const sp = new Sprite(discTexture);
-  spritePool.push(sp);
+  sp.anchor.set(0.5);
+  spritePool[index] = sp;
   worldLayer.addChild(sp);
   return sp;
 }
@@ -294,7 +317,7 @@ function drawOrganisms(): void {
     // Texture covers a diameter of TEX_SIZE world-scaled pixels, so scale maps
     // the requested radius onto the texture's inscribed radius.
     const scale = (rad * 2) / (TEX_SIZE - 2);
-    const sp = acquireSprite();
+    const sp = spriteAt(poolUsed);
     poolUsed++;
     sp.texture = r.stage === 2 ? ringTexture : discTexture;
     sp.x = (x - cam.x) * zoom + view.width / 2;
@@ -305,6 +328,9 @@ function drawOrganisms(): void {
     sp.alpha = r.stage === 0 ? 0.55 : 0.95;
     drawn++;
   }
+  // Hide only the tail beyond this frame's high-water mark. With the fixed
+  // pool this bounds worldLayer.children permanently; the pool grows to the
+  // most organisms ever visible at once and then stops.
   for (let i = poolUsed; i < spritePool.length; i++) spritePool[i].visible = false;
 }
 
@@ -330,33 +356,42 @@ function drawMorphology(): void {
     const r = world.roleOf(slot);
     const col = ROLE_COLOR[r.trophic] ?? 0xffffff;
     const h = store.heading[slot];
-    const scale = Math.max(0.6, zoom) * 1.6;
-    const cos = Math.cos(h) * scale;
-    const sin = Math.sin(h) * scale;
+    // ONE scale for screen-space geometry. The previous version folded zoom into
+    // this (`Math.max(0.6, zoom) * 1.6`) AND multiplied world->screen by zoom
+    // again at each use, so spine offsets and appendage lengths were scaled by
+    // zoom twice while their radii were scaled once. Shape therefore skewed as
+    // the user zoomed. Rotation direction and radii use `rot`; world->screen
+    // conversion applies zoom exactly once, below.
+    const rot = 1.6;
+    const cos = Math.cos(h) * rot;
+    const sin = Math.sin(h) * rot;
 
     // Spine: the procedural body plan, drawn along the organism's heading.
     for (const seg of phen.spine ?? []) {
-      const lx = seg.u * 6;
-      const ly = seg.v * 6;
-      const sx = (x + lx * cos - ly * sin - cam.x) * zoom + app.screen.width / 2;
-      const sy = (y + lx * sin + ly * cos - cam.y) * zoom + app.screen.height / 2;
-      morphGraphics.circle(sx, sy, Math.max(1.2, seg.radius * scale));
+      const lx = seg.u * 6 * rot;
+      const ly = seg.v * 6 * rot;
+      const sx = (x + lx * cos / rot - ly * sin / rot - cam.x) * zoom + app.screen.width / 2;
+      const sy = (y + lx * sin / rot + ly * cos / rot - cam.y) * zoom + app.screen.height / 2;
+      // Radius is in world units: one zoom factor, matching the position.
+      morphGraphics.circle(sx, sy, Math.max(1.2, seg.radius * rot * zoom));
       morphGraphics.fill({ color: col, alpha: 0.55 });
     }
     for (const part of phen.parts ?? []) {
       const seg = phen.spine?.[Math.min(part.segment, (phen.spine?.length ?? 1) - 1)];
       if (!seg) continue;
-      const bx = seg.u * 6;
-      const by = seg.v * 6;
-      const len = part.length * scale;
+      const bx = seg.u * 6 * rot;
+      const by = seg.v * 6 * rot;
+      // Appendage length is a world-unit length, so it is converted to screen
+      // by a single zoom, exactly like the spine radius above.
+      const len = part.length * rot * zoom;
       const ax = part.angle + h;
-      const sx0 = (x + bx * cos - by * sin - cam.x) * zoom + app.screen.width / 2;
-      const sy0 = (y + bx * sin + by * cos - cam.y) * zoom + app.screen.height / 2;
+      const sx0 = (x + bx * cos / rot - by * sin / rot - cam.x) * zoom + app.screen.width / 2;
+      const sy0 = (y + bx * sin / rot + by * cos / rot - cam.y) * zoom + app.screen.height / 2;
       const sx1 = sx0 + Math.cos(ax) * len;
       const sy1 = sy0 + Math.sin(ax) * len;
       morphGraphics.moveTo(sx0, sy0);
       morphGraphics.lineTo(sx1, sy1);
-      morphGraphics.stroke({ color: col, alpha: 0.4, width: Math.max(1, part.thickness * scale) });
+      morphGraphics.stroke({ color: col, alpha: 0.4, width: Math.max(1, part.thickness * rot * zoom) });
     }
     drawn++;
   }
@@ -459,7 +494,7 @@ app.canvas.addEventListener('pointermove', (e) => {
   cam.y -= dy / cam.zoom;
 });
 
-function endPointer(e: PointerEvent): void {
+function endPointer(e: PointerEvent, cancelled: boolean): void {
   const wasSingle = pointers.size === 1;
   pointers.delete(e.pointerId);
   try {
@@ -467,13 +502,18 @@ function endPointer(e: PointerEvent): void {
   } catch {
     /* pointer already released */
   }
+  // A CANCELLED pointer is not a completed gesture — the browser took it away
+  // (system gesture, palm rejection, context interruption). Treating it as a
+  // tap selected whatever organism happened to be under the departing finger.
+  // Cancels clean up state and select nothing.
+  if (cancelled) return;
   // Only a genuine tap selects. A pinch, or a drag, must not pick whatever
   // happens to sit under the last finger to lift.
   if (wasSingle && !pinchMoved && dragMoved < TAP_SLOP) selectAt(e);
 }
 
-app.canvas.addEventListener('pointerup', endPointer);
-app.canvas.addEventListener('pointercancel', endPointer);
+app.canvas.addEventListener('pointerup', (e) => endPointer(e, false));
+app.canvas.addEventListener('pointercancel', (e) => endPointer(e, true));
 // A pointer can leave the window entirely (task switcher, incoming call) and
 // never deliver pointerup. Without this the map leaks entries and every later
 // gesture is misread as a multi-touch one.
@@ -572,24 +612,31 @@ function renderInspector(): void {
         const mag = store.geneModules[off + MODULE_STRIDE_MAG];
         const onset = store.geneModules[off + MODULE_STRIDE_ONSET];
         const gate = store.geneModules[off + MODULE_STRIDE_GATE];
-        // Mirror the engine's own gating so the panel cannot disagree with it.
-        const dev = Math.max(0, Math.min(1, (ageFrac - onset) / 0.18));
+        // Mirrors the engine's gating FORMULA, but evaluated at the organism's
+        // exact current age and energy — an ESTIMATE, not the engine's cached
+        // result. The engine re-expresses only on its 16-tick role-refresh
+        // cadence, so between refreshes this can disagree with the phenotype
+        // the rest of this panel describes. Labelled "predicted" accordingly,
+        // and the authoritative expressed figures come from the cached
+        // phenotype rather than from this sum.
+        const dev = Math.max(0, Math.min(1, (ageFrac - onset) / ONSET_WINDOW));
         const g = gate < 1 ? (eFrac >= gate ? 1 : 0) : 1;
-        const applied = dev * g;
-        const state = applied <= 0 ? 'dormant' : applied >= 0.999 ? 'on' : 'partial';
+        const predicted = dev * g;
+        const state = predicted <= 0 ? 'dormant' : predicted >= 0.999 ? 'on' : 'partial';
         rowsM.push(
           `<tr><td class="k">${MODULE_NAMES[kind] ?? kind}</td>` +
           `<td>${mag.toFixed(2)} &middot; onset ${onset.toFixed(2)}` +
           `${gate < 1 ? ` &middot; needs ${(gate * 100).toFixed(0)}% energy` : ''}</td>` +
-          `<td class="${applied <= 0 ? 'tiny' : ''}">${state} ${(applied * 100).toFixed(0)}%</td></tr>`,
+          `<td class="${predicted <= 0 ? 'tiny' : ''}">${state} ${(predicted * 100).toFixed(0)}%</td></tr>`,
         );
       }
       moduleSection =
         `<h1 style="margin-top:6px">Modules (${n})</h1><table>${rowsM.join('')}</table>` +
         `<div class="tiny" style="margin-top:4px">` +
-        `expressing ${(phenOf(slot)?.moduleTotal ?? 0).toFixed(2)} magnitude, ` +
-        `paying ${(phenOf(slot)?.moduleUpkeep ?? 0).toFixed(4)} upkeep/tick. ` +
-        `Dormant modules are encoded but not built yet, or shed for want of energy.</div>`;
+        `cached: ${(phenOf(slot)?.moduleTotal ?? 0).toFixed(2)} structure expressed, ` +
+        `${(phenOf(slot)?.moduleUpkeep ?? 0).toFixed(4)} basal-gene units (NOT energy spent). ` +
+        `States above are predicted from age/energy and refresh every 16 ticks, ` +
+        `so they can lag the cached phenotype near a threshold.</div>`;
     }
   }
 
@@ -668,11 +715,19 @@ function moduleStats(): { rows: string; kinds: Record<number, number> } {
     `<tr><td class="k">genome v2</td><td class="warn">ON &mdash; diagnostic</td></tr>` +
     `<tr><td class="k">with modules</td><td>${withModules} / ${store.population} organisms</td></tr>` +
     `<tr><td class="k">modules</td><td>${encoded} total &middot; ${(totalModules / withModules).toFixed(2)} mean</td></tr>` +
-    `<tr><td class="k">expressing</td><td>${expressedMag.toFixed(1)} magnitude &middot; ${chargedUpkeep.toFixed(2)} upkeep/tick</td></tr>`;
+    // LABELLED FOR WHAT IT IS. `moduleUpkeep` is a sum of module upkeep
+    // coefficients expressed in the same normalised units as the BASAL_COST
+    // GENE — not energy actually deducted. The engine then turns that gene into
+    // an energy charge through `upkeepOf()` (allometric M^0.75 mass scaling),
+    // a thermal term and `mods.metabolismMul`, and finally `spend()`. Calling
+    // this "upkeep/tick" asserted a charged cost the viewer never observes.
+    `<tr><td class="k">expressing</td><td>${expressedMag.toFixed(1)} structure &middot; ${chargedUpkeep.toFixed(4)} basal-gene units</td></tr>`;
   return { rows, kinds };
 }
 
-function drawStats(fps: number, frameMs: number, simMs: number, drawMs: number): void {
+function drawStats(
+  fps: number, frameMs: number, simMs: number, updateMs: number, ticksRun: number,
+): void {
   const store = world.store;
   const counts: Record<number, number> = {};
   for (let slot = 0; slot < store.count; slot++) {
@@ -694,11 +749,21 @@ function drawStats(fps: number, frameMs: number, simMs: number, drawMs: number):
     `<tr><td class="k">zoom</td><td>${cam.zoom.toFixed(2)}&times;</td></tr>` +
     mod.rows;
   document.getElementById('stats-table')!.innerHTML = rows;
-  // FPS and SIMULATION cost are reported separately on purpose: a frame can
-  // be render-bound or simulation-bound, and conflating them hides which.
+  // FRAME cost, TICK cost and JS-UPDATE cost are reported separately and
+  // labelled for what they actually measure:
+  //   frame   — wall-clock between rendered frames, everything included
+  //   sim     — wall-clock spent inside world.step(), over the ticks that
+  //             actually ran this frame
+  //   per tick— sim divided by ticks EXECUTED, not by the speed setting
+  //   update  — JS scene-graph update only. PixiJS renders on the GPU after
+  //             this callback returns, so this excludes GPU cost entirely and
+  //             is NOT a frame time.
+  const perTick = tickTotalCount > 0 ? tickTotalMs / tickTotalCount : 0;
   document.getElementById('fps-line')!.innerHTML =
-    `render ${fps.toFixed(0)} fps &middot; frame ${frameMs.toFixed(1)}ms (draw ${drawMs.toFixed(1)}ms)` +
-    `<br>sim ${simMs.toFixed(2)}ms/tick &middot; ${((simMs || 0.001)).toFixed(2)}ms budgeted`;
+    `${fps.toFixed(0)} fps &middot; frame ${frameMs.toFixed(1)}ms` +
+    `<br>sim ${simMs.toFixed(2)}ms this frame (${ticksRun} tick${ticksRun === 1 ? '' : 's'})` +
+    ` &middot; ${perTick.toFixed(3)}ms/tick avg` +
+    `<br><span class="tiny">js update ${updateMs.toFixed(2)}ms (excludes GPU render)</span>`;
 
   // Module census, read straight off the genome store. Object.entries yields
   // string keys, so the kind is parsed back to a number for MODULE_NAMES.
@@ -848,26 +913,39 @@ makeWorld(parseInt(popInput.value, 10), parseInt(seedInput.value, 10) || 1);
 setSpeed(0);
 (document.getElementById('btn-disturb') as HTMLButtonElement).setAttribute('aria-pressed', 'true');
 
+/** Wall-clock budget for stepping in one frame. */
+const SIM_BUDGET_MS = 12;
+/**
+ * Frames between statistics/DOM refreshes.
+ *
+ * Stats and the module census are O(living organisms) and rewrite innerHTML.
+ * Per frame that is both wasteful and self-measuring — it inflates the frame
+ * cost it reports. 6 frames is frequent enough to feel live and cheap enough
+ * to be invisible.
+ */
+const UI_REFRESH_EVERY = 6;
 let fpsAccum = 0;
 let fpsFrames = 0;
 let fps = 0;
 let lastFrame = performance.now();
-let inspectorTick = 0;
+let uiTick = 0;
+let tickTotalMs = 0;
+let tickTotalCount = 0;
 
 app.ticker.add(() => {
   // --- Advance the simulation. This is the ONLY place the viewer calls
   // step(); speed changes how many ticks run, never what a tick does.
   const simStart = performance.now();
+  let ticksRun = 0;
   if (!paused) {
     const ticks = SPEEDS[speedIndex].ticks;
     // Hard per-frame tick budget so "Max" degrades gracefully on slow devices
     // instead of locking the tab.
-    const budgetEnd = simStart + 12;
-    let done = 0;
+    const budgetEnd = simStart + SIM_BUDGET_MS;
     do {
       world.step();
-      done++;
-    } while (done < ticks && performance.now() < budgetEnd);
+      ticksRun++;
+    } while (ticksRun < ticks && performance.now() < budgetEnd);
   }
   const simMs = performance.now() - simStart;
 
@@ -876,22 +954,43 @@ app.ticker.add(() => {
   drawDisturbances();
   drawOrganisms();
   drawMorphology();
-  const drawMs = performance.now() - drawStart;
+  // "draw" measures the JS scene-graph update only. PixiJS's actual GPU render
+  // happens after this callback returns, so this number is an UPPER BOUND ON
+  // JS WORK and NOT a frame cost. Labelling it "draw" alongside a real frame
+  // time invited exactly the misreading it caused.
+  const updateMs = performance.now() - drawStart;
 
   const nowMs = performance.now();
   const frameMs = nowMs - lastFrame;
   lastFrame = nowMs;
   fpsAccum += frameMs;
   fpsFrames++;
+  // Accumulate per-tick cost from ticks ACTUALLY executed. The previous code
+  // divided a whole frame's sim time by nothing and printed it as "ms/tick",
+  // so in Max a 12ms frame spanning up to 512 ticks was reported as 12ms per
+  // tick — off by up to three orders of magnitude.
+  if (ticksRun > 0) { tickTotalMs += simMs; tickTotalCount += ticksRun; }
   if (fpsAccum > 400) {
     fps = (fpsFrames * 1000) / fpsAccum;
     fpsAccum = 0;
     fpsFrames = 0;
+    // Reset the tick average on the same cadence so it reflects recent frames
+    // rather than a lifetime average that never converges after a speed change.
+    tickTotalMs = 0;
+    tickTotalCount = 0;
+    uiTick = 0;
   }
 
-  // Inspection is DOM work, so refresh it periodically rather than per frame.
-  if (++inspectorTick % 15 === 0 && selected >= 0) renderInspector();
-  drawStats(fps, frameMs, simMs, drawMs);
+  // Statistics and the module census rescan every living organism and rewrite
+  // several innerHTML blocks. Running that each frame inflates the very cost
+  // the panel reports and throttles the viewer's own throughput. Throttled to a
+  // few times a second; the FPS readout uses the frame accumulator above and
+  // stays live.
+  if (++uiTick >= UI_REFRESH_EVERY) {
+    uiTick = 0;
+    if (selected >= 0) renderInspector();
+    drawStats(fps, frameMs, simMs, updateMs, ticksRun);
+  }
 });
 
 console.log(
