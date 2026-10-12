@@ -6664,3 +6664,18 @@ the endpoint read here (unlike prior screens) because coupling guild fates
 is the hypothesis — but t6000 endpoints only; majority-time evaluation comes
 later and only if this promotes. Null (no difference or worse) is recorded,
 never promoted.
+
+--------------------------------------------------------------------------------
+SCREEN S3 (6000 TICKS): MIXOTROPHY LETHAL, NOT COUPLING — NULL (2026-10-12)
+--------------------------------------------------------------------------------
+
+MATRIX. viability-061 base vs mixo-on (substrate-required photosynthesis),
+seeds 41002/41005/41016, 6000 ticks, merged 0.6.1 tree. Files archived under
+evidence/screen-s3-mixo/ (6 runs, all exit 0).
+
+RESULT. Base C=0 on 3/3 (sensitivity holds). Mixo-on: 41002 P0/C0/D704,
+41005 P0/C1/D648, 41016 P34/C0/D0 — all-three-present on 0/3, and producers
+go extinct on 2/3 where base holds them. The coupling as configured is a
+trap, not a bridge: producers that need substrate to photosynthesize cannot
+earn the energy to reach it. Null result, recorded; not promoted, no ladder
+arm. The reliance question stays open with one fewer candidate mechanism.
