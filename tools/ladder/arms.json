@@ -332,6 +332,56 @@
         }
       ]
     },
+    "graze-subsidy01": {
+      "title": "SUBSIDY STEP 2: consumers persist as basal food descends 0.05 -> 0.01?",
+      "preregistered": "2026-10-12",
+      "registrationKind": "KNOWN_SEED_DIAGNOSTIC_NOT_PROSPECTIVE",
+      "seeds": "41001:41018",
+      "ticks": 6000,
+      "zero": true,
+      "lifts": {
+        "producerCaptureScale": 0.35,
+        "basalFoodPerCell": 0.01,
+        "grazeYieldScale": 1.0
+      },
+      "argvRest": [
+        "off",
+        "4",
+        "0.25",
+        "null",
+        "null",
+        "null",
+        "0.15",
+        "null",
+        "off",
+        "off",
+        "off",
+        "0.4",
+        "null",
+        "0",
+        "null"
+      ],
+      "hypothesis": "Step 2a (0.05) kept consumers on 16/18 with flux on 18/18 while three-guild endpoints rose descriptively 6/18 -> 9/18. A further 5x descent should continue shifting the income base toward producers/grazing; the paying graze link carries consumers through.",
+      "prediction": "cons > 0 on at least 12/18 seeds at tick 6000 (machine criterion) AND grazeEnergy > 0 sustained on at least 12/18 (human-read from B/D lines). Coexistence NOT predicted.",
+      "falsification": "FALSIFIED if cons = 0 on 7 or more of 18 seeds: the cut outran the link — hold the subsidy at 0.05, do not descend to 0, return to link/viability work. If consumers persist but grazeEnergy = 0 on >=7/18, the config is incoherent: stop, do not interpret persistence as success.",
+      "notPredicted": "Endpoint guild composition, coexistence rates, capture shares, per-win sizes. Descent to 0 is a separate arm, registered only if this one passes.",
+      "confoundsControlled": [
+        "Same 18-seed panel, horizon, engine as graze-subsidy05; the ONLY difference is basalFoodPerCell 0.05 -> 0.01",
+        "Matched comparison against the archived 0.05 run isolates the subsidy effect",
+        "conservation enforced per seed at 0.5%; a seed above it fails the run rather than reporting"
+      ],
+      "knownLimits": "Second descent step only. Consumer persistence is machine-verified; the graze-sustained clause is human-read. Says nothing about balance or obligate reliance.",
+      "criteria": [
+        {
+          "id": "consumers-persist",
+          "metric": "cons",
+          "op": ">",
+          "value": 0,
+          "required": 12,
+          "statement": "consumers > 0 at tick 6000 on at least 12/18 seeds"
+        }
+      ]
+    },
     "balance-diagnostic-control": {
       "title": "DIAGNOSTIC control: known balance-failure seeds without dormant-share brake",
       "preregistered": "2026-10-12",

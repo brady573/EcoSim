@@ -5947,3 +5947,42 @@ B/D remains <1.0 where extinct — viability questions untouched by this arm.
 NEXT (Step 2): descend the subsidy. First step basalFoodPerCell 0.25 -> 0.05
 on the graze-link config; consumers must persist while the income base shifts.
 Registered separately below; one dial per arm is retained throughout.
+
+--------------------------------------------------------------------------------
+STEP 2a — SUBSIDY 0.05: CONSUMERS PERSIST 16/18, FLUX SUSTAINED 18/18 (2026-10-12)
+--------------------------------------------------------------------------------
+
+ARM. graze-subsidy05: graze-link config with the ONLY change basalFoodPerCell
+0.25 -> 0.05 (5x descent, first step). Machine criterion cons > 0 on >=12/18;
+graze-sustained clause (>=12/18 flux) human-read. Coexistence NOT predicted.
+Header caveat (review-noted, applies to all lift arms): probe headers echo the
+positional basalx0.25 while the effective subsidy is 0.05 via --zero-lift;
+traceability rests on arms.json + manifest lifts/argv, whose hashes the
+verifier binds — not on the header alone.
+
+RUN. GitHub Actions 38262841218. Cohort INTACT / SUPPORTED (machine clause:
+cons > 0 on 16/18; zeros only 41013, 41016). Artifacts archived under
+evidence/graze-subsidy05-38262841218/cohort/.
+
+RESULT (endpoint P/C/D + grazeEnergy):
+  41001 51/3247/0 889 | 41002 0/378/1525 704 | 41003 12/39/3459 653
+  41004 756/3107/49 666 | 41005 1106/1/451 19288 | 41006 0/1638/1 815
+  41007 1554/15/0 461 | 41008 78/2261/0 1419 | 41009 0/2376/0 509
+  41010 1304/1035/0 1366 | 41011 680/4/5809 1826 | 41012 1415/71/7311 6215
+  41013 0/0/1976 658 | 41014 84/1475/252 483 | 41015 1780/1169/1433 1137
+  41016 416/0/1553 4112 | 41017 6/8/2895 1813 | 41018 242/1720/7 1142
+
+VERDICT. Both clauses pass with margin: persistence 16/18 (bar 12), flux
+18/18 (range 461-19,288, min 41007 / max 41005; bar 12). The 5x cut did NOT outrun the link — the
+falsification condition (cons = 0 on >=7/18) is not close. Grazing now carries
+consumers through a meaningfully smaller subsidy.
+
+DESCRIPTIVE, NOT PREDICTED. All-three-present endpoints: 9/18
+(41003,41004,41005,41011,41012,41014,41015,41017,41018) vs 6/18 on graze-link
+and 5/18 on control. Direction is encouraging but this arm claimed no
+coexistence rate — no verdict attaches. Populations are also visibly smaller
+(no 20k+ blooms), consistent with the subsidy having driven monoculture bulk.
+Neither observation is a finding; both are recorded so they cannot be
+misremembered later in either direction.
+
+NEXT (Step 2b): continue descent to 0.01 on the identical config. Same bars.

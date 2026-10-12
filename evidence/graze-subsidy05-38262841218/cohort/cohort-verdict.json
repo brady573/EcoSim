@@ -1,0 +1,53 @@
+{
+  "arm": "graze-subsidy05",
+  "title": "SUBSIDY STEP 1: consumers persist as basal food descends 0.25 -> 0.05 on the paying-graze config?",
+  "preregistered": "2026-10-12",
+  "classification": "supported",
+  "integrity": "INTACT",
+  "headline": "**PREDICTION SUPPORTED** — the pre-registered outcome occurred. This is one cohort of one engine version on one seed panel; it is not independent validation.",
+  "numerators": {
+    "consumers-persist": 16
+  },
+  "denominators": {
+    "consumers-persist": 18
+  },
+  "notMet": [],
+  "identity": {
+    "arm": "graze-subsidy05",
+    "engine": "ts-evo-poc/0.6.0",
+    "commit": "e31b75de96a4c2d973f83ab7cee3d8d36a3ade29",
+    "armSpecHash": "b53c87964a6b904e42c8b080a587f0679499c2641c01ac9f82dcc2c2701977cb",
+    "ticks": 6000,
+    "declaredTicks": 6000
+  },
+  "seedsMeasured": [
+    41001,
+    41002,
+    41003,
+    41004,
+    41005,
+    41006,
+    41007,
+    41008,
+    41009,
+    41010,
+    41011,
+    41012,
+    41013,
+    41014,
+    41015,
+    41016,
+    41017,
+    41018
+  ],
+  "exitPolicy": {
+    "greenMeans": "the evidence is trustworthy",
+    "greenDoesNotMean": "the hypothesis was correct",
+    "nonzeroReservedFor": [
+      "evidence-integrity violation",
+      "execution failure"
+    ]
+  },
+  "prediction": "cons > 0 on at least 12/18 seeds at tick 6000 (machine criterion below) AND grazeEnergy > 0 sustained on at least 12/18 (human-read from B/D lines: the verifier has no graze metric). Coexistence NOT predicted.",
+  "falsification": "FALSIFIED if cons = 0 on 7 or more of 18 seeds: the cut outran the link — hold the subsidy at 0.25, do not descend further, return to link/viability work. Separately, if consumers persist but grazeEnergy = 0 on >=7/18, the descent re-silenced the link and the config is incoherent: stop, do not interpret persistence as success."
+}
