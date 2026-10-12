@@ -105,6 +105,15 @@ export class OrganismStore {
   geneModules!: Float32Array;
   /** Populated module count per slot. 0 = no modular genome. */
   moduleCount!: Uint8Array;
+  /**
+   * Procedural geometry seed per slot.
+   *
+   * Retained so a phenotype can be re-derived — for developmental
+   * re-expression — with IDENTICAL geometry. A phenotype is otherwise a pure
+   * function of (genome, seed); without this, crossing a developmental
+   * threshold would re-roll the individual's silhouette.
+   */
+  procSeed!: Uint32Array;
 
   // --- Spatial --------------------------------------------------------------
   x: Float32Array;
@@ -197,6 +206,7 @@ export class OrganismStore {
     this.bodyGenes = new Uint8Array(cap * BODY_GENE_COUNT);
     this.geneModules = new Float32Array(cap * MAX_MODULES * MODULE_STRIDE);
     this.moduleCount = new Uint8Array(cap);
+    this.procSeed = new Uint32Array(cap);
 
     this.x = new Float32Array(cap);
     this.y = new Float32Array(cap);
@@ -284,6 +294,7 @@ export class OrganismStore {
     this.bodyGenes = growUint8(this.bodyGenes, cap * BODY_GENE_COUNT);
     this.geneModules = growFloat32(this.geneModules, cap * MAX_MODULES * MODULE_STRIDE);
     this.moduleCount = growUint8(this.moduleCount, cap);
+    this.procSeed = growUint32(this.procSeed, cap);
     this.x = growFloat32(this.x, cap);
     this.y = growFloat32(this.y, cap);
     this.heading = growFloat32(this.heading, cap);

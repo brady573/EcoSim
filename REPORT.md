@@ -5627,27 +5627,89 @@ speed; anchoring buys terrain affinity and blocks dispersal. A genome of free
 capabilities would be a thermometer: every lineage converges on maximal structure
 and the trade-off the design rests on disappears.
 
-VALIDATION — 27/27 gates, 11/11 contract (parity exact), 102/102 workflow
-fixtures. Seven new gates:
+VALIDATION — 32/32 gates, 11/11 contract (parity exact), 102/102 workflow
+fixtures. Seven gates cover the module mechanism in isolation:
   G13 modules move real traits, not only body genes (15 of 42 traits shift)
   G14 every module carries a maintenance cost
   G15 the same genome expresses different structure at different life stages
-      (juvenile 0.359 vs adult 3.803)
   G16 a gated module is expressed conditionally, not only by age
   G17 duplication and deletion change genome length
   G18 recombination draws modules from both parents
   G19 the knob is inert when unset and active when set
 
-Measured in-engine, 400 ticks from seed 517:
-  genomeV2=null  pop 601, modules    0, meanSize 5.374   <- declared behaviour
-  genomeV2=true  pop 881, modules 4778, meanSize 5.439   <- measurably different
+FIVE DEFECTS FOUND BY INDEPENDENT REVIEW, all real, all fixed. They are
+recorded here rather than quietly patched because every one of them is a way to
+make a gate stay green while the biology does nothing:
+
+  1. Development never happened in the live world. Phenotypes are derived ONCE
+     at birth, a newborn is age 0, and developmentFactor(0, onset) is zero for
+     every valid onset — so every module was gated to zero at birth and never
+     re-expressed. G15 proved the development curve perfectly in isolation while
+     the engine applied no module at all. Fixed by re-expressing modules in the
+     existing periodic refresh, reusing the individual's stored procedural seed
+     so its silhouette is stable across re-derivation. G21 now asserts it on a
+     live organism.
+  2. Module upkeep cancelled algebraically. Every MODULE_SPECS entry listed
+     BASAL_COST in its `cost` list AND declared the same figure as `upkeep`; the
+     cost loop subtracted it and the charge added back the same quantity, so the
+     net basal-cost delta was identically ZERO for every module. G14 checked the
+     METADATA said upkeep > 0 and passed while the organism was free. This is the
+     exact failure the knob discipline in AGENTS.md warns about. G20 now asserts
+     the net expressed figure.
+  3. Recombination never fired. The birth path validated the mate slot with
+     `store.id[mate] === birthParentId + 1`, which is not how ids relate, so the
+     guard essentially never passed and every sexual birth was an asexual clone.
+     Fixed by recording the mate's real organism id at queue time. G24 drives an
+     actual birth through the real queue and asserts the splice.
+  4. A zero-module child reused a dead neighbour's genome. Module state was only
+     written when count > 0, so a child with no modules occupying a freed slot
+     inherited the previous occupant's modules and bred with them. Fixed by
+     resetting on every allocation. G22 asserts it.
+  5. Phenotype derivation mutated the caller's genotype array in place, making
+     expressed structure heritable and accumulating it into the DNA on every
+     refresh. A phenotype is a pure function of its genome and must not edit it.
+
+A sixth defect was found while fixing these: recombineModules clamped its
+crossover point against the first parent's module count but not the second's, so
+a cut at or beyond the second parent's length produced a "recombinant" that was a
+pure clone of the first parent while the operator still reported success. Both
+parents now necessarily contribute whenever both carry two or more modules.
+
+CORRECTION TO AN EARLIER FIGURE IN THIS SECTION. The previous text recorded:
+  genomeV2=null  pop 601, modules 0, meanSize 5.374
+  genomeV2=true  pop 881, modules 4778, meanSize 5.439  <- "measurably different"
+That comparison was evidence of nothing but the extra RNG draws made while
+seeding founder modules. Under defects 1 and 2 the modules applied no traits and
+charged no cost, so that population difference was a change in the stochastic
+trajectory, not a change in biology. It should never have been offered as
+evidence and is withdrawn.
+
+Re-measured after the fixes, 400 ticks, founders 400, 3000x3000:
+  seed  517  null: pop 916, modules    0, meanArmor 0.31626, meanBasal 0.02660
+  seed  517  true: pop 777, modules 3937, meanArmor 0.34284, meanBasal 0.03564
+  seed 24601 null: pop 722, modules    0, meanArmor 0.33772, meanBasal 0.02508
+  seed 24601 true: pop 461, modules 2242, meanArmor 0.32234, meanBasal 0.04135
+
+The SIGN of the population effect has reversed: modules now REDUCE the
+population on both seeds, which is what a real per-module upkeep charge should
+do. Basal cost rises, as it must, now that the charge is not cancelling.
+
+That reversal is a demonstration of why the old figure was worthless, and the
+population delta STILL IS NOT EVIDENCE. Enabling the knob draws additional
+randomness while seeding and inheriting, so the two arms diverge on the
+stochastic trajectory before any biology is compared. The evidence that modules
+change biology is the within-run direct observation in G21-G24 — an individual
+whose expressed armour departs from its unexpressed birth state by 0.193 and
+whose structure regresses as its energy falls; a charged upkeep that reaches the
+ledger; and a live mating that yields a genuine two-parent splice.
 
 WHAT IS NOT YET MEASURED, and matters more than any of the above. The mechanism
-is proven to EXIST and to CHANGE the simulation. It is NOT yet shown that module
-structure EVOLVES — that duplication and deletion spread, that lineages acquire
-modules their ancestors lacked, or that any module reaches fixation. Existence,
-variation and selection are three different claims and only the first two have
-been established. Any balance claim from genomeV2 today would be exactly the
+is now proven to exist, to express in a live organism, to cost real energy, and
+to recombine from two parents. It is NOT yet shown that module structure EVOLVES
+— that duplication and deletion spread, that lineages acquire modules their
+ancestors lacked, or that any module reaches fixation. Existence, variation and
+selection are three different claims and only the first two have been
+established. Any balance claim from genomeV2 today would be exactly the
 "capability that exists" confused with "capability that spreads", which is the
 same error this repository has already corrected twice.
 

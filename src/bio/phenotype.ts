@@ -58,6 +58,11 @@ export class Phenotype {
   /** Expressed physical trait values, indexed like TRAITS. Hot-path read. */
   readonly physical = new Float32Array(TRAIT_COUNT);
   readonly body: BodyPlan;
+  /**
+   * Structural genes AS EXPRESSED: inherited genotype plus whatever modules
+   * built on it. Local to this phenotype, never written back to the genome.
+   */
+  readonly structGenes = new Uint8Array(BODY_GENE_COUNT);
   readonly spine: MorphSegment[];
   readonly parts: MorphPart[];
 
@@ -127,23 +132,34 @@ export class Phenotype {
         P[i] = express(g, spec);
       }
       // Structure also shows. Appearance follows biology, never the reverse.
+      //
+      // Written into `this.structGenes`, NOT into the caller's `bodyGenes`.
+      // That array is the INHERITED genotype: writing expressed structure back
+      // into it makes a readout heritable, and a re-derivation at a later age
+      // would then ADD to it again, accumulating structure into the DNA with
+      // every refresh. A phenotype is a pure function of its genome, so it must
+      // not be able to edit the genome it was derived from.
       for (let b = 0; b < BODY_GENE_COUNT; b++) {
         if (!structGenes[b]) continue;
         const spec = BODY_GENES[b];
-        bodyGenes[b] = Math.max(spec.lo, Math.min(spec.hi, bodyGenes[b] + structGenes[b]));
+        this.structGenes[b] = Math.max(spec.lo, Math.min(spec.hi, bodyGenes[b] + structGenes[b]));
       }
     }
 
     // --- Resolve the body plan from discrete genes. ---
+    // Structural view used for appearance AND for every derived quantity.
+    // Starts as the inherited genotype and may be extended by modules below.
+    // The caller's array is never written to.
+    this.structGenes.set(bodyGenes);
     this.body = {
-      segments: bodyGenes[BODY_GENE.SEGMENTS],
-      limbPairs: bodyGenes[BODY_GENE.LIMB_PAIRS],
-      eyeCount: bodyGenes[BODY_GENE.EYE_COUNT],
-      shell: bodyGenes[BODY_GENE.SHELL],
-      spines: bodyGenes[BODY_GENE.SPINES],
-      fins: bodyGenes[BODY_GENE.FINS],
-      antennae: bodyGenes[BODY_GENE.ANTENNAE],
-      tail: bodyGenes[BODY_GENE.TAIL],
+      segments: this.structGenes[BODY_GENE.SEGMENTS],
+      limbPairs: this.structGenes[BODY_GENE.LIMB_PAIRS],
+      eyeCount: this.structGenes[BODY_GENE.EYE_COUNT],
+      shell: this.structGenes[BODY_GENE.SHELL],
+      spines: this.structGenes[BODY_GENE.SPINES],
+      fins: this.structGenes[BODY_GENE.FINS],
+      antennae: this.structGenes[BODY_GENE.ANTENNAE],
+      tail: this.structGenes[BODY_GENE.TAIL],
       modules: 0,
     };
 

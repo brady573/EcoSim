@@ -658,6 +658,8 @@ export class World {
   private birthParentSlot: Int32Array<ArrayBuffer>;
   /** Second parent for sexual births (genomeV2 recombination). -1 = asexual. */
   private birthMateSlot: Int32Array<ArrayBuffer>;
+  /** Organism id of the second parent, -1 when asexual. Validates slot reuse. */
+  private birthMateId: Int32Array<ArrayBuffer>;
   private birthCount: Int32Array<ArrayBuffer>;
   /**
    * Lineage to assign to each queued birth, or -1 to inherit the parent's.
@@ -966,6 +968,7 @@ export class World {
 
     this.birthParentSlot = new Int32Array(this.store.capacity * 2);
     this.birthMateSlot = new Int32Array(this.store.capacity * 2).fill(-1);
+    this.birthMateId = new Int32Array(this.store.capacity * 2).fill(-1);
     this.birthCount = new Int32Array(this.store.capacity * 2);
     this.birthLineage = new Int32Array(this.store.capacity * 2).fill(-1);
     this.birthParentId = new Int32Array(this.store.capacity * 2).fill(-1);
@@ -1098,6 +1101,21 @@ export class World {
     moduleCount = 0,
   ): void {
     const seed = (this.rng.nextU32() ^ (slot * 0x9e3779b1)) >>> 0;
+    // Retained so the phenotype can be RE-DERIVED later with identical
+    // geometry. Development re-expression must not re-roll an individual's
+    // silhouette every time it crosses a developmental threshold.
+    this.store.procSeed[slot] = seed;
+
+    // FIX: module state is RESET on every allocation, not only when modules are
+    // written. Structural deletion can yield a child with zero modules; if that
+    // child reuses a freed slot, the previous occupant's moduleCount and block
+    // would otherwise survive and be inherited again — a zero-module organism
+    // carrying its dead neighbour's DNA.
+    this.store.moduleCount[slot] = 0;
+    if (geneModules && moduleCount > 0) {
+      this.store.geneModules.fill(0, slot * MAX_MODULES * MODULE_STRIDE,
+        (slot + 1) * MAX_MODULES * MODULE_STRIDE);
+    }
     // Procedural phenotype generation is timed SEPARATELY from per-tick
     // biology, because in a birth-heavy world it is a different cost curve
     // from anything the tick loop does. The Owner asked for this split
@@ -2432,6 +2450,19 @@ export class World {
       // organism in ROLE_REFRESH_EVERY is refreshed per tick, which keeps the
       // amortised cost near 6% rather than paying it every tick for everyone.
       if (age % ROLE_REFRESH_EVERY === 0) {
+        // Modular genome v2 (diagnostic): re-express modules at the CURRENT
+        // developmental age before deriving the role.
+        //
+        // Without this, development never happens in the live world. Phenotypes
+        // are derived ONCE at birth, and a newborn is age 0, where
+        // developmentFactor(0, onset) is zero for every valid onset — so every
+        // module was gated to zero at birth and never re-expressed. The module
+        // deltas, their upkeep and the whole developmental claim were therefore
+        // inert in the engine while the standalone helper demonstrated them
+        // perfectly. G21 asserts this on a LIVE organism.
+        if (this.config.genomeV2 === true && store.moduleCount[slot] > 0) {
+          this.reexpressModules(slot, age);
+        }
         this.writeRole(slot, deriveRole(p, o, age + 1));
       }
 
@@ -2878,6 +2909,46 @@ export class World {
     }
   }
 
+  /**
+   * Re-derive one organism's expressed traits from its module genome at the
+   * organism's CURRENT age and energy state.
+   *
+   * Regenerates the whole phenotype rather than only the trait block, so the
+   * derived quantities (hit radius, sensing radius, max step, capacity) follow
+   * the newly expressed structure instead of staying frozen at birth. The
+   * individual's procedural seed is reused, so its silhouette is stable across
+   * re-expression — a phenotype must remain a pure function of
+   * (genome, seed, age, condition).
+   */
+  private reexpressModules(slot: number, age: number): void {
+    const store = this.store;
+    const go = slot * TRAIT_COUNT;
+    const bo = slot * BODY_GENE_COUNT;
+    const mo = slot * MAX_MODULES * MODULE_STRIDE;
+    const count = store.moduleCount[slot];
+    if (count <= 0) return;
+
+    const lifespan = Math.max(1, store.trait(slot, TRAIT.LIFESPAN));
+    const ageFraction = Math.max(0, Math.min(1, age / lifespan));
+    const energyFraction = this.capacityOf(slot) > 0
+      ? Math.max(0, Math.min(1, store.energy[slot] / this.capacityOf(slot)))
+      : 0;
+
+    const genome = store.genome.subarray(go, go + TRAIT_COUNT);
+    const bodyGenes = store.bodyGenes.subarray(bo, bo + BODY_GENE_COUNT);
+    const phen = new Phenotype(
+      genome, bodyGenes, store.procSeed[slot],
+      store.geneModules.subarray(mo, mo + MAX_MODULES * MODULE_STRIDE),
+      count, ageFraction, energyFraction,
+    );
+
+    store.physical.set(phen.physical, go);
+    store.phen[slot] = phen;
+    store.hitRadius[slot] = phen.hitRadius;
+    store.senseRadius[slot] = phen.senseRadius;
+    store.maxStep[slot] = phen.maxStep;
+  }
+
   private queueBirth(parentSlot: number, count: number, lineageOverride = -1, mateSlot = -1): void {
     // Grow rather than silently drop: a high-fecundity ecology must not have
     // its births censored without being counted anywhere.
@@ -2898,6 +2969,9 @@ export class World {
       const gm = new Int32Array(next).fill(-1);
       gm.set(this.birthMateSlot);
       this.birthMateSlot = gm;
+      const gi2 = new Int32Array(next).fill(-1);
+      gi2.set(this.birthMateId);
+      this.birthMateId = gi2;
       this.birthDrops++;
     }
     const parentId = this.store.id[parentSlot];
@@ -2907,6 +2981,7 @@ export class World {
       this.birthLineage[this.pendingBirths] = lineageOverride;
       this.birthParentId[this.pendingBirths] = parentId;
       this.birthMateSlot[this.pendingBirths] = mateSlot;
+      this.birthMateId[this.pendingBirths] = mateSlot >= 0 ? this.store.id[mateSlot] : -1;
       this.pendingBirths++;
     }
   }
@@ -3144,7 +3219,7 @@ export class World {
         modBlock = new Float32Array(MAX_MODULES * MODULE_STRIDE);
         const mate = this.birthMateSlot[q];
         if (mate >= 0 && mate !== parent && this.live[mate]
-            && store.id[mate] === this.birthParentId[q] + 1) {
+            && this.birthMateId[q] >= 0 && store.id[mate] === this.birthMateId[q]) {
           // Recombination: single-point crossover at a module boundary. Both
           // parents contribute. Guarded so a recycled slot cannot be read as a
           // second parent.

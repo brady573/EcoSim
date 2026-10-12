@@ -244,3 +244,25 @@ Three rules hold it together, each pinned by a gate:
   biological is a failure, not a body plan.
 - **A knob that is inert when off and active when on** (G19). Otherwise it is
   the dead-knob class: it parses, it prints, it may do nothing.
+
+Five of those gates were green while the engine did nothing at all, because they
+tested the helper and not the world. Four more rules follow from that:
+
+- **A gate that proves a mechanism exists is not a gate that proves it runs.**
+  Call `expressModules` directly and it will demonstrate development, condition
+  gating and recombination perfectly while the engine applies none of them.
+  Anything claimed about the simulation must be observed in a running world.
+  G20-G24 exist for exactly this and may not be replaced by helper tests.
+- **Assert the NET charge, not the metadata.** G14 checked that `upkeep > 0` was
+  declared and passed while the cost was double-booked to exactly zero. A
+  declared cost that does not reach the ledger is the knob-discipline failure
+  wearing a different hat (G20).
+- **Compare against the unexpressed baseline, not against a later snapshot.**
+  Expressed traits rise with age and then FALL BACK as energy cannot sustain
+  them. A begin/end comparison on one organism reads "unchanged" while
+  development plainly happened in between (G21, G23).
+- **A population difference between knob-set and knob-unset arms is not
+  evidence of biology.** Enabling the knob draws extra randomness, so the arms
+  diverge on the stochastic trajectory before anything is compared. This
+  repository published such a figure as "measurably different" and withdrew it.
+

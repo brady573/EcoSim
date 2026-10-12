@@ -122,6 +122,14 @@ export interface ModuleSpec {
    * Every module carries one. This is what makes evolution have to choose: a
    * capability that costs nothing would be selected for unconditionally, and
    * the genome would become a thermometer rather than an organism.
+   *
+   * CHARGED EXACTLY ONCE, in expressModules, as a direct addition to BASAL_COST.
+   * It must NOT also appear in `cost` below. Listing it in both double-books it:
+   * the cost loop subtracts `upkeep * expressed` and the charge adds back the
+   * same quantity, so the net basal-cost delta is identically zero and the
+   * organism pays for its structure without ever being charged. G20 asserts the
+   * NET figure, not the metadata, because metadata alone passed while the
+   * organism was free.
    */
   readonly upkeep: number;
   /** Which v1 body gene this module feeds, for appearance and gape geometry. */
@@ -152,7 +160,7 @@ export const MODULE_SPECS: readonly ModuleSpec[] = [
     // Bulk is storage and survivable mass.
     gain: [[T.STORAGE_CAPACITY, 0.06], [T.SIZE, 0.05]],
     // More mass is more upkeep and less agility.
-    cost: [[T.BASAL_COST, 0.030], [T.MANEUVERABILITY, 0.05]],
+    cost: [[T.MANEUVERABILITY, 0.05]],
     upkeep: 0.030,
     bodyGene: 0, // SEGMENTS
     bodyGenePerMag: 6,
@@ -161,7 +169,9 @@ export const MODULE_SPECS: readonly ModuleSpec[] = [
     kind: GENE_MODULE.LIGHT_CAPTURE,
     name: 'lightCapture',
     gain: [[T.PHOTOSYNTHETIC_RATE, 0.30]],
-    cost: [[T.BASAL_COST, 0.022]],
+    
+    // No indirect cost beyond maintenance: upkeep only.
+    cost: [],
     upkeep: 0.022,
     bodyGene: 0, // more photosynthetic surface reads as more segments
     bodyGenePerMag: 3,
@@ -171,7 +181,9 @@ export const MODULE_SPECS: readonly ModuleSpec[] = [
     name: 'locomotor',
     gain: [[T.SPEED, 0.26], [T.BURST_POWER, 0.14], [T.MANEUVERABILITY, 0.12]],
     // Plating and mass aside, locomotion drags: a fast animal pays for it.
-    cost: [[T.BASAL_COST, 0.020]],
+    
+    // No indirect cost beyond maintenance: upkeep only.
+    cost: [],
     upkeep: 0.020,
     bodyGene: 1, // LIMB_PAIRS
     bodyGenePerMag: 4,
@@ -180,7 +192,9 @@ export const MODULE_SPECS: readonly ModuleSpec[] = [
     kind: GENE_MODULE.SENSORY,
     name: 'sensory',
     gain: [[T.VISION_RANGE, 0.22], [T.THREAT_SENSE, 0.16], [T.NUTRIENT_SENSE, 0.16]],
-    cost: [[T.BASAL_COST, 0.014]],
+    
+    // No indirect cost beyond maintenance: upkeep only.
+    cost: [],
     upkeep: 0.014,
     bodyGene: 2, // EYE_COUNT
     bodyGenePerMag: 6,
@@ -191,7 +205,7 @@ export const MODULE_SPECS: readonly ModuleSpec[] = [
     // Anchoring buys terrain affinity and hardens the organism in place.
     gain: [[T.TERRAIN_AFFINITY, 0.22]],
     // ...and it is the cost of staying: an anchored organism cannot disperse.
-    cost: [[T.DISPERSAL, 0.30], [T.BASAL_COST, 0.010]],
+    cost: [[T.DISPERSAL, 0.30]],
     upkeep: 0.010,
     bodyGene: 6, // ANTENNAE — non-zero mass for the holdfast
     bodyGenePerMag: 2,
@@ -201,7 +215,7 @@ export const MODULE_SPECS: readonly ModuleSpec[] = [
     name: 'defense',
     gain: [[T.ARMOR, 0.28], [T.SIZE, 0.03]],
     // Armour is mass. It costs speed and agility as well as upkeep.
-    cost: [[T.BASAL_COST, 0.024], [T.SPEED, 0.14], [T.MANEUVERABILITY, 0.10]],
+    cost: [[T.SPEED, 0.14], [T.MANEUVERABILITY, 0.10]],
     upkeep: 0.024,
     bodyGene: 3, // SHELL
     bodyGenePerMag: 3,
@@ -210,7 +224,9 @@ export const MODULE_SPECS: readonly ModuleSpec[] = [
     kind: GENE_MODULE.TROPHIC,
     name: 'trophic',
     gain: [[T.DIGESTION_RATE, 0.20], [T.FEEDING_APPETITE, 0.16], [T.CARRION_AFFINITY, 0.12]],
-    cost: [[T.BASAL_COST, 0.018]],
+    
+    // No indirect cost beyond maintenance: upkeep only.
+    cost: [],
     upkeep: 0.018,
     bodyGene: 5, // FINS — a feeding-associated outgrowth
     bodyGenePerMag: 3,
@@ -293,8 +309,9 @@ export function expressModules(
 
     const price = spec.upkeep * expressed;
     upkeep += price;
-    // Upkeep is paid as basal cost, so it flows through the same accounting as
-    // every other energy draw in the engine rather than a second ledger.
+    // THE single maintenance charge. Paid as basal cost so it flows through the
+    // same accounting as every other energy draw in the engine rather than a
+    // second ledger. See the double-booking warning on ModuleSpec.upkeep.
     outDeltas[T.BASAL_COST] += price;
 
     // Appearance follows biology: a structure that costs upkeep also shows.
@@ -498,9 +515,25 @@ export function recombineModules(
     return Math.min(aCount, MAX_MODULES);
   }
 
-  // Crossover point strictly inside, so both parents contribute. A whole-
-  // genome take is a legitimate outcome of this operator, not a special case.
-  const cut = 1 + rng.int(Math.max(1, Math.min(aCount - 1, MAX_MODULES - 1)));
+  // Crossover point strictly inside BOTH parents, so each contributes at least
+  // one module. The child takes A[0..cut) then B[cut..bCount).
+  //
+  // The upper bound MUST account for bCount as well as aCount. Clamping only
+  // against aCount allows cut >= bCount, in which case the B loop never runs
+  // and the "recombinant" is a pure clone of the first parent — the second
+  // parent's DNA is discarded while the operator still reports success.
+  const hi = Math.min(aCount, bCount) - 1;
+  if (hi < 1) {
+    // One parent carries a single module: there is no interior point, so take
+    // that parent whole and prepend nothing. Both cannot contribute and the
+    // child is a legitimate single-parent result rather than a silent clone.
+    for (let i = 0; i < aCount && i < MAX_MODULES; i++) {
+      const m = read(a, i);
+      put(out, i, m.kind, clamp01(m.mag + rng.gaussian(0, MODULE_MUT_SIGMA * rate01 * 0.5)), m.onset, m.gate);
+    }
+    return Math.min(aCount, MAX_MODULES);
+  }
+  const cut = 1 + rng.int(hi);
   const sigma = rate01 * MODULE_MUT_SIGMA;
 
   let n = 0;
