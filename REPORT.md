@@ -6643,3 +6643,24 @@ but executing the stray `.js` directly would run a stale engine. Adjacent
 finding, recorded not fixed: deletion + a `src/**/*.js` gitignore rule is
 recommended; left for explicit Owner authorization since it removes tracked
 files. Gates re-run after the wording edit: 33/33.
+
+--------------------------------------------------------------------------------
+SCREEN S3 (PRE-REGISTERED 2026-10-12): MIXOTROPHY — RELIANCE BY CONSTRUCTION
+--------------------------------------------------------------------------------
+
+RATIONALE. The equivalents audit flagged mixotrophyCarbon (default off) as
+untested in this program, and it is the most direct lever on the open
+reliance question: with mixotrophy ON, producers need local heterotrophic
+substrate to photosynthesize, so producer fate couples to
+consumer/decomposer activity by construction rather than by subsidy tuning.
+
+MATRIX. viability-061 base vs mixo-on (argvRest mixo slot off -> on,
+everything else identical incl. sat 1.0 which then parametrizes the
+substrate-availability curve), seeds 41002/41005/41016 (base C=0 at t6000 on
+both engines), 6000 ticks, compiled scenesprobe on the merged 0.6.1 tree.
+PROMOTE BAR: base must read C=0 on 3/3 (sensitivity); mixo-on promotes to a
+reviewed ladder arm on all-three-present at t6000 on >=2/3. Coexistence is
+the endpoint read here (unlike prior screens) because coupling guild fates
+is the hypothesis — but t6000 endpoints only; majority-time evaluation comes
+later and only if this promotes. Null (no difference or worse) is recorded,
+never promoted.
