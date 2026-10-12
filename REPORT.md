@@ -5986,3 +5986,43 @@ Neither observation is a finding; both are recorded so they cannot be
 misremembered later in either direction.
 
 NEXT (Step 2b): continue descent to 0.01 on the identical config. Same bars.
+
+--------------------------------------------------------------------------------
+STEP 2b — SUBSIDY 0.01: BARS MET ON THE EDGE, PRODUCERS NOW LIMITING (2026-10-12)
+--------------------------------------------------------------------------------
+
+ARM. graze-subsidy01: identical config, basalFoodPerCell 0.05 -> 0.01. Same
+bars (cons >=12/18 machine; flux >=12/18 human-read).
+
+RUN. GitHub Actions 38263353928. Cohort INTACT / SUPPORTED. Legs ran in
+~30-47s each (populations an order down from prior arms). Artifacts archived
+under evidence/graze-subsidy01-38263353928/cohort/.
+
+RESULT (endpoint P/C/D + grazeEnergy):
+  41001 0/516/0 470 | 41002 2/22/597 183 | 41003 0/37/635 307
+  41004 0/454/519 289 | 41005 0/0/0 1612 | 41006 0/15/540 205
+  41007 23/62/502 296 | 41008 135/252/2 320 | 41009 0/567/0 397
+  41010 0/20/860 294 | 41011 14/26/487 461 | 41012 705/69/3079 1590
+  41013 0/0/191 216 | 41014 0/299/1 208 | 41015 93/0/0 480
+  41016 0/0/0 543 | 41017 105/0/0 730 | 41018 265/0/0 301
+
+VERDICT. Both bars met exactly at the edge: persistence 12/18 (zeros 41005,
+41013, 41015, 41016, 41017, 41018), flux 18/18 (183-1,612). Technically a pass;
+substantively a warning flare. Producers read 0 on 10/18 seeds (41001, 41003,
+41004, 41005, 41006, 41009, 41010, 41013, 41014, 41016) and three-guild
+endpoints fell 9/18 -> 5/18 (41002, 41007, 41008, 41011, 41012 — descriptive,
+not a verdict). The failing guild ROTATED: consumers held, producers now starve.
+Mechanism (inference, stated as such): with rain near gone and nutrientRegen 0
++ excretion 0, nutrients are initial-stock plus biotic return only; tiny
+populations make little corpse flux, so producers exhaust their substrate.
+This is the nutrient wall rung 3 already mapped (abiotic regen restored
+decomposers where excretion could not) — arrived at from the other side.
+
+DECISION. Do NOT descend to 0 yet. The falsification clause did not trigger
+(6/18 consumer zeros is a technical pass, openly stated), so this hold is
+precautionary rather than clause-mandated: the margin evaporated (16 -> 12)
+and producers are now the limiting guild on 10/18 seeds, so the next cut
+risks producer collapse. The plan's Step 3 comes forward: couple producers
+to decomposer recycling (nutrientCyclic + floor + saturation as one
+mechanism) on the 0.01 config FIRST, then remove the last rain. Registered
+below as graze-nutcyc.

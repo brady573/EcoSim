@@ -382,6 +382,64 @@
         }
       ]
     },
+    "graze-nutcyc": {
+      "title": "COUPLING: producers fed by decomposer-processed substrate (cyclic+floor) on the 0.01 config?",
+      "preregistered": "2026-10-12",
+      "registrationKind": "KNOWN_SEED_DIAGNOSTIC_NOT_PROSPECTIVE",
+      "seeds": "41001:41018",
+      "ticks": 6000,
+      "zero": true,
+      "lifts": {
+        "producerCaptureScale": 0.35,
+        "basalFoodPerCell": 0.01,
+        "grazeYieldScale": 1.0
+      },
+      "argvRest": [
+        "off",
+        "4",
+        "0.25",
+        "null",
+        "null",
+        "null",
+        "0.15",
+        "null",
+        "off",
+        "off",
+        "on",
+        "1.0",
+        "null",
+        "0.05",
+        "null"
+      ],
+      "hypothesis": "Step 2b hit the nutrient wall: rain nearly gone, regen and excretion zeroed, producers 0 on 8/18. nutrientCyclic scales regeneration by locally PROCESSED substrate (biotic mineralisation), coupling producers to decomposer activity; the 0.05 floor is the deadlock recovery the A+C post-mortem prescribed; saturation 1.0 replaces the falsified-tight 0.4. mixotrophyCarbon stays off: one coupling at a time.",
+      "prediction": "prod > 0 on at least 12/18 AND cons > 0 on at least 12/18 seeds at tick 6000 (both machine criteria). Coexistence rate NOT predicted.",
+      "falsification": "FALSIFIED if prod = 0 on 7 or more of 18 seeds: the coupling does not feed producers — loosen saturation further or abandon the coupling; do NOT raise light to compensate (the pcap sweep proved light rotates collapse). If cons = 0 on >=7/18 while producers recover, the failure is consumer viability, a separate mechanism.",
+      "notPredicted": "Coexistence rates, capture shares, extinction counts (descriptive), decomposer endpoints.",
+      "confoundsControlled": [
+        "Same 18-seed panel, horizon, engine, lifts as graze-subsidy01; the ONLY differences are the three positional coupling dials cyc off->on, sat 0.4->1.0, nfloor 0->0.05",
+        "One-dial-per-arm is deliberately bent here and stated: the three are interdependent parts of one coupling (cyclic without a floor risks the measured deadlock; 0.4 saturation was already falsified as too tight). A lone-cyc arm would test a known-deadlocked configuration",
+        "conservation enforced per seed at 0.5%; a seed above it fails the run rather than reporting"
+      ],
+      "knownLimits": "Coupling test only. Says nothing about balance, zero-subsidy behavior, or obligate reliance — ablation comes after the coupling works.",
+      "criteria": [
+        {
+          "id": "producers-fed",
+          "metric": "prod",
+          "op": ">",
+          "value": 0,
+          "required": 12,
+          "statement": "producers > 0 at tick 6000 on at least 12/18 seeds"
+        },
+        {
+          "id": "consumers-persist",
+          "metric": "cons",
+          "op": ">",
+          "value": 0,
+          "required": 12,
+          "statement": "consumers > 0 at tick 6000 on at least 12/18 seeds"
+        }
+      ]
+    },
     "balance-diagnostic-control": {
       "title": "DIAGNOSTIC control: known balance-failure seeds without dormant-share brake",
       "preregistered": "2026-10-12",
