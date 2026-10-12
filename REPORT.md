@@ -5795,3 +5795,112 @@ for these ladder results.
 NEXT: no biological parameter change follows from this diagnostic alone. Return
 the trajectories to the Owner's balance-first decision process; any broader
 claim requires a newly approved prospective seed panel and registered criteria.
+
+--------------------------------------------------------------------------------
+AUDIT — WHY THE MEASURED WORLDS DON'T SELF-CORRECT (2026-10-12, read-only)
+--------------------------------------------------------------------------------
+
+QUESTION. The viewer (e.g. seed 5738877: 31,644 producers, 2,487 consumers, 1
+decomposer) and the panels show producer-heavy, decomposer-poor worlds that do
+not return to balance. Is a corrective feedback loop present but slow, or is
+the measured configuration structurally unable to self-correct?
+
+METHOD. No new runs, no reruns, no code changes. Parsed all 36 archived per-seed
+outputs of the two 0.6.0 panels sharing one config (`photox4`, basalFoodPerCell
+0.25, disease 0.15, sat 0.4):
+  consumer-yield:      evidence/ladder/consumer-yield-run-2026-10-11/leg*/seed-*.txt (41001-41018)
+  prospective-guilds:  evidence/ladder/prospective-guilds-run-38151553007/*leg*/seed-*.txt (52001-52018)
+Checkpoints are 1000-tick samples, so loss times are checkpoint observations,
+not exact event times.
+
+OBSERVED.
+1. Grazing carries ZERO flux on 36/36 seeds: grazeSubmit 855-95,567 per run,
+   grazeWins=0, grazeEnergy=0, grazeRequested=0 everywhere. The intended
+   producer->consumer link moves no energy in this configuration.
+2. Consumers persist anyway (14/18 each panel, B/D mostly 1.01-1.45): they live
+   off the exogenous organic subsidy. organic=5,400,000 in every run against
+   totalInput 5.45-5.99M, i.e. ~90-99% of all energy input is basal organic
+   rain; photosynthesis (all of it producer-captured, captureByGuild shows
+   0.0 for consumers/decomposers on every seed) is ~1-10%.
+3. Decomposer endpoints differ by panel (8/18 vs 14/18 present) while the
+   three-guild rate stays low (5/18, 7/18). Decomposer B/D sits at 0.95-1.00
+   on extinct endpoints and 1.04-1.59 where present; several trajectories show
+   late decomposer blooms from zero mid-run checkpoints (e.g. 52004:
+   D 632>0>0>0>0>4580), so roles re-emerge rather than only decay.
+4. Same code path is NOT dead in general: rung 4 (declared light + abiotic
+   nutrient + graze 1.6) logged hundreds of graze wins with real energy. The
+   zero is specific to the measured config, not a structural impossibility.
+
+INTERPRETATION. What is observed: in the measured config the corrective
+producer->consumer link is silent and the energy base bypasses producers, so
+there is no loop present that could "correct" the imbalance — the imbalance is
+the subsidy partitioning, not a perturbation of a producer-driven web. What is
+inference (not established): the exact gate that zeroes grazing here (wallet-
+basis takes on energy-poor producers vs. contest losses) cannot be separated
+from these outputs alone; per-browse diagnostics would be needed. Prior rungs
+already showed transfer alone doesn't guarantee consumers (rung 4: food paid,
+consumers still died on most seeds), so restoring flux is necessary but not
+sufficient for coexistence — viability remains a separate question.
+
+DECISION. Actionable mechanism identified, no biology changed. Next step is a
+new Owner-registered experiment, not more analysis of these panels:
+  control:   current consumer-yield arm on a FRESH panel (Owner sets seeds)
+  treatment: identical plus the tissue-basis lift (plantYieldPerMass), which
+             keys bites to victim body mass instead of momentary energy wallet
+  predict:   grazeEnergy > 0 on a stated majority of fresh seeds (Owner sets
+             the threshold); ecological coexistence is NOT predicted by this
+             arm — it tests the link, not balance.
+Alternative treatment if the Owner prefers the subsidy question first: same
+control with basalFoodPerCell stepped down toward a producer-driven regime.
+Either way the panel, horizon, and thresholds are Owner decisions; nothing
+above invents them.
+
+--------------------------------------------------------------------------------
+STEP 0 — GRAZE-ZERO DISCRIMINATION: MECHANISM FOUND, NO BEHAVIOR CHANGE (2026-10-12)
+--------------------------------------------------------------------------------
+
+PRE-REGISTERED (before the runs): one outcome channel (contest losses /
+zero-delta wins / abandoned) accounts for >=80% of GRAZE submits on a
+majority of three high-submit failing seeds (41001, 41008, 52002), 2000-tick
+diagnostic horizon, exact evaluated-arm config. Armour rejects eliminated
+analytically beforehand (armour gene 0..1 -> bite >= 0.45 > 0.02 gate always).
+
+CORRECTION TO THE 2026-10-12 AUDIT ABOVE. The audit's prime suspect
+(wallet-basis takes on energy-poor producers) is SUPERSEDED: reading the
+preset code showed the `--zero` preset sets grazeYieldScale:0 and
+meatYieldPerMass:0, the evaluated arm lifts neither, and world.ts scales
+every take by that 0 (`scaledDelta = r.delta * 0`; the win/energy block
+requires `r.delta * yieldScale > 0`). Both animal-tissue paths are preset to
+zero in the measured config. The meter below tested this reading.
+
+METHOD. New read-only probe src/trace/grazemeter.ts (constructs World, steps,
+tallies InteractionQueue records by kind/outcome/delta; no engine changes).
+Ran COMPILED: node build/trace/grazemeter.js 2000 41001,41008,52002.
+
+CONFIG-IDENTITY PROOF. Meter checkpoints match the archived seed files
+exactly (41001: t1000 P106/C1564/D828, t2000 P5/C2847/D31 — byte-identical
+P/C/D to evidence/ladder/consumer-yield-run-2026-10-11/leg0/seed-41001.txt;
+41008 and 52002 D-trajectories likewise exact). Same engine + same config, as
+required before reading any contrast as biology.
+
+RESULT (resolver level vs world level):
+  seed   submits  abandoned  defenderWins  attackerWinsDelta0  attackerWinsDeltaPos  worldWins/worldEnergy
+  41001  1440     0 (0%)     388 (26.9%)   2 (0.1%)            1050 (72.9%)            0/0
+  41008  7777     0 (0%)     2441 (31.4%)  2 (0.0%)            5334 (68.6%)            0/0
+  52002  5481     0 (0%)     1874 (34.2%)  3 (0.1%)            3604 (65.8%)            0/0
+Mean producer energy 1.6-26.3 (wallets NOT empty).
+
+VERDICT ON THE BAR. The >=80% single-channel bar is NOT met (66-73% vs 80%;
+contest losses take 27-34%). Strictly, a split cause. But the DECISION-relevant
+question — why world flux is exactly zero — is fully answered either way: two
+thirds of submits resolve with positive takes that the world multiplies by the
+preset 0, and zero-delta wins are ~0.1%, so wallets are not binding. Flux-zero
+is explained by grazeYieldScale=0 irrespective of win rate. Contest losses are
+a secondary, separate mechanism (not pursued: even 100% wins would pay 0).
+
+CONSEQUENCE FOR THE PLAN. The proposed tissue-basis lift ALONE would change
+nothing (delta basis is irrelevant once scaled by 0). Step 1 is corrected to:
+lift grazeYieldScale to the declared 1.0 on the identical config (one dial),
+predicting grazeEnergy > 0; tissue basis becomes a follow-up only if per-win
+size disappoints. Predation (meatYieldPerMass=0) stays zeroed in Step 1 by
+design — one path at a time.

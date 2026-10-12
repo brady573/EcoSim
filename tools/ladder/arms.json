@@ -242,6 +242,46 @@
         }
       ]
     },
+    "graze-link": {
+      "title": "LINK TEST: does lifting grazeYieldScale to declared restore grazing flux?",
+      "preregistered": "2026-10-12",
+      "registrationKind": "KNOWN_SEED_DIAGNOSTIC_NOT_PROSPECTIVE",
+      "seeds": "41001:41018",
+      "ticks": 6000,
+      "zero": true,
+      "lifts": {
+        "producerCaptureScale": 0.35,
+        "basalFoodPerCell": 0.25,
+        "grazeYieldScale": 1.0
+      },
+      "argvRest": [
+        "off",
+        "4",
+        "0.25",
+        "null",
+        "null",
+        "null",
+        "0.15",
+        "null",
+        "off",
+        "off",
+        "off",
+        "0.4",
+        "null",
+        "0",
+        "null"
+      ],
+      "hypothesis": "Step-0 meter (2026-10-12) showed 66-73% of graze submits resolve with positive takes that the world multiplies by the preset grazeYieldScale=0, so world flux is exactly zero by configuration. Restoring the declared scale (1.0) on the otherwise identical config should restore paying graze wins. Meat stays zeroed by design: one path at a time.",
+      "prediction": "grazeEnergy > 0 on at least 12/18 seeds at tick 6000 (read from per-seed B/D lines; the cohort verifier has no graze metric, so this arm carries no machine criteria and classifies 'not measured' by design — the verdict is human-read from intact evidence, stated here before inspection). Ecological coexistence is explicitly NOT predicted by this arm: it tests the link, not balance.",
+      "falsification": "FALSIFIED as a link restoration if grazeEnergy = 0 on 7 or more of 18 seeds. A falsification here sends the program back to contest biology (defender losses were 27-34% at Step 0), not to a larger scale — do not push to 1.6+ blindly; rung 4 already showed enriched transfer without coexistence.",
+      "notPredicted": "Endpoint guild counts, coexistence rates, and per-win sizes are not predicted. Tissue basis (plantYieldPerMass) is a follow-up only if per-win size disappoints, not part of this arm.",
+      "confoundsControlled": [
+        "Same 18-seed panel, horizon, engine, and lifts as consumer-yield; the ONLY difference is +grazeYieldScale:1.0",
+        "Matched comparison against the archived consumer-yield run: any graze flux difference is attributable to the one dial",
+        "conservation enforced per seed at 0.5%; a seed above it fails the run rather than reporting"
+      ],
+      "knownLimits": "Link test only. Cohort integrity is machine-verified; the graze verdict is human-read from B/D lines and reported as observed, not as a machine classification. Says nothing about balance, viability, or decomposers."
+    },
     "balance-diagnostic-control": {
       "title": "DIAGNOSTIC control: known balance-failure seeds without dormant-share brake",
       "preregistered": "2026-10-12",
