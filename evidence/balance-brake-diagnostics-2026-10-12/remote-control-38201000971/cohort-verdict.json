@@ -1,0 +1,34 @@
+{
+  "arm": "balance-diagnostic-control",
+  "title": "DIAGNOSTIC control: known balance-failure seeds without dormant-share brake",
+  "preregistered": "2026-10-12",
+  "classification": "not measured",
+  "integrity": "INTACT",
+  "headline": "**NOT MEASURED** — no pre-registered verdict can be issued from this run.",
+  "numerators": {},
+  "denominators": {},
+  "notMet": [],
+  "identity": {
+    "arm": "balance-diagnostic-control",
+    "engine": "ts-evo-poc/0.6.0",
+    "commit": "88ec318e1d423cf1a89a51045ee00df6f837d7be",
+    "armSpecHash": "f4a7c6ff76e652305b0e7dc7652f3e12e62462f6fb4e0179f944d1e255e592c5",
+    "ticks": 6000,
+    "declaredTicks": 6000
+  },
+  "seedsMeasured": [
+    42,
+    517,
+    99991
+  ],
+  "exitPolicy": {
+    "greenMeans": "the evidence is trustworthy",
+    "greenDoesNotMean": "the hypothesis was correct",
+    "nonzeroReservedFor": [
+      "evidence-integrity violation",
+      "execution failure"
+    ]
+  },
+  "prediction": "All three runs complete at the declared horizon with headers matching the no-brake configuration; outputs are descriptive matched references, not a supported ecological prediction.",
+  "falsification": "An incomplete run or header/config mismatch invalidates that comparison. No ecological falsification criterion is claimed for this control."
+}

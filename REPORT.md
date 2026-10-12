@@ -5746,3 +5746,52 @@ same error this repository has already corrected twice.
 Also unmeasured: the cost weights in MODULE_SPECS are calibrated to produce
 visible consequences, not fitted to anything. They are a starting condition for
 selection to act on, not a biological claim.
+--------------------------------------------------------------------------------
+BALANCE DIAGNOSTIC — KNOWN-SEED SHARE-BRAKE COMPARISON (2026-10-12)
+--------------------------------------------------------------------------------
+
+Two registered ladder arms compared the established senescence setting `off`
+against `share:1`, on seeds 517, 99991, and 42 at 6000 ticks. Both used engine
+`ts-evo-poc/0.6.0`, commit `88ec318e1d423cf1a89a51045ee00df6f837d7be`, and the
+same declared configuration apart from senescence mode. These are known-seed
+diagnostics, not prospective evidence or a seed-distribution estimate.
+
+Actions runs:
+  control (`off`)   38201000971 — INTACT, all three seeds measured
+  treatment (`share:1`) 38201003477 — INTACT, all three seeds measured
+
+Both cohort verdicts correctly classify the ecological result as NOT MEASURED:
+there was no registered biological threshold. This means the workflow verified
+the completeness and integrity of the evidence; it does not mean the brake was
+supported or falsified.
+
+Descriptive endpoint trajectories (P/C/D = producer/consumer/decomposer):
+
+  seed   off at t6000       share:1 at t6000      senescence deaths, share:1
+  517    14 / 294 / 1819    11 / 1502 / 835       141
+  99991  285 / 565 / 0      2785 / 36214 / 0       0
+  42     1820 / 50538 / 0   4208 / 55792 / 0       0
+
+The share:1 arm shows senescence deaths only for seed 517. At the recorded
+checkpoints, seed 517 retained dormant organisms through tick 6000 in both arms.
+In `share:1`, dormancy in seeds 99991 and 42 reached zero by tick 2000; in `off`,
+it reached zero by tick 3000 and 4000 respectively. These are checkpoint
+observations, not exact event times. Seed 42's `share:1` population was 60000 at
+the tick-6000 checkpoint; its `off` arm was 60000 at tick 5000 and 52358 at tick
+6000. The probe does not report cap-hit events, so these endpoint values alone
+cannot establish whether the default 60000 population ceiling constrained
+growth. These known-seed paths illustrate trajectory-specific outcomes, not a
+general brake effect or a balance result. In particular, the large seed-99991
+difference is not a prospective replication.
+
+All six ladder legs completed and both cohort verifiers found exact seed
+coverage, matching arm/config identity, and valid ledgers. The largest absolute
+ledger residual was 0.15637% (seed 42, `off`), within the declared 0.5%
+tolerance. Per-leg stdout, manifests, summaries, and cohort verdicts are
+archived under `evidence/balance-brake-diagnostics-2026-10-12/remote-*`.
+Local partial probe output remains separately labeled and is not substituted
+for these ladder results.
+
+NEXT: no biological parameter change follows from this diagnostic alone. Return
+the trajectories to the Owner's balance-first decision process; any broader
+claim requires a newly approved prospective seed panel and registered criteria.
