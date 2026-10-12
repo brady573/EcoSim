@@ -60,27 +60,65 @@
       #controls { top: calc(8px + env(safe-area-inset-top)); left: calc(8px + env(safe-area-inset-left)); width: 240px; }
       #stats { top: calc(8px + env(safe-area-inset-top)); right: calc(8px + env(safe-area-inset-right)); min-width: 210px; }
 
+      /* Desktop: the dock is not a box. `display: contents` makes the wrapper
+         vanish from layout, so its children keep their own fixed positioning. */
+      #dock { display: contents; }
+
+      /* Narrow screens: ONE bottom band, stacked. Three panels anchored to the
+         bottom edge CANNOT share that band without overlapping — the previous
+         full-bleed `#stats` overlapped `#legend` by ~119px at 390px because
+         both spanned the same band. Flow layout removes the possibility of
+         overlap rather than adjusting magic numbers until it happens not to. */
       @media (max-width: 640px) {
-        /* Collapsed panels size to their header only. */
-        #controls.collapsed, #stats.collapsed,
-        #legend.collapsed, #inspect.collapsed { width: auto; min-width: 0; }
-        /* Expanded panels span the viewport and stack, so controls and stats
-           occupy separate bands instead of overlapping columns. */
-        #controls, #stats {
+        #dock {
+          display: flex; flex-direction: column; gap: 6px;
+          position: fixed;
+          left: calc(8px + env(safe-area-inset-left));
+          right: calc(8px + env(safe-area-inset-right));
+          /* TOP-anchored, not bottom. A bottom-anchored column of unbounded
+             content grows UPWARD into the controls: with three panels expanded
+             at 320x568 the stack needed 412px against a 352px budget, so it
+             reached the controls and overlapped them. Anchoring the dock to the
+             top and letting it grow DOWNWARD makes a controls collision
+             impossible — it is capped below the controls instead. */
+          top: calc(8px + env(safe-area-inset-top));
+          bottom: auto;
+          max-height: calc(100vh - 16px - var(--controls-h, 0px));
+          overflow-y: auto; overscroll-behavior: contain;
+          /* The dock owns its own scrolling; never let it eat canvas gestures
+             outside its bounds. */
+          pointer-events: none;
+        }
+        #dock > .panel {
+          position: static; width: auto; min-width: 0;
+          max-width: none; flex: 0 0 auto;
+          pointer-events: auto;
+        }
+        /* Collapsed panels size to their header only. Width is auto in flow
+           layout already; `width: fit-content` keeps a collapsed panel from
+           stretching to the full dock width when it is the only item. */
+        #dock > .panel.collapsed { padding: 5px 9px; width: fit-content; }
+        #inspect { width: auto; left: auto; right: auto; bottom: auto; top: auto; }
+        #stats, #legend { width: auto; min-width: 0; left: auto; right: auto; bottom: auto; top: auto; }
+        /* Controls keep the top edge, but go full-bleed so they cannot collide
+           with anything, and stay out of the dock's flow. */
+        #controls {
           width: auto; min-width: 0;
           left: calc(8px + env(safe-area-inset-left));
           right: calc(8px + env(safe-area-inset-right));
         }
-        #stats {
-          /* Sits directly below the controls rather than beside them. */
-          top: auto;
-          bottom: calc(8px + env(safe-area-inset-bottom));
-        }
-        #legend { width: auto; min-width: 0; }
-        #inspect {
-          width: auto;
-          left: calc(8px + env(safe-area-inset-left));
-          right: calc(8px + env(safe-area-inset-right));
+        /* Controls sit ABOVE the dock on narrow screens. Its height is measured
+           at runtime and published as --controls-h (see the dock layout block
+           in viewer.ts), so the dock's top offset and height cap can never
+           intrude on it regardless of how the controls wrap. */
+        #controls { position: relative; }
+        #dock {
+          --controls-h: 0px;
+          top: calc(8px + env(safe-area-inset-top) + var(--controls-h));
+          max-height: calc(100dvh - 24px - env(safe-area-inset-top)
+                           - env(safe-area-inset-bottom) - var(--controls-h));
+          max-height: calc(100vh - 24px - env(safe-area-inset-top)
+                           - env(safe-area-inset-bottom) - var(--controls-h));
         }
       }
       #inspect {
@@ -99,7 +137,7 @@
       @supports (height: 52dvh) {
         #inspect { max-height: 52dvh; }
       }
-      @supports (height: 44dvh) {
+      @supports (max-height: 44dvh) {
         @media (max-height: 460px) and (orientation: landscape) {
           #controls, #stats, #legend, #inspect { max-height: 44dvh; }
         }
@@ -132,9 +170,13 @@
          Vertical space is the scarce axis when the device is on its side, and
          the panels are anchored to top and bottom. Cap their heights and let
          them scroll rather than pushing into each other. */
+      /* Short landscape: the vertical axis is scarce. The dock's cap already comes
+           from --controls-h, so nothing extra is needed here. Widths are NOT
+           touched — the earlier `width: min(46vw, 300px)` was a LATER
+           declaration than the narrow-screen rule and overrode it, which is how
+           #inspect ended up narrow on a phone. */
       @media (max-height: 460px) and (orientation: landscape) {
         #controls, #stats, #legend, #inspect { max-height: 44vh; overflow: auto; }
-        #inspect { width: min(46vw, 300px); }
       }
 
       /* Collapsible panels. Four fixed corners cannot all fit on a small
@@ -216,18 +258,25 @@
       </div>
     </div>
 
-    <div class="panel" id="stats">
-      <h1>World</h1>
-      <table id="stats-table"></table>
-      <div class="row tiny" id="fps-line"></div>
-    </div>
+    <!-- Bottom dock: holds every panel anchored to the bottom edge. On desktop
+           `display: contents` removes the dock from layout entirely, so its
+           children keep their original independent fixed positions. On narrow
+           screens the dock becomes a real flex column, so the three bottom
+           panels stack in ONE band instead of overlapping each other. -->
+      <div id="dock">
+        <div class="panel" id="stats">
+          <h1>World</h1>
+          <table id="stats-table"></table>
+          <div class="row tiny" id="fps-line"></div>
+        </div>
 
-    <div class="panel" id="legend">
-      <h1>Trophic role</h1>
-      <div id="legend-rows"></div>
-    </div>
+        <div class="panel" id="legend">
+          <h1>Trophic role</h1>
+          <div id="legend-rows"></div>
+        </div>
 
-    <div class="panel" id="inspect"></div>
+        <div class="panel" id="inspect"></div>
+      </div>
 
     <script type="importmap">
       { "imports": { "pixi.js": "/pixi.mjs" } }

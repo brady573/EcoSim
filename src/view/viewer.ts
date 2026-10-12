@@ -698,11 +698,13 @@ function moduleStats(): { rows: string; kinds: Record<number, number> } {
       encoded++;
     }
     // Both figures come from the CACHED PHENOTYPE, which the engine re-derives
-    // as the organism ages. `moduleTotal` is the magnitude actually applied and
-    // `moduleUpkeep` is what was actually billed, so a module that is encoded
-    // but gated off by development or energy contributes neither. Summing the
-    // DECLARED per-kind upkeep here instead would report a cost the organisms
-    // are not paying.
+    // as the organism ages. `moduleTotal` is the magnitude actually applied;
+    // `moduleUpkeep` is a sum of module upkeep coefficients in the SAME
+    // normalised gene space as BASAL_COST — NOT energy deducted. The engine
+    // converts that into an actual charge via upkeepOf() (allometric M^0.75),
+    // a thermal term, mods.metabolismMul and spend(). The UI labels it
+    // accordingly; summing DECLARED per-kind upkeep here instead would report a
+    // cost the organisms are not paying.
     const p2 = phenOf(slot);
     expressedMag += p2?.moduleTotal ?? 0;
     chargedUpkeep += p2?.moduleUpkeep ?? 0;
@@ -854,7 +856,11 @@ genomeBtn.addEventListener('click', () => {
 // breakpoint and hope, every panel collapses to its header, so overlap is
 // avoidable at any viewport. The inspector keeps its own display contract:
 // it stays hidden until an organism is selected.
-for (const panel of document.querySelectorAll<HTMLElement>('.panel')) {
+// `querySelectorAll` is scoped to #dock so the panels it contains are still
+// found: the dock uses `display: contents` on desktop (children keep their own
+// fixed positions) and becomes a real flex column on narrow screens. Either way
+// the panels are descendants, so lookup is unaffected.
+for (const panel of document.querySelectorAll<HTMLElement>('#dock .panel, #controls.panel')) {
   const header = panel.querySelector('h1');
   if (!header || panel.id === 'inspect') continue;
   header.addEventListener('click', () => panel.classList.toggle('collapsed'));
@@ -885,6 +891,43 @@ if (COARSE) {
   document.documentElement.style.overscrollBehavior = 'none';
 }
 
+// --- Dock layout ----------------------------------------------------------
+// On narrow screens every bottom-anchored panel lives in #dock, a single
+// top-anchored flex column, so siblings cannot overlap by construction. But the
+// column must also stay clear of #controls, whose height depends on how its
+// rows wrap at the current width. That height is therefore measured and
+// published as a CSS variable rather than guessed in a stylesheet — the previous
+// attempt hardcoded percentages and the stack grew upward into the controls.
+//
+// A bottom-anchored column would have the same overlap problem from the other
+// direction: with three panels expanded it needed more height than the viewport
+// had, so it grew up into the controls. Anchored to the top, it grows downward
+// and is capped below them instead.
+const dockEl = document.getElementById('dock') as HTMLElement;
+const controlsEl = document.getElementById('controls') as HTMLElement;
+
+function syncDockLayout(): void {
+  const narrow = window.matchMedia('(max-width: 640px)').matches;
+  if (!narrow) {
+    dockEl.style.removeProperty('--controls-h');
+    return;
+  }
+  const gap = parseFloat(getComputedStyle(dockEl).gap) || 0;
+  const h = controlsEl.offsetHeight + gap;
+  dockEl.style.setProperty('--controls-h', `${Math.round(h)}px`);
+}
+
+// Re-measure whenever the controls can change height: collapse/expand, window
+// resize, rotation, and the founders readout changing the slider label width.
+for (const panel of document.querySelectorAll<HTMLElement>('#dock .panel, #controls.panel')) {
+  const header = panel.querySelector('h1');
+  if (header && panel.id !== 'inspect') {
+    header.addEventListener('click', () => setTimeout(syncDockLayout, 0));
+  }
+}
+window.addEventListener('resize', syncDockLayout);
+window.addEventListener('orientationchange', () => setTimeout(syncDockLayout, 150));
+
 // --- Mobile viewport ------------------------------------------------------
 // The visual viewport changes without a window resize event on mobile: the
 // address bar collapsing, a keyboard opening, or a pinch-zoom of the page all
@@ -900,13 +943,17 @@ if (vv) {
     const h = Math.round(vv.height);
     if (w > 0 && h > 0) app.renderer.resize(w, h);
   };
-  vv.addEventListener('resize', syncViewport);
+  vv.addEventListener('resize', () => { syncViewport(); syncDockLayout(); });
   vv.addEventListener('scroll', syncViewport);
   // Rotation changes the visual viewport on some Android browsers without
   // firing resize on window at all. The delay lets the rotation settle; without
   // it the sync reads the pre-rotation viewport.
-  window.addEventListener('orientationchange', () => setTimeout(syncViewport, 120));
+  window.addEventListener('orientationchange', () => setTimeout(() => {
+    syncViewport();
+    syncDockLayout();
+  }, 120));
 }
+syncDockLayout();
 
 // --- Main loop -------------------------------------------------------------
 makeWorld(parseInt(popInput.value, 10), parseInt(seedInput.value, 10) || 1);
