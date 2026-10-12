@@ -906,15 +906,74 @@ if (COARSE) {
 const dockEl = document.getElementById('dock') as HTMLElement;
 const controlsEl = document.getElementById('controls') as HTMLElement;
 
-function syncDockLayout(): void {
-  const narrow = window.matchMedia('(max-width: 640px)').matches;
-  if (!narrow) {
-    dockEl.style.removeProperty('--controls-h');
-    return;
-  }
+/**
+ * Decide whether the screen can ACCOMMODATE the four-corner layout, and either
+ * switch to the dock or keep the corners.
+ *
+ * The previous implementation keyed this to `max-width: 640px`. A width
+ * breakpoint is a proxy for the wrong quantity: the corner layout has two
+ * independent collision conditions, and under `pointer: coarse` the touch-sized
+ * controls are ~406px tall. A 641x480 landscape tablet is WIDER than a 390px
+ * phone in portrait but has far less vertical room, so it fell outside the
+ * breakpoint into the corner layout and collided: controls y=8..414.5 against
+ * inspector y=222.4..472, a ~240x192px overlap, at 641px, 650px, 700px and 750px
+ * alike. No width threshold expresses that.
+ *
+ * Both conditions are measured instead:
+ *   (a) top row    — controls and stats must fit side by side
+ *   (b) left column— controls and inspector must fit stacked
+ * The dock is used when EITHER fails, and also when the viewport is narrow
+ * enough that the corner arrangement is cramped regardless.
+ *
+ * Measuring the controls at their current size is what makes this correct for
+ * touch: the same code yields different answers for mouse and finger because
+ * the controls are genuinely a different height.
+ */
+/**
+ * Last observed inspector visibility.
+ *
+ * The inspector is display:none until an organism is selected, so the layout
+ * decision is made against an assumed height until it appears. Tracked here so
+ * the main loop can re-run the decision exactly when that assumption stops
+ * being true, instead of never.
+ */
+let inspectorWasShown = false;
+
+function layoutFit(): void {
+  inspectorWasShown = (document.getElementById('inspect') as HTMLElement).style.display !== 'none';
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
   const gap = parseFloat(getComputedStyle(dockEl).gap) || 0;
-  const h = controlsEl.offsetHeight + gap;
-  dockEl.style.setProperty('--controls-h', `${Math.round(h)}px`);
+  const cH = controlsEl.offsetHeight;
+  const cW = controlsEl.offsetWidth;
+
+  // The inspector only has a height once an organism is selected. Until then
+  // assume the worst realistic case (fully expanded) so the decision does not
+  // flip the moment the user taps something.
+  const iEl = document.getElementById('inspect') as HTMLElement;
+  const iShown = iEl.style.display !== 'none';
+  const iH = iShown ? iEl.offsetHeight : Math.min(vh * 0.52, 320);
+  const iW = iShown ? iEl.offsetWidth : Math.min(vw * 0.46, 420);
+  const sEl = document.getElementById('stats') as HTMLElement;
+  const sW = sEl.classList.contains('collapsed') ? 60 : Math.max(210, sEl.offsetWidth);
+
+  // (a) controls + stats side by side, with both margins and a gutter.
+  const topRowFits = cW + sW + 16 + 8 <= vw;
+  // (b) controls above inspector in the left column.
+  const leftColumnFits = cH + iH + 16 <= vh;
+  // Inspector must also not run past the right edge on its own.
+  const inspectorFitsWidth = iW + 16 <= vw;
+
+  const dock = !topRowFits || !leftColumnFits || !inspectorFitsWidth || vw <= 640;
+  document.documentElement.setAttribute('data-layout', dock ? 'dock' : 'corner');
+
+  // --controls-h is only meaningful in dock mode, and only when the controls
+  // sit above the dock rather than inside it.
+  if (dock) {
+    dockEl.style.setProperty('--controls-h', `${Math.round(cH + gap)}px`);
+  } else {
+    dockEl.style.removeProperty('--controls-h');
+  }
 }
 
 // Re-measure whenever the controls can change height: collapse/expand, window
@@ -922,11 +981,11 @@ function syncDockLayout(): void {
 for (const panel of document.querySelectorAll<HTMLElement>('#dock .panel, #controls.panel')) {
   const header = panel.querySelector('h1');
   if (header && panel.id !== 'inspect') {
-    header.addEventListener('click', () => setTimeout(syncDockLayout, 0));
+    header.addEventListener('click', () => setTimeout(layoutFit, 0));
   }
 }
-window.addEventListener('resize', syncDockLayout);
-window.addEventListener('orientationchange', () => setTimeout(syncDockLayout, 150));
+window.addEventListener('resize', layoutFit);
+window.addEventListener('orientationchange', () => setTimeout(layoutFit, 150));
 
 // --- Mobile viewport ------------------------------------------------------
 // The visual viewport changes without a window resize event on mobile: the
@@ -943,17 +1002,17 @@ if (vv) {
     const h = Math.round(vv.height);
     if (w > 0 && h > 0) app.renderer.resize(w, h);
   };
-  vv.addEventListener('resize', () => { syncViewport(); syncDockLayout(); });
+  vv.addEventListener('resize', () => { syncViewport(); layoutFit(); });
   vv.addEventListener('scroll', syncViewport);
   // Rotation changes the visual viewport on some Android browsers without
   // firing resize on window at all. The delay lets the rotation settle; without
   // it the sync reads the pre-rotation viewport.
   window.addEventListener('orientationchange', () => setTimeout(() => {
     syncViewport();
-    syncDockLayout();
+    layoutFit();
   }, 120));
 }
-syncDockLayout();
+layoutFit();
 
 // --- Main loop -------------------------------------------------------------
 makeWorld(parseInt(popInput.value, 10), parseInt(seedInput.value, 10) || 1);
@@ -1035,6 +1094,12 @@ app.ticker.add(() => {
   // stays live.
   if (++uiTick >= UI_REFRESH_EVERY) {
     uiTick = 0;
+    // The inspector is hidden until an organism is selected, so its real height
+    // is unknown while the layout decision is first made. Re-check when its
+    // visibility changes, or the decision is made against an assumed height and
+    // never revisited.
+    const shown = selected >= 0;
+    if (shown !== inspectorWasShown) layoutFit();
     if (selected >= 0) renderInspector();
     drawStats(fps, frameMs, simMs, updateMs, ticksRun);
   }

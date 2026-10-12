@@ -69,6 +69,28 @@
          full-bleed `#stats` overlapped `#legend` by ~119px at 390px because
          both spanned the same band. Flow layout removes the possibility of
          overlap rather than adjusting magic numbers until it happens not to. */
+      /* Dock layout is selected when the screen cannot ACCOMMODATE the corner
+         layout — not at a fixed width.
+
+         The previous breakpoint was `max-width: 640px`, which is a proxy for
+         the wrong quantity. The corner layout has two independent collision
+         conditions and neither is about width alone:
+           (a) the TOP row needs controls + stats side by side, and
+           (b) the LEFT column needs controls above inspector.
+         Under `pointer: coarse` the touch-sized controls are ~406px tall, so
+         (b) fails on a 641x480 landscape tablet: controls y=8..414.5 against
+         inspector y=222.4..472 — a ~240x192px overlap — while the same layout
+         is fine at 390px wide once the dock takes over. A tablet in landscape
+         is WIDER than a phone in portrait but has far less vertical room, which
+         is precisely what a width breakpoint cannot express.
+
+         `html[data-layout='dock']` is set by layoutFit() in viewer.ts from
+         measured geometry. The media query below remains as the pre-measurement
+         default so a phone never flashes the corner layout first. */
+      /* The dock is invisible to layout by default; the rules below switch it
+         into a real column. Selector list keeps one rule body serving both the
+         measured attribute and the pre-measurement media default. */
+      html[data-layout='dock'] #dock { display: flex; }
       @media (max-width: 640px) {
         #dock {
           display: flex; flex-direction: column; gap: 6px;
@@ -107,10 +129,10 @@
           left: calc(8px + env(safe-area-inset-left));
           right: calc(8px + env(safe-area-inset-right));
         }
-        /* Controls sit ABOVE the dock on narrow screens. Its height is measured
-           at runtime and published as --controls-h (see the dock layout block
-           in viewer.ts), so the dock's top offset and height cap can never
-           intrude on it regardless of how the controls wrap. */
+        /* Controls sit ABOVE the dock. Its height is measured at runtime and
+           published as --controls-h (see layoutFit in viewer.ts), so the dock's
+           top offset and height cap can never intrude on it regardless of how
+           the controls wrap. */
         #controls { position: relative; }
         #dock {
           --controls-h: 0px;
@@ -119,6 +141,51 @@
                            - env(safe-area-inset-bottom) - var(--controls-h));
           max-height: calc(100vh - 24px - env(safe-area-inset-top)
                            - env(safe-area-inset-bottom) - var(--controls-h));
+        }
+      }
+
+      /* Measured-layout mode: identical rules, but selected by geometry rather
+         than a width threshold. Duplicated rather than selector-listed because
+         the declarations inside differ only in the `top`/`max-height` that
+         depend on --controls-h, which is already set for both paths; the
+         selector list below cannot span a media query boundary, so the shared
+         body is factored into these two selectors instead. */
+      html[data-layout='dock'] #dock {
+        flex-direction: column; gap: 6px;
+        position: fixed;
+        left: calc(8px + env(safe-area-inset-left));
+        right: calc(8px + env(safe-area-inset-right));
+        top: calc(8px + env(safe-area-inset-top) + var(--controls-h, 0px));
+        bottom: auto;
+        max-height: calc(100vh - 24px - env(safe-area-inset-top)
+                         - env(safe-area-inset-bottom) - var(--controls-h, 0px));
+        overflow-y: auto; overscroll-behavior: contain;
+        pointer-events: none;
+      }
+      html[data-layout='dock'] #dock > .panel {
+        position: static; width: auto; min-width: 0;
+        max-width: none; flex: 0 0 auto;
+        pointer-events: auto;
+      }
+      html[data-layout='dock'] #dock > .panel.collapsed {
+        padding: 5px 9px; width: fit-content;
+      }
+      html[data-layout='dock'] #inspect {
+        width: auto; left: auto; right: auto; bottom: auto; top: auto;
+      }
+      html[data-layout='dock'] #stats,
+      html[data-layout='dock'] #legend {
+        width: auto; min-width: 0; left: auto; right: auto; bottom: auto; top: auto;
+      }
+      html[data-layout='dock'] #controls {
+        width: auto; min-width: 0; position: relative;
+        left: calc(8px + env(safe-area-inset-left));
+        right: calc(8px + env(safe-area-inset-right));
+      }
+      @supports (height: 100dvh) {
+        html[data-layout='dock'] #dock {
+          max-height: calc(100dvh - 24px - env(safe-area-inset-top)
+                           - env(safe-area-inset-bottom) - var(--controls-h, 0px));
         }
       }
       #inspect {
