@@ -30,6 +30,10 @@ import { WORLD_ENGINE_VERSION } from '../world/version.js';
 import { TROPHIC, TROPHIC_NAME, MOTILITY_NAME, LIFE_STAGE_NAME } from '../bio/role.js';
 import { resolveCapacity } from '../bio/phenotype.js';
 import { TRAITS, TRAIT, TRAIT_COUNT } from '../bio/genome.js';
+import {
+  MODULE_NAMES, MODULE_STRIDE, MODULE_STRIDE_GATE,
+  MODULE_STRIDE_KIND, MODULE_STRIDE_MAG, MODULE_STRIDE_ONSET, MAX_MODULES,
+} from '../bio/modgenome.js';
 
 /** Ticks to advance per animation frame, per speed setting. */
 const SPEEDS = [
@@ -131,6 +135,18 @@ let selectedId = -1;
 /** Camera, in world units. */
 const cam = { x: 0, y: 0, zoom: 1 };
 
+/**
+ * Modular genome v2 toggle state.
+ *
+ * `null` is NOT the same as `false` here, and the distinction is load-bearing:
+ * `null` is the declared baseline and is what the knob means when unset. The
+ * engine gates on `config.genomeV2 === true`, so both `null` and `false` take
+ * the same code path today — but only `null` is guaranteed to stay the
+ * declared behaviour if that ever changes. The viewer passes `null` for "off"
+ * so what you see untoggled is the parity baseline, not a third state.
+ */
+let genomeV2: boolean | null = null;
+
 function makeWorld(founders: number, seed: number): void {
   const size = 4000;
   world = new World({
@@ -144,6 +160,7 @@ function makeWorld(founders: number, seed: number): void {
       // grid does not itself become the bottleneck at high counts.
       fieldCell: 40,
       spatialCell: 44,
+      genomeV2,
     },
   });
   cam.x = size / 2;
@@ -302,6 +319,15 @@ interface MorphShape {
   body?: { segments: number; modules: number };
   spine?: Array<{ u: number; v: number; radius: number; angle: number }>;
   parts?: Array<{ kind: number; segment: number; angle: number; length: number; thickness: number }>;
+  /**
+   * Module tally for the CURRENT derivation, written by Phenotype.
+   *
+   * `moduleTotal` is the magnitude actually applied and `moduleUpkeep` the cost
+   * actually billed. Both are re-derived as the organism ages, so they reflect
+   * what the organism is doing right now rather than what its genome could do.
+   */
+  moduleTotal?: number;
+  moduleUpkeep?: number;
 }
 
 // --- Interaction -----------------------------------------------------------
@@ -405,6 +431,52 @@ function renderInspector(): void {
     })
     .join('');
 
+  // Module readout: the organism's INHERITED INSTRUCTIONS, with the gate state
+  // that decides whether each is currently expressed. Development and energy
+  // gates are shown, because an encoded module that is switched off is the most
+  // misleading thing this panel could omit — it looks like dead DNA.
+  let moduleSection = '';
+  if (genomeV2 === true) {
+    const n = store.moduleCount[slot];
+    if (n === 0) {
+      moduleSection =
+        `<h1 style="margin-top:6px">Modules</h1>` +
+        `<div class="tiny">none &mdash; every module was deleted from this lineage</div>`;
+    } else {
+      const mbase = slot * MAX_MODULES * MODULE_STRIDE;
+      const age = store.age[slot];
+      const life = Math.max(1, store.trait(slot, TRAIT.LIFESPAN));
+      const ageFrac = Math.max(0, Math.min(1, age / life));
+      const cap = resolveCapacity(phen, store.trait(slot, TRAIT.STORAGE_CAPACITY));
+      const eFrac = cap > 0 ? Math.max(0, Math.min(1, store.energy[slot] / cap)) : 0;
+      const rowsM: string[] = [];
+      for (let i = 0; i < n; i++) {
+        const off = mbase + i * MODULE_STRIDE;
+        const kind = store.geneModules[off + MODULE_STRIDE_KIND];
+        const mag = store.geneModules[off + MODULE_STRIDE_MAG];
+        const onset = store.geneModules[off + MODULE_STRIDE_ONSET];
+        const gate = store.geneModules[off + MODULE_STRIDE_GATE];
+        // Mirror the engine's own gating so the panel cannot disagree with it.
+        const dev = Math.max(0, Math.min(1, (ageFrac - onset) / 0.18));
+        const g = gate < 1 ? (eFrac >= gate ? 1 : 0) : 1;
+        const applied = dev * g;
+        const state = applied <= 0 ? 'dormant' : applied >= 0.999 ? 'on' : 'partial';
+        rowsM.push(
+          `<tr><td class="k">${MODULE_NAMES[kind] ?? kind}</td>` +
+          `<td>${mag.toFixed(2)} &middot; onset ${onset.toFixed(2)}` +
+          `${gate < 1 ? ` &middot; needs ${(gate * 100).toFixed(0)}% energy` : ''}</td>` +
+          `<td class="${applied <= 0 ? 'tiny' : ''}">${state} ${(applied * 100).toFixed(0)}%</td></tr>`,
+        );
+      }
+      moduleSection =
+        `<h1 style="margin-top:6px">Modules (${n})</h1><table>${rowsM.join('')}</table>` +
+        `<div class="tiny" style="margin-top:4px">` +
+        `expressing ${(phenOf(slot)?.moduleTotal ?? 0).toFixed(2)} magnitude, ` +
+        `paying ${(phenOf(slot)?.moduleUpkeep ?? 0).toFixed(4)} upkeep/tick. ` +
+        `Dormant modules are encoded but not built yet, or shed for want of energy.</div>`;
+    }
+  }
+
   el.style.display = 'block';
   el.innerHTML =
     `<h1>Organism #${store.id[slot]} ${store.id[slot] === selectedId ? '' : ''}</h1>` +
@@ -423,11 +495,66 @@ function renderInspector(): void {
     `<tr><td class="k">ingested / spent</td><td>${store.energyIngested[slot].toFixed(0)} / ${store.energySpent[slot].toFixed(0)}</td></tr>` +
     `<tr><td class="k">mineraliser</td><td>${r.bioticMineraliser ? 'yes' : 'no'}</td></tr>` +
     `</table><h1 style="margin-top:6px">Most expressed traits</h1><table>${traitRows}</table>` +
+    moduleSection +
     `<div class="tiny" style="margin-top:6px">Role and stage are readouts derived from the genome, not assigned.</div>`;
 }
 
 // --- Stats panel -----------------------------------------------------------
 const ROLE_ORDER = [TROPHIC.PRODUCER, TROPHIC.CONSUMER, TROPHIC.DECOMPOSER];
+
+/**
+ * Aggregate module state across living organisms.
+ *
+ * Reports what is actually EXPRESSED, not what is merely encoded. A module can
+ * be present in the genome and currently switched off — development gates it
+ * until its onset, and the condition gate sheds it when energy cannot sustain
+ * it. Showing only genome length would therefore overstate what the organisms
+ * are doing right now.
+ */
+/** Cached phenotype for a slot, typed with the module tally fields. */
+function phenOf(slot: number): MorphShape | null {
+  return world.store.phen[slot] as MorphShape | null;
+}
+
+function moduleStats(): { rows: string; kinds: Record<number, number> } {
+  const store = world.store;
+  const kinds: Record<number, number> = {};
+  let withModules = 0, totalModules = 0, encoded = 0;
+  let expressedMag = 0, chargedUpkeep = 0;
+
+  for (let slot = 0; slot < store.count; slot++) {
+    if (!world.aliveAt(slot)) continue;
+    const n = store.moduleCount[slot];
+    if (n === 0) continue;
+    withModules++;
+    totalModules += n;
+    const base = slot * MAX_MODULES * MODULE_STRIDE;
+    for (let i = 0; i < n; i++) {
+      const kind = store.geneModules[base + i * MODULE_STRIDE + MODULE_STRIDE_KIND];
+      kinds[kind] = (kinds[kind] ?? 0) + 1;
+      encoded++;
+    }
+    // Both figures come from the CACHED PHENOTYPE, which the engine re-derives
+    // as the organism ages. `moduleTotal` is the magnitude actually applied and
+    // `moduleUpkeep` is what was actually billed, so a module that is encoded
+    // but gated off by development or energy contributes neither. Summing the
+    // DECLARED per-kind upkeep here instead would report a cost the organisms
+    // are not paying.
+    const p2 = phenOf(slot);
+    expressedMag += p2?.moduleTotal ?? 0;
+    chargedUpkeep += p2?.moduleUpkeep ?? 0;
+  }
+
+  if (withModules === 0) {
+    return { rows: `<tr><td class="k">modules</td><td>none &mdash; knob unset</td></tr>`, kinds };
+  }
+  const rows =
+    `<tr><td class="k">genome v2</td><td class="warn">ON &mdash; diagnostic</td></tr>` +
+    `<tr><td class="k">with modules</td><td>${withModules} / ${store.population} organisms</td></tr>` +
+    `<tr><td class="k">modules</td><td>${encoded} total &middot; ${(totalModules / withModules).toFixed(2)} mean</td></tr>` +
+    `<tr><td class="k">expressing</td><td>${expressedMag.toFixed(1)} magnitude &middot; ${chargedUpkeep.toFixed(2)} upkeep/tick</td></tr>`;
+  return { rows, kinds };
+}
 
 function drawStats(fps: number, frameMs: number, simMs: number, drawMs: number): void {
   const store = world.store;
@@ -438,6 +565,7 @@ function drawStats(fps: number, frameMs: number, simMs: number, drawMs: number):
     counts[t] = (counts[t] ?? 0) + 1;
   }
   const pop = store.population;
+  const mod = moduleStats();
   const rows =
     `<tr><td class="k">engine</td><td>${WORLD_ENGINE_VERSION}</td></tr>` +
     `<tr><td class="k">tick</td><td>${world.tick}</td></tr>` +
@@ -447,7 +575,8 @@ function drawStats(fps: number, frameMs: number, simMs: number, drawMs: number):
     `<tr><td class="k">mean energy</td><td>${pop > 0 ? (world.snapshot.biomass / pop).toFixed(1) : '0'}</td></tr>` +
     `<tr><td class="k">disturbances</td><td>${world.abiotic.activeCount} active / ${world.disturbancesFired}</td></tr>` +
     `<tr><td class="k">residual</td><td>${(world.accountingResidualFraction() * 100).toFixed(4)}%</td></tr>` +
-    `<tr><td class="k">zoom</td><td>${cam.zoom.toFixed(2)}&times;</td></tr>`;
+    `<tr><td class="k">zoom</td><td>${cam.zoom.toFixed(2)}&times;</td></tr>` +
+    mod.rows;
   document.getElementById('stats-table')!.innerHTML = rows;
   // FPS and SIMULATION cost are reported separately on purpose: a frame can
   // be render-bound or simulation-bound, and conflating them hides which.
@@ -455,13 +584,27 @@ function drawStats(fps: number, frameMs: number, simMs: number, drawMs: number):
     `render ${fps.toFixed(0)} fps &middot; frame ${frameMs.toFixed(1)}ms (draw ${drawMs.toFixed(1)}ms)` +
     `<br>sim ${simMs.toFixed(2)}ms/tick &middot; ${((simMs || 0.001)).toFixed(2)}ms budgeted`;
 
+  // Module census, read straight off the genome store. Object.entries yields
+  // string keys, so the kind is parsed back to a number for MODULE_NAMES.
+  const moduleKinds = genomeV2 === true
+    ? Object.keys(mod.kinds)
+        .map(Number)
+        .filter((k) => Number.isFinite(k))
+        .sort((a, b) => (mod.kinds[b] ?? 0) - (mod.kinds[a] ?? 0))
+        .map((k) => `<div class="tiny">${MODULE_NAMES[k] ?? k} <span class="tiny">${mod.kinds[k]}</span></div>`)
+        .join('')
+    : '';
   document.getElementById('legend-rows')!.innerHTML = ROLE_ORDER.map((t) => {
     const n = counts[t] ?? 0;
     return (
       `<div><span class="swatch" style="background:#${ROLE_COLOR[t].toString(16).padStart(6, '0')}"></span>` +
       `${TROPHIC_NAME[t]} <span class="tiny">${n}</span></div>`
     );
-  }).join('') + `<div class="tiny" style="margin-top:4px">hollow = senescent, dim = juvenile</div>`;
+  }).join('')
+    + `<div class="tiny" style="margin-top:4px">hollow = senescent, dim = juvenile</div>`
+    + (moduleKinds
+      ? `<div style="margin-top:5px"><h1 style="margin:0 0 2px">Modules carried</h1>${moduleKinds}</div>`
+      : '');
 }
 
 // --- Controls --------------------------------------------------------------
@@ -504,6 +647,45 @@ document.getElementById('btn-restart')!.addEventListener('click', () => {
   makeWorld(parseInt(popInput.value, 10), parseInt(seedInput.value, 10) || 1);
   renderInspector();
 });
+
+// --- Modular genome v2 toggle ----------------------------------------------
+// Rebuilds the world because genomeV2 is a construction-time config knob, not
+// a per-tick one. Toggling it is therefore a restart, and the UI says so
+// rather than silently discarding the run in progress.
+const genomeBtn = document.getElementById('btn-genome') as HTMLButtonElement;
+const genomeNote = document.getElementById('genome-note') as HTMLElement;
+
+function applyGenomeToggle(): void {
+  genomeBtn.setAttribute('aria-pressed', String(genomeV2 === true));
+  genomeNote.textContent = genomeV2 === true
+    ? 'on \u2014 diagnostic, restarts'
+    : 'off \u2014 declared behaviour';
+  makeWorld(parseInt(popInput.value, 10), parseInt(seedInput.value, 10) || 1);
+  renderInspector();
+}
+genomeBtn.addEventListener('click', () => {
+  genomeV2 = genomeV2 === true ? null : true;
+  applyGenomeToggle();
+});
+
+// --- Collapsible panels ----------------------------------------------------
+// Four fixed-corner panels cannot all fit on a phone. Rather than pick a
+// breakpoint and hope, every panel collapses to its header, so overlap is
+// avoidable at any viewport. The inspector keeps its own display contract:
+// it stays hidden until an organism is selected.
+for (const panel of document.querySelectorAll<HTMLElement>('.panel')) {
+  const header = panel.querySelector('h1');
+  if (!header || panel.id === 'inspect') continue;
+  header.addEventListener('click', () => panel.classList.toggle('collapsed'));
+}
+
+// Start narrow screens compact: the controls are what you need to drive a run,
+// the rest is reference. Persisted per session is unnecessary; this is a viewer.
+if (window.innerWidth < 760) {
+  for (const id of ['stats', 'legend']) {
+    document.getElementById(id)?.classList.add('collapsed');
+  }
+}
 
 // --- Main loop -------------------------------------------------------------
 makeWorld(parseInt(popInput.value, 10), parseInt(seedInput.value, 10) || 1);

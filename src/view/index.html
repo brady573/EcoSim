@@ -29,11 +29,33 @@
         position: fixed; background: color-mix(in srgb, var(--panel) 88%, transparent);
         border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px;
         backdrop-filter: blur(6px);
+        /* Never wider than the viewport minus its own margins. On a phone the
+           previous fixed 240px/210px widths collided: 240 + 210 + margins
+           exceeds a 412px viewport, so the controls and stats panels overlapped
+           and swallowed each other's taps. */
+        max-width: calc(100vw - 16px);
       }
-      #controls { top: 8px; left: 8px; max-width: 240px; }
+      #controls { top: 8px; left: 8px; width: 240px; }
       #stats { top: 8px; right: 8px; min-width: 210px; }
-      #inspect { bottom: 8px; left: 8px; max-width: 46vw; max-height: 52vh; overflow: auto; display: none; }
-      #legend { bottom: 8px; right: 8px; max-width: 210px; }
+      #inspect { bottom: 8px; left: 8px; width: min(46vw, 420px); max-height: 52vh; overflow: auto; display: none; }
+      #legend { bottom: 8px; right: 8px; width: 210px; }
+
+      /* Collapsible panels. Four fixed corners cannot all fit on a small
+         screen, so each panel collapses to just its header. Collapsing is what
+         makes overlap avoidable at ANY viewport rather than merely unlikely at
+         a chosen breakpoint: at most one tall panel plus a few pills. */
+      .panel > h1 {
+        cursor: pointer; user-select: none; display: flex; align-items: center;
+        justify-content: space-between; gap: 8px; margin-bottom: 0;
+      }
+      .panel > h1::after { content: '\25BE'; font-size: 9px; opacity: .6; }
+      .panel.collapsed { padding: 5px 9px; }
+      .panel.collapsed > h1 { margin-bottom: 0; }
+      .panel.collapsed > h1::after { content: '\25B8'; }
+      .panel.collapsed > *:not(h1) { display: none; }
+      /* #inspect keeps its own show/hide contract: it is display:none until an
+         organism is selected. Collapsing must never make it visible. */
+      #inspect.collapsed { display: none !important; }
 
       .row { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
       .row + .row { margin-top: 5px; }
@@ -52,6 +74,7 @@
       .warn { color: #ffb86b; }
       .tiny { font-size: 10px; color: var(--dim); }
       .swatch { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; vertical-align: -1px; }
+      #btn-genome[aria-pressed='true'] { border-color: var(--accent); color: var(--accent); background: #21384a; }
     </style>
   </head>
   <body>
@@ -80,6 +103,10 @@
         <button id="btn-morph" aria-pressed="false">Morphology</button>
         <button id="btn-overlay">Substrate</button>
         <button id="btn-disturb">Disturbances</button>
+      </div>
+      <div class="row">
+        <button id="btn-genome" aria-pressed="false" title="Diagnostic: modular genome v2. Off = declared behaviour (null).">Genome&nbsp;v2</button>
+        <span class="tiny" id="genome-note">off &mdash; declared behaviour</span>
       </div>
       <div class="row tiny">
         drag to pan &middot; wheel to zoom &middot; click an organism to inspect
