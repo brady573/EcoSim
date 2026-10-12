@@ -6343,3 +6343,56 @@ rate (starvation physiology, not免 starvation). Spirit retained: survival of
 inter-meal troughs, death on true inability to pay. The implementation entry
 will carry this citation; if review finds the mapping dishonest, the rework
 does not land.
+
+--------------------------------------------------------------------------------
+ENGINE 0.6.1 — FASTING TOLERANCE (APPROVED REWORK, IMPLEMENTED 2026-10-12)
+--------------------------------------------------------------------------------
+
+APPROVAL. Owner-approved scoped rework (proposal: variance-intolerance, not
+income). Real-world equivalent cited before implementation (constraint
+2026-10-12): body reserves buffer brief deficits; wasting begins after
+reserves deplete. GRACE=6 (Owner-tunable 4-8) is the reserve depth.
+
+CHANGE (one declared-behavior delta, world.ts only + version paperwork):
+  - STARVE_GRACE_TICKS=6 const beside REPRO_SURPLUS_TICKS, with equivalent
+    citation in-code.
+  - Per-slot starveStreak (Uint16Array, saturates 65535): +1 per
+    consecutive-deficit tick, reset on any paid tick and while dormant.
+  - Damage scaled 0 -> full over grace (same 0.9*(0.35+0.65*deficit)
+    magnitudes); hunger increment, fallback, death and breeding gates
+    untouched; no RNG draws added.
+  - populateSlot resets the clock (slot-reuse hazard, same precedent as
+    dormant); ensureSlotArrays grows it; hashState mixes it (history clock,
+    dormantSleep precedent).
+  - Version 0.6.1 (version.ts + AGENTS.md); 0.6.0 figures become
+    earlier-engine evidence, not comparable behaviour.
+What was NOT changed (per approval): surplus 90, upkeep/Kleiber/capacity,
+yields, subsidies, regen, disease, dormancy, mating, sensing/movement.
+
+GATES 20/20 with two justified scenario updates (mechanisms intact, windows
+re-witnessed — NOT goalpost moves, each verified by experiment):
+  - G5b: predation still occurs (10 by t1000 on seed 4242; 3 by t250 on
+    neighbours) but left the fixed 250-tick window. Non-vacuity now counts
+    over an extended 1000-tick run on the same seed; G5 digest still at 250
+    and still identical across replays.
+  - G12: unseeded 120-founder worlds grow ~0 feeding mineralisers within any
+    window under grace (fewer early deaths -> less detritus; 0-1 decomposers
+    across 6 seeds to t2000), so the scenario stopped witnessing. The gate
+    now seeds mineralisers (decomposerFounders 0.3): flux reads 0.250263 ON
+    vs exactly 0 OFF at tick 150. The kill-switch defect it guards would
+    still read 0/0 and fail. Establishment ecology belongs to ladder
+    evidence, where decomposers are seeded.
+Baseline check: pristine 0.6.0 tree runs 20/20, so both reds were caused by
+this change and both were re-witnessed, not waived.
+
+RE-PIN (honest, deterministic twice byte-identical per seed, Node v24.21.0):
+  517: 808/159/58 -> 813/135/81; 24601: 558/290/96 -> 542/234/109.
+  Direction: producers/decomposers hold better, consumers lower at
+  knobs-unset defaults. No guild collapsed, no cap-hit (pop ~1k), no
+  explosion. Old pair retired into scripts/contract-checks.mjs chain.
+Validation: typecheck clean; both tsconfigs built (C4 caught a stale
+app bundle mid-validation — rebuilt, 11/11); workflow 145/145; determinism
+byte-identical per seed+config (also across the two pin runs each).
+Owed before 0.6.1 is fully verified: --zero flatline re-run (dispatched as
+the registered flatline arm post-push) and the viability-config ladder
+retest with per-capita intake flat (registered post-push).

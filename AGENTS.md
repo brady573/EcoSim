@@ -16,7 +16,7 @@ This file governs repository practice only.
 
 `ts-evolution-poc` — a disposable, evidence-driven experiment in whole-ecosystem
 evolutionary simulation. Single TypeScript tree. Engine version
-`ts-evo-poc/0.6.0`.
+`ts-evo-poc/0.6.1`.
 
 - **STATUS: EXPERIMENTAL. NOT PRODUCTION CODE.**
 - Judged on **reproducibility, honest accounting, emergence without forcing,
@@ -102,16 +102,23 @@ Required before a change is considered done:
 1. **Typecheck clean.**
 2. **Gates pass** (`src/gates.ts`).
 3. **Knobs-unset parity exact** against pinned values — currently seed 517 →
-   `P808 C159 D58` and 24601 → `P558 C290 D96` at 500 ticks, engine
-   `ts-evo-poc/0.6.0`. A change that alters these with no knob set has changed
+   `P813 C135 D81` and 24601 → `P542 C234 D109` at 500 ticks, engine
+   `ts-evo-poc/0.6.1`. A change that alters these with no knob set has changed
    declared behaviour.
 
-   These values were re-pinned **twice**. The chain of retired values is
+   These values were re-pinned **three times**. The chain of retired values is
    recorded in `scripts/contract-checks.mjs` beside the live ones:
    - `881/187/73`, `658/280/98` @ 0.4.1 — three behavioural defects corrected;
    - `778/169/63`, `597/246/103` @ 0.5.0 — the mineralisation broadcast was
      inflating substrate by the cell count, which changed producer growth and
-     therefore everything downstream.
+     therefore everything downstream;
+   - `808/159/58`, `558/290/96` @ 0.6.0 — fasting tolerance (starvation damage
+     ramps over 6 consecutive-deficit ticks); producers/decomposers hold
+     better, consumers lower at unset defaults.
+
+   **Every 0.6.0 figure describes the instantaneous-damage engine.** All
+   ladder verdicts recorded under it remain valid provenance for that engine
+   but must be re-run, not re-read, on 0.6.1.
 
    **Every 0.5.0 figure describes a LEAKY engine.** Decomposer photosynthesis
    was never actually gated under `--zero` (issue #2 P0-2), so the flatline and

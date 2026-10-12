@@ -85,6 +85,23 @@ const ROLE_REFRESH_EVERY = 16;
 const REPRO_SURPLUS_TICKS = 90;
 
 /**
+ * Fasting-tolerance grace for starvation damage, in consecutive-deficit ticks.
+ *
+ * REAL-WORLD EQUIVALENT (Owner constraint 2026-10-12): body reserves. Real
+ * animals do not take damage the instant expenditure exceeds intake; glycogen
+ * and fat buffer brief deficits and wasting begins after reserves deplete.
+ * GRACE is the reserve depth: inter-meal troughs are forgiven, sustained
+ * deficit still kills at full rate. Lump-income grazers that oscillate across
+ * their own upkeep survive their troughs; trickle feeders never notice. This
+ * is what makes the gate reward condition rather than income smoothness.
+ * Owner-tunable 4-8 on measured need; 6 covers a missed-browse window without
+ * forgiving true inability-to-pay (sustained deficit still kills in
+ * ~110-300 ticks, preserving the anti-expansion invariant the
+ * deficit-proportional rule was built for).
+ */
+const STARVE_GRACE_TICKS = 6;
+
+/**
  * Breeding-surplus buffer in ticks, from config when set.
  *
  * Exposed as a diagnostic because it is the gate that decides whether ANY
@@ -272,6 +289,16 @@ export class World {
    * histories share a digest.
    */
   private dormantSleep: Uint32Array;
+  /**
+   * Consecutive energy-deficit ticks per slot (fasting clock). Advances each
+   * tick the slot spends below upkeep, resets on any paid tick or while
+   * dormant (waiting is not a deficit). Scales starvation damage from 0 to
+   * full over STARVE_GRACE_TICKS: the fasting-tolerance reserve. Mixed into
+   * hashState like dormantSleep: unlike recomputed caches, the clock carries
+   * history, so omitting it would let divergent fasting histories share a
+   * digest. Cleared on slot reuse.
+   */
+  private starveStreak: Uint16Array;
   /**
    * Cumulative senescence damage per slot, parallel to store.starveDamage.
    * Attribution-only (killing runs through store.damage); never reset on
@@ -572,6 +599,7 @@ export class World {
     this.live = growU8(this.live);
     this.dormant = growU8(this.dormant);
     this.dormantSleep = growU32(this.dormantSleep);
+    this.starveStreak = growU16(this.starveStreak);
     this.senesceDamage = growF32(this.senesceDamage);
     this.diseaseDamage = growF32(this.diseaseDamage);
     this.pioneerTicks = growU16(this.pioneerTicks);
@@ -887,6 +915,7 @@ export class World {
     this.live = new Uint8Array(this.store.capacity);
     this.dormant = new Uint8Array(this.store.capacity);
     this.dormantSleep = new Uint32Array(this.store.capacity);
+    this.starveStreak = new Uint16Array(this.store.capacity);
     this.senesceDamage = new Float32Array(this.store.capacity);
     this.diseaseDamage = new Float32Array(this.store.capacity);
     this.pioneerTicks = new Uint16Array(this.store.capacity);
@@ -1151,6 +1180,10 @@ export class World {
     // actPhase (which reads last tick's flag for basal/sensing).
     this.dormant[slot] = 0;
     this.dormantSleep[slot] = 0;
+    // Clear the fasting clock with the other history clocks: a newborn
+    // inherits no deficit, so its first trough gets full grace (birth trough
+    // is not starvation — same precedent as the dormancy reset above).
+    this.starveStreak[slot] = 0;
     this.senesceDamage[slot] = 0;
     this.diseaseDamage[slot] = 0;
     this.pioneerTicks[slot] = 0;
@@ -2426,12 +2459,26 @@ export class World {
       const isDormant = this.dormant[slot] === 1 && this.config.decomposerDormancy !== null;
       if (!isDormant && upkeep > 0 && energy < upkeep) {
         const deficit = (upkeep - energy) / upkeep; // 0..1
+        // Fasting tolerance (Owner constraint 2026-10-12: body reserves buffer
+        // brief deficits; wasting begins after reserves deplete). The streak
+        // counts CONSECUTIVE deficit ticks; damage ramps 0 -> full over
+        // STARVE_GRACE_TICKS, so a missed-browse window is forgiven while true
+        // inability-to-pay still kills at full rate a few ticks later.
+        const streak = this.starveStreak[slot] =
+          Math.min(65535, this.starveStreak[slot] + 1);
         store.hunger[slot] += 1;
-        const starveDmg = 0.9 * (0.35 + 0.65 * deficit);
+        const starveDmg = 0.9 * (0.35 + 0.65 * deficit) *
+          Math.min(1, streak / STARVE_GRACE_TICKS);
         store.damage[slot] += starveDmg;
         store.starveDamage[slot] += starveDmg;
-      } else if (store.hunger[slot] > 260) {
-        store.damage[slot] += 0.12;
+      } else {
+        // Any paid tick — or dormancy, which is waiting, not deficit — clears
+        // the clock, so the next trough starts forgiven. The hunger fallback
+        // below is byte-identical to before (dormant included).
+        this.starveStreak[slot] = 0;
+        if (store.hunger[slot] > 260) {
+          store.damage[slot] += 0.12;
+        }
       }
 
       // Regeneration, paid for out of the metabolic budget.
@@ -3799,6 +3846,7 @@ export class World {
       h.mixInt(store.generationDepth[slot]);
       h.mixInt(store.age[slot]);
       h.mixInt(store.hunger[slot]);
+      h.mixInt(this.starveStreak[slot]);
       h.mixInt(store.reproCooldown[slot]);
       h.mixInt(this.dormantSleep[slot]);
       h.mixF32(this.dormantFrac);
