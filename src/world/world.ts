@@ -1361,6 +1361,35 @@ export class World {
     }
   }
 
+  /**
+   * Canopy mass at a world position, sampled on the COARSE shade grid.
+   *
+   * `shadeMass` is `shadeCols x shadeRows` — `shadeGrain` substrate cells per
+   * axis, 4 by default, so it holds 1/16th as many cells as the substrate
+   * field. The deposit side (`rebuildCanopy`) maps world position to that grid;
+   * this is the same mapping in reverse, so the two cannot drift.
+   *
+   * The legacy photosynthesis path used to index this array with a
+   * FULL-RESOLUTION substrate index. With the default grain that read an
+   * unrelated cell for 15/16 of the world and ran off the end of the array for
+   * the rest, so Beer-Lambert self-shading was effectively disabled and producer
+   * income had no density dependence in that path. Corrected at the Owner's
+   * explicit authorisation, which also re-pins reproducibility parity because
+   * the pinned values were measured through the defective lookup.
+   */
+  private canopyAt(px: number, py: number): number {
+    if (this.shadeMass.length === 0) return 0;
+    const invW = this.shadeCols / this.config.worldW;
+    const invH = this.shadeRows / this.config.worldH;
+    let cx = (px * invW) | 0;
+    let cy = (py * invH) | 0;
+    if (cx < 0) cx = 0;
+    else if (cx >= this.shadeCols) cx = this.shadeCols - 1;
+    if (cy < 0) cy = 0;
+    else if (cy >= this.shadeRows) cy = this.shadeRows - 1;
+    return this.shadeMass[cy * this.shadeCols + cx];
+  }
+
   private capacityOf(slot: number): number {
     return resolveCapacity(this.store.phen[slot], this.store.trait(slot, TRAIT.STORAGE_CAPACITY));
   }
@@ -2238,7 +2267,7 @@ export class World {
         // Beer-Lambert attenuation through the local canopy. `globalLight` is
         // global forcing; `shade` is static habitat patchiness; `shadeMass` is
         // the density-dependent term that actually bounds the population.
-        const canopy = this.shadeMass[ci];
+        const canopy = this.canopyAt(px, py);
         const selfShade = canopy > 0 ? Math.exp(-this.config.shadeExtinction * canopy) : 1;
         const localLight = globalLight * shade[ci] * selfShade * mods.lightMul;
         let demand = photo * 0.42 * localLight * mods.captureMul;
@@ -4434,19 +4463,13 @@ export class World {
     // the chemistry path a pure function of the same environment the rest of
     // the simulation already maintains — one environment, two consumers.
     const shadeArr = this.habitat.shade.data;
-    const shadeM = this.shadeMass;
     const gLight = this.globalLight;
     const ext = this.config.shadeExtinction;
-    // FINDING 4 FIXED. `shadeMass` lives on a COARSE grid of shadeCols x
-    // shadeRows (shadeGrain cells per axis, default 4), while `chem.index`
-    // returns a FULL-RESOLUTION substrate cell. Indexing the canopy array with
-    // the full-resolution index read an unrelated cell, or ran off the end
-    // entirely once the index passed shadeCols*shadeRows. Beer-Lambert
-    // self-shading was therefore effectively disabled across most of the world,
-    // and the chemistry light gate was not attenuating through the canopy it
-    // claimed to.
-    const shadeGrain = Math.max(1, Math.floor(this.config.shadeGrain));
-    const sCols = this.shadeCols, sRows = this.shadeRows;
+    // The coarse-canopy lookup is `canopyAt()`, shared with the legacy
+    // photosynthesis path so read and write cannot drift. It previously had its
+    // own inline mapping here; two implementations of one grid convention is
+    // how the legacy path ended up wrong in the first place.
+
     const lmul = this.localMods.lightMul;
 
 
@@ -4454,10 +4477,7 @@ export class World {
       if (!this.live[slot]) continue;
       const ci = chem.index(store.x[slot], store.y[slot]);
       const cell = ci;
-      const cx = ci % chem.cols, cy = (ci / chem.cols) | 0;
-      const sx = Math.min(sCols - 1, (cx / shadeGrain) | 0);
-      const sy = Math.min(sRows - 1, (cy / shadeGrain) | 0);
-      const canopy = shadeM[sy * sCols + sx];
+      const canopy = this.canopyAt(store.x[slot], store.y[slot]);
       const selfShade = canopy > 0 ? Math.exp(-ext * canopy) : 1;
       st.light[slot] = gLight * shadeArr[ci] * selfShade * lmul;
 

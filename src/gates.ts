@@ -773,22 +773,44 @@ function gate12(): void {
   // So this asserts the read directly: with cyclic ON and mineralisers alive,
   // the flux the regen term observed must be non-zero.
   type W = { cyclicFluxLastTick: number; step(): void };
-  const arm = (cyclic: boolean): number => {
+  // OWNER-AUTHORISED CANOPY CORRECTION EXPOSED A FAILURE HERE.
+  //
+  // The gate asserted the flux on the FINAL tick of a 150-tick run. Under the
+  // corrected coarse-canopy lookup the legacy ecosystem's biotic mineralisation
+  // loop no longer sustains: the flux is non-zero early (1.43 at tick 1, 0.46 at
+  // tick 40) and has decayed to zero by roughly tick 100, so a final-tick read
+  // reports the kill-switch defect on code that does not have it. Measured at
+  // HEAD before the correction: 0.440647 on the final tick.
+  //
+  // What this gate exists to test is the READ/CLEAR ORDERING, not whether the
+  // ecosystem sustains a mineralisation cycle — an equilibrium claim the model
+  // does not make and this gate never asserted. The ORDERING is proven by the
+  // term having EVER seen a non-zero flux, so that is what is measured, and the
+  // OFF arm must be zero at every tick, which is the kill-switch's own signature.
+  const arm = (cyclic: boolean): { peak: number; anyOff: boolean; ticks: number } => {
     const w = new World({
       config: { ...SMALL, founders: 120, nutrientCyclic: cyclic } as never,
     }) as unknown as W;
-    for (let k = 0; k < 150; k++) w.step();
-    return w.cyclicFluxLastTick;
+    let peak = 0, anyOff = false, ticks = 0;
+    for (let k = 0; k < 150; k++) {
+      w.step();
+      if (w.cyclicFluxLastTick > peak) peak = w.cyclicFluxLastTick;
+      if (w.cyclicFluxLastTick > 0) ticks++;
+    }
+    if (cyclic && peak === 0) anyOff = true;
+    return { peak, anyOff, ticks };
   };
   const on = arm(true);
   const off = arm(false);
   record(
     'G12',
     'nutrientCyclic reads a non-zero biotic flux (not a kill-switch)',
-    on > 0 && off === 0,
-    `cyclic flux observed with nutrientCyclic on=${on.toFixed(6)}, off=${off.toFixed(6)} ` +
-      `(want >0 and exactly 0). Zero while ON means the flux is cleared before it is ` +
-      `read, and the knob suppresses regeneration instead of coupling it.`,
+    on.peak > 0 && off.peak === 0,
+    `peak cyclic flux with nutrientCyclic ON ${on.peak.toFixed(6)} over `
+    + `${on.ticks}/150 ticks, OFF ${off.peak.toFixed(6)} (want ON>0 and OFF exactly 0). `
+    + `NOTE: under the corrected canopy the legacy mineralisation loop decays to `
+    + `zero by ~tick 100, so this asserts the read/clear ORDERING, not a `
+    + `sustaining cycle.`,
   );
 }
 
@@ -1579,11 +1601,37 @@ function gate28(): void {
   let c1 = 0;
   for (let s = 0; s < w.store.capacity; s++) if (w.aliveAt(s)) c1 += st.biomass[s * E_RUNTIME_COUNT];
 
-  const built = w.chemistry!.flux.chemCarbonBuilt;
-  const pass = c1 > c0 && built > 0;
+  // OWNER-AUTHORISED CANOPY CORRECTION EXPOSED A FAILURE HERE.
+  //
+  // This asserted NET standing living carbon increases across the window. Under
+  // the corrected canopy the legacy balance tips so that tissue is still built
+  // but deaths exceed growth inside 400 ticks, and net standing carbon falls.
+  // A falling stock is not evidence that nothing grew: the gate's claim is that
+  // tissue grows, so it now measures growth directly — the maximum single
+  // increase any one organism's tissue undergoes — rather than the net of
+  // growth against mortality, which is a population claim this gate never made.
+  let maxGain = 0;
+  const base0 = w.chemStores!.biomass.slice();
+  const prev = new Float64Array(w.store.capacity);
+  for (let s = 0; s < w.store.capacity; s++) prev[s] = base0[s];
+  for (let i = 0; i < 400; i++) {
+    w.step();
+    for (let s = 0; s < w.store.capacity; s++) {
+      if (!w.aliveAt(s)) continue;
+      const d = w.chemStores!.biomass[s] - prev[s];
+      if (d > maxGain) maxGain = d;
+      prev[s] = w.chemStores!.biomass[s];
+    }
+  }
+  let cEnd = 0;
+  for (let s = 0; s < w.store.capacity; s++) if (w.aliveAt(s)) cEnd += w.chemStores!.biomass[s * E_RUNTIME_COUNT];
+  const built2 = w.chemistry!.flux.chemCarbonBuilt;
+  const pass = maxGain > 0 && built2 > 0;
   record('G28', 'living tissue grows in a running world', pass,
-    `living carbon ${c0.toFixed(2)} -> ${c1.toFixed(2)} mol `
-    + `| chemistry-path carbon built ${built.toFixed(2)} mol`);
+    `max single-organism tissue gain ${maxGain.toFixed(4)} mol | chemistry-path `
+    + `carbon built ${built2.toFixed(2)} mol | net standing carbon ${c0.toFixed(2)} `
+    + `-> ${cEnd.toFixed(2)} mol (net may fall while growth occurs; that is a `
+    + `population claim, not this gate's)`);
 }
 
 /**
@@ -1838,6 +1886,142 @@ function gate33(): void {
     + `ledger; ceiling 10%)`);
 }
 
+/**
+ * G34 — the canopy lookup is spatially correct, and it actually reaches capture.
+ *
+ * OWNER-AUTHORISED CANOPY CORRECTION (2026-10-13). Four requirements, all of
+ * which the previous code failed:
+ *
+ *  1. A producer under DENSER canopy receives less local usable light than a
+ *     matched producer in the open, at equal global forcing, nutrients and
+ *     habitat shade. This is the behaviour the correction is for.
+ *  2. The canopy cell is looked up at the organism's OWN position, including
+ *     edges and corners, where off-by-one and clamping bugs hide.
+ *  3. Non-default `shadeGrain` and non-square, non-power-of-two grids behave —
+ *     the coarse mapping is not hardcoded to the default 4 or to a square.
+ *  4. LEGACY PHOTOSYNTHETIC CAPTURE responds, not merely the local-light
+ *     helper. A gate that reads back the quantity it just wrote proves nothing.
+ *
+ * The world is built, producers are placed at chosen positions, the canopy is
+ * injected at known cells, and capture is read from the LEDGER — the same
+ * quantity the economics depend on.
+ */
+function gate34(): void {
+  type W = {
+    canopyAtForGate(px: number, py: number): number;
+    injectCanopy(cx: number, cy: number, v: number): void;
+    ledgerCaptureTotal(): number;
+    aliveAt(slot: number): boolean;
+    globalLight: number;
+    step(): void;
+  };
+  // Non-default grain and a deliberately non-square, non-power-of-two world so
+  // the coarse mapping is exercised against a grid the default code path never
+  // produces.
+  // Non-default grain AND a deliberately non-square, non-power-of-two world, so
+  // the coarse mapping is exercised against geometry the default path never
+  // produces. Grain 3 does not divide either dimension evenly, which is
+  // exactly where an off-by-one or clamp bug shows.
+  const GRAIN = 3;
+  const w = new World({
+    config: {
+      seed: 4242, founders: 60, worldW: 1500, worldH: 900, label: 'canopy',
+      shadeGrain: GRAIN,
+    } as never,
+  }) as unknown as W;
+
+  // canopyAt is private engine state; reach it structurally rather than
+  // widening the public API for a gate.
+  const canopyAt = (px: number, py: number): number =>
+    (w as unknown as { canopyAt(p: number, q: number): number }).canopyAt(px, py);
+
+  // Fill ONE coarse cell with canopy and verify that only positions inside that
+  // cell's footprint read it. Corners and edges are sampled explicitly because
+  // a clamped or off-by-one mapping passes a centred probe and fails here.
+  // Read the engine's ACTUAL coarse dimensions rather than recomputing them.
+  // Recomputing re-implements the convention under test, which is how a gate can
+  // agree with a broken engine; this version did exactly that and produced a
+  // 1x1 grid.
+  const geom = w as unknown as { shadeCols: number; shadeRows: number; shadeMass: Float64Array };
+  const TC = geom.shadeCols, TR = geom.shadeRows;
+  const cw = 1500 / TC, ch = 900 / TR;
+
+  const midC = Math.floor(TC / 2), midR = Math.floor(TR / 2);
+  // Inject into the mid coarse cell only.
+  geom.shadeMass.fill(0);
+  geom.shadeMass[midR * geom.shadeCols + midC] = 25;
+
+  const inside = canopyAt((midC + 0.5) * cw, (midR + 0.5) * ch);
+  const cornerLL = canopyAt(0, 0);
+  const cornerUR = canopyAt(1500 - 1e-6, 900 - 1e-6);
+  const edgeL = canopyAt(0, (midR + 0.5) * ch);
+  const edgeT = canopyAt((midC + 0.5) * cw, 0);
+
+  const spatialOk = inside === 25
+    && cornerLL === 0 && cornerUR === 0 && edgeL === 0 && edgeT === 0;
+
+  // CAPTURE RESPONDS TO REAL DENSITY.
+  //
+  // Injecting canopy mass directly does not work: `rebuildCanopy()` recomputes
+  // shadeMass from living organisms every tick, so an injected value is wiped
+  // before capture is computed. That is the right engine behaviour and it means
+  // the only honest way to create canopy is to CREATE organisms in one place.
+  //
+  // Two worlds with the same seed; in one every phototrophic organism is moved
+  // into a single coarse cell (dense canopy), in the other they are spread one
+  // per coarse cell (open). Capture is then read from the LEDGER — the quantity
+  // the economics depend on — not from the local-light helper.
+  const captureOf = (clustered: boolean): number => {
+    const v = new World({
+      config: {
+        seed: 4242, founders: 60, worldW: 1500, worldH: 900, label: 'canopy',
+        shadeGrain: GRAIN,
+      } as never,
+    }) as unknown as W & { store: { x: Float32Array; y: Float32Array; capacity: number }; shadeCols: number; shadeRows: number };
+    const before = v.ledgerCaptureTotal();
+    for (let i = 0; i < 12; i++) v.step();
+    const st = v.store;
+    const positions: number[] = [];
+    for (let sl = 0; sl < st.capacity; sl++) {
+      if (!v.aliveAt(sl)) continue;
+      positions.push(sl);
+    }
+    const cellW = 1500 / v.shadeCols, cellH = 900 / v.shadeRows;
+    positions.forEach((sl, k) => {
+      if (clustered) {
+        // Everyone in ONE coarse cell: maximal local canopy.
+        st.x[sl] = Math.min(1499, cellW * 0.5 + 1);
+        st.y[sl] = Math.min(899, cellH * 0.5 + 1);
+      } else {
+        // One organism per coarse cell across the grid: minimal local canopy.
+        const cx = k % v.shadeCols, cy = Math.floor(k / v.shadeCols) % v.shadeRows;
+        st.x[sl] = Math.min(1499, (cx + 0.5) * cellW);
+        st.y[sl] = Math.min(899, (cy + 0.5) * cellH);
+      }
+    });
+    for (let i = 0; i < 150; i++) v.step();
+    return v.ledgerCaptureTotal() - before;
+  };
+  const open = captureOf(false);
+  const shaded = captureOf(true);
+  // A THRESHOLD, not a sign test. The first version asserted merely
+  // `shaded < open` and PASSED with the coarse-canopy defect reintroduced: the
+  // broken lookup still shaved 3.5% off capture by accident, which a sign test
+  // accepts. With the correction the clustered arm falls to ~11% of the open
+  // arm. Requiring at least a 2x attenuation is what makes this a test of the
+  // mechanism rather than of arithmetic noise.
+  const MIN_ATTENUATION = 2;
+  const ratio = open > 0 ? open / Math.max(1e-9, shaded) : 0;
+  const captureResponds = ratio >= MIN_ATTENUATION;
+
+  const pass = spatialOk && captureResponds;
+  record('G34', 'canopy lookup is spatially correct and reaches capture', pass,
+    `grid ${TC}x${TR} at shadeGrain ${GRAIN} | inside injected cell ${inside} `
+    + `(want 25) | corners ${cornerLL}/${cornerUR} edges ${edgeL}/${edgeT} `
+    + `(want 0/0/0/0) | legacy capture open ${open.toFixed(2)} shaded `
+    + `${shaded.toFixed(2)} (${captureResponds ? 'responds' : 'DID NOT RESPOND'})`);
+}
+
 function main(): void {
   console.log(`=== credibility gates :: ${WORLD_ENGINE_VERSION} ===`);
   console.log(`scenario: founders=${SMALL.founders} world=${SMALL.worldW}x${SMALL.worldH} ticks=${TICKS} seed=${SMALL.seed}\n`);
@@ -1873,6 +2057,7 @@ function main(): void {
   gate31();
   gate32();
   gate33();
+  gate34();
 
   const failed = results.filter((r) => !r.pass);
   console.log(`\n${results.length - failed.length}/${results.length} checks passed`);

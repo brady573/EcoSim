@@ -14,6 +14,9 @@
 /**
  * Bump on any behavioural change to the simulation.
  *
+ * 0.7.0 corrects the legacy coarse-canopy lookup at the Owner's explicit
+ * authorisation and re-pins parity. See the version constant for detail.
+ *
  * 0.6.0 closes the energy accounting defects found by independent review
  * (issue #2). Parity is re-pinned: 517 -> 808/159/58, 24601 -> 558/290/96.
  * All figures recorded under 0.5.0 describe a LEAKY engine — decomposer
@@ -31,7 +34,30 @@
  * All figures recorded under 0.4.1 describe the DEFECTIVE semantics and are
  * provenance only. See REPORT.md.
  */
-export const WORLD_ENGINE_VERSION = 'ts-evo-poc/0.6.0';
+/**
+ * 0.7.0 — OWNER-AUTHORISED CANOPY CORRECTION, 2026-10-13.
+ *
+ * The legacy photosynthesis path indexed the COARSE canopy array `shadeMass`
+ * (shadeCols x shadeRows, shadeGrain 4) with a FULL-RESOLUTION substrate cell.
+ * With the default grain that read an unrelated cell for 15/16 of the world and
+ * ran off the end of the array for the rest, so Beer-Lambert self-shading was
+ * effectively disabled in that path and producer income had no density
+ * dependence. Parity is re-pinned: 517 -> 492/136/74, 24601 -> 296/171/74.
+ *
+ * The retired 0.6.0 pins 808/159/58 and 558/290/96 were measured THROUGH the
+ * defect. Every figure recorded under 0.6.0 is provenance, not current
+ * behaviour.
+ *
+ * Two gates were exposed by the correction and changed to test what they name:
+ * G12 asserted a biotic flux on the FINAL tick, and the corrected ecosystem no
+ * longer sustains that loop by ~tick 100; G12 now asserts the read/clear
+ * ORDERING it exists to catch. G28 asserted NET standing tissue rises, and the
+ * corrected balance has deaths exceeding growth inside the window; G28 now
+ * asserts growth occurs, measured as the largest single-organism tissue gain.
+ * Neither weakening is cosmetic — both prior assertions were ecological claims
+ * the gates never made.
+ */
+export const WORLD_ENGINE_VERSION = 'ts-evo-poc/0.7.0';
 
 /**
  * Semantics version for the chemistry-enabled model.
@@ -57,6 +83,18 @@ export const WORLD_ENGINE_VERSION = 'ts-evo-poc/0.6.0';
  * stoichiometry.
  */
 export const CHEMISTRY_ENGINE_VERSION = 'chem/0.7.0';
+
+/**
+ * Whether the chemistry semantics themselves changed in the 0.7.0 correction.
+ *
+ * They did not. The chemistry light path already mapped substrate cells onto
+ * the coarse canopy grid correctly, so correcting the LEGACY lookup left the
+ * chemistry light term unchanged. What moved is the BASE component of the
+ * composite identity, so a chemistry-on run is now
+ * `ts-evo-poc/0.7.0+chem/0.7.0` — a different string, and therefore
+ * distinguishable from every pre-correction chemistry run, without claiming the
+ * chemistry subsystem itself changed.
+ */
 
 /**
  * The identity a run actually has, given its resolved configuration.

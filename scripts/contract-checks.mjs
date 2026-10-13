@@ -135,10 +135,37 @@ function probeArgs(over = {}) {
  * must not be compared against figures produced by this engine.
  */
 const PINNED = [
-  { seed: 517, want: [808, 159, 58], retired: '881/187/73 @ 0.4.1; 778/169/63 @ 0.5.0 pre-P0-1' },
-  { seed: 24601, want: [558, 290, 96], retired: '658/280/98 @ 0.4.1; 597/246/103 @ 0.5.0 pre-P0-1' },
+  {
+    seed: 517, want: [492, 136, 74],
+    retired: '881/187/73 @ 0.4.1; 778/169/63 @ 0.5.0 pre-P0-1; '
+      + '808/159/58 @ 0.6.0 — RETIRED BY THE OWNER-AUTHORISED CANOPY CORRECTION',
+  },
+  {
+    seed: 24601, want: [296, 171, 74],
+    retired: '658/280/98 @ 0.4.1; 597/246/103 @ 0.5.0 pre-P0-1; '
+      + '558/290/96 @ 0.6.0 — RETIRED BY THE OWNER-AUTHORISED CANOPY CORRECTION',
+  },
 ];
 
+// Provenance for the retired 0.6.0 pins, retained rather than deleted.
+//
+// 808/159/58 and 558/290/96 were measured through a DEFECTIVE canopy lookup:
+// `shadeMass` is a coarse shadeCols x shadeRows array (shadeGrain 4) but the
+// legacy photosynthesis path indexed it with a FULL-RESOLUTION substrate cell,
+// so it read an unrelated cell for 15/16 of the world and ran off the end for
+// the rest. Beer-Lambert self-shading was therefore effectively disabled and
+// producer income had no density dependence there.
+//
+// The Owner authorised the correction on 2026-10-13 together with the re-pinning
+// it requires. Every figure recorded under 0.6.0 — parity, populations, guild
+// composition, cohort comparisons, performance — describes the engine WITH the
+// defect and is provenance, not current behaviour.
+//
+// NOT RESTATED IN CURRENT UNITS. The 0.6.0 figures above are preserved exactly
+// as the contract recorded them. They are NOT converted, restated or compared
+// digit-for-digit against current figures, because this correction changes what
+// the guild populations are measured over; any apparent arithmetic relationship
+// between an old and a new triple would be invented rather than measured.
 if (!hasBuild) {
   check('C1', 'declared behaviour parity (knobs unset)', false,
     'no compiled probe at build/trace/senesprobe.js — run `npm run view:build` first');
@@ -147,8 +174,8 @@ if (!hasBuild) {
     const got = lastRow(runProbe(probeArgs({ seed: p.seed, ticks: 500 })));
     const ok = got !== null && got.prod === p.want[0] && got.cons === p.want[1] && got.dec === p.want[2];
     check('C1', `parity seed ${p.seed} (knobs unset)`, ok,
-      ok ? `P${got.prod}/C${got.cons}/D${got.dec} matches pinned (0.5.0; retired ${p.retired})`
-         : `expected P${p.want.join('/C')}/D${p.want[2]} (0.5.0), got ${fmt(got)}`);
+      ok ? `P${got.prod}/C${got.cons}/D${got.dec} matches pinned (0.7.0; retired ${p.retired})`
+         : `expected P${p.want.join('/C')}/D${p.want[2]} (0.7.0), got ${fmt(got)}`);
   }
 }
 
