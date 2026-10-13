@@ -178,20 +178,26 @@ export const REACTIONS: readonly Reaction[] = [
   //
   // Per unit of organic carbon the tissue holds 0.16 N and 0.009 P, of which
   // mineralisation releases a fraction and the remainder stays organic.
+  // Carbon is only PARTIALLY mineralised: 0.7 returns as DIC and the remaining
+  // 0.3 is refractory and STAYS ORGANIC. The earlier form emitted 0.7 and
+  // destroyed 0.3 outright, which is the carbon residual. Refractory carbon
+  // returns to the organic pool, from which burial can eventually sequester it.
   rx('aerobic decomposition', CAP.AEROBIC, 'decomposition',
     [s(POOL.OC, 1), s(POOL.ON, 0.16), s(POOL.OP, 0.009)],
     [s(POOL.DIC, 0.7), s(POOL.NH4, 0.05), s(POOL.PO4, 0.004),
-     s(POOL.ON, 0.11), s(POOL.OP, 0.005)],
+     s(POOL.ON, 0.11), s(POOL.OP, 0.005), s(POOL.OC, 0.3)],
     0.0, 0.075, [POOL.OC],
     0.02, 1e9,
     'Mineralises labile organic matter and returns N and P to available '
     + 'forms. No energy credit: this is a service performed by heterotrophs, '
     + 'funded by what they ingest, not a free lunch.'),
 
+  // Anaerobic recovery is worse (0.55) and the remainder stays organic — which
+  // is why anoxic detritus persists and must be dealt with somewhere else.
   rx('anaerobic decomposition', CAP.AEROBIC, 'decomposition',
     [s(POOL.OC, 1), s(POOL.ON, 0.16), s(POOL.OP, 0.009)],
     [s(POOL.DIC, 0.55), s(POOL.NH4, 0.05), s(POOL.PO4, 0.004), s(POOL.H2S, 0.012),
-     s(POOL.ON, 0.11), s(POOL.OP, 0.005)],
+     s(POOL.ON, 0.11), s(POOL.OP, 0.005), s(POOL.OC, 0.45)],
     0.0, 0.045, [POOL.OC],
     0, 0.02,
     'Same mineralisation without O2, but carbon is recovered less completely '
@@ -221,14 +227,17 @@ export const REACTIONS: readonly Reaction[] = [
     + 'requires anoxia. Nitrogen fixation is not modelled, so this is a real '
     + 'leak that an ecosystem must replace from weathering.'),
 
-  rx('nitrogen assimilation', CAP.N_ASSIM, 'nitrogen',
-    [s(POOL.NH4, 1)],
-    [s(POOL.ON, 1)],
-    0.0, 0.60, [POOL.NH4],
-    0, 1e9,
-    'Pulls inorganic N into biomass. Costs no energy but consumes N that '
-    + 'would otherwise be available to neighbours — this is competition for a '
-    + 'finite pool, expressed in matter rather than in a coin flip.'),
+  // REMOVED as a separate reaction.
+  //
+  // Assimilation of inorganic N into an ORGANISM is `assimilate()` in
+  // chemlife.ts, which claims NH4 from the pool into the organism's own stores.
+  // Having a reaction that ALSO ran on the same capability drew NH4 a second
+  // time and deposited the nitrogen in the ON pool, where no organism ever
+  // claimed it: nitrogen left NH4 twice and arrived once. That was the entire
+  // remaining +56% nitrogen residual.
+  //
+  // The capability bit (CAP.N_ASSIM) is retained and still gates assimilation;
+  // only the duplicate pool-to-pool path is gone.
 
   // --- Family 6: sulfur ----------------------------------------------------
   rx('sulfate reduction', CAP.SULF_REDUCE, 'sulfur',
@@ -272,9 +281,13 @@ export const REACTIONS: readonly Reaction[] = [
   // --- Structural litter and sediment ---------------------------------------
   // Litter carries its own nitrogen in LN, so mineralising it draws LN. The
   // earlier form produced NH4 from carbon alone, creating nitrogen outright.
+  // Only part of the litter is solubilised; the rest stays as refractory litter,
+  // carrying its own N and P back into the litter pools. The earlier form
+  // destroyed 0.55 C and 0.07 N outright and conjured phosphorus from nothing.
   rx('ligninolysis', CAP.LIGNOLYTIC, 'decomposition',
     [s(POOL.LC, 1), s(POOL.LN, 0.08)],
-    [s(POOL.DIC, 0.45), s(POOL.NH4, 0.012), s(POOL.PO4, 0.001)],
+    [s(POOL.DIC, 0.45), s(POOL.NH4, 0.012), s(POOL.PO4, 0.001),
+     s(POOL.LC, 0.55), s(POOL.LN, 0.068)],
     0.0, 0.0035, [POOL.LC],
     0, 1e9,
     'Structural litter is refractory by construction: its rate is two orders '
@@ -283,9 +296,13 @@ export const REACTIONS: readonly Reaction[] = [
     + 'is therefore a long-timescale sink, not a recycled pool.'),
 
   // Likewise: sediment nitrogen lives in SN and must be drawn, not conjured.
+  // Weathering solubilises a fraction; the remainder stays buried. The earlier
+  // form destroyed 0.3 C and released phosphorus that was never drawn from SN
+  // or SP, so it was created from nothing.
   rx('sediment release', CAP.SEDIMENT_ACCESS, 'sediment',
-    [s(POOL.SC, 1), s(POOL.SN, 0.02)],
-    [s(POOL.OC, 0.7), s(POOL.PO4, 0.004), s(POOL.NH4, 0.02)],
+    [s(POOL.SC, 1), s(POOL.SN, 0.02), s(POOL.SP, 0.006)],
+    [s(POOL.OC, 0.7), s(POOL.PO4, 0.004), s(POOL.NH4, 0.02),
+     s(POOL.SC, 0.3), s(POOL.SP, 0.002)],
     0.0, 0.0022, [POOL.SC],
     0, 1e9,
     'Weathering and burial turnover. Extremely slow, and the only route by '

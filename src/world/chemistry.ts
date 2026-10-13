@@ -105,7 +105,7 @@ const POOL_ELEMENT: readonly E[] = [
   E.C, E.N, E.P, E.S, E.FE,                     // 10-14 labile organic
   E.C, E.N, E.P, E.S,                           // 15-18 litter
   E.C, E.N, E.P, E.S, E.FE,                     // 19-23 sediment
-  E.C,                                          // 24 water (tracked separately)
+  E.H,                                          // 24 water (H and O; tracked in both)
 ];
 
 /** Transport class: how a pool moves through the grid. */
@@ -535,11 +535,15 @@ export class Chemistry {
     // Water is the one pool carrying TWO elements; it belongs in both books at
     // its full molar amount, which is what makes photosynthesis' water draw
     // balance against its products.
+    // Water is the one pool carrying TWO elements. It is counted ONCE here,
+    // explicitly, and excluded from the per-pool loop below — otherwise the
+    // generic POOL_ELEMENT mapping double-books it.
     if (e === E.H || e === E.O) {
       const w = this.fields[POOL.H2O].data;
       for (let i = 0; i < n; i++) sum += w[i];
     }
     for (let p = 0; p < POOL_COUNT; p++) {
+      if (p === POOL.H2O) continue;
       if (POOL_ELEMENT[p] !== e) continue;
       const f = this.fields[p].data;
       for (let i = 0; i < n; i++) sum += f[i];
