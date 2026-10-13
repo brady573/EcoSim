@@ -154,3 +154,72 @@ correct.
 ---
 
 # RESULTS (recorded after the run; do not edit the section above)
+
+## Follow-up: which pool limits, and at what rate
+
+Registered as an open question at the end of the first run, not as a
+hypothesis — this is diagnosis, and it is recorded after the fact and labelled
+as such.
+
+**H8 (diagnosis).** The constraint is a specific mineral pool in short supply.
+
+**Result: NOT a pool. It is labile organic carbon in the organism's own cell,
+and it is supply-limited rather than rate-limited.**
+
+Measured on seed 517, 1000 ticks, base arm:
+
+| element | reproduction demand | organisms meeting it |
+|---|---|---|
+| C | 1.0 mol | **33%** |
+| N | 0.16 mol | 30% |
+| S | 0.006 mol | 48% |
+| Fe | 3e-5 mol (cofactor) | 56% |
+| P, H, O | — | 100% |
+
+**95 of 141 organisms fail first on carbon**; only 8 clear every gate.
+
+The decisive measurement: OC (labile organic carbon) per cell has a median of
+0.166 mol, and at `assimilationEfficiency` 0.62 that yields 0.103 mol per tick
+available to an organism — against a 0.20 mol per tick assimilation cap. **The
+pool empties before the cap is reached**, so uptake is limited by what is in the
+cell, not by the assimilation rate.
+
+This is why the environment's nutrient totals were misleading. Mineral pools
+ACCUMULATE over the run (N 221→795, P 111→1365, S 366→3430, Fe 261→1476) while
+organisms fail to reproduce. Total supply is not the constraint; **local,
+per-cell availability is**. An organism standing in one cell cannot draw from the
+pool three cells away, which is the declared design — and it means a world with
+growing total nutrients can starve every individual in it.
+
+### Ablation confirmation (3 seeds, 1000 ticks, median population)
+
+| arm | population | births |
+|---|---|---|
+| base | 19 | 160 |
+| **free nutrients** | **519** | 2608 |
+| reproduction demand 0 | 611 | 2674 |
+| energy scale 4 | 25 | 176 |
+| free energy | 11 | 30 |
+| assimilation efficiency 1.0 | 29 | 141 |
+
+Nutrient relief moves the population **27-fold**; energy relief moves it not at
+all, and `freeEnergy` makes it *worse*. Raising the assimilation rate does not
+help either — consistent with supply-limited uptake, where a higher cap is never
+reached.
+
+### What this does NOT explain
+
+With nutrients free the population still reaches only ~900 against ~1640 with
+chemistry off, so a second, smaller chemistry cost remains unidentified. The
+legacy food web is intact in both arms (detritus 613.9 vs 718.4), so it is not
+a missing detritus supply. Candidate explanations not yet tested: chemistry
+tissue entering the legacy food web on death, or the chemistry energy budget
+interacting with the legacy hunger clock.
+
+### Next experiment, to be pre-registered before it is run
+
+- H9: raising organic-carbon supply per cell (photosynthetic OC production, or
+  detrital return) raises reproduction proportionally. Falsified if population
+  is insensitive to OC supply across at least a 10x range.
+- H10: chemistry tissue returned to the legacy food web on death closes the
+  residual 900-vs-1640 gap. Falsified if it does not.
