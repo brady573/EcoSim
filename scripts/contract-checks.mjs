@@ -110,7 +110,8 @@ function probeArgs(over = {}) {
 }
 
 /**
- * Knobs-unset parity, re-pinned for engine ts-evo-poc/0.5.0.
+
+ * Knobs-unset parity, re-pinned for engine ts-evo-poc/0.7.0 after the Owner-
  *
  * The PREVIOUS pin (seed 517 -> 881/187/73, seed 24601 -> 658/280/98) was
  * measured under 0.4.1 and is RETIRED, not corrected. Three behavioural

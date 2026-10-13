@@ -787,18 +787,17 @@ function gate12(): void {
   // does not make and this gate never asserted. The ORDERING is proven by the
   // term having EVER seen a non-zero flux, so that is what is measured, and the
   // OFF arm must be zero at every tick, which is the kill-switch's own signature.
-  const arm = (cyclic: boolean): { peak: number; anyOff: boolean; ticks: number } => {
+  const arm = (cyclic: boolean): { peak: number; ticks: number } => {
     const w = new World({
       config: { ...SMALL, founders: 120, nutrientCyclic: cyclic } as never,
     }) as unknown as W;
-    let peak = 0, anyOff = false, ticks = 0;
+    let peak = 0, ticks = 0;
     for (let k = 0; k < 150; k++) {
       w.step();
       if (w.cyclicFluxLastTick > peak) peak = w.cyclicFluxLastTick;
       if (w.cyclicFluxLastTick > 0) ticks++;
     }
-    if (cyclic && peak === 0) anyOff = true;
-    return { peak, anyOff, ticks };
+    return { peak, ticks };
   };
   const on = arm(true);
   const off = arm(false);
@@ -1611,20 +1610,34 @@ function gate28(): void {
   // increase any one organism's tissue undergoes — rather than the net of
   // growth against mortality, which is a population claim this gate never made.
   let maxGain = 0;
-  const base0 = w.chemStores!.biomass.slice();
-  const prev = new Float64Array(w.store.capacity);
-  for (let s = 0; s < w.store.capacity; s++) prev[s] = base0[s];
+  // REVIEW FINDING 1 FIXED. This indexed the FLAT biomass buffer by raw slot:
+  // `biomass[s]` is element `s % E_COUNT` of organism `floor(s / E_COUNT)`, not
+  // organism s's carbon. It therefore measured cross-element noise for the
+  // first seventh of the slots, and — because dead slots kept a stale `prev` —
+  // a newborn reusing a slot read `newbornTissue - stalePrev > 0` with no
+  // growth whatsoever. The gate's growth half could pass on births alone.
+  // Only the `built2` conjunct kept it honest, and a conjunct that rescues a
+  // broken measurement is not a measurement.
+  //
+  // Now strides correctly and ONLY compares slots that were alive on the
+  // previous tick, so a slot reuse cannot be mistaken for tissue growth.
+  const bi = w.chemStores!.biomass;
+  const prev = new Float64Array(w.store.capacity).fill(NaN);
+  for (let s = 0; s < w.store.capacity; s++) if (w.aliveAt(s)) prev[s] = bi[s * E_RUNTIME_COUNT];
   for (let i = 0; i < 400; i++) {
     w.step();
     for (let s = 0; s < w.store.capacity; s++) {
-      if (!w.aliveAt(s)) continue;
-      const d = w.chemStores!.biomass[s] - prev[s];
-      if (d > maxGain) maxGain = d;
-      prev[s] = w.chemStores!.biomass[s];
+      if (!w.aliveAt(s)) { prev[s] = NaN; continue; }
+      const cur = bi[s * E_RUNTIME_COUNT];
+      if (prev[s] === prev[s]) {          // not NaN: continuously alive
+        const d = cur - prev[s];
+        if (d > maxGain) maxGain = d;
+      }
+      prev[s] = cur;
     }
   }
   let cEnd = 0;
-  for (let s = 0; s < w.store.capacity; s++) if (w.aliveAt(s)) cEnd += w.chemStores!.biomass[s * E_RUNTIME_COUNT];
+  for (let s = 0; s < w.store.capacity; s++) if (w.aliveAt(s)) cEnd += bi[s * E_RUNTIME_COUNT];
   const built2 = w.chemistry!.flux.chemCarbonBuilt;
   const pass = maxGain > 0 && built2 > 0;
   record('G28', 'living tissue grows in a running world', pass,
@@ -1908,8 +1921,6 @@ function gate33(): void {
  */
 function gate34(): void {
   type W = {
-    canopyAtForGate(px: number, py: number): number;
-    injectCanopy(cx: number, cy: number, v: number): void;
     ledgerCaptureTotal(): number;
     aliveAt(slot: number): boolean;
     globalLight: number;
@@ -1942,7 +1953,7 @@ function gate34(): void {
   // Recomputing re-implements the convention under test, which is how a gate can
   // agree with a broken engine; this version did exactly that and produced a
   // 1x1 grid.
-  const geom = w as unknown as { shadeCols: number; shadeRows: number; shadeMass: Float64Array };
+  const geom = w as unknown as { shadeCols: number; shadeRows: number; shadeMass: Float32Array };
   const TC = geom.shadeCols, TR = geom.shadeRows;
   const cw = 1500 / TC, ch = 900 / TR;
 

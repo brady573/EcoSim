@@ -110,4 +110,10 @@ export function runIdentity(chemistryEnabled: boolean): string {
 }
 
 /** Identifier for the credibility-check suite that accompanies this version. */
-export const GATE_SUITE_VERSION = 'gates/0.4.0';
+/**
+ * 0.5.0 — two gates changed what they assert (G12: ordering not a sustained
+ * cycle; G28: growth occurs, not net standing stock) and G34 was added for the
+ * Owner-authorised canopy correction. The suite's semantics changed, so a
+ * result recorded under gates/0.4.0 is not comparable without re-running.
+ */
+export const GATE_SUITE_VERSION = 'gates/0.5.0';

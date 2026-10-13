@@ -16,7 +16,7 @@ This file governs repository practice only.
 
 `ts-evolution-poc` — a disposable, evidence-driven experiment in whole-ecosystem
 evolutionary simulation. Single TypeScript tree. Engine version
-`ts-evo-poc/0.6.0`.
+`ts-evo-poc/0.7.0`.
 
 - **STATUS: EXPERIMENTAL. NOT PRODUCTION CODE.**
 - Judged on **reproducibility, honest accounting, emergence without forcing,
@@ -102,13 +102,25 @@ Required before a change is considered done:
 1. **Typecheck clean.**
 2. **Gates pass** (`src/gates.ts`).
 3. **Knobs-unset parity exact** against pinned values — currently seed 517 →
-   `P808 C159 D58` and 24601 → `P558 C290 D96` at 500 ticks, engine
-   `ts-evo-poc/0.6.0`. A change that alters these with no knob set has changed
+   `P492 C136 D74` and 24601 → `P296 C171 D74` at 500 ticks, engine
+   `ts-evo-poc/0.7.0`. A change that alters these with no knob set has changed
    declared behaviour.
+
+   **`scripts/contract-checks.mjs` is the single source of truth for the live
+   pins.** If this file and that script ever disagree, the script is correct
+   and this paragraph is stale.
 
    These values were re-pinned **twice**. The chain of retired values is
    recorded in `scripts/contract-checks.mjs` beside the live ones:
    - `881/187/73`, `658/280/98` @ 0.4.1 — three behavioural defects corrected;
+   - `808/159/58`, `558/290/96` @ 0.6.0 — **the Owner-authorised canopy
+     correction of 2026-10-13.** The legacy photosynthesis path indexed the
+     COARSE canopy array `shadeMass` with a full-resolution substrate cell, so
+     Beer-Lambert self-shading was effectively disabled there and producer
+     income had no density dependence. Every figure recorded under 0.6.0 —
+     parity, populations, guild composition, cohorts, performance — was
+     measured through that defect and is provenance, not current behaviour. See
+     `EVIDENCE-INVENTORY.md`;
    - `778/169/63`, `597/246/103` @ 0.5.0 — the mineralisation broadcast was
      inflating substrate by the cell count, which changed producer growth and
      therefore everything downstream.
