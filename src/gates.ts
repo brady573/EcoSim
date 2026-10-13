@@ -1622,18 +1622,24 @@ function gate28(): void {
   // Now strides correctly and ONLY compares slots that were alive on the
   // previous tick, so a slot reuse cannot be mistaken for tissue growth.
   const bi = w.chemStores!.biomass;
+  const store = w.store;
   const prev = new Float64Array(w.store.capacity).fill(NaN);
-  for (let s = 0; s < w.store.capacity; s++) if (w.aliveAt(s)) prev[s] = bi[s * E_RUNTIME_COUNT];
+  const prevId = new Float64Array(w.store.capacity).fill(-1);
+  for (let s = 0; s < w.store.capacity; s++) {
+    if (w.aliveAt(s)) { prev[s] = bi[s * E_RUNTIME_COUNT]; prevId[s] = store.id[s]; }
+  }
   for (let i = 0; i < 400; i++) {
     w.step();
     for (let s = 0; s < w.store.capacity; s++) {
-      if (!w.aliveAt(s)) { prev[s] = NaN; continue; }
+      if (!w.aliveAt(s)) { prev[s] = NaN; prevId[s] = -1; continue; }
       const cur = bi[s * E_RUNTIME_COUNT];
-      if (prev[s] === prev[s]) {          // not NaN: continuously alive
+      const id = store.id[s];
+      if (id === prevId[s] && prev[s] === prev[s]) {          // same organism persisted
         const d = cur - prev[s];
         if (d > maxGain) maxGain = d;
       }
       prev[s] = cur;
+      prevId[s] = id;
     }
   }
   let cEnd = 0;
@@ -2025,12 +2031,45 @@ function gate34(): void {
   const ratio = open > 0 ? open / Math.max(1e-9, shaded) : 0;
   const captureResponds = ratio >= MIN_ATTENUATION;
 
-  const pass = spatialOk && captureResponds;
+  // INDEPENDENT CONTROLLED CHECK (review #5506898666).
+  //
+  // The clustered-vs-open comparison above repositions ALL organisms, so its
+  // capture difference is confounded with habitat, nutrient and competition
+  // context. Here the spatial layout, seed and forcing are held IDENTICAL and
+  // only the local canopy MASS is varied: `rebuildShadeMass` is frozen so an
+  // injected field persists, and the same biological population runs under a
+  // high persistent canopy versus none. A difference here is attributable to
+  // canopy mass alone, not to where the organisms were moved.
+  const isolated = ((): { responds: boolean; high: number; none: number; ratio: number } => {
+    const mk = (): any => new World({
+      config: { seed: 4242, founders: 60, worldW: 1500, worldH: 900, label: 'canopy', shadeGrain: GRAIN } as never,
+    });
+    const run = (canopyMass: number): number => {
+      const v: any = mk();
+      // Freeze the coarse canopy rebuild so our injected mass is the only
+      // shadeMass in force for the whole run. Positions/nutrients still evolve
+      // identically because everything else in `step()` is untouched.
+      v.rebuildShadeMass = function () {};
+      const geom = v as { shadeCols: number; shadeRows: number; shadeMass: Float32Array };
+      geom.shadeMass.fill(canopyMass);
+      const before = v.ledgerCaptureTotal();
+      for (let i = 0; i < 150; i++) v.step();
+      return v.ledgerCaptureTotal() - before;
+    };
+    const high = run(25);
+    const none = run(0);
+    const r = none > 0 ? none / Math.max(1e-9, high) : 0;
+    return { responds: r >= MIN_ATTENUATION, high, none, ratio: r };
+  })();
+  const isolatedResponds = isolated.responds;
+  const pass = spatialOk && captureResponds && isolatedResponds;
   record('G34', 'canopy lookup is spatially correct and reaches capture', pass,
     `grid ${TC}x${TR} at shadeGrain ${GRAIN} | inside injected cell ${inside} `
     + `(want 25) | corners ${cornerLL}/${cornerUR} edges ${edgeL}/${edgeT} `
     + `(want 0/0/0/0) | legacy capture open ${open.toFixed(2)} shaded `
-    + `${shaded.toFixed(2)} (${captureResponds ? 'responds' : 'DID NOT RESPOND'})`);
+    + `${shaded.toFixed(2)} (${captureResponds ? 'responds' : 'DID NOT RESPOND'}) `
+    + `| isolated canopy high ${isolated.high.toFixed(2)} none ${isolated.none.toFixed(2)} `
+    + `ratio ${isolated.ratio.toFixed(2)} (${isolatedResponds ? 'responds' : 'DID NOT RESPOND'})`);
 }
 
 function main(): void {
