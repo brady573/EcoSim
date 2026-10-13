@@ -7551,10 +7551,120 @@ The reliance probe showed consumers go extinct when biotic mineralization is kno
 
 **This is a second, independent mechanism limiting consumers** — not just nutrient limitation but also reproductive inviability.
 
--------------------------------------------------------------------------------
-REVIEW RESPONSE CORRECTIONS V2 (2026-10-13, reviewer Acrius-max on head 87cefa7)
-All declared corrections validated: typecheck, 36/36 gates, 11/11 contract,
-153/153 workflow, deterministic repeat runs, bundle matches CLI.
+--------------------------------------------------------------------------------
+LOCAL OPPORTUNITY / FITNESS OBSERVATION (Owner handoff Task 5 — diagnostic ONLY)
+--------------------------------------------------------------------------------
+
+Probe: `src/trace/opportunityprobe.ts` (compiled). Engine 0.6.2. Seeds 517 and
+41001, 3000 ticks, sampled every 250. Same pinned excretion-return effective
+config as `patchtrack` / `nutrientflow` / `relianceprobe`.
+
+**Read-only claim.** The observer constructs a World, steps it and reads state.
+It sets no knob, draws no randomness of its own, and writes nothing back. Its
+output is therefore a measurement of *declared behaviour*, not an experimental
+arm — which is exactly what Task 5 authorised.
+
+### What it measures
+
+Per living organism, per sample tick: local substrate pool (nutrient /
+detritus+sediment+litter), conspecifics inside its own sensing radius, other-guild
+organisms inside range, consumers inside range of a non-consumer, organisms
+sharing the cell (the food-disease denominator), damage. It then correlates each
+opportunity axis with the *future* fitness of the same organism — survival to the
+next sample and energy change across it.
+
+### Measurements
+
+Seed 517 (coexistence arm), seed 41001 (failing arm):
+
+| Signal | Seed 517 | Seed 41001 |
+|--------|----------|------------|
+| Nutrient CV across 60x60 field | 0.210 @ t250 -> 0.019 @ t3000 | 0.210 @ t250 -> 0.019 @ t3000 |
+| Detritus CV across field | 0.506 -> ~1.2 (persistent) | 0.506 -> ~0.74 (persistent) |
+| Mean consumer prey-in-range | 2.5-5.7 | 2.8 -> 0.0 (prey exhausted) |
+| Mean |dispersal| per 250 ticks | 92 -> 78 | 92 -> 380 |
+| Max single displacement | 795 | 1275 (map is 2400 wide) |
+
+### Finding 1 — the nutrient field homogenises; the detritus field does not
+
+Nutrient CV decays monotonically from 0.21 to 0.019 over 3000 ticks on both
+seeds. Diffusion plus global regeneration erase the abiotic gradient. Detritus
+CV stays at 0.5-1.7 the whole way, because detritus is *produced locally by
+bodies* and is not diffused the same way. **Local substrate opportunity for
+producers is transient; local substrate opportunity for decomposers is
+structural.**
+
+### Finding 2 — consumer prey opportunity is a strong, consistent fitness predictor
+
+On the failing arm (41001), consumer survival splits hard by prey-in-range
+quartile, and the sign never flips across samples:
+
+| Tick | survival, high-prey quartile | survival, zero-prey quartile |
+|------|------------------------------|------------------------------|
+| 500 | 96.0% | 26.0% |
+| 750 | 93.9% | 50.0% |
+| 1000 | 97.0% | 28.0% |
+
+On the coexistence arm the same split is present but weaker (80% vs 76% at
+t500). Prey-in-range is the single strongest opportunity signal in the model,
+and it is already being read — the behaviour-arbitration `huntScore` uses
+exactly this quantity.
+
+### Finding 3 — producer fitness runs AGAINST local nutrient (crowding, not scarcity)
+
+Producer survival is *lower* in the highest-nutrient quartile than in the lowest
+on every sampled tick of both arms: 78.8% vs 87.9% (t500), 81.8% vs 98.5%
+(t750), 78.8% vs 96.2% (t1000), 75.0% vs 87.5% (t1250). Mean cell crowding and
+mean damage rise together across the same samples (crowd 1.4 -> 2.2, damage
+12.5 -> 26.0).
+
+Rich cells attract producers, crowding raises the local food-disease dose, and
+damage follows. **The binding local cost for producers is competition, not
+substrate scarcity** — a negative frequency-dependent pressure that already
+exists in declared behaviour, with no `opportunityWeight` anywhere.
+
+### Finding 4 — dispersal is not the bottleneck the earlier report implied
+
+The design note in this file records "96% local dispersal" as a dispersal
+defect. That figure describes *newborn placement*. Mature organisms already
+move: mean 92-380 world units per 250 ticks, maxima of 1000-1275 on a 2400-wide
+map. Organisms are crossing patches routinely. A `dispersalWeight` knob would
+not be adding movement; it would be redirecting movement that already happens.
+
+### Finding 5 — consumer self-pressure is unmeasured by this observer
+
+`threats` counts consumers within range of a *non-consumer* only, so it reads
+0.000 for consumers by construction. Consumer-on-consumer pressure is reported
+as `competitors` instead. Predation pressure on producers/decomposers is low and
+stable (0.07-0.65 consumers in range). Any future predator-pressure design must
+define this axis explicitly rather than inheriting this probe's convention.
+
+### Two designs returned for Owner acceptance (NOT implemented)
+
+Nothing below is built, wired or gated. Both are diagnostic extensions of this
+read-only observer; neither adds `opportunityWeight`, `dispersalWeight`,
+targeted/bias mutation, NFD forcing, a `pioneerBonus` redesign or guild
+steering. Each needs separate Owner acceptance before any work starts.
+
+**Design A — Opportunity-slope diagnostic as a standing evidence fixture.**
+Generalise this observer to report, per guild per seed, the *sign and magnitude*
+of the opportunity-fitness slope for each axis (resource, competition, threat),
+and assert in a workflow fixture that the sign is stable across a seed panel.
+Purpose: turns "local opportunity exists" from a design note into a measured,
+regressable claim. Findings 2 and 3 say the slope is real for consumers
+(positive, prey) and for producers (negative, crowding), so the fixture would
+pin behaviour that already exists rather than invent any.
+
+**Design B — Arrival-payoff observer for the dispersal question.**
+Extend the observer to record, for each organism that crosses a patch boundary,
+the opportunity delta between departure and arrival cell, and the subsequent
+fitness of movers versus stayers. Purpose: decides whether a dispersal-to-
+opportunity coupling would have any signal to give. Finding 4 says movement is
+already large, so the open question is not *whether* organisms move but *whether
+moving helps* — which is exactly what this measures, read-only, before anyone
+proposes a knob.
+
+Both designs are diagnostic-only and remain unstarted pending Owner acceptance.
 
 --------------------------------------------------------------------------------
 REVIEW RESPONSE CORRECTIONS V2 (2026-10-13, reviewer Acrius-max on head 87cefa7)
