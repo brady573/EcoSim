@@ -29,8 +29,7 @@
  */
 
 import {
-  MAX_MODULES, MODULE_STRIDE, MODULE_STRIDE_KIND, MODULE_STRIDE_MAG,
-  inheritModules, recombineModules, seedFounderModules,
+  MAX_MODULES, MODULE_STRIDE, inheritModules, recombineModules, seedFounderModules,
 } from '../bio/modgenome.js';
 import { Rng } from '../core/rng.js';
 import { ScalarField } from '../core/field.js';
@@ -45,7 +44,7 @@ import {
 } from './chemistry.js';
 import { E, newElemVec, biomassDemand } from '../bio/elements.js';
 import {
-  CAP, CAP_COUNT, capabilitiesFromModules, maskFromStrength, REACTIONS, RX_COUNT,
+  CAP, CAP_COUNT, MODULE_CAPABILITY, maskFromStrength, REACTIONS, RX_COUNT,
   newMetabolicEvidence, type MetabolicEvidence,
 } from '../bio/metabolism.js';
 import {
@@ -4278,13 +4277,32 @@ export class World {
       // Capabilities follow the expressed module genome, so they are re-derived
       // on the same cadence as the phenotype they come from.
       if (n > 0) {
+        // FINDING 5 FIXED. Capability strength comes from the CACHED PHENOTYPE's
+        // per-kind expression tally, not from the raw genome block.
+        //
+        // Reading `store.geneModules` directly granted a capability the moment
+        // it was INHERITED — before developmental onset, and therefore before
+        // any of its upkeep was being paid. An organism ran a reaction it had
+        // not built. This also disagreed with the phenotype the rest of the
+        // simulation uses, which is the same class of defect as the inspector
+        // panel disagreeing with the engine.
+        const phen = store.phen[slot] as Phenotype | null;
+        const tally = phen?.moduleByKind;
         const strength = st.capStrength.subarray(
           slot * CAP_COUNT, (slot + 1) * CAP_COUNT,
         );
-        capabilitiesFromModules(
-          store.geneModules, n, slot * MAX_MODULES * MODULE_STRIDE, MODULE_STRIDE,
-          MODULE_STRIDE_KIND, MODULE_STRIDE_MAG, strength,
-        );
+        strength.fill(0);
+        if (tally) {
+          for (let k = 0; k < tally.length; k++) {
+            const expressed = tally[k];
+            if (expressed <= 0) continue;
+            const caps = MODULE_CAPABILITY[k] ?? 0;
+            for (let c = 0; c < CAP_COUNT; c++) {
+              const bit = 1 << c;
+              if ((caps & bit) !== 0) strength[c] = Math.min(1, strength[c] + expressed);
+            }
+          }
+        }
         st.capMask[slot] = maskFromStrength(strength);
       }
 
@@ -4358,6 +4376,13 @@ export class World {
         inputs: zero(), outputs: zero(), initial: zero(), residual: [],
         hypoxicFraction: 0, oxicFraction: 0,
       };
+      // FINDING 7 FIXED. The opening inventory is captured from the fields at
+      // construction, BEFORE any boundary flux or reaction has run. Capturing
+      // it after the first chemistry tick counted that tick's weathering in
+      // both the inventory and the inputs, inflating the apparent residual.
+      for (let e = 0; e < n; e++) {
+        this.chemAudit.initial[e] = chem.elementTotal(e);
+      }
     }
     const a = this.chemAudit;
     a.tick = this.tick;
@@ -4393,10 +4418,6 @@ export class World {
     // hydrogen permanently 45% short. Births move tissue from parent to child
     // through the transfer path, so no founder matter appears after t=0.
 
-    if (a.tick === this.tick && a.initial.every((v) => v === 0) && a.environment.some((v) => v !== 0)) {
-      // Capture the opening inventory once the fields are populated.
-      for (let e = 0; e < n; e++) a.initial[e] = a.environment[e] + a.biomass[e] + a.stores[e];
-    }
 
     // Outputs are DECLARED exports only, and the only declared export in this
     // model is nitrogen leaving as gas via denitrification. They must not be

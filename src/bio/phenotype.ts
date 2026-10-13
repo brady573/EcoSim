@@ -78,6 +78,14 @@ export class Phenotype {
   /** Modular genome v2: total expressed structure and its upkeep price. */
   moduleTotal = 0;
   moduleUpkeep = 0;
+  /**
+   * Expressed magnitude per module kind, indexed by GENE_MODULE.
+   *
+   * Read by the chemistry phase to derive metabolic capability from what is
+   * ACTUALLY expressed rather than what is merely inherited, so a capability
+   * cannot be used before its developmental onset or while its upkeep is unpaid.
+   */
+  readonly moduleByKind = new Float32Array(16);
 
   /** Collision radius, world units. Derived from body mass and proportions. */
   readonly hitRadius: number;
@@ -128,6 +136,7 @@ export class Phenotype {
       );
       this.moduleTotal = tally.total;
       this.moduleUpkeep = tally.upkeep;
+      this.moduleByKind.set(tally.byKind.subarray(0, this.moduleByKind.length));
       for (let i = 0; i < TRAIT_COUNT; i++) {
         if (deltas[i] === 0) continue;
         const spec = TRAITS[i];
