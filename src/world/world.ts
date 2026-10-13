@@ -609,6 +609,7 @@ export class World {
     this.grazeTarget = growI(this.grazeTarget, -1);
     this.threatTarget = growI(this.threatTarget, -1);
     this.mateTarget = growI(this.mateTarget, -1);
+    this.successfulMating = growU8(this.successfulMating);
     this.intent = growU8(this.intent);
     // `idToSlot` is deliberately NOT grown here. It is indexed by stable id,
     // which grows monotonically and far faster than slot count (one id per

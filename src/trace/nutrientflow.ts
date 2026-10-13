@@ -82,17 +82,23 @@ for (let t = 1; t <= TICKS; t++) {
     const litTotal = w.litter.data.reduce((a,b)=>a+b,0);
     const minTotal = w.mineralisedCell.reduce((a,b)=>a+b,0);
 
-    // Cap utilization
+    // Cap utilization — CORRECTED: denominator = sum of configured per-cell caps
     const capTotals = caps.map((cap, idx) => {
-      const capSum = w.nutrients[idx].data.reduce((a,b,i)=>a+Math.min(b, w.config.nutrientPerCell * w.habitat.fertility.data[i] * cap), 0);
+      const fert = w.habitat.fertility.data;
+      const capSum = fert.reduce((a, f) => a + w.config.nutrientPerCell * f * cap, 0);
       const actualSum = w.nutrients[idx].data.reduce((a,b)=>a+b,0);
-      return { cap: capSum, actual: actualSum, util: capSum > 0 ? actualSum/capSum : 0 };
+      const overCapCells = w.nutrients[idx].data.reduce((a,b,i) => a + (b > w.config.nutrientPerCell * fert[i] * cap ? 1 : 0), 0);
+      const overCapValue = w.nutrients[idx].data.reduce((a,b,i) => {
+        const c = w.config.nutrientPerCell * fert[i] * cap;
+        return a + (b > c ? b - c : 0);
+      }, 0);
+      return { cap: capSum, actual: actualSum, util: capSum > 0 ? actualSum/capSum : 0, overCapCells, overCapValue };
     });
 
     console.log(`t${t}: P${pCount}/C${cCount}/D${dCount} | energy P${pEnergy.toFixed(0)}/C${cEnergy.toFixed(0)}/D${dEnergy.toFixed(0)}`);
-    console.log(`  nutrients: [${nutTotals.map(x=>x.toFixed(1)).join(', ')}] | capUtil: [${capTotals.map(x=>x.util.toFixed(2)).join(', ')}]`);
+    console.log(`  nutrients: [${nutTotals.map(x=>x.toFixed(1)).join(', ')}] | capUtil: [${capTotals.map(x=>x.util.toFixed(2)).join(', ')}] | overCapCells: [${capTotals.map(x=>x.overCapCells).join(',')}] | overCapValue: [${capTotals.map(x=>x.overCapValue.toFixed(1)).join(', ')}]`);
     console.log(`  organic: det=${detTotal.toFixed(1)} sed=${sedTotal.toFixed(1)} lit=${litTotal.toFixed(1)} | mineralised=${minTotal.toFixed(1)}`);
-    console.log(`  ingested: P${pIngested.toFixed(1)}/C${cIngested.toFixed(1)}/D${dIngested.toFixed(1)}`);
+    console.log(`  ingested (cumulative survivors): P${pIngested.toFixed(1)}/C${cIngested.toFixed(1)}/D${dIngested.toFixed(1)}`);
     console.log('');
   }
 }
@@ -103,5 +109,9 @@ if (w.ledger && typeof w.ledger.report === 'function') {
   w.ledger.report();
 }
 
-console.log('Nutrient flow audit complete. For per-guild uptake attribution,');
-console.log('engine needs ReproProbe-style hooks on photosynthesis uptake per trophic guild.');
+console.log('STANDING-STOCK / SURVIVING-ORGANISM CUMULATIVE TELEMETRY complete.');
+console.log('This probe samples population snapshots and cumulative energyIngested of');
+console.log('organisms alive at checkpoints. It does NOT measure instantaneous or');
+console.log('interval trophic flow, per-pool nutrient uptake, or flux by functional');
+console.log('phenotype. For process-level flow, engine needs ReproProbe-style hooks');
+console.log('on photosynthesis uptake, excretion returns, and mineralization per pool.');

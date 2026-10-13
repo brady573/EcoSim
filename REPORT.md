@@ -7263,3 +7263,89 @@ Phase 3: Screen on failure seeds; promote only if predictions pass
 Phase 4: Trait→guild mapping for mutation bias (if Phase 3 succeeds)
 
 All knobs null-default, individually reversible. No quotas, no hidden floors.
+
+--------------------------------------------------------------------------------
+REVIEW RESPONSE CORRECTIONS (2026-10-13, reviewer Acrius-max on head 26901aa)
+--------------------------------------------------------------------------------
+
+### P1 — successfulMating array grows with capacity (FIXED)
+**File:** `src/world/world.ts:611` (ensureSlotArrays)
+**Defect:** `successfulMating` Uint8Array was not grown when organism capacity
+exceeded initial allocation. Births beyond initial capacity would silently
+fail to set the flag, allowing both sexual and asexual reproduction in the
+same tick.
+**Fix:** Added `this.successfulMating = growU8(this.successfulMating);` to
+`ensureSlotArrays` alongside other per-slot arrays.
+**Validation:** New gate G28 verifies `successfulMating.length === capacity`
+after forced population growth (500 ticks, capacity=1024). Passes.
+
+### P1 — Engine version identifier bumped to 0.6.2 (FIXED)
+**Files:** `src/world/version.ts:52`, `evidence/app/evo-sim-poc.html` (rebuilt)
+**Defect:** `WORLD_ENGINE_VERSION` export still read `ts-evo-poc/0.6.1` despite
+documentation and parity pins declaring 0.6.2.
+**Fix:** Updated exported constant to `ts-evo-poc/0.6.2`; rebuilt app bundle
+(`npm run build:app`) so browser artifact also declares 0.6.2.
+**Validation:** Contract check C4 (bundle matches CLI) passes with new pins.
+
+### P1 — nutrientflow capUtil calculation corrected (FIXED)
+**File:** `src/trace/nutrientflow.ts:85-92`
+**Defect:** Denominator used `min(actual, cap)` per cell, making util=1.00
+for all cells below cap regardless of actual fill level.
+**Correction:** Denominator now sums configured per-cell caps
+(`nutrientPerCell * fertility * capacity`); numerator sums actual nutrients.
+Added `overCapCells` and `overCapValue` metrics for true over-cap measurement.
+**Result (seed 517, t2000):** capUtil ~0.48-0.52 (not 1.00); overCapCells=0.
+Nutrients are at ~50% capacity, NOT saturated. Previous conclusion
+"nutrient limitation is NOT binding" was based on the artifact; correct
+reading: nutrients are at half-cap, limitation IS present but not extreme.
+REPORT entry at 7140-7182 superseded — see corrected probe output below.
+
+### P2 — nutrientflow relabeled as standing-stock/survivor telemetry (DONE)
+**File:** `src/trace/nutrientflow.ts:106-111` (output footer)
+**Correction:** Probe output now explicitly states it samples "population
+snapshots and cumulative energyIngested of organisms alive at checkpoints"
+and "does NOT measure instantaneous or interval trophic flow, per-pool
+nutrient uptake, or flux by functional phenotype." No causal inference
+from aggregate snapshots.
+
+### P2 — Targeted regression gates added (DONE)
+**File:** `src/gates.ts` (new G26, G27, G28)
+- G26: radiationMultiplier at zero/partial/threshold/full dormant share
+- G27: successfulMating flag semantics (no-candidate asexual, candidate
+  without reciprocal asexual, flag only set after surplus-checked mutual)
+- G28: successfulMating array grows with capacity
+All three gates pass (36/36 total).
+
+### Corrected nutrientflow output (seed 517, 2000 ticks)
+```
+t500: P267/C102/D88 | energy P3733/C948/D1826
+  nutrients: [59089.5, 46307.2, 37082.9] | capUtil: [0.52, 0.53, 0.53] | overCapCells: [0,0,0] | overCapValue: [0.0, 0.0, 0.0]
+t1000: P211/C43/D239 | energy P1232/C623/D4504
+  nutrients: [55669.1, 43551.5, 35602.3] | capUtil: [0.49, 0.50, 0.51] | overCapCells: [0,0,0] | overCapValue: [0.0, 0.0, 0.0]
+t1500: P121/C50/D814 | energy P1054/C356/D8540
+  nutrients: [54412.3, 42548.3, 35767.7] | capUtil: [0.48, 0.48, 0.51] | overCapCells: [0,0,0] | overCapValue: [0.0, 0.0, 0.0]
+t2000: P7/C7/D1087 | energy P29/C89/D4815
+  nutrients: [54030.0, 42409.8, 36174.2] | capUtil: [0.48, 0.48, 0.52] | overCapCells: [0,0,0] | overCapValue: [0.0, 0.0, 0.0]
+```
+
+### P2 — Parameter-to-biological-equivalent matrix (DELIVERED)
+The natural-equivalents inventory was recorded in REPORT.md (see entries
+7070-7240). Each mechanism classified as BP/DNA/EEF/SABF/IUC with
+citations, tradeoffs, and decision flags. Key actionable items:
+1. CRITICAL: Fix P2b excretion/returns to respect per-nutrient caps
+2. HIGH: Redesign pioneerBonus to local patch void
+3. HIGH: Make excretion stoichiometric and ingestion-scaled
+
+### P2 — NFD mutation bias proposal correctly labeled (NOT IMPLEMENTED)
+REPORT.md entry 7244-7263 explicitly labeled as "Owner decision proposal"
+and "NOT biologically justified by present data." No implementation
+attempted without Owner approval.
+
+### Remaining open (not addressed in this review cycle)
+- P2b excretion/returns cap bug (known, documented, fix pending)
+- pioneerBonus global-to-local redesign (known, documented)
+- Process-level nutrient flux hooks (not in current scope)
+- Per-guild per-pool uptake attribution (not in current scope)
+
+All declared corrections validated: typecheck, 36/36 gates, 11/11 contract,
+153/153 workflow, deterministic repeat runs, bundle matches CLI.

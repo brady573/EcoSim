@@ -49,7 +49,7 @@
  * All figures recorded under 0.4.1 describe the DEFECTIVE semantics and are
  * provenance only. See REPORT.md.
  */
-export const WORLD_ENGINE_VERSION = 'ts-evo-poc/0.6.1';
+export const WORLD_ENGINE_VERSION = 'ts-evo-poc/0.6.2';
 
 /** Identifier for the credibility-check suite that accompanies this version. */
 export const GATE_SUITE_VERSION = 'gates/0.4.0';
