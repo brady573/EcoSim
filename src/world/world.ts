@@ -29,7 +29,8 @@
  */
 
 import {
-  MAX_MODULES, MODULE_STRIDE, inheritModules, recombineModules, seedFounderModules,
+  MAX_MODULES, MODULE_STRIDE, MODULE_STRIDE_KIND, MODULE_STRIDE_MAG,
+  inheritModules, recombineModules, seedFounderModules,
 } from '../bio/modgenome.js';
 import { Rng } from '../core/rng.js';
 import { ScalarField } from '../core/field.js';
@@ -38,6 +39,20 @@ import { OrganismStore, BODY_GENE_COUNT, ROLE_STRIDE, NUTRIENT_COUNT } from '../
 import { RollingDigest } from '../core/hash.js';
 import { TRAIT, TRAITS, BODY_GENES, TRAIT_COUNT, type TraitSpec } from '../bio/genome.js';
 import { Phenotype, resolveCapacity } from '../bio/phenotype.js';
+import {
+  Chemistry, DEFAULT_CHEMISTRY, POOL, POOL_COUNT, conservationReport,
+  type ConservationReport,
+} from './chemistry.js';
+import { E, newElemVec, biomassDemand } from '../bio/elements.js';
+import {
+  CAP, CAP_COUNT, capabilitiesFromModules, maskFromStrength, REACTIONS, RX_COUNT,
+  newMetabolicEvidence, type MetabolicEvidence,
+} from '../bio/metabolism.js';
+import {
+  ChemStores, DEFAULT_CHEM_CONFIG, assimilate, canAffordOffspring,
+  grow, newChemStores, releaseOnDeath, runMetabolism, seedBiomass, transferToOffspring,
+  type ChemConfig, type GrowthResult,
+} from '../bio/chemlife.js';
 import { HabitatMap } from '../bio/habitat.js';
 import { deriveRole, developmentalScale, stageDamageFactor, MOTILITY, TROPHIC, TROPHIC_COUNT, type RoleReadout } from '../bio/role.js';
 import { TraceLog, TRACE, DEATH_CAUSE, type TraceOptions } from '../trace/trace.js';
@@ -149,6 +164,7 @@ export interface PhaseTimings {
   fields: number;
   spatial: number;
   act: number;
+  chem: number;
   contests: number;
   deaths: number;
   births: number;
@@ -192,6 +208,53 @@ export interface WorldOptions {
    * any simulation outcome — see src/trace/reproprobe. Null when absent.
    */
   reproProbe?: ReproProbe;
+}
+
+/**
+ * Fraction of parental tissue moved into one offspring.
+ *
+ * Matter is conserved by construction: a birth debits the parent and credits
+ * the child by the same amount. The fraction is a declared life-history
+ * parameter, not a matter source.
+ */
+const OFFSPRING_TISSUE_FRACTION = 0.35;
+
+/** O2 below this is treated as anoxic for reporting. */
+const HYPOXIC_O2 = 0.06;
+/** O2 above this is well-oxygenated. */
+const OXIC_O2 = 0.35;
+
+/**
+ * Per-element conservation audit for the chemistry experiment.
+ *
+ * Tracks the full books: initial inventory, every declared external input and
+ * every declared external output, then reports what is left over. A residual is
+ * matter created or destroyed by the model, and it is reported as a number
+ * rather than absorbed into a tolerance.
+ */
+export interface ChemistryAudit {
+  tick: number;
+  /** Biological side: standing tissue and unbuilt stores. */
+  biomass: Float64Array;
+  stores: Float64Array;
+  /** Environmental side: every modelled pool, per element. */
+  environment: Float64Array;
+  /** Declared boundaries, cumulative. */
+  inputs: Float64Array;
+  outputs: Float64Array;
+  /** Inventory captured at the first audit, for the running balance. */
+  initial: Float64Array;
+  residual: ConservationReport[];
+  hypoxicFraction: number;
+  oxicFraction: number;
+}
+
+/** Bit index of a single-bit capability. */
+function capBitIndex(cap: CAP): number {
+  let c = 0;
+  let m = cap;
+  while (m > 1) { m >>= 1; c++; }
+  return c;
 }
 
 export class World {
@@ -779,13 +842,42 @@ export class World {
   /** Ticks the world ran with zero living organisms. */
   emptyTicks = 0;
 
+  // --- Integrated biogeochemistry (diagnostic, null-default) ----------------
+  /**
+   * Chemical environment. Null unless `config.chemistry === true`.
+   *
+   * Held outside OrganismStore so that removing this experiment means deleting
+   * these members: the pre-existing engine shape is untouched, and declared
+   * behaviour with the knob unset cannot be affected by them.
+   */
+  chemistry: Chemistry | null = null;
+  chemStores: ChemStores | null = null;
+  chemCfg: ChemConfig = { ...DEFAULT_CHEM_CONFIG };
+  chemEvidence: MetabolicEvidence = newMetabolicEvidence();
+  chemAudit: ChemistryAudit | null = null;
+  /** Which constraint actually bound growth and reproduction, and how often. */
+  chemNutrientLimited = 0;
+  chemEnergyLimited = 0;
+  chemReproBlockedNutrient = 0;
+  chemReproBlockedCarbon = 0;
+
+  /** Scratch buffers allocated once; the hot path must not allocate. */
+  private chemOut = new Float64Array(POOL_COUNT);
+  private chemDemand = newElemVec();
+  private chemScratch = newElemVec();
+  private chemLabile = newElemVec();
+  /** Founder matter is booked once, for the founding cohort only. */
+  private chemFoundersBooked = false;
+  private chemLitter = newElemVec();
+  private chemGrowth: GrowthResult = { carbon: 0, nutrientLimited: false, energyLimited: false };
+
   /** Timing for the most recent tick. */
   readonly timings: PhaseTimings = {
-    abiotic: 0, fields: 0, spatial: 0, act: 0, contests: 0, deaths: 0, births: 0, total: 0,
+    abiotic: 0, fields: 0, spatial: 0, act: 0, chem: 0, contests: 0, deaths: 0, births: 0, total: 0,
   };
   /** Cumulative timing, for subsystem cost shares. */
   readonly totals: PhaseTimings = {
-    abiotic: 0, fields: 0, spatial: 0, act: 0, contests: 0, deaths: 0, births: 0, total: 0,
+    abiotic: 0, fields: 0, spatial: 0, act: 0, chem: 0, contests: 0, deaths: 0, births: 0, total: 0,
   };
   /** Set false in benchmarks to remove instrumentation cost from the hot loop. */
   profiling = true;
@@ -917,6 +1009,11 @@ export class World {
       this.nutrients.push(new ScalarField(`nutrient${nIdx}`, fieldCols, fieldRows, 0));
     }
     this.detritus = new ScalarField('detritus', fieldCols, fieldRows, 0);
+
+    // Integrated chemistry is a null-default diagnostic. Called only once the
+    // scalar fields exist, because it derives its grid from them. With the knob
+    // unset it returns immediately and none of this state exists.
+    this.initChemistry();
     this.sediment = new ScalarField('sediment', fieldCols, fieldRows, 0);
     /**
      * RECALCITRANT benthic litter - the structural (cellulose/lignin) fraction of
@@ -1099,6 +1196,7 @@ export class World {
     bornTick: number,
     geneModules?: Float32Array | null,
     moduleCount = 0,
+    parentSlot = -1,
   ): void {
     const seed = (this.rng.nextU32() ^ (slot * 0x9e3779b1)) >>> 0;
     // Retained so the phenotype can be RE-DERIVED later with identical
@@ -1112,6 +1210,27 @@ export class World {
     // would otherwise survive and be inherited again — a zero-module organism
     // carrying its dead neighbour's DNA.
     this.store.moduleCount[slot] = 0;
+    // Seed an elemental body proportional to the organism's starting size.
+    // Without this every organism would begin with zero biomass and could
+    // neither grow nor die into the pools correctly.
+    if (this.chemCfg.enabled && this.chemStores && this.chemistry && parentSlot >= 0) {
+      // A BIRTH builds tissue out of its parent's tissue. Seeding fresh biomass
+      // here instead created matter from nothing on every birth, which is the
+      // source of the 70-180% conservation residuals.
+      transferToOffspring(this.chemStores, parentSlot, slot, OFFSPRING_TISSUE_FRACTION);
+    } else if (this.chemCfg.enabled && this.chemStores && this.chemistry) {
+      seedBiomass(this.chemStores, slot, 1);
+      // Founder tissue is matter that entered the system with the organisms, so
+      // it is booked as an explicit input rather than appearing from nowhere.
+      // Booked ONCE, for the founding cohort only: an offspring is built from
+      // its parent's tissue by the transfer path, not by re-seeding, and
+      // counting both would hide a leak rather than report one.
+      if (parentSlot < 0 && !this.chemFoundersBooked) {
+        const fx = this.chemistry.flux.founderMatter;
+        for (let e = 0; e < E.COUNT; e++) fx[e] += this.chemStores.biomass[slot * E.COUNT + e];
+        if (this.nextId >= this.config.founders) this.chemFoundersBooked = true;
+      }
+    }
     if (geneModules && moduleCount > 0) {
       this.store.geneModules.fill(0, slot * MAX_MODULES * MODULE_STRIDE,
         (slot + 1) * MAX_MODULES * MODULE_STRIDE);
@@ -1470,6 +1589,13 @@ export class World {
     this.actPhase();
     const t4 = now();
 
+    // --- Phase 4a: integrated chemistry -------------------------------------
+    // Metabolic energy generation, nutrient assimilation, matter-limited growth,
+    // and the declared boundary fluxes. Settled ONCE at the end of the phase so
+    // no organism's reaction outcome can depend on slot iteration order.
+    if (this.chemCfg.enabled) this.chemistryPhase();
+    const t4c = now();
+
     // --- Phase 4b: reciprocal mating ---------------------------------------
     // actPhase only recorded mating CONTACTS; the intent array is not
     // authoritative until every slot has acted, so consent is settled here.
@@ -1506,6 +1632,7 @@ export class World {
       tm.fields = t2 - t1;
       tm.spatial = t3 - t2;
       tm.act = t4 - t3;
+      tm.chem = t4c - t4;
       tm.contests = t5 - t4;
       tm.deaths = t6 - t5;
       tm.births = t8 - t7;
@@ -1515,6 +1642,7 @@ export class World {
       tot.fields += tm.fields;
       tot.spatial += tm.spatial;
       tot.act += tm.act;
+      tot.chem += tm.chem;
       tot.contests += tm.contests;
       tot.deaths += tm.deaths;
       tot.births += tm.births;
@@ -2818,6 +2946,24 @@ export class World {
         continue;
       }
 
+      // MATTER gate, independent of the energy gate above.
+      //
+      // This is where the energy/matter separation becomes an ecological fact.
+      // An organism may be energy-rich and nutrient-poor — past its energy
+      // threshold, above its capacity — and still be unable to build offspring,
+      // because building tissue needs phosphorus as well as joules. The two
+      // counters are reported separately so a probe can distinguish the causes
+      // rather than seeing both as "did not breed".
+      if (this.chemCfg.enabled && this.chemStores) {
+        const afford = canAffordOffspring(this.chemStores, slot, this.chemCfg);
+        if (!afford.ok) {
+          if (afford.lacking === 'nutrient') this.chemReproBlockedNutrient++;
+          else this.chemReproBlockedCarbon++;
+          if (probe !== null) probe.blocked(slot, guild, REPRO_GATE.maturity);
+          continue;
+        }
+      }
+
       const maturityAge = store.trait(slot, TRAIT.MATURITY_AGE);
       if (store.age[slot] < maturityAge) {
         if (probe !== null) probe.blocked(slot, guild, REPRO_GATE.maturity);
@@ -3055,6 +3201,36 @@ export class World {
         store.energy[slot] <= 0 && store.hunger[slot] > 400;
       if (!lethal) continue;
 
+      // MATTER returns to the environment here. Tissue buries in part and
+      // becomes labile detritus in the rest; unexpended stores are excreted as
+      // available forms rather than as dead tissue, which is why a
+      // nutrient-poor world cannot recycle everything indefinitely.
+      if (this.chemCfg.enabled && this.chemStores && this.chemistry) {
+        const cell = this.chemistry.index(store.x[slot], store.y[slot]);
+        const labile = this.chemLabile;
+        const litter = this.chemLitter;
+        labile.fill(0);
+        litter.fill(0);
+        releaseOnDeath(this.chemistry, this.chemStores, slot, cell,
+          this.chemistry.cfg.burial * 22, labile, litter);
+        for (let e = 0; e < E.COUNT; e++) {
+          const part = labile[e] + litter[e];
+          if (part <= 0) continue;
+          // H and O have no modelled pool: they are water and oxygen bound in
+          // tissue, and the water reservoir is EXTERNAL AND BUFFERED by
+          // declaration. Routing them into the nearest organic pool instead
+          // would have been both wrong chemistry and a large silent Fe source,
+          // because organic-iron is the catch-all pool.
+          if (e === 1 || e === 2) {
+            this.chemistry.flux.reservoirSink[e] += part;
+            continue;
+          }
+          const pool = e === E.C ? POOL.OC : e === E.N ? POOL.ON
+            : e === E.P ? POOL.OP : e === E.S ? POOL.OS : POOL.OFE;
+          this.chemistry.react(pool, cell, part);
+        }
+      }
+
       // Reason classification, for demographic history.
       //
       // Starvation and injury share the `damage` counter, so the cause is
@@ -3265,7 +3441,7 @@ export class World {
       if (slot < 0) break;
       this.ledger.recordTransferOut(perChild, this.roleOf(parent).trophic);
 
-      this.populateSlot(slot, genome, body, store.id[parent], lineageId, this.tick, modBlock, modCount);
+      this.populateSlot(slot, genome, body, store.id[parent], lineageId, this.tick, modBlock, modCount, parent);
       this.noteSlot(slot);
       // Generation depth increments only on recombination.
       store.generationDepth[slot] =
@@ -3995,6 +4171,257 @@ export class World {
       if (onTick) onTick(this.tick, this);
     }
   }
+
+  // -------------------------------------------------------------------------
+  // Integrated biogeochemistry
+  // -------------------------------------------------------------------------
+
+  /**
+   * Build the chemical environment when the knob is on. Null-default: with
+   * `chemistry` unset, none of this exists and the pinned parity values are
+   * untouched.
+   */
+  private initChemistry(): void {
+    if (this.config.chemistry !== true) {
+      this.chemCfg.enabled = false;
+      return;
+    }
+    const cfg = this.config;
+    const cc = this.chemCfg;
+    cc.enabled = true;
+    cc.energyScale = cfg.chemistryEnergyScale ?? 1;
+    cc.assimilationEfficiency = cfg.chemistryAssimilationEfficiency ?? DEFAULT_CHEM_CONFIG.assimilationEfficiency;
+    cc.reproNutrientDemand = cfg.chemistryReproNutrientDemand ?? DEFAULT_CHEM_CONFIG.reproNutrientDemand;
+    cc.noChemosynthesis = cfg.chemistryNoChemosynthesis === true;
+    cc.noAnaerobic = cfg.chemistryNoAnaerobic === true;
+    cc.noNitrogenCycle = cfg.chemistryNoNitrogenCycle === true;
+    cc.freeEnergy = cfg.chemistryFreeEnergy === true;
+    cc.freeNutrients = cfg.chemistryFreeNutrients === true;
+
+    const field = this.nutrients[0];
+    const cols = field.cols;
+    const rows = field.rows;
+    const cellW = this.config.worldW / cols;
+    const chem = new Chemistry(cols, rows, cellW * cellW, { ...DEFAULT_CHEMISTRY });
+    chem.setCellSize(cellW, this.config.worldH / rows);
+    this.chemistry = chem;
+    this.chemStores = newChemStores(this.store.capacity);
+  }
+
+  /**
+   * Boundary fluxes: the ONLY places matter enters or leaves the system.
+   *
+   * Atmospheric CO2 and geological weathering are external BY DECLARATION, not by
+   * omission — they are measured here and carried into the audit, because a
+   * conservation claim that quietly omits its inputs is not a conservation
+   * claim.
+   */
+  private chemistryBoundaries(): void {
+    const chem = this.chemistry!;
+    const per = chem.cfg;
+    const c = chem.cols * chem.rows;
+
+    // Atmospheric CO2 dissolves into the water column, uniformly: the model has
+    // no atmosphere, so a uniform source is a declared simplification rather
+    // than a localised vent whose strength is quietly tuned.
+    const co2Each = per.co2Weathering;
+    for (let i = 0; i < c; i++) chem.react(POOL.DIC, i, co2Each);
+    chem.flux.co2In += co2Each * c * chem.cellArea;
+
+    // Geological weathering releases P, N, S and Fe from substrate.
+    const w = per.nutrientWeathering;
+    for (let i = 0; i < c; i++) {
+      chem.react(POOL.PO4, i, w);
+      chem.react(POOL.NH4, i, w * 0.6);
+      chem.react(POOL.SO4, i, w * 0.4);
+      chem.react(POOL.FE2, i, w * 0.08);
+    }
+    chem.flux.weatherP += w * c * chem.cellArea;
+    chem.flux.weatherN += w * c * 0.6 * chem.cellArea;
+    chem.flux.weatherS += w * c * 0.4 * chem.cellArea;
+    chem.flux.weatherFe += w * c * 0.08 * chem.cellArea;
+
+    // Burial: a fraction of labile organic carbon sinks to the sediment pool and
+    // stops participating. This is the long-timescale sink that makes P
+    // limitation partly a geological problem.
+    const oc = chem.fields[POOL.OC].data;
+    for (let i = 0; i < c; i++) {
+      const bury = oc[i] * per.burial;
+      if (bury > 0) { chem.react(POOL.OC, i, -bury); chem.react(POOL.SC, i, bury); }
+    }
+  }
+
+  /**
+   * Metabolic execution, assimilation, matter-limited growth, then settlement.
+   *
+   * Order is fixed and declared: boundaries, then per-organism metabolism and
+   * growth — all writing into ONE delta buffer — then a single settle. No
+   * organism reads a pool another organism already modified this tick, so the
+   * outcome does not depend on slot iteration order.
+   */
+  private chemistryPhase(): void {
+    const chem = this.chemistry!;
+    const st = this.chemStores!;
+    const cfg = this.chemCfg;
+    const store = this.store;
+    const out = this.chemOut;
+    const ev = this.chemEvidence;
+
+    this.chemistryBoundaries();
+
+    for (let slot = 0; slot < store.capacity; slot++) {
+      if (!this.live[slot]) continue;
+      const n = store.moduleCount[slot];
+      const carbon = st.biomass[slot * E.COUNT + E.C];
+      if (carbon <= 0) continue;
+
+      // Capabilities follow the expressed module genome, so they are re-derived
+      // on the same cadence as the phenotype they come from.
+      if (n > 0) {
+        const strength = st.capStrength.subarray(
+          slot * CAP_COUNT, (slot + 1) * CAP_COUNT,
+        );
+        capabilitiesFromModules(
+          store.geneModules, n, slot * MAX_MODULES * MODULE_STRIDE, MODULE_STRIDE,
+          MODULE_STRIDE_KIND, MODULE_STRIDE_MAG, strength,
+        );
+        st.capMask[slot] = maskFromStrength(strength);
+      }
+
+      const cell = chem.index(store.x[slot], store.y[slot]);
+      out.fill(0);
+      const gained = runMetabolism(chem, st, slot, cell, cfg, out);
+      // Apply the organism's NET chemical transfers exactly once.
+      for (let q = 0; q < POOL_COUNT; q++) {
+        if (out[q] !== 0) chem.react(q, cell, out[q]);
+      }
+
+      // Evidence: record the extent each reaction actually executed, taken from
+      // the transfers it wrote rather than from its presence in the genome.
+      const mask = st.capMask[slot];
+      for (let id = 0; id < RX_COUNT; id++) {
+        const r = REACTIONS[id];
+        if ((mask & r.cap) === 0) continue;
+        if (st.capStrength[slot * CAP_COUNT + capBitIndex(r.cap)] <= 0) continue;
+        const moved = r.substrates.length > 0 ? Math.abs(out[r.substrates[0].pool]) : 0;
+        if (moved <= 0) continue;
+        ev.extent[id] += moved;
+        ev.runs[id]++;
+        if (r.energy > 0) ev.energy[id] += r.energy * moved;
+        // Nitrogen leaving as gas is a DECLARED EXPORT, counted here so the
+        // cycle can balance against weathering over long runs.
+        if (r.family === 'nitrogen' && r.name === 'denitrification') {
+          chem.flux.gasExport[3] += moved * 1.4;
+        }
+
+      }
+
+      if (gained > 0) store.energy[slot] += gained;
+
+
+      biomassDemand(1, this.chemDemand);
+      assimilate(chem, st, slot, cell, cfg, this.chemDemand);
+
+      // Growth is the MINIMUM of what energy and what matter permit. This is
+      // the energy/matter separation made operational rather than asserted.
+      const requested = carbon * 0.012;
+      const spendable = store.energy[slot] * 0.30;
+      const r = this.chemGrowth;
+      grow(st, slot, requested, spendable, cfg, r, this.chemScratch);
+      if (r.nutrientLimited) this.chemNutrientLimited++;
+      if (r.energyLimited) this.chemEnergyLimited++;
+      if (r.carbon > 0) store.energy[slot] -= r.carbon * 0.55;
+    }
+
+    chem.settle();
+    this.updateChemistryAudit();
+  }
+
+  /**
+   * Refresh the conservation books.
+   *
+   * Output is DERIVED from the balance rather than asserted, so a genuine leak
+   * appears as output and a bookkeeping error appears as a residual. H and O
+   * are excluded from the conservation claim by declaration: water is an
+   * external buffered reservoir and is not simulated.
+   */
+  private updateChemistryAudit(): void {
+    const chem = this.chemistry!;
+    const st = this.chemStores!;
+    const store = this.store;
+    const n = E.COUNT;
+
+    if (!this.chemAudit) {
+      const zero = () => new Float64Array(n);
+      this.chemAudit = {
+        tick: 0, biomass: zero(), stores: zero(), environment: zero(),
+        inputs: zero(), outputs: zero(), initial: zero(), residual: [],
+        hypoxicFraction: 0, oxicFraction: 0,
+      };
+    }
+    const a = this.chemAudit;
+    a.tick = this.tick;
+
+    for (let e = 0; e < n; e++) { a.biomass[e] = 0; a.stores[e] = 0; }
+    for (let slot = 0; slot < store.capacity; slot++) {
+      if (!this.live[slot]) continue;
+      for (let e = 0; e < n; e++) {
+        a.biomass[e] += st.biomass[slot * n + e];
+        a.stores[e] += st.stores[slot * n + e];
+      }
+    }
+    for (let e = 0; e < n; e++) a.environment[e] = chem.elementTotal(e);
+
+    // Declared inputs are BUILT FROM SCRATCH each tick out of the two
+    // cumulative flux sources: geological/atmospheric weathering, and founder
+    // tissue. Both are already cumulative totals.
+    //
+    // Two defects lived here. `+=` on a value that was not reset for elements
+    // with no weathering (H) compounded founder matter by the tick count, turning
+    // 400 founders' 720 moles of hydrogen into 216,000. Replacing the loop with
+    // a bare assignment then erased the weathering totals. The vector is now
+    // computed from the sources on every pass, so neither can leak.
+    a.inputs.fill(0);
+    a.inputs[E.C] += chem.flux.co2In;
+    a.inputs[E.P] += chem.flux.weatherP;
+    a.inputs[E.N] += chem.flux.weatherN;
+    a.inputs[E.S] += chem.flux.weatherS;
+    a.inputs[E.FE] += chem.flux.weatherFe;
+    // Founder tissue is deliberately NOT an input. It is part of the opening
+    // inventory — the initial audit is taken after the founding cohort exists —
+    // so booking it as an external input counted the same matter twice and left
+    // hydrogen permanently 45% short. Births move tissue from parent to child
+    // through the transfer path, so no founder matter appears after t=0.
+
+    if (a.tick === this.tick && a.initial.every((v) => v === 0) && a.environment.some((v) => v !== 0)) {
+      // Capture the opening inventory once the fields are populated.
+      for (let e = 0; e < n; e++) a.initial[e] = a.environment[e] + a.biomass[e] + a.stores[e];
+    }
+
+    // Outputs are DECLARED exports only, and the only declared export in this
+    // model is nitrogen leaving as gas via denitrification. They must not be
+    // derived from the running imbalance: an earlier version inferred a per-tick
+    // "loss" whenever held < initial + inputs and accumulated it, which double
+    // counted every tick and made the denominator grow without bound — it
+    // reported an 89% carbon residual for a model whose carbon was within 2%.
+    const held = new Float64Array(n);
+    for (let e = 0; e < n; e++) held[e] = a.biomass[e] + a.stores[e] + a.environment[e];
+    for (let e = 0; e < n; e++) a.outputs[e] = chem.flux.gasExport[e] + chem.flux.reservoirSink[e];
+    a.residual = conservationReport(
+      a.initial, held, a.inputs, a.outputs,
+    );
+
+    // O2 habitat structure, for the oxygen-dependent/independent comparison.
+    const o2 = chem.fields[POOL.O2].data;
+    let hyp = 0, oxi = 0;
+    for (let i = 0; i < o2.length; i++) {
+      if (o2[i] < HYPOXIC_O2) hyp++;
+      else if (o2[i] > OXIC_O2) oxi++;
+    }
+    a.hypoxicFraction = hyp / o2.length;
+    a.oxicFraction = oxi / o2.length;
+  }
+
 }
 
 /**

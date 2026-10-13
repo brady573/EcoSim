@@ -73,13 +73,36 @@ export const GENE_MODULE = {
   DEFENSE: 5,
   /** Heterotrophic machinery: digestion and appetite, upkeep. */
   TROPHIC: 6,
+  // --- Metabolic capabilities (integrated biogeochemistry) -----------------
+  // These confer the CAP bits in src/bio/metabolism.ts. They are added to the
+  // SAME vocabulary rather than a second heritable system, so duplication,
+  // deletion, crossover, developmental onset and condition gating all apply to
+  // metabolic capability by construction rather than by reimplementation.
+  /** Photosynthetic apparatus. */
+  PHOTOSYNTHETIC: 7,
+  /** Oxidative metabolism; O2-dependent energy yield. */
+  HETERO_AEROBIC: 8,
+  /** Substrate-level metabolism, works without O2. */
+  ANAEROBIC: 9,
+  /** Chemolithotrophy: energy from oxidised inorganic substrate. */
+  CHEMOLITHOTROPH: 10,
+  /** Anaerobic electron acceptors: sulfate reduction and denitrification. */
+  SULFUR_REDUCTOR: 11,
+  /** Nitrification plus inorganic N assimilation. */
+  NITRIFIER: 12,
+  /** Refractory carbon access: ligninolysis and sedimentary retrieval. */
+  SAPROTROPH: 13,
+  /** Trace-element transport machinery. */
+  TRACE_UPTAKE: 14,
 } as const;
 
-export const GENE_MODULE_COUNT = 7;
+export const GENE_MODULE_COUNT = 15;
 
 /** Human-readable kind names, used by probes and evidence exports. */
 export const MODULE_NAMES: readonly string[] = [
   'segment', 'lightCapture', 'locomotor', 'sensory', 'anchor', 'defense', 'trophic',
+  'photosynthetic', 'heteroAerobic', 'anaerobic', 'chemolithotroph',
+  'sulfurReductor', 'nitrifier', 'saprotroph', 'traceUptake',
 ];
 
 /**
@@ -230,6 +253,95 @@ export const MODULE_SPECS: readonly ModuleSpec[] = [
     upkeep: 0.018,
     bodyGene: 5, // FINS — a feeding-associated outgrowth
     bodyGenePerMag: 3,
+  },
+
+  // --- Metabolic capability modules ---------------------------------------
+  //
+  // These confer CAPABILITY BITS (src/bio/metabolism.ts), not trait levels.
+  // Their trait effects are deliberately SMALL: a metabolic capability is
+  // nearly orthogonal to the 42 traits, which is the point — capability is a
+  // separate heritable axis that trades against the existing traits rather than
+  // being folded into them.
+  //
+  // Every one carries real upkeep. A free metabolic capability would be selected
+  // for unconditionally and the repertoire would collapse to whatever is
+  // cheapest to carry, which is the failure mode G13/G14 exist to prevent. The
+  // costs here are set so that a capability must pay for itself in a given
+  // environment — that is the selection pressure that makes metabolic niche
+  // differentiation an outcome rather than a starting condition.
+
+  {
+    kind: GENE_MODULE.PHOTOSYNTHETIC,
+    name: 'photosynthetic',
+    gain: [[T.PHOTOSYNTHETIC_RATE, 0.10]],
+    cost: [],
+    upkeep: 0.034,
+    bodyGene: 0,
+    bodyGenePerMag: 0,
+  },
+  {
+    kind: GENE_MODULE.HETERO_AEROBIC,
+    name: 'heteroAerobic',
+    gain: [[T.METABOLIC_EFFICIENCY, 0.09]],
+    cost: [],
+    upkeep: 0.030,
+    bodyGene: 0,
+    bodyGenePerMag: 0,
+  },
+  {
+    kind: GENE_MODULE.ANAEROBIC,
+    name: 'anaerobic',
+    // Fermenters tolerate poor conditions but cannot build fast.
+    gain: [[T.ENDURANCE, 0.16]],
+    cost: [[T.METABOLIC_EFFICIENCY, 0.07]],
+    upkeep: 0.028,
+    bodyGene: 0,
+    bodyGenePerMag: 0,
+  },
+  {
+    kind: GENE_MODULE.CHEMOLITHOTROPH,
+    name: 'chemolithotroph',
+    gain: [[T.METABOLIC_EFFICIENCY, 0.05]],
+    cost: [[T.SPEED, 0.05]],
+    upkeep: 0.038,
+    bodyGene: 0,
+    bodyGenePerMag: 0,
+  },
+  {
+    kind: GENE_MODULE.SULFUR_REDUCTOR,
+    name: 'sulfurReductor',
+    gain: [[T.TOXIN, 0.06]],
+    cost: [[T.METABOLIC_EFFICIENCY, 0.05]],
+    upkeep: 0.030,
+    bodyGene: 0,
+    bodyGenePerMag: 0,
+  },
+  {
+    kind: GENE_MODULE.NITRIFIER,
+    name: 'nitrifier',
+    gain: [[T.NUTRIENT_SENSE, 0.12]],
+    cost: [],
+    upkeep: 0.024,
+    bodyGene: 0,
+    bodyGenePerMag: 0,
+  },
+  {
+    kind: GENE_MODULE.SAPROTROPH,
+    name: 'saprotroph',
+    gain: [[T.RECALCITRANT_DIGESTION, 0.24], [T.DETRITIVORY, 0.10]],
+    cost: [],
+    upkeep: 0.032,
+    bodyGene: 0,
+    bodyGenePerMag: 0,
+  },
+  {
+    kind: GENE_MODULE.TRACE_UPTAKE,
+    name: 'traceUptake',
+    gain: [[T.METABOLIC_EFFICIENCY, 0.07]],
+    cost: [],
+    upkeep: 0.018,
+    bodyGene: 0,
+    bodyGenePerMag: 0,
   },
 ];
 
@@ -424,10 +536,19 @@ function read(src: Float32Array, i: number): ModuleRec {
  */
 export function seedFounderModules(rng: Rng, count: number): { modules: Float32Array; count: number } {
   const modules = new Float32Array(MAX_MODULES * MODULE_STRIDE);
-  const n = Math.max(2, Math.min(MAX_MODULES, count));
+  // Founders carry at least one of EVERY kind in the vocabulary, so the stated
+  // intent — even coverage at founding, so novelty does not depend on a lucky
+  // founder — actually holds.
+  //
+  // This floor was `2` and the loop used `i % GENE_MODULE_COUNT`. Extending the
+  // vocabulary from 7 kinds to 15 therefore left metabolic capabilities
+  // (kinds 7-14) UNREACHABLE from founding: with 6 modules only kinds 0-5 were
+  // ever seeded, every organism inherited no capability at all, and the whole
+  // metabolic network was inert while the module system reported it as
+  // populated.
+  const n = Math.max(2, Math.min(MAX_MODULES, Math.max(count, GENE_MODULE_COUNT)));
   for (let i = 0; i < n; i++) {
-    // Even coverage of the vocabulary at founding, so every instruction type is
-    // reachable from the start and novelty does not depend on a lucky founder.
+    // Even coverage of the vocabulary at founding.
     const kind = i % GENE_MODULE_COUNT;
     put(
       modules, i, kind,

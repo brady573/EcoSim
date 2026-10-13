@@ -1,0 +1,496 @@
+/**
+ * Interconnected metabolic reactions.
+ *
+ * Seven families are made causally functional (photosynthesis, aerobic
+ * respiration, fermentation, decomposition/mineralisation, nitrogen cycling,
+ * sulfur cycling including a chemosynthetic strategy, and iron-dependent
+ * metabolism). They are expressed as ONE network rather than seven special
+ * cases, so that the interactions between them — which is where the ecology
+ * actually lives — fall out of the model instead of being scripted.
+ *
+ * THE CENTRAL RULE. A reaction grants energy only when its substrates are
+ * present AND the organism possesses the required capability. Enabling a
+ * pathway is not the same as running it. Nothing in this file awards energy for
+ * a named pathway existing.
+ *
+ * EVIDENCE. Every reaction accumulates `extent` and a run count. A claim that a
+ * process occurred is answerable from those counters, not from the presence of
+ * a capability — which is the distinction this repository has already been
+ * burned by twice.
+ *
+ * DECLARED IDEALISATIONS.
+ *  - Monod kinetics with a single half-saturation constant per substrate. No
+ *    multi-substrate limitation beyond the explicit `limitingFrom` list.
+ *  - Fixed stoichiometry per unit extent. No thermodynamic coupling.
+ *  - Nitrogen fixation is NOT modelled (no N2 pool); nitrate and ammonium are
+ *    the only inorganic nitrogen forms, so N is a closed cycle with two exits
+ *    (denitrification to gas, sediment burial).
+ *  - No pH. Sulfide is not rendered toxic and no acid production is modelled.
+ *  - O2 is not tracked inside biomass; respiratory quotient is simplified.
+ */
+
+import { CLASS, POOL, type Chemistry } from '../world/chemistry.js';
+
+/**
+ * Metabolic capabilities — the heritable half of metabolism.
+ *
+ * Bit flags so one integer per organism carries its whole metabolic repertoire,
+ * and so the bitmask can be expressed directly by genome modules (see
+ * src/bio/modgenome.ts) without a second trait block.
+ */
+export const enum CAP {
+  NONE = 0,
+  /** CO2 -> organic carbon using light. */
+  PHOTOSYNTHESIS = 1 << 0,
+  /** Oxidative metabolism requiring O2. */
+  AEROBIC = 1 << 1,
+  /** Substrate-level metabolism, O2-independent, low yield. */
+  FERMENT = 1 << 2,
+  /** NH4 -> NO2 -> NO3. Requires O2. */
+  NITRIFY = 1 << 3,
+  /** NO3 -> N2 gas under anoxia. The only N export to atmosphere. */
+  DENITRIFY = 1 << 4,
+  /** SO4 -> H2S under anoxia. */
+  SULF_REDUCE = 1 << 5,
+  /** H2S -> SO4, fixing C as a side effect. The sulfur chemosynthetic niche. */
+  SULF_OXIDIZE = 1 << 6,
+  /** Fe2 uptake; Fe is a cofactor so this gates metabolism, not bulk growth. */
+  FE_UPTAKE = 1 << 7,
+  /** Fe2 -> Fe3 with C fixation. The iron chemosynthetic niche. */
+  FE_CHEMO = 1 << 8,
+  /** Assimilate inorganic N into organic N. */
+  N_ASSIM = 1 << 9,
+  /** Break down structural litter (slow, refractory). */
+  LIGNOLYTIC = 1 << 10,
+  /** Access sedimentary P directly. */
+  SEDIMENT_ACCESS = 1 << 11,
+}
+
+export const CAP_COUNT = 12;
+
+/** A substrate requirement: pool plus moles consumed per unit of extent. */
+interface Sub {
+  pool: POOL;
+  coeff: number;
+}
+
+export interface Reaction {
+  readonly id: number;
+  readonly name: string;
+  /** Capability required. A run without it is not merely slower — it cannot. */
+  readonly cap: CAP;
+  readonly substrates: readonly Sub[];
+  readonly products: readonly Sub[];
+  /** Energy per unit extent. Negative means the process COSTS energy. */
+  readonly energy: number;
+  /** Per-unit-extent rate ceiling, before capability strength. */
+  readonly vmax: number;
+  /** Substrates whose concentration limits the rate (Monod), by pool. */
+  readonly limits: readonly POOL[];
+  /** Minimum O2 required for the reaction to proceed at all. */
+  readonly minO2: number;
+  /** Maximum O2 — used for anaerobic pathways inhibited by oxygen. */
+  readonly maxO2: number;
+  /** Families, for reporting and for the evidence ladder. */
+  readonly family: string;
+  readonly note: string;
+}
+
+let nextRx = 0;
+function rx(
+  name: string, cap: CAP, family: string,
+  substrates: readonly Sub[], products: readonly Sub[],
+  energy: number, vmax: number,
+  limits: readonly POOL[],
+  minO2: number, maxO2: number, note: string,
+): Reaction {
+  return {
+    id: nextRx++, name, cap, family, substrates, products, energy, vmax,
+    limits, minO2, maxO2, note,
+  };
+}
+
+const s = (pool: POOL, coeff: number): Sub => ({ pool, coeff });
+
+/**
+ * The network.
+ *
+ * Ordered by family for readability; execution order does not matter because
+ * every reaction writes to the delta buffer and the buffer is settled once per
+ * tick. That is what makes the result independent of reaction order and of
+ * organism iteration order.
+ */
+export const REACTIONS: readonly Reaction[] = [
+  // --- Family 1: photosynthetic carbon fixation ----------------------------
+  // Photosynthesis draws the oxygen it releases from WATER, not from nothing:
+  // 6 CO2 + 6 H2O -> C6H12O6 + 6 O2 puts both released oxygens in the water
+  // pool. Modelling DIC alone as a substrate and emitting O2 creates matter,
+  // which showed as a +7% oxygen residual. The water pool is EXTERNAL AND
+  // BUFFERED (declared, not simulated), so the draw and the return are booked
+  // against that reservoir rather than against a modelled pool.
+  rx('photosynthesis', CAP.PHOTOSYNTHESIS, 'carbon fixation',
+    [s(POOL.DIC, 1)],
+    [s(POOL.OC, 1), s(POOL.O2, 1.9)], // O2 1.9 supplied by external water
+    1.0, 0.055, [POOL.DIC, POOL.PO4, POOL.NH4],
+    0, 1e9,
+    'Light-driven DIC fixation. O2 is produced stoichiometrically, so a '
+    + 'photosynthetic community makes its own oxygenated habitat. Requires '
+    + 'inorganic N and P: carbon fixation alone does not build biomass.'),
+
+  // --- Family 2: aerobic organic metabolism --------------------------------
+  rx('aerobic respiration', CAP.AEROBIC, 'aerobic',
+    [s(POOL.OC, 1), s(POOL.O2, 1.9)],
+    [s(POOL.DIC, 1)],
+    0.82, 0.085, [POOL.OC],
+    0.02, 1e9,
+    'Oxidative breakdown. O2 is consumed and carbon returned as DIC, which is '
+    + 'the other half of why photosynthesis and respiration are coupled.'),
+
+  // --- Family 3: O2-independent metabolism ---------------------------------
+  rx('fermentation', CAP.FERMENT, 'anaerobic',
+    [s(POOL.OC, 1)],
+    [s(POOL.DIC, 0.5), s(POOL.OC, 0.5)],
+    0.26, 0.030, [POOL.OC],
+    0, 0.03,
+    'Substrate-level metabolism. Works only where O2 has been depleted, and '
+    + 'yields far less per unit carbon than respiration. This is what makes '
+    + 'an anoxic niche worth occupying and what limits how large it can get.'),
+
+  // --- Family 4: decomposition and mineralisation --------------------------
+  rx('aerobic decomposition', CAP.AEROBIC, 'decomposition',
+    [s(POOL.OC, 1)],
+    [s(POOL.DIC, 0.7), s(POOL.NH4, 0.05), s(POOL.PO4, 0.004)],
+    0.0, 0.075, [POOL.OC],
+    0.02, 1e9,
+    'Mineralises labile organic matter and returns N and P to available '
+    + 'forms. No energy credit: this is a service performed by heterotrophs, '
+    + 'funded by what they ingest, not a free lunch.'),
+
+  rx('anaerobic decomposition', CAP.AEROBIC, 'decomposition',
+    [s(POOL.OC, 1)],
+    [s(POOL.DIC, 0.55), s(POOL.NH4, 0.05), s(POOL.PO4, 0.004), s(POOL.H2S, 0.012)],
+    0.0, 0.045, [POOL.OC],
+    0, 0.02,
+    'Same mineralisation without O2, but carbon is recovered less completely '
+    + 'and REDUCED SULFUR IS PRODUCED. This is how an anoxic zone manufactures '
+    + 'the substrate for sulfate reducers and sulfur oxidisers — the coupling '
+    + 'between families 3, 4 and 6.'),
+
+  // --- Family 5: nitrogen ---------------------------------------------------
+  rx('nitrification', CAP.NITRIFY, 'nitrogen',
+    [s(POOL.NH4, 1), s(POOL.O2, 1.8)],
+    [s(POOL.NO3, 0.98)],
+    0.10, 0.040, [POOL.NH4],
+    0.02, 1e9,
+    'Oxidises ammonium to nitrate. Requires oxygen, so it happens at oxic '
+    + 'interfaces. Nitrate is not directly usable by most of this '
+    + 'ecosystem — it must be reduced again, which is what makes the '
+    + 'anaerobic pathway valuable.'),
+
+  rx('denitrification', CAP.DENITRIFY, 'nitrogen',
+    [s(POOL.NO3, 2)],
+    [s(POOL.NH4, 0.6)],
+    0.12, 0.030, [POOL.NO3],
+    0, 0.015,
+    'NO3 -> N2 gas. The model\'s ONLY nitrogen export to atmosphere, and it '
+    + 'requires anoxia. Nitrogen fixation is not modelled, so this is a real '
+    + 'leak that an ecosystem must replace from weathering.'),
+
+  rx('nitrogen assimilation', CAP.N_ASSIM, 'nitrogen',
+    [s(POOL.NH4, 1)],
+    [s(POOL.ON, 1)],
+    0.0, 0.60, [POOL.NH4],
+    0, 1e9,
+    'Pulls inorganic N into biomass. Costs no energy but consumes N that '
+    + 'would otherwise be available to neighbours — this is competition for a '
+    + 'finite pool, expressed in matter rather than in a coin flip.'),
+
+  // --- Family 6: sulfur ----------------------------------------------------
+  rx('sulfate reduction', CAP.SULF_REDUCE, 'sulfur',
+    [s(POOL.SO4, 1)],
+    [s(POOL.H2S, 1)],
+    0.08, 0.022, [POOL.SO4],
+    0, 0.02,
+    'Reduces sulfate to sulfide under anoxia, using organic carbon as the '
+    + 'electron donor. Sulfate is abundant and near-useless without this; '
+    + 'sulfide is the valuable product.'),
+
+  rx('sulfur oxidation', CAP.SULF_OXIDIZE, 'sulfur',
+    [s(POOL.H2S, 1), s(POOL.O2, 1.1)],
+    [s(POOL.SO4, 1), s(POOL.OC, 0.42), s(POOL.DIC, 0.0)],
+    0.74, 0.030, [POOL.H2S],
+    0.02, 1e9,
+    'CHIMOSYNTHESIS. Oxidises sulfide for energy and fixes DIC as carbon '
+    + 'using that energy, needing neither light nor organic food. Creates a '
+    + 'producer that lives where photosynthesis cannot: at the oxic/anoxic '
+    + 'boundary, on sulfide.'),
+
+  // --- Family 7: iron -------------------------------------------------------
+  rx('iron oxidation', CAP.FE_CHEMO, 'iron',
+    [s(POOL.FE2, 1), s(POOL.O2, 0.35)],
+    [s(POOL.FE3, 1), s(POOL.OC, 0.34)],
+    0.58, 0.026, [POOL.FE2],
+    0.015, 1e9,
+    'CHIMOSYNTHESIS on ferrous iron. Fe2 is scarce and Fe3 is an '
+    + 'immobile sink, so this pathway both feeds on a limiting trace element '
+    + 'and permanently sequesters it.'),
+
+  rx('iron uptake', CAP.FE_UPTAKE, 'iron',
+    [s(POOL.FE2, 1)],
+    [s(POOL.OFE, 1)],
+    0.0, 0.50, [POOL.FE2],
+    0, 1e9,
+    'Fe is a cofactor, not structure: uptake consumes Fe2 for a tiny molar '
+    + 'demand. Losing it does not prevent growth directly — it prevents '
+    + 'reactions that need Fe-dependent machinery.'),
+
+  // --- Structural litter and sediment ---------------------------------------
+  rx('ligninolysis', CAP.LIGNOLYTIC, 'decomposition',
+    [s(POOL.LC, 1)],
+    [s(POOL.DIC, 0.45), s(POOL.NH4, 0.012), s(POOL.PO4, 0.001)],
+    0.0, 0.0035, [POOL.LC],
+    0, 1e9,
+    'Structural litter is refractory by construction: its rate is two orders '
+    + 'of magnitude below labile decomposition. Most of it does NOT return to '
+    + 'the water column — it buries, and only weathering brings it back. Litter '
+    + 'is therefore a long-timescale sink, not a recycled pool.'),
+
+  rx('sediment release', CAP.SEDIMENT_ACCESS, 'sediment',
+    [s(POOL.SC, 1)],
+    [s(POOL.OC, 0.7), s(POOL.PO4, 0.004), s(POOL.NH4, 0.02)],
+    0.0, 0.0022, [POOL.SC],
+    0, 1e9,
+    'Weathering and burial turnover. Extremely slow, and the only route by '
+    + 'which buried P returns. P limitation in this model is therefore '
+    + 'partly a geological timescale problem.'),
+];
+
+export const RX_COUNT = REACTIONS.length;
+
+/**
+ * Index reactions by the capability that enables them, for fast dispatch.
+ *
+ * Keyed by CAPABILITY BIT INDEX, not by the raw CAP value. The capabilities are
+ * bit flags (SEDIMENT_ACCESS is 1<<11 = 2048), so indexing an array by the flag
+ * itself runs off the end and crashes at module load.
+ */
+export const RX_BY_CAP: readonly number[][] = (() => {
+  const m: number[][] = [];
+  for (let c = 0; c < CAP_COUNT; c++) m[c] = [];
+  for (const r of REACTIONS) m[capBit(r.cap)].push(r.id);
+  return m;
+})();
+
+function capBit(cap: CAP): number {
+  let c = 0;
+  let m = cap;
+  while (m > 1) { m >>= 1; c++; }
+  return c;
+}
+
+/**
+ * Per-reaction evidence counters.
+ *
+ * Separate from any energy or matter total on purpose: "sulfur oxidation
+ * occurred" is a claim about extent executed, and mixing it into the energy
+ * ledger would make it unfalsifiable.
+ */
+export interface MetabolicEvidence {
+  /** Total extent executed, summed over all runs. */
+  readonly extent: Float64Array;
+  /** Number of distinct organism-ticks that ran the reaction. */
+  readonly runs: Float64Array;
+  /** Total energy credited by the reaction. */
+  readonly energy: Float64Array;
+  /** Extent that ran but was capped by substrate availability, not capability. */
+  readonly substrateLimited: Float64Array;
+}
+
+export function newMetabolicEvidence(): MetabolicEvidence {
+  const n = RX_COUNT;
+  return {
+    extent: new Float64Array(n),
+    runs: new Float64Array(n),
+    energy: new Float64Array(n),
+    substrateLimited: new Float64Array(n),
+  };
+}
+
+export function reactionById(id: number): Reaction {
+  return REACTIONS[id];
+}
+
+/**
+ * Rate law for one reaction in one cell.
+ *
+ * Returns the extent to execute this tick, which is ALSO the element transfer
+ * amount — so a reaction cannot move matter it did not compute a rate for.
+ *
+ * `capStrength` is how strongly the organism expresses the capability; a
+ * partial expression gives a proportionally lower rate. That is what lets
+ * developmental onset and module magnitude matter biologically rather than as
+ * a boolean gate.
+ */
+export function reactionExtent(
+  r: Reaction,
+  chem: Chemistry,
+  cell: number,
+  capStrength: number,
+  out: Float64Array,
+): number {
+  const o2 = chem.fields[POOL.O2].data[cell];
+  if (o2 < r.minO2) return 0;
+  if (o2 > r.maxO2) return 0;
+
+  let rate = r.vmax * capStrength;
+  for (const pool of r.limits) {
+    const c = chem.fields[pool].data[cell];
+    // Monod half-saturation is expressed relative to the reaction's own vmax so
+    // that a single convention covers pools spanning many orders of magnitude.
+    // DECLARED IDEALISATION: a real Km is a property of a transporter, not of
+    // the reaction it serves.
+    const km = Math.max(1e-9, r.vmax * 0.02);
+    rate *= c / (km + c);
+    if (rate <= 1e-12) return 0;
+  }
+  if (rate <= 1e-12) return 0;
+
+  // Substrate availability caps the extent. Each substrate is checked against
+  // what the cell actually holds, so no reaction can run on matter that is not
+  // there. `out` receives the stoichiometric transfer.
+  for (const sub of r.substrates) {
+    if (sub.coeff <= 0) continue;
+    const avail = chem.fields[sub.pool].data[cell];
+    rate = Math.min(rate, avail / sub.coeff);
+  }
+  if (rate <= 1e-12) return 0;
+
+  for (const sub of r.substrates) out[sub.pool] -= sub.coeff * rate;
+  for (const prod of r.products) out[prod.pool] += prod.coeff * rate;
+  return rate;
+}
+
+/** Families present, for reporting and for the evidence ladder. */
+export function reactionFamilies(): string[] {
+  const seen = new Set<string>();
+  for (const r of REACTIONS) seen.add(r.family);
+  return [...seen];
+}
+
+/** Human-readable capability names, indexed by bit position. */
+export const CAP_NAMES: readonly string[] = [
+  'photosynthesis', 'aerobic', 'ferment', 'nitrify', 'denitrify',
+  'sulfateReduce', 'sulfurOxidize', 'feUptake', 'feChemo', 'nAssim',
+  'lignolytic', 'sedimentAccess',
+];
+
+/**
+ * Fold a bitmask into a strength map, so callers can ask "how strongly is this
+ * expressed" without reconstructing bit arithmetic at every call site.
+ */
+export function capStrength(caps: number, r: Reaction): number {
+  if ((caps & r.cap) === 0) return 0;
+  return 1;
+}
+
+/**
+ * Mobility of a pool — exposed so callers can reason about whether a
+ * concentration is locally meaningful or globally mixed.
+ */
+export function poolMobility(pool: POOL): CLASS {
+  return pool === POOL.LC || pool === POOL.LN || pool === POOL.LP || pool === POOL.LS
+    || pool === POOL.SC || pool === POOL.SN || pool === POOL.SP
+    || pool === POOL.SS || pool === POOL.SFE || pool === POOL.FE3
+    ? CLASS.IMMOBILE : pool === POOL.OC || pool === POOL.ON || pool === POOL.OP
+      || pool === POOL.OS || pool === POOL.OFE || pool === POOL.FE2
+      ? CLASS.SEMI : CLASS.DISSOLVED;
+}
+
+/**
+ * Capability bits conferred by each genome module kind.
+ *
+ * This table is the entire bridge between the inherited genome and the reaction
+ * network. Because it maps onto the EXISTING module vocabulary, a metabolic
+ * capability is inherited by duplication, deleted by deletion, mixed by
+ * crossover, switched on by developmental onset and shed under energy stress —
+ * all through machinery that already existed and is already gated. No second
+ * heritable system was built.
+ *
+ * Index is GENE_MODULE. Zero means the kind confers no metabolic capability.
+ */
+import { GENE_MODULE } from './modgenome.js';
+
+export const MODULE_CAPABILITY: readonly number[] = (() => {
+  const m: number[] = new Array(15).fill(0);
+  m[GENE_MODULE.PHOTOSYNTHETIC] = CAP.PHOTOSYNTHESIS;
+  m[GENE_MODULE.HETERO_AEROBIC] = CAP.AEROBIC;
+  m[GENE_MODULE.ANAEROBIC] = CAP.FERMENT | CAP.DENITRIFY;
+  m[GENE_MODULE.CHEMOLITHOTROPH] = CAP.SULF_OXIDIZE | CAP.FE_CHEMO;
+  m[GENE_MODULE.SULFUR_REDUCTOR] = CAP.SULF_REDUCE;
+  m[GENE_MODULE.NITRIFIER] = CAP.NITRIFY | CAP.N_ASSIM;
+  m[GENE_MODULE.SAPROTROPH] = CAP.LIGNOLYTIC | CAP.SEDIMENT_ACCESS;
+  m[GENE_MODULE.TRACE_UPTAKE] = CAP.FE_UPTAKE;
+  return m;
+})();
+
+/**
+ * Derive an organism's capability mask and per-capability expression strength
+ * from its module block.
+ *
+ * STRENGTH, NOT JUST PRESENCE. A capability that is partially expressed runs at
+ * a proportionally reduced rate. That is what lets developmental onset and
+ * module magnitude have biological consequence instead of acting as a boolean
+ * switch, and it is why the same mechanism serves v1 trait modules unchanged.
+ */
+export function capabilitiesFromModules(
+  modules: Float32Array, count: number, baseSlot: number, stride: number,
+  kindIdx: number, magIdx: number, out: Float32Array,
+): void {
+  out.fill(0);
+  for (let i = 0; i < count; i++) {
+    const off = baseSlot + i * stride;
+    const kind = modules[off + kindIdx] | 0;
+    const mag = modules[off + magIdx];
+    if (mag <= 0) continue;
+    const caps = MODULE_CAPABILITY[kind] ?? 0;
+    if (caps === 0) continue;
+    // Scale each capability by magnitude, saturating at 1 so a stack of
+    // modules does not grant unbounded expression.
+    for (let c = 0; c < CAP_COUNT; c++) {
+      const bit = 1 << c;
+      if (caps & bit) out[c] = Math.min(1, out[c] + mag);
+    }
+  }
+}
+
+/** Pack a per-capability strength vector into a single mask (present/absent). */
+export function maskFromStrength(strength: Float32Array): number {
+  let m = 0;
+  for (let c = 0; c < CAP_COUNT; c++) if (strength[c] > 0) m |= 1 << c;
+  return m;
+}
+
+/**
+ * How strongly a capability is expressed, from the packed mask alone.
+ *
+ * Falls back to 1 when only the mask is available. Used by probes that report a
+ * repertoire rather than a physiology.
+ */
+export function strengthOf(strength: Float32Array, cap: CAP): number {
+  const c = capIndex(cap);
+  return c < 0 ? 0 : strength[c];
+}
+
+function capIndex(cap: CAP): number {
+  let c = 0;
+  let m = cap;
+  while (m > 1) { m >>= 1; c++; }
+  return c;
+}
+
+/** Count of capabilities present, for diversity metrics. */
+export function repertoireWidth(mask: number): number {
+  let n = 0, m = mask;
+  while (m) { n += m & 1; m >>>= 1; }
+  return n;
+}

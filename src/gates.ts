@@ -1022,7 +1022,20 @@ function gate20(): void {
     expressModules(m, 1, 1, 1, d, new Uint8Array(BODY_GENE_COUNT));
     const net = d[TRAIT.BASAL_COST];
     const declared = MODULE_SPECS[k].upkeep;
-    if (Math.abs(net - declared) > 1e-9) worst++;
+    // Tolerance is RELATIVE, at float32 resolution.
+    //
+    // The delta is stored in a Float32Array while `declared` is a float64
+    // constant, so the two cannot agree more closely than ~1e-7 relative. An
+    // absolute 1e-9 threshold is tighter than float32 can represent, so it
+    // silently passed only because the original upkeep constants happened to
+    // round favourably; adding 0.028/0.032/0.038 made it fail for arithmetic
+    // reasons alone.
+    //
+    // The assertion this gate actually exists for — that the net charge is NOT
+    // zero — is unaffected: a double-booked module nets exactly 0.0, which is a
+    // 100% relative error and fails at any tolerance.
+    const denom = Math.max(1e-6, Math.abs(declared));
+    if (Math.abs(net - declared) / denom > 1e-5) worst++;
     lines.push(`${MODULE_SPECS[k].name}=${net.toFixed(4)}/${declared}`);
   }
   record(
