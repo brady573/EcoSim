@@ -6760,3 +6760,40 @@ any verdict here.
 Adjacent (recorded, not fixed here): the pre-existing gateattrib.ts carries
 the same hand-replicated wrong-order attribution for default config; it feeds
 no verdict in this record and is left untouched pending an Owner call.
+
+--------------------------------------------------------------------------------
+MAJORITY-TIME METRIC ON ARCHIVED ARMS + FAILURE TAXONOMY (2026-10-12, READ-ONLY)
+--------------------------------------------------------------------------------
+
+The Owner's bar is majority-of-TIME on all seeds, but every verdict so far
+reads t6000 endpoints. Computed post-hoc from archived checkpoint rows (6
+samples, majority = 4+; no new runs, no reclassification of any verdict):
+  arm          majority-time seeds (all-three >50% of checkpoints)
+  graze-link   5/18   | subsidy05 10/18 | subsidy01 7/18 | nutcyc 7/18
+  nutregen     7/18   | viability 4/18  | cheap 7/18     | excretion 11/18
+  combo        10/18  | loopfloor0 12/36 | viability061 5/18
+Best remains excretion (11/18, nine seeds present at ALL six checkpoints).
+The metric is descriptive here; adopting it as a verdict criterion is an
+Owner call (it would re-scope every registered arm).
+
+FAILURE TAXONOMY (excretion arm, 7 non-majority seeds; all held all three
+guilds at t1000 — divergence is mid-run, not initial conditions):
+  41001 P-collapse + D-loss at t3000, consumer boom/bust | 41003 P extinct
+  t2000, C+D persist without producers | 41006 C lost t3000, D t4000, P alone
+  | 41010 C lost t3000, P t5000, D alone (1008) | 41013 P+C lost t3000, D
+  alone | 41016 C lost t3000, D t4000, P alone (1342) | 41018 C stillborn
+  (9 at t1000), D lost t3000, P alone.
+Pattern: each guild is viable alone or in pairs (P-alone stands to 1342,
+D-alone to 1008, C+D without P) — the system has multiple single/pair
+attractors and full coexistence is one among several. Failures pass through
+single-digit guild counts first (C9, D11, C7, C5...): small-number stochastic
+extinction with no observed rescue, although 4 patches + immigration weight +
+spore dispersal exist on paper.
+
+RESCUE HYPOTHESIS (next diagnostic, designed not executed): test whether
+extinctions are global-synchronized (nothing to rescue from) or patch-local
+with failed recolonization. Requires a read-only patch-census accessor on
+World (patchCensus/patchCount are private; ~5-line pure read, zero behavior
+delta) plus a probe sampling per-patch guild trajectories on failing seeds
+(41001, 41018). Engine-file touch => full validation + review before use.
+No code written here.
