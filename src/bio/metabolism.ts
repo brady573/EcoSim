@@ -428,7 +428,14 @@ export function reactionExtent(
     // `out[pool]` is this organism's running net for the pool, so adding back
     // the negative part gives the budget genuinely left for this reaction. The
     // buffer already exists and is already the right one; nothing new is
-    // allocated and the order of reaction execution stays irrelevant.
+    // allocated.
+    //
+    // ORDER, stated precisely: execution order is FIXED (REACTIONS is a static
+    // table) and contains no randomness, so a given seed and configuration
+    // reproduce exactly. But under contention it is not irrelevant — when two
+    // of one organism's reactions compete for the same substrate, the
+    // earlier-listed one is served first. That is a deterministic priority
+    // rule, not an order-dependence in the result.
     const avail = chem.remaining(sub.pool, cell) + Math.min(0, out[sub.pool]);
     rate = Math.min(rate, (avail > 0 ? avail : 0) / sub.coeff);
   }

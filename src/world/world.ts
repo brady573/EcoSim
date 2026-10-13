@@ -870,7 +870,6 @@ export class World {
   private chemScratch = newElemVec();
   private chemLabile = newElemVec();
   /** Founder matter is booked once, for the founding cohort only. */
-  private chemFoundersBooked = false;
   private chemLitter = newElemVec();
   private chemGrowth: GrowthResult = { carbon: 0, nutrientLimited: false, energyLimited: false };
 
@@ -1236,16 +1235,6 @@ export class World {
       transferToOffspring(this.chemStores, parentSlot, slot, OFFSPRING_TISSUE_FRACTION);
     } else if (this.chemCfg.enabled && this.chemStores && this.chemistry) {
       seedBiomass(this.chemStores, slot, 1);
-      // Founder tissue is matter that entered the system with the organisms, so
-      // it is booked as an explicit input rather than appearing from nowhere.
-      // Booked ONCE, for the founding cohort only: an offspring is built from
-      // its parent's tissue by the transfer path, not by re-seeding, and
-      // counting both would hide a leak rather than report one.
-      if (parentSlot < 0 && !this.chemFoundersBooked) {
-        const fx = this.chemistry.flux.founderMatter;
-        for (let e = 0; e < E.COUNT; e++) fx[e] += this.chemStores.biomass[slot * E.COUNT + e];
-        if (this.nextId >= this.config.founders) this.chemFoundersBooked = true;
-      }
     }
     if (geneModules && moduleCount > 0) {
       this.store.geneModules.fill(0, slot * MAX_MODULES * MODULE_STRIDE,
@@ -4221,8 +4210,11 @@ export class World {
    * correctly caught by reading the call sequence rather than the comment.
    *
    * Called from the constructor once the founders exist and before the first
-   * tick. Only pools are counted, because founders are seeded immediately after
-   * this point and their tissue is the other half of the opening inventory.
+   * tick. BOTH halves of the t=0 balance are counted: the pools via
+   * elementTotal(), and the founding cohort's tissue read directly from
+   * chemStores. Counting pools alone left every founder's matter in the held
+   * column with no counterpart, because the audit deliberately does not book
+   * founder tissue as an input.
    */
   private captureOpeningInventory(): void {
     const chem = this.chemistry;
