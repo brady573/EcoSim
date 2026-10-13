@@ -3269,8 +3269,16 @@ export class World {
           // units, so any result from this arm is a statement about the
           // mechanism, not about a calibrated ecology.
           if (this.chemCfg.toLegacyDetritus && e === E.C) {
-            const ci = this.detritus.index(store.x[slot], store.y[slot]);
-            if (ci >= 0) this.detritus.data[ci] += (labile[e] + litter[e]) * CHEM_TO_LEGACY_PER_CARBON;
+            // Map WORLD position to FIELD cell. `detritus` is a 100x100 field
+            // and store.x/store.y run into the thousands: passing them straight
+            // to index() produced a fractional offset near 177,931, far outside
+            // the 10,000-element array. That wrote the bridge contribution
+            // nowhere the legacy food web reads, which is why the H10 arm came
+            // out byte-identical to base and could have been mistaken for a null
+            // result rather than an inert intervention.
+            const bcx = Math.min(this.detritus.cols - 1, Math.max(0, (store.x[slot] / fieldW) | 0));
+            const bcy = Math.min(this.detritus.rows - 1, Math.max(0, (store.y[slot] / fieldH) | 0));
+            this.detritus.data[bcy * this.detritus.cols + bcx] += (labile[e] + litter[e]) * CHEM_TO_LEGACY_PER_CARBON;
           }
         }
       }
@@ -4321,7 +4329,9 @@ export class World {
     cc.noNitrogenCycle = cfg.chemistryNoNitrogenCycle === true;
     cc.noNutrients = cfg.chemistryNoNutrients === true;
     if (cfg.chemistryCo2WeatheringScale !== null) cc.co2WeatheringScale = cfg.chemistryCo2WeatheringScale;
-    if (cfg.chemistryToLegacyDetritus !== null) cc.toLegacyDetritus = cfg.chemistryToLegacyDetritus === true;
+    if (cfg.chemistryToLegacyDetritus !== null && cfg.chemistryToLegacyDetritus !== undefined) {
+      cc.toLegacyDetritus = cfg.chemistryToLegacyDetritus === true;
+    }
     cc.freeEnergy = cfg.chemistryFreeEnergy === true;
     cc.freeNutrients = cfg.chemistryFreeNutrients === true;
 
@@ -4415,6 +4425,7 @@ export class World {
     const gLight = this.globalLight;
     const ext = this.config.shadeExtinction;
     const lmul = this.localMods.lightMul;
+
 
     for (let slot = 0; slot < store.capacity; slot++) {
       if (!this.live[slot]) continue;
