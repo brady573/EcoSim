@@ -5770,6 +5770,10 @@ Diagnostic cohort: 5 seeds, 1000 ticks, 400 founders, post-hoc. Raw output:
   base              pop med 6   births med 10   matter carbon 0.0000
   predationMatter   pop med 9   births med 17   matter carbon 6.9466 mol
 
+Sexual births and generation depth: base 4 sexual births, mean generation depth
+0.021; predationMatter 2 sexual births, mean generation depth 0.005. The
+ride-along does not establish sustained multi-generation inheritance.
+
 This is not claimed to rescue the ecosystem or demonstrate a full food web. It
 demonstrates a conservation-safe prey-to-predator matter-transfer mechanism as
 an opt-in diagnostic only.

@@ -3,7 +3,7 @@
 **Date:** 2026-10-13
 **Engine:** `ts-evo-poc/0.7.0+chem/0.7.0`
 **Runner:** `scripts/chem-predation-knob.mjs`
-**Raw output:** `evidence/chem-predation-knob-10seed-20261013.txt`
+**Raw output:** `evidence/chem-predation-knob-gd3-10seed-20261013.txt`
 
 This is a **post-hoc diagnostic result**, not a pre-registered hypothesis run. A 5-seed first pass was superseded by this 10-seed panel.
 The comparison is base chemistry versus the same config with the null-default
@@ -56,6 +56,17 @@ median births 10->17.
 - **The effect is mixed but consistently positive on births.** Median population is
   6→9; median births 10→17. The strongest single change is seed 517
   (28→52, births 36→64). Three seeds show fewer births with the knob on.
+
+## Sexual reproduction and generation depth
+
+The ride-along does **not** improve the sexually reproducing lineage:
+- base: 4 sexual births total (2 each on seeds 555 and 12345); mean live
+  generation depth 0.021; max 1.
+- predationMatter: 2 sexual births total (both on seed 12345); mean live
+  generation depth 0.005; max 1.
+
+No arm demonstrates sustained multi-generation inheritance. This is a negative
+result and is recorded as such.
 
 ## What is NOT claimed
 
