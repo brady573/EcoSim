@@ -3216,21 +3216,29 @@ export class World {
         litter.fill(0);
         releaseOnDeath(this.chemistry, this.chemStores, slot, cell,
           this.chemistry.cfg.burial * 22, labile, litter);
+        // Labile and structural fractions go to DIFFERENT pools.
+        //
+        // The previous form summed them and deposited the total in the labile
+        // pool, so dead tissue's refractory fraction was injected into labile
+        // organic matter. That is wrong chemically, and it fed nitrogen into ON
+        // from a source that was supposed to be structurally bound.
         for (let e = 0; e < E.COUNT; e++) {
-          const part = labile[e] + litter[e];
-          if (part <= 0) continue;
           // H and O have no modelled pool: they are water and oxygen bound in
           // tissue, and the water reservoir is EXTERNAL AND BUFFERED by
           // declaration. Routing them into the nearest organic pool instead
           // would have been both wrong chemistry and a large silent Fe source,
           // because organic-iron is the catch-all pool.
           if (e === 1 || e === 2) {
-            this.chemistry.flux.reservoirSink[e] += part;
+            const part = labile[e] + litter[e];
+            if (part > 0) this.chemistry.flux.reservoirSink[e] += part;
             continue;
           }
-          const pool = e === E.C ? POOL.OC : e === E.N ? POOL.ON
+          const labilePool = e === E.C ? POOL.OC : e === E.N ? POOL.ON
             : e === E.P ? POOL.OP : e === E.S ? POOL.OS : POOL.OFE;
-          this.chemistry.react(pool, cell, part);
+          const litterPool = e === E.C ? POOL.LC : e === E.N ? POOL.LN
+            : e === E.P ? POOL.LP : POOL.LS;
+          if (labile[e] > 0) this.chemistry.react(labilePool, cell, labile[e]);
+          if (litter[e] > 0) this.chemistry.react(litterPool, cell, litter[e]);
         }
       }
 
@@ -4233,7 +4241,12 @@ export class World {
     // than a localised vent whose strength is quietly tuned.
     const co2Each = per.co2Weathering;
     for (let i = 0; i < c; i++) chem.react(POOL.DIC, i, co2Each);
-    chem.flux.co2In += co2Each * c * chem.cellArea;
+    // Pool values are moles PER CELL, so the counter is already in moles when
+    // summed over cells. The earlier `* chem.cellArea` applied a 1600x factor
+    // left over from when cellArea was cellWidth^2 — which made weatherN read
+    // 10.5 where the field actually received 630, and the nitrogen books
+    // appeared to gain 94 moles that had in fact been supplied all along.
+    chem.flux.co2In += co2Each * c;
 
     // Geological weathering releases P, N, S and Fe from substrate.
     const w = per.nutrientWeathering;
@@ -4243,10 +4256,10 @@ export class World {
       chem.react(POOL.SO4, i, w * 0.4);
       chem.react(POOL.FE2, i, w * 0.08);
     }
-    chem.flux.weatherP += w * c * chem.cellArea;
-    chem.flux.weatherN += w * c * 0.6 * chem.cellArea;
-    chem.flux.weatherS += w * c * 0.4 * chem.cellArea;
-    chem.flux.weatherFe += w * c * 0.08 * chem.cellArea;
+    chem.flux.weatherP += w * c;
+    chem.flux.weatherN += w * c * 0.6;
+    chem.flux.weatherS += w * c * 0.4;
+    chem.flux.weatherFe += w * c * 0.08;
 
     // Burial: a fraction of labile organic carbon sinks to the sediment pool and
     // stops participating. This is the long-timescale sink that makes P
