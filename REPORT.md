@@ -6787,8 +6787,8 @@ Pattern: each guild is viable alone or in pairs (P-alone stands to 1342,
 D-alone to 1008, C+D without P) — the system has multiple single/pair
 attractors and full coexistence is one among several. Failures pass through
 single-digit guild counts first (C9, D11, C7, C5...): small-number stochastic
-extinction with no observed rescue, although 4 patches + immigration weight +
-spore dispersal exist on paper.
+extinction with no observed rescue, although a 4x4 = 16-patch grid +
+immigration weight + spore dispersal exist on paper.
 
 RESCUE HYPOTHESIS (next diagnostic, designed not executed): test whether
 extinctions are global-synchronized (nothing to rescue from) or patch-local
@@ -6797,3 +6797,67 @@ World (patchCensus/patchCount are private; ~5-line pure read, zero behavior
 delta) plus a probe sampling per-patch guild trajectories on failing seeds
 (41001, 41018). Engine-file touch => full validation + review before use.
 No code written here.
+
+--------------------------------------------------------------------------------
+SPATIAL RESCUE DIAGNOSTIC (PRE-REGISTERED 2026-10-12): PATCH-LOCAL VS GLOBAL
+--------------------------------------------------------------------------------
+
+RATIONALE. Failure taxonomy shows mid-run divergence through single-digit
+guild counts with no rescue, despite a 4x4 = 16-patch grid + immigration +
+spores on paper. Two hypotheses: (a) extinctions are globally synchronized
+(nothing to rescue from); (b) patch-local extinctions occur but
+recolonization fails.
+Global counts cannot separate them. This diagnostic samples per-patch guild
+trajectories on three failing excretion-arm seeds (41001 producer-collapse,
+41016 consumer-loss-then-producer-alone, 41018 stillborn consumers).
+
+INSTRUMENT. One read-only accessor on World (patch grid dims + per-patch
+guild count, pure read delegating to the existing census; zero behavior
+delta) plus new probe src/trace/patchtrack.ts (excretion effective config,
+6000 ticks, per-patch P/C/D every 500 ticks + final census identity vs
+archived endpoints). Engine-file touch => full validation + review before
+any read is trusted.
+
+READ (pre-stated): recolonization = a patch reading 0 for a guild at one
+sample and >0 at a later sample while the guild persists elsewhere
+(rescue); synchronized 0s with no return = global collapse. If patches never
+diverge (all sixteen read identically throughout), the metapopulation is
+effectively one patch and spatial structure is decorative at this scale —
+itself a finding. Rows are tick-start truth at 500-tick granularity: a 0/>0
+edge on a sample tick can mask a local extinction for a full interval or
+fabricate a one-sample rescue, so single-sample events are read as suggestive,
+not conclusive. No promotion bar: diagnosis selecting the next screen.
+
+--------------------------------------------------------------------------------
+SPATIAL RESCUE VERDICT: SYNCHRONIZED COLLAPSE, NO RESCUE (2026-10-12)
+--------------------------------------------------------------------------------
+
+RUN. patchtrack.js (reviewed probe + corrected tripwire/disclosure), 6000
+ticks, seeds 41001/41016/41018, merged 0.6.1 tree. Output archived under
+evidence/patchtrack-41001-41016-41018/. Config identity: LIVE censuses read
+P12/C334/D0, P1342/C0/D0, P8/C0/D0 — byte-exact vs archived excretion
+endpoints on all three seeds. Valid run.
+
+RESULT (16 patches, 500-tick samples, tick-start truth).
+- 41001: decomposers present in 11 patches at t2000, ZERO everywhere at t2500
+  — one-window global loss, no return. Consumers boom/bust (731→139→33→614)
+  without them. Producers persist in p13 throughout (a refuge that rescues
+  nothing).
+- 41016: consumers thin everywhere (5 in one patch at t2000) then zero
+  everywhere by t3000, never return; decomposers fade everywhere by t3500.
+  Synchronized.
+- 41018: bottleneck at t3000 (60 organisms), producers-only recovery; p7/p4
+  holdouts blink (9→10→11→7→8 total) with no recolonization wave.
+VERDICT per pre-stated READ rule: hypothesis (a) SUPPORTED — extinctions are
+globally synchronized across all sixteen patches on all three seeds. No
+0→>0 recolonization event anywhere; no patch ever acts as a source. The
+metapopulation is effectively one patch as a buffer at this scale: spatial
+structure is decorative for persistence here. (Caveat recorded in probe:
+single-sample edges at 500-tick granularity are suggestive, none observed.)
+Implication, labeled inference: the lever is not immigration tuning — there
+is never anything to rescue from. Either prevent synchronous collapse (the
+energy/nutrient dynamics already studied) or create asynchrony (disturbance
+regimes); whether patches are over-coupled by movement is untested and NOT
+claimed — synchronized forcing vs synchronized coupling are not separated by
+this data.
+No arm registered; no promotion.
