@@ -2047,8 +2047,10 @@ function gate34(): void {
     const run = (canopyMass: number): number => {
       const v: any = mk();
       // Freeze the coarse canopy rebuild so our injected mass is the only
-      // shadeMass in force for the whole run. Positions/nutrients still evolve
-      // identically because everything else in `step()` is untouched.
+      // shadeMass in force for the whole run. The two diagnostic arms start from
+      // identical positions, nutrients, seed and forcing; only the imposed canopy
+      // mass differs. Downstream trajectories may diverge as a treatment
+      // effect of light attenuation.
       v.rebuildShadeMass = function () {};
       const geom = v as { shadeCols: number; shadeRows: number; shadeMass: Float32Array };
       geom.shadeMass.fill(canopyMass);
