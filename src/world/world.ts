@@ -1080,6 +1080,19 @@ export class World {
     this.snapshot = this.measure();
 
     this.seedFounders();
+
+    // Opening inventory is captured HERE, after the founding cohort exists and
+    // before the first tick.
+    //
+    // Both halves of the t=0 balance have to be present. `elementTotal()` counts
+    // POOLS ONLY — organism tissue lives in chemStores, not in the fields — so a
+    // capture taken before seeding omits all founder tissue, while the audit
+    // deliberately does NOT book founder matter as an external input. Founder
+    // matter therefore appeared in `held` with no counterpart in either column:
+    // an unbooked source of 400 organisms' worth of every element. That is what
+    // this residual was, and it was never a leak in the reaction network.
+    this.captureOpeningInventory();
+
     this.snapshot = this.measure();
   }
 
@@ -4196,6 +4209,57 @@ export class World {
    * `chemistry` unset, none of this exists and the pinned parity values are
    * untouched.
    */
+  /**
+   * Capture the opening inventory, once, before anything can change it.
+   *
+   * FINDING 3 FIXED. This was previously done inside updateChemistryAudit(),
+   * which runs at the END of the first chemistry phase — after that tick's
+   * weathering, reactions, assimilation and settlement. The inventory therefore
+   * already contained the first tick's inputs while they were ALSO booked in
+   * `flux`, and the same matter was counted on both sides. A comment claimed
+   * pre-reaction capture; the call order did not support it, which the reviewer
+   * correctly caught by reading the call sequence rather than the comment.
+   *
+   * Called from the constructor once the founders exist and before the first
+   * tick. Only pools are counted, because founders are seeded immediately after
+   * this point and their tissue is the other half of the opening inventory.
+   */
+  private captureOpeningInventory(): void {
+    const chem = this.chemistry;
+    if (!chem) return;
+    const a: ChemistryAudit = {
+      tick: 0,
+      biomass: new Float64Array(E.COUNT),
+      stores: new Float64Array(E.COUNT),
+      environment: new Float64Array(E.COUNT),
+      inputs: new Float64Array(E.COUNT),
+      outputs: new Float64Array(E.COUNT),
+      initial: new Float64Array(E.COUNT),
+      residual: [],
+      hypoxicFraction: 0,
+      oxicFraction: 0,
+      clampedThisTick: 0,
+      clampedTotal: 0,
+    };
+    for (let e = 0; e < E.COUNT; e++) a.initial[e] = chem.elementTotal(e);
+    // Founder tissue is part of the opening inventory, not an external input: it
+    // arrived with the organisms rather than out of a reservoir. It is counted
+    // here from the stores themselves rather than from `flux.founderMatter`,
+    // which is accumulated at seeding time and would be a second reading of the
+    // same quantity.
+    const st = this.chemStores;
+    if (st) {
+      for (let slot = 0; slot < this.store.count; slot++) {
+        if (!this.aliveAt(slot)) continue;
+        const base = slot * E.COUNT;
+        for (let e = 0; e < E.COUNT; e++) {
+          a.initial[e] += st.biomass[base + e] + st.stores[base + e];
+        }
+      }
+    }
+    this.chemAudit = a;
+  }
+
   private initChemistry(): void {
     if (this.config.chemistry !== true) {
       this.chemCfg.enabled = false;
@@ -4414,21 +4478,12 @@ export class World {
     const store = this.store;
     const n = E.COUNT;
 
+    // The opening inventory is captured ONCE in captureOpeningInventory(),
+    // at construction. This method only REFRESHES the running books; it must
+    // never re-capture, or the first tick's inputs land in both columns.
     if (!this.chemAudit) {
-      const zero = () => new Float64Array(n);
-      this.chemAudit = {
-        tick: 0, biomass: zero(), stores: zero(), environment: zero(),
-        inputs: zero(), outputs: zero(), initial: zero(), residual: [],
-        hypoxicFraction: 0, oxicFraction: 0,
-        clampedThisTick: 0, clampedTotal: 0,
-      };
-      // FINDING 7 FIXED. The opening inventory is captured from the fields at
-      // construction, BEFORE any boundary flux or reaction has run. Capturing
-      // it after the first chemistry tick counted that tick's weathering in
-      // both the inventory and the inputs, inflating the apparent residual.
-      for (let e = 0; e < n; e++) {
-        this.chemAudit.initial[e] = chem.elementTotal(e);
-      }
+      this.captureOpeningInventory();
+      return;
     }
     const a = this.chemAudit;
     a.tick = this.tick;
@@ -4464,9 +4519,9 @@ export class World {
     a.inputs[E.S] += chem.flux.weatherS;
     a.inputs[E.FE] += chem.flux.weatherFe;
     // Founder tissue is deliberately NOT an input. It is part of the opening
-    // inventory — the initial audit is taken after the founding cohort exists —
-    // so booking it as an external input counted the same matter twice and left
-    // hydrogen permanently 45% short. Births move tissue from parent to child
+    // inventory — captureOpeningInventory() runs after the founding cohort
+    // exists and counts tissue directly from chemStores — so booking it as an
+    // external input would count the same matter twice. Births move tissue from parent to child
     // through the transfer path, so no founder matter appears after t=0.
 
 

@@ -279,6 +279,9 @@ export function assimilate(
     const oc = chem.remaining(POOL.OC, cell);
     const takeC = Math.min(oc * eff, demand[E.C] * 0.02);
     if (takeC > 0) {
+      // ONE debit per credit. `claim()` already writes `delta -= take` and
+      // `claimed += take`, so crediting the store from a SEPARATE react() call
+      // drew the carbon twice while adding it once.
       chem.claim(POOL.OC, cell, takeC);
       st.stores[base + E.C] += takeC;
     }
