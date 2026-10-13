@@ -39,7 +39,7 @@ import { RollingDigest } from '../core/hash.js';
 import { TRAIT, TRAITS, BODY_GENES, TRAIT_COUNT, type TraitSpec } from '../bio/genome.js';
 import { Phenotype, resolveCapacity } from '../bio/phenotype.js';
 import {
-  Chemistry, DEFAULT_CHEMISTRY, POOL, POOL_COUNT, conservationReport,
+  Chemistry, DEFAULT_CHEMISTRY, POOL, POOL_COUNT, POOL_ELEMENT_RT, conservationReport,
   type ConservationReport,
 } from './chemistry.js';
 import { E, newElemVec, biomassDemand } from '../bio/elements.js';
@@ -48,7 +48,7 @@ import {
   newMetabolicEvidence, type MetabolicEvidence,
 } from '../bio/metabolism.js';
 import {
-  ChemStores, DEFAULT_CHEM_CONFIG, assimilate, canAffordOffspring,
+  ChemStores, DEFAULT_CHEM_CONFIG, ENERGY_PER_CARBON, assimilate, canAffordOffspring,
   grow, newChemStores, releaseOnDeath, runMetabolism, seedBiomass, transferToOffspring,
   type ChemConfig, type GrowthResult,
 } from '../bio/chemlife.js';
@@ -3951,6 +3951,8 @@ export class World {
    */
   hashState(): string {
     const store = this.store;
+    const chem = this.chemistry;
+    const chemSt = this.chemStores;
     const h = new RollingDigest();
     h.reset();
     h.mixInt(this.tick);
@@ -4004,6 +4006,30 @@ export class World {
       h.mixF32(store.energySpent[slot]);
       h.mixF32Array(store.genome.subarray(slot * TRAIT_COUNT, (slot + 1) * TRAIT_COUNT));
       h.mixBytes(store.bodyGenes.subarray(slot * 12, (slot + 1) * 12));
+      // Chemistry state is future-affecting: it decides whether an organism can
+      // build tissue, which pools it draws from, and how much matter the world
+      // holds. It was absent from the digest, so two runs that differed ONLY in
+      // chemistry — the case the new chemistry identity exists to distinguish —
+      // produced the same state hash. The digest has to move when the model
+      // does, or the identity string is the only thing standing between two
+      // different simulations and a silent comparison.
+      if (chemSt && chem) {
+        h.mixF64Array(chemSt.biomass.subarray(slot * E.COUNT, (slot + 1) * E.COUNT));
+        h.mixF64Array(chemSt.stores.subarray(slot * E.COUNT, (slot + 1) * E.COUNT));
+        h.mixInt(chemSt.capMask[slot]);
+        h.mixF32Array(chemSt.capStrength.subarray(slot * CAP_COUNT, (slot + 1) * CAP_COUNT));
+        h.mixF32(chemSt.light[slot]);
+      }
+    }
+    if (chem) {
+      // Pool inventories, sampled per pool. Summing instead would let two very
+      // different spatial distributions hash identically.
+      for (let p = 0; p < POOL_COUNT; p++) {
+        const f = chem.fields[p].data;
+        let acc = 0;
+        for (let i = 0; i < f.length; i++) acc += f[i];
+        h.mixF32(acc);
+      }
     }
     return h.digest();
   }
@@ -4266,6 +4292,7 @@ export class World {
     cc.noChemosynthesis = cfg.chemistryNoChemosynthesis === true;
     cc.noAnaerobic = cfg.chemistryNoAnaerobic === true;
     cc.noNitrogenCycle = cfg.chemistryNoNitrogenCycle === true;
+    cc.noNutrients = cfg.chemistryNoNutrients === true;
     cc.freeEnergy = cfg.chemistryFreeEnergy === true;
     cc.freeNutrients = cfg.chemistryFreeNutrients === true;
 
@@ -4349,8 +4376,25 @@ export class World {
 
     this.chemistryBoundaries();
 
+    // LOCAL LIGHT, computed once per organism from the same terms the legacy
+    // capture path uses: global forcing x habitat shade x Beer-Lambert
+    // self-shading. Recomputing it here rather than sharing one buffer keeps
+    // the chemistry path a pure function of the same environment the rest of
+    // the simulation already maintains — one environment, two consumers.
+    const shadeArr = this.habitat.shade.data;
+    const shadeM = this.shadeMass;
+    const gLight = this.globalLight;
+    const ext = this.config.shadeExtinction;
+    const lmul = this.localMods.lightMul;
+
     for (let slot = 0; slot < store.capacity; slot++) {
       if (!this.live[slot]) continue;
+      const ci = chem.index(store.x[slot], store.y[slot]);
+      const cell = ci;
+      const canopy = shadeM[ci];
+      const selfShade = canopy > 0 ? Math.exp(-ext * canopy) : 1;
+      st.light[slot] = gLight * shadeArr[ci] * selfShade * lmul;
+
       const n = store.moduleCount[slot];
       const carbon = st.biomass[slot * E.COUNT + E.C];
       if (carbon <= 0) continue;
@@ -4387,7 +4431,6 @@ export class World {
         st.capMask[slot] = maskFromStrength(strength);
       }
 
-      const cell = chem.index(store.x[slot], store.y[slot]);
       out.fill(0);
       // FINDING 1 FIXED. chemExtents is a persistent buffer; it is cleared here
       // per organism so a reaction that stopped firing this tick reads zero
@@ -4435,7 +4478,16 @@ export class World {
 
       }
 
-      if (gained > 0) store.energy[slot] += gained;
+      // ENERGY BOOK. Income and expenditure are recorded separately and
+      // cumulatively. Previously the only trace of a chemical energy budget was
+      // a literal `0.55` deducted at the growth site and an addition made at
+      // the income site, with nothing tying them together and nothing recording
+      // either — so "energy limits growth" was a claim with no measurement
+      // behind it, and a model could mint growth energy without consequence.
+      if (gained > 0) {
+        store.energy[slot] += gained;
+        chem.flux.chemEnergyIncome += gained;
+      }
 
 
       biomassDemand(1, this.chemDemand);
@@ -4449,10 +4501,37 @@ export class World {
       grow(st, slot, requested, spendable, cfg, r, this.chemScratch);
       if (r.nutrientLimited) this.chemNutrientLimited++;
       if (r.energyLimited) this.chemEnergyLimited++;
-      if (r.carbon > 0) store.energy[slot] -= r.carbon * 0.55;
+      if (r.carbon > 0) {
+        // Spend at the SAME constant that budgeted the growth, not a literal.
+        const cost = r.carbon * ENERGY_PER_CARBON;
+        store.energy[slot] -= cost;
+        chem.flux.chemEnergySpent += cost;
+        chem.flux.chemCarbonBuilt += r.carbon;
+      }
     }
 
     chem.settle();
+
+    // ABLATION: remove mineral nutrients. Applied AFTER settle so it removes
+    // matter that genuinely arrived this tick rather than racing the draw, and
+    // BOOKED as an export so the books still close — an ablation that leaked
+    // matter would be indistinguishable from a leak, which is the opposite of
+    // what an ablation is for.
+    if (cfg.noNutrients) {
+      const n2 = chem.cols * chem.rows;
+      const MIN: readonly number[] = [POOL.NH4, POOL.NO3, POOL.PO4, POOL.SO4, POOL.FE2];
+      for (const p of MIN) {
+        const f = chem.fields[p].data;
+        let removed = 0;
+        for (let i = 0; i < n2; i++) removed += f[i];
+        if (removed > 0) {
+          for (let i = 0; i < n2; i++) f[i] = 0;
+          const el = POOL_ELEMENT_RT[p];
+          chem.flux.reservoirSink[el] += removed;
+        }
+      }
+    }
+
     this.updateChemistryAudit();
   }
 

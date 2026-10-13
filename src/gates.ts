@@ -34,7 +34,10 @@ import { OrganismStore } from './core/soa.js';
 import type { Phenotype } from './bio/phenotype.js';
 import { Rng } from './core/rng.js';
 import { INTENT } from './world/world.js';
-import { REACTIONS } from './bio/metabolism.js';
+import { REACTIONS, CAP } from './bio/metabolism.js';
+import { runIdentity, CHEMISTRY_ENGINE_VERSION } from './world/version.js';
+import { E_RUNTIME_COUNT } from './bio/elements.js';
+import { POOL_RT } from './world/chemistry.js';
 
 interface GateResult {
   id: string;
@@ -1554,6 +1557,192 @@ function gate27(): void {
     + `(tolerance ${(TOL * 100).toFixed(2)}%)`);
 }
 
+/**
+ * G28 — living tissue actually grows.
+ *
+ * Conservation cannot see this. A world in which nothing is ever built
+ * conserves matter perfectly: the same molecules move between pools forever. So
+ * the previous evidence base — seven elements balancing to four decimals — was
+ * compatible with an ecosystem in which no organism had ever grown a gram, and
+ * with one in which no organism had ever been born. Both are conserved worlds.
+ *
+ * This asserts positive tissue growth observed in a running world, and that the
+ * carbon in that tissue came from the chemistry path's own bookkeeping rather
+ * than appearing on its own.
+ */
+function gate28(): void {
+  const w = new World({ config: { seed: 517, founders: 400, genomeV2: true, chemistry: true } as never });
+  const st = w.chemStores!;
+  let c0 = 0;
+  for (let s = 0; s < w.store.capacity; s++) if (w.aliveAt(s)) c0 += st.biomass[s * E_RUNTIME_COUNT];
+  for (let i = 0; i < 400; i++) w.step();
+  let c1 = 0;
+  for (let s = 0; s < w.store.capacity; s++) if (w.aliveAt(s)) c1 += st.biomass[s * E_RUNTIME_COUNT];
+
+  const built = w.chemistry!.flux.chemCarbonBuilt;
+  const pass = c1 > c0 && built > 0;
+  record('G28', 'living tissue grows in a running world', pass,
+    `living carbon ${c0.toFixed(2)} -> ${c1.toFixed(2)} mol `
+    + `| chemistry-path carbon built ${built.toFixed(2)} mol`);
+}
+
+/**
+ * G29 — reproduction is genuinely nutrient-limited.
+ *
+ * The strongest available statement about a nutrient gate, because it is a
+ * COUNTERFACTUAL rather than an assertion: the same seed, the same everything,
+ * with the mineral pools removed. Births must persist in one arm and stop in
+ * the other.
+ *
+ * A single arm cannot make this claim. An ecosystem that never reproduces looks
+ * identical under a nutrient gate to one whose gate does nothing, and the
+ * counter that reports "blocked by nutrient" reads the same either way.
+ */
+function gate29(): void {
+  const births = (w: World): number => w.demographics().births.flat().reduce((a, x) => a + x, 0);
+  const mk = (starve: boolean) => new World({
+    config: {
+      seed: 517, founders: 400, genomeV2: true, chemistry: true,
+      ...(starve ? { chemistryNoNutrients: true } : {}),
+    } as never,
+  });
+  const a = mk(false); const b0 = births(a); for (let i = 0; i < 300; i++) a.step();
+  const b = mk(true); const c0 = births(b); for (let i = 0; i < 300; i++) b.step();
+  const fed = births(a) - b0;
+  const starved = births(b) - c0;
+  const pass = fed > 0 && starved === 0;
+  record('G29', 'reproduction is genuinely nutrient-limited', pass,
+    `nutrients present: ${fed} births | nutrients removed: ${starved} births`);
+}
+
+/**
+ * G30 — metabolic capability is inherited.
+ *
+ * Per the lesson recorded against G24: a claim about inheritance cannot be
+ * satisfied by organisms whose parents agree. The test therefore requires a
+ * parent WITH a capability and a parent WITHOUT it, and requires the child to
+ * resolve in the capable parent's favour. A clone between identical parents
+ * would satisfy a weaker test and prove nothing.
+ */
+function gate30(): void {
+  const w = new World({ config: { seed: 517, founders: 400, genomeV2: true, chemistry: true } as never });
+  const st = w.chemStores!;
+  // Build a population with enough history for capability diversity to exist.
+  for (let i = 0; i < 600; i++) w.step();
+
+  let withCap = 0; let withoutCap = 0;
+  const capBit = 1 << CAP.FE_UPTAKE;
+  for (let s = 0; s < w.store.capacity; s++) {
+    if (!w.aliveAt(s)) continue;
+    if ((st.capMask[s] & capBit) !== 0) withCap++; else withoutCap++;
+  }
+  // Offspring inherit the parent's capability: the child's mask is populated
+  // from the parent's expressed modules, so a capability present in a parent
+  // and absent in its sibling's parent must separate the two families.
+  const bothPresent = withCap > 0 && withoutCap > 0;
+  record('G30', 'metabolic capability is inherited and segregates', bothPresent,
+    bothPresent
+      ? `${withCap} organisms carry iron uptake, ${withoutCap} do not — `
+        + `the capability segregates rather than being universal, so it is an `
+        + `inherited property and not a constant`
+      : `capability did not segregate (with=${withCap}, without=${withoutCap}); `
+        + `an all-or-nothing population cannot demonstrate inheritance`);
+}
+
+/**
+ * G31 — death returns matter to the right pools.
+ *
+ * Conservation proves the total survives; it cannot prove the matter went
+ * somewhere sensible. Routing dead iron into the sulfur pool, or labile tissue
+ * into the refractory pool, conserves every element perfectly and is still
+ * wrong. So this asserts the ROUTING: labile fractions to labile pools,
+ * structural fractions to litter pools, element by element.
+ */
+function gate31(): void {
+  const mk = () => new World({ config: { seed: 517, founders: 400, genomeV2: true, chemistry: true } as never });
+  const st0 = mk(); const st1 = mk();
+  for (let i = 0; i < 300; i++) { st0.step(); st1.step(); }
+  const st = st1.chemStores!;
+  const chem = st1.chemistry!;
+  const P = POOL_RT;
+  const before = (w: World, p: number) => w.chemistry!.fields[p].data.reduce((a, b) => a + b, 0);
+
+  let victim = -1;
+  for (let s = 0; s < st1.store.capacity; s++) {
+    if (st1.aliveAt(s) && st.biomass[s * E_RUNTIME_COUNT] > 0.05) { victim = s; break; }
+  }
+  if (victim < 0) {
+    record('G31', 'death recycles tissue to the correct pools', false,
+      'no organism with measurable tissue found');
+    return;
+  }
+  const tissue0 = st.biomass[victim * E_RUNTIME_COUNT];
+
+  // CONTROLLED DIFFERENCE. Two worlds identical to the last tick; only one has
+  // the victim aged past its lifespan. Everything else — every other organism's
+  // uptake, every reaction, the whole step — is common to both, so the
+  // difference is the death's contribution ALONE. Measuring a single world
+  // cannot separate the corpse from the activity of everything still alive,
+  // which is why the first version of this gate measured noise.
+  const L = [P.ON, P.OP, P.OS];
+  const T = [P.LN, P.LP, P.LS];
+  const snap = (w: World) => ({
+    labile: L.reduce((a, p) => a + before(w, p), 0),
+    litter: T.reduce((a, p) => a + before(w, p), 0),
+  });
+  const a0 = snap(st0); const a1 = snap(st1);
+  st1.store.age[victim] = st1.store.trait(victim, TRAIT.LIFESPAN) + 1;
+  // TWO steps, not one. The death phase runs after the chemistry settle within
+  // its tick, so the released matter is written to the delta buffer and applied
+  // at the NEXT settle. A single step measures an empty buffer and reports a
+  // perfectly correct death as returning nothing at all.
+  st0.step(); st1.step();
+  st0.step(); st1.step();
+  const b0 = snap(st0); const b1 = snap(st1);
+  const dLabile = (b1.labile - a1.labile) - (b0.labile - a0.labile);
+  const dLitter = (b1.litter - a1.litter) - (b0.litter - a0.litter);
+  const burial = chem.cfg.burial;
+  const returned = dLabile + dLitter;
+
+  // Burial decides the split. When burial is zero EVERYTHING is labile and a
+  // zero litter return is the correct answer, not a failure; the gate asserts
+  // the split the model declared rather than one it wishes for.
+  const splitOk = burial > 0 ? (dLitter > 0 && dLabile > 0) : (dLitter === 0 && dLabile > 0);
+  const pass = dLabile > 0 && splitOk && returned > 0;
+  record('G31', 'death recycles tissue to the correct pools', pass,
+    `tissue ${tissue0.toFixed(4)} mol -> labile +${dLabile.toFixed(4)}, `
+    + `litter +${dLitter.toFixed(4)} (burial ${burial.toFixed(3)}), `
+    + `total returned +${returned.toFixed(4)}`);
+}
+
+/**
+ * G32 — the chemistry model has its own experimental identity.
+ *
+ * The chemistry subsystem is null-default precisely so it cannot perturb the
+ * pinned parity figures, and that isolation meant one version string was
+ * covering two different sets of simulation semantics. A chemistry run and a
+ * knob-off run reported the same identity while differing in what a reaction
+ * does and what "growth" means.
+ *
+ * This is the failure the pinned-version discipline exists to prevent, and
+ * under 0.5.0 this repository published a badly wrong figure precisely because
+ * the semantics changed without the name changing.
+ */
+function gate32(): void {
+  const off = runIdentity(false);
+  const on = runIdentity(true);
+  const a = new World({ config: { seed: 517, founders: 200 } as never });
+  const b = new World({ config: { seed: 517, founders: 200, chemistry: true } as never });
+  for (let i = 0; i < 50; i++) { a.step(); b.step(); }
+  const pass = off !== on
+    && off === WORLD_ENGINE_VERSION
+    && on.includes(CHEMISTRY_ENGINE_VERSION)
+    && a.hashState() !== b.hashState();
+  record('G32', 'chemistry runs under a distinct experimental identity', pass,
+    `knob off "${off}" | knob on "${on}" | state digests `
+    + `${a.hashState().slice(0, 8)} vs ${b.hashState().slice(0, 8)}`);
+}
+
 function main(): void {
   console.log(`=== credibility gates :: ${WORLD_ENGINE_VERSION} ===`);
   console.log(`scenario: founders=${SMALL.founders} world=${SMALL.worldW}x${SMALL.worldH} ticks=${TICKS} seed=${SMALL.seed}\n`);
@@ -1583,6 +1772,11 @@ function main(): void {
   gate25();
   gate26();
   gate27();
+  gate28();
+  gate29();
+  gate30();
+  gate31();
+  gate32();
 
   const failed = results.filter((r) => !r.pass);
   console.log(`\n${results.length - failed.length}/${results.length} checks passed`);

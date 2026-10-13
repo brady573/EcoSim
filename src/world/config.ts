@@ -589,6 +589,8 @@ export interface WorldConfig {
   chemistryNoAnaerobic: boolean | null;
   /** Disable nitrogen transformations (nitrification, denitrification). */
   chemistryNoNitrogenCycle: boolean | null;
+  /** Ablation: remove mineral nutrients. Diagnostic only. */
+  chemistryNoNutrients: boolean | null;
   /** Make energy free: growth then depends on matter ALONE. */
   chemistryFreeEnergy: boolean | null;
   /** Make nutrients free: growth then depends on energy ALONE. */
@@ -862,6 +864,7 @@ export const DEFAULT_CONFIG: WorldConfig = {
   chemistryNoChemosynthesis: null,
   chemistryNoAnaerobic: null,
   chemistryNoNitrogenCycle: null,
+  chemistryNoNutrients: null,
   chemistryFreeEnergy: null,
   chemistryFreeNutrients: null,
   nutrientFloor: 0,

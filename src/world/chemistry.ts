@@ -99,7 +99,15 @@ export const POOL_RT = {
 } as const;
 
 /** Which conserved element each pool carries. */
-const POOL_ELEMENT: readonly E[] = [
+/**
+ * Which conserved element each pool carries, at runtime.
+ *
+ * Exported because the energy/matter books are compared and ablated per
+ * ELEMENT, and a consumer that had to re-declare this table would eventually
+ * disagree with it — which is how an element's matter ends up booked against
+ * another element with the books still balancing.
+ */
+export const POOL_ELEMENT_RT: readonly E[] = [
   E.O, E.C, E.N, E.N, E.N, E.P, E.S, E.S, E.FE,   // 0-8 inorganic
   E.FE,                                          // 9  FE3
   E.C, E.N, E.P, E.S, E.FE,                     // 10-14 labile organic
@@ -140,7 +148,7 @@ export const POOL_NAMES: readonly string[] = [
 ];
 
 export function poolElement(p: POOL): E {
-  return POOL_ELEMENT[p];
+  return POOL_ELEMENT_RT[p];
 }
 
 
@@ -271,6 +279,18 @@ export interface BoundaryFluxes {
    * as an input in the energy ledger; this is the elemental counterpart, and it
    * is counted here rather than assumed so the books balance from tick 0.
    */
+  /**
+   * Chemical energy income, cumulative. Energy produced by reactions.
+   *
+   * Energy is NOT conserved by this model — organisms dissipate it — so these
+   * are declared budgets, not physical quantities. They exist so that "energy
+   * limits growth" is a MEASUREMENT rather than an assertion.
+   */
+  chemEnergyIncome: number;
+  /** Cumulative energy charged for constructing chemical tissue. */
+  chemEnergySpent: number;
+  /** Cumulative moles of tissue carbon actually built under chemistry. */
+  chemCarbonBuilt: number;
   founderMatter: Float64Array;
   /**
    * Matter that left the modelled system as gas, per element.
@@ -302,6 +322,7 @@ export function newBoundaryFluxes(): BoundaryFluxes {
     co2In: 0, weatherP: 0, weatherN: 0, weatherS: 0, weatherFe: 0,
     sedimentOut: 0, exportOut: 0,
     founderMatter: new Float64Array(7), gasExport: new Float64Array(7),
+    chemEnergyIncome: 0, chemEnergySpent: 0, chemCarbonBuilt: 0,
     reservoirSink: new Float64Array(7), waterInput: 0,
     reservoirSource: new Float64Array(7), waterO2: new Float64Array(7),
   };
@@ -558,7 +579,7 @@ export class Chemistry {
     }
     for (let p = 0; p < POOL_COUNT; p++) {
       if (p === POOL.H2O) continue;
-      if (POOL_ELEMENT[p] !== e) continue;
+      if (POOL_ELEMENT_RT[p] !== e) continue;
       const f = this.fields[p].data;
       for (let i = 0; i < n; i++) sum += f[i];
     }

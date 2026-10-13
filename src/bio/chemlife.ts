@@ -33,6 +33,62 @@ import {
 import { POOL, type Chemistry } from '../world/chemistry.js';
 
 /**
+ * Energy cost of constructing one mole of tissue carbon.
+ *
+ * SINGLE DEFINITION, on purpose. This number appeared twice — once here as the
+ * divisor that converts available energy into an affordable amount of carbon,
+ * and once as a literal `0.55` at the site that spends the energy. Two copies
+ * of a conversion factor is the same class of defect as two copies of a cost
+ * discount: if they ever disagree, growth is charged at a different rate than
+ * it was budgeted, and the books still balance, so nothing reports it.
+ *
+ * Energy is not conserved by this model — organisms dissipate it — so this is a
+ * declared cost, not a physical constant.
+ */
+export const ENERGY_PER_CARBON = 0.55;
+
+/**
+ * Standing reserve of a TRACE element, as a fraction of its tissue stoichiometry.
+ *
+ * Reproduction consumes tissue, and tissue contains iron. But the iron an
+ * organism needs ON HAND is catalytic, not structural: it is spent in
+ * proportion to work done and returned, not incorporated and retained. Demanding
+ * a tissue-complement in stores therefore asks for something no organism in this
+ * model can accumulate, and silently removes reproduction from the ecosystem.
+ *
+ * This constant is the threshold that says "enough catalytic iron to build a
+ * newborn", and it is DECLARED rather than derived so that it can be argued
+ * with rather than discovered by accident. It is the one number in this file
+ * with no upstream justification, and it is the number to change first if iron
+ * turns out to limit the ecology in a way the experiment does not expect.
+ */
+export const COFACTOR_RESERVE = 0.05;
+
+/**
+ * Fraction of a one-carbon complement an organism may assimilate per tick.
+ *
+ * This was six independent `0.02` literals, one per element. Six copies of a
+ * rate constant is how the uptake of carbon and the uptake of phosphorus came
+ * to be tuned separately without anyone noticing they had drifted apart.
+ *
+ * The value is not arbitrary and the previous one was wrong for a specific
+ * reason: at 2% per tick an organism needs 50 ticks of undisturbed accumulation
+ * to hold ONE carbon-complement in stores, while `grow()` draws those same
+ * stores down every tick it builds tissue. The two were never reconciled, so
+ * the stock an organism could hold was pinned near zero by construction — and
+ * `canAffordOffspring()` demands a full complement. The result was that NO
+ * organism in a 250-tick run of 326 cleared the reproduction gate, on any
+ * element combination: reproduction was switched off in the entire model, and
+ * every conservation figure in this repository was measured on an ecosystem
+ * in which nothing had ever been born.
+ *
+ * At 20% a reserve builds in five ticks, which is short enough to outrun
+ * growth's draw and long enough that uptake is still limited by what the cell
+ * actually contains.
+ */
+export const ASSIMILATION_FRACTION = 0.20;
+
+/**
  * Local nutrient pools an organism can draw from in one tick.
  *
  * Deliberately simple: an organism reaches only what is in its own cell plus a
@@ -68,6 +124,17 @@ export interface ChemConfig {
   noChemosynthesis: boolean;
   noAnaerobic: boolean;
   noNitrogenCycle: boolean;
+  /**
+   * Starve the world of mineral nutrients.
+   *
+   * A diagnostic ablation, not a scenario. Its purpose is to answer a question
+   * conservation cannot: conservation proves matter is neither created nor
+   * destroyed, and says nothing about whether nutrients actually LIMIT
+   * anything. If reproduction is genuinely nutrient-gated, removing the
+   * mineral pools must stop births while leaving energy and age untouched; if
+   * births continue, the "nutrient-limited" label was decoration.
+   */
+  noNutrients: boolean;
   freeEnergy: boolean;
   freeNutrients: boolean;
 }
@@ -80,6 +147,7 @@ export const DEFAULT_CHEM_CONFIG: ChemConfig = {
   noChemosynthesis: false,
   noAnaerobic: false,
   noNitrogenCycle: false,
+  noNutrients: false,
   freeEnergy: false,
   freeNutrients: false,
 };
@@ -108,6 +176,15 @@ export interface ChemStores {
    * never use it, with nothing to indicate why.
    */
   capStrength: Float32Array;
+  /**
+   * LOCAL light per slot, 0..1.
+   *
+   * The chemistry path previously had no light term at all, so photosynthesis
+   * ran at full rate in darkness and under full canopy. This carries the same
+   * value the legacy path computes — global forcing x habitat shade x
+   * Beer-Lambert self-shading — so both paths see one environment.
+   */
+  light: Float64Array;
 }
 
 export function newChemStores(capacity: number): ChemStores {
@@ -116,6 +193,7 @@ export function newChemStores(capacity: number): ChemStores {
     stores: new Float64Array(capacity * E.COUNT),
     capMask: new Uint16Array(capacity),
     capStrength: new Float32Array(capacity * CAP_COUNT),
+    light: new Float64Array(capacity),
   };
 }
 
@@ -138,6 +216,7 @@ export function growChemStores(s: ChemStores, capacity: number): ChemStores {
   return {
     biomass: copy(s.biomass, E.COUNT),
     stores: copy(s.stores, E.COUNT),
+    light: copy(s.light, 1),
     capMask: copyU(s.capMask),
     capStrength: copyI(s.capStrength, CAP_COUNT),
   };
@@ -214,7 +293,7 @@ export function runMetabolism(
     // its stoichiometry says.
     const strength = capStrengthAt(st, slot, r.cap);
     if (strength <= 0) continue;
-    const extent = reactionExtent(r, chem, cell, strength, out);
+    const extent = reactionExtent(r, chem, cell, strength, out, st.light[slot]);
     if (extent <= 0) continue;
     // `out` accumulates NET transfers for the whole organism and is applied
     // ONCE by the caller.
@@ -257,7 +336,7 @@ export function assimilate(
   if ((st.capMask[slot] & CAP.N_ASSIM) !== 0) {
     const take = Math.min(
       chem.remaining(POOL.NH4, cell) * eff,
-      demand[E.N] * 0.02,
+      demand[E.N] * ASSIMILATION_FRACTION,
     );
     if (take > 0) {
       chem.claim(POOL.NH4, cell, take);
@@ -277,7 +356,7 @@ export function assimilate(
   // is not there.
   if (!cfg.freeNutrients) {
     const oc = chem.remaining(POOL.OC, cell);
-    const takeC = Math.min(oc * eff, demand[E.C] * 0.02);
+    const takeC = Math.min(oc * eff, demand[E.C] * ASSIMILATION_FRACTION);
     if (takeC > 0) {
       // ONE debit per credit. `claim()` already writes `delta -= take` and
       // `claimed += take`, so crediting the store from a SEPARATE react() call
@@ -295,7 +374,7 @@ export function assimilate(
   // whatever its energy or nutrient reserves. Tissue is built from the external
   // water reservoir, which is the declared source for both.
   if (!cfg.freeNutrients) {
-    const takeH = Math.min(chem.remaining(POOL.H2O, cell) * eff, demand[E.H] * 0.02);
+    const takeH = Math.min(chem.remaining(POOL.H2O, cell) * eff, demand[E.H] * ASSIMILATION_FRACTION);
     if (takeH > 0) {
       chem.claim(POOL.H2O, cell, takeH);
       st.stores[base + E.H] += takeH;
@@ -307,14 +386,14 @@ export function assimilate(
 
   // P and trace elements are taken by any living cell that carries tissue.
   const po4 = chem.remaining(POOL.PO4, cell);
-  const takeP = Math.min(po4 * eff, demand[E.P] * 0.02);
+  const takeP = Math.min(po4 * eff, demand[E.P] * ASSIMILATION_FRACTION);
   if (takeP > 0) {
     chem.claim(POOL.PO4, cell, takeP);
     st.stores[base + E.P] += takeP;
   }
   if ((st.capMask[slot] & CAP.FE_UPTAKE) !== 0) {
     const takeFe = Math.min(
-      chem.remaining(POOL.FE2, cell) * eff, demand[E.FE] * 0.02,
+      chem.remaining(POOL.FE2, cell) * eff, demand[E.FE] * ASSIMILATION_FRACTION,
     );
     if (takeFe > 0) {
       chem.claim(POOL.FE2, cell, takeFe);
@@ -324,7 +403,7 @@ export function assimilate(
   if ((st.capMask[slot] & CAP.SULF_REDUCE) !== 0 || (st.capMask[slot] & CAP.SULF_OXIDIZE) !== 0) {
     const src = (st.capMask[slot] & CAP.SULF_OXIDIZE) !== 0 ? POOL.SO4 : POOL.H2S;
     const takeS = Math.min(
-      chem.remaining(src, cell) * eff, demand[E.S] * 0.02,
+      chem.remaining(src, cell) * eff, demand[E.S] * ASSIMILATION_FRACTION,
     );
     if (takeS > 0) {
       chem.claim(src, cell, takeS);
@@ -379,7 +458,6 @@ export function grow(
   if (cfg.freeNutrients) matterCarbon = requestedCarbon;
 
   // Energy-limited ceiling: constructing tissue costs energy per unit carbon.
-  const ENERGY_PER_CARBON = 0.55;
   const energyCarbon = energyAvailable / ENERGY_PER_CARBON;
 
   const carbon = Math.max(0, Math.min(matterCarbon, energyCarbon, requestedCarbon));
@@ -465,8 +543,37 @@ export function canAffordOffspring(
   const demand = cfg.reproNutrientDemand;
   const v = biomassDemand(demand, newElemVec());
   const base = slot * E.COUNT;
-  for (const e of [...MACRONUTRIENTS, ...TRACE_ELEMENTS]) {
+  // MACRONUTRIENTS are required at tissue stoichiometry.
+  for (const e of MACRONUTRIENTS) {
     const need = v[e] * cfg.reproNutrientDemand;
+    if (need <= 0) continue;
+    if (st.stores[base + e] < need) return { ok: false, lacking: 'nutrient' };
+  }
+  // TRACE ELEMENTS are COFACTORS, not structure.
+  //
+  // The reaction table declares this in words — "Fe is a cofactor, not
+  // structure" — and the previous gate contradicted it by demanding a full
+  // TISSUE complement of iron sitting in the organism's ASSIMILATED STORES.
+  //
+  // That was unreachable by construction, and the result was not subtle: zero
+  // of 326 living organisms cleared the iron bar and reproduction was blocked
+  // for the entire population, on every seed, at every horizon. The best store
+  // reached 2.0e-4 against a 6.0e-4 demand, because assimilate() draws each
+  // element at 2% of demand per tick — a rate sized for construction, which
+  // cannot support a standing reserve of an element the model consumes
+  // catalytically.
+  //
+  // Conservation said nothing about this. Both the blocked and the unblocked
+  // world conserve matter exactly; a perfectly balanced model in which no
+  // organism has ever reproduced is not a working ecosystem, and no mass-balance
+  // check can tell the difference.
+  //
+  // So trace elements are gated on a DECLARED COFACTOR RESERVE, not on tissue
+  // stoichiometry. Iron limitation still expresses itself — through growth,
+  // which does consume iron at tissue stoichiometry — but it no longer vetoes
+  // reproduction outright through a threshold that no organism can reach.
+  for (const e of TRACE_ELEMENTS) {
+    const need = v[e] * COFACTOR_RESERVE;
     if (need <= 0) continue;
     if (st.stores[base + e] < need) return { ok: false, lacking: 'nutrient' };
   }

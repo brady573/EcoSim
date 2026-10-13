@@ -195,11 +195,16 @@ export const REACTIONS: readonly Reaction[] = [
   // Anaerobic recovery is worse (0.55) and the remainder stays organic — which
   // is why anoxic detritus persists and must be dealt with somewhere else.
   rx('anaerobic decomposition', CAP.AEROBIC, 'decomposition',
-    // FINDING 5 FIXED. This reaction emits 0.012 mol of H2S but drew no organic
-    // sulfur, so the sulfide was created rather than reduced from organic
-    // matter. Organic sulfur is now a substrate with a matching coefficient.
-    [s(POOL.OC, 1), s(POOL.ON, 0.16), s(POOL.OP, 0.009), s(POOL.OS, 0.012)],
-    [s(POOL.DIC, 0.55), s(POOL.NH4, 0.05), s(POOL.PO4, 0.004), s(POOL.H2S, 0.012),
+    // FINDING 5 FIXED. This reaction emitted H2S but drew no organic sulfur, so
+    // the sulfide was created rather than reduced from organic matter. Organic
+    // sulfur is now a substrate with a matching coefficient.
+    //
+    // The coefficient is BIOMASS_STOICH[S] (0.006), matching nitrogen (0.16) and
+    // phosphorus (0.009) exactly. It had been 0.012, twice tissue sulfur, which
+    // declared detritus to be sulfur-enriched relative to living tissue without
+    // saying so. Detritus and tissue now share one stoichiometry.
+    [s(POOL.OC, 1), s(POOL.ON, 0.16), s(POOL.OP, 0.009), s(POOL.OS, 0.006)],
+    [s(POOL.DIC, 0.55), s(POOL.NH4, 0.05), s(POOL.PO4, 0.004), s(POOL.H2S, 0.006),
      s(POOL.ON, 0.11), s(POOL.OP, 0.005), s(POOL.OC, 0.45)],
     0.0, 0.045, [POOL.OC],
     0, 0.02,
@@ -392,12 +397,23 @@ export function reactionExtent(
   cell: number,
   capStrength: number,
   out: Float64Array,
+  light = 1,
 ): number {
   const o2 = chem.fields[POOL.O2].data[cell];
   if (o2 < r.minO2) return 0;
   if (o2 > r.maxO2) return 0;
 
   let rate = r.vmax * capStrength;
+
+  // LIGHT. A light-driven capability cannot run at full rate in darkness.
+  // `light` is the LOCAL value the rest of the simulation already computes —
+  // global forcing x habitat shade x Beer-Lambert self-shading — so the
+  // chemistry path and the legacy path see one environment, not two.
+  if (LIGHT_DRIVEN.has(r.cap)) {
+    rate *= light > 0 ? light : 0;
+    if (rate <= 1e-12) return 0;
+  }
+
   for (const pool of r.limits) {
     const c = chem.remaining(pool, cell);
     // Monod half-saturation is expressed relative to the reaction's own vmax so
@@ -454,6 +470,23 @@ export function reactionFamilies(): string[] {
 }
 
 /** Human-readable capability names, indexed by bit position. */
+/**
+ * Capabilities whose rate is set by LIGHT rather than by substrate.
+ *
+ * Photosynthesis is described as light-driven but previously executed on
+ * chemistry and capability alone: it ran at full rate at midnight and in a
+ * fully shaded cell, and the only thing that stopped it was DIC running out.
+ * That is not a light-driven process, it is a carbon-limited one wearing the
+ * name — and it means the model's energy income was completely decoupled from
+ * the day/night and canopy structure the rest of the simulation computes.
+ *
+ * Declared as a set rather than a field on `rx()` so that adding it cannot
+ * silently leave the existing reactions at their previous, ungated behaviour:
+ * a new reaction is light-driven only if it is named here, and the gate below
+ * fails loudly for any capability listed without a rate.
+ */
+export const LIGHT_DRIVEN: ReadonlySet<number> = new Set([CAP.PHOTOSYNTHESIS]);
+
 export const CAP_NAMES: readonly string[] = [
   'photosynthesis', 'aerobic', 'ferment', 'nitrify', 'denitrify',
   'sulfateReduce', 'sulfurOxidize', 'feUptake', 'feChemo', 'nAssim',

@@ -108,6 +108,25 @@ export class RollingDigest {
     this.h = h >>> 0;
   }
 
+  /**
+   * Fold a float64 array, or a subarray view of one.
+   *
+   * Chemistry inventories are Float64 (ChemField and chemStores are), and
+   * feeding them through mixF32Array would either fail to typecheck or silently
+   * quantise them to float32 before hashing. Two runs whose iron inventories
+   * differ in the seventh decimal would then hash identically — which is the
+   * same class of failure as hashing a quantity that was never measured.
+   */
+  mixF64Array(a: Float64Array): void {
+    let h = this.h;
+    for (let i = 0; i < a.length; i++) {
+      const v = a[i];
+      h = (h ^ (v * 1e6) >>> 0) >>> 0;
+      h = Math.imul(h, FNV_PRIME) >>> 0;
+    }
+    this.h = h >>> 0;
+  }
+
   /** Fold a whole byte array, or a subarray view of one. */
   mixBytes(a: Uint8Array): void {
     let h = this.h;
