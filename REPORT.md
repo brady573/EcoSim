@@ -7416,3 +7416,29 @@ D: flags(1,1) sexualQ=2(pre=2) skipped(a=true,b=true) reached(a=false,b=false) a
 - Workflow: 153/153 pass
 - Bundle version: `WORLD_ENGINE_VERSION = 'ts-evo-poc/0.6.2'` ✓
 - Deterministic: byte-identical repeat runs ✓
+
+--------------------------------------------------------------------------------
+G29 HIGH-SLOT MATING INTEGRATION TEST ADDED (2026-10-13)
+--------------------------------------------------------------------------------
+
+**Requirement from review:** G28 proved array growth but not end-to-end mating
+above initial capacity. G29 closes this gap.
+
+**Test design:** Deterministic high-slot mating integration test at slots 1500/1501
+(well above initial 1024 capacity):
+- Grows World arrays and Store arrays to 4096
+- Creates two mature CONSUMER organisms at slots 1500, 1501 via manual
+  populateSlot replication (genome, body, count increment, live flag)
+- Sets full mating eligibility: age 20, energy 1000, cooldown 0, damage 0,
+  expressed traits pinned (ASEXUAL_RATE=0.055, MATE_SEEKING=0)
+- Mutual intent + mutual selection → resolveMatingIntent → resolveContests
+- Verifies: successfulMating flags set, 2 sexual births queued,
+  proposeReproduction skips asexual (no reachedRoll, sexualSkipped set)
+
+**Result:** PASS
+```
+mated=true sexualQueued=true noAsexReached=true sexualSkipped=true slots=(1500,1501)
+```
+
+**Gate count:** 37/37 (G1–G25, G26 radiation coupling, G27 mating fallback,
+G28 array growth, G29 high-slot mating integration)

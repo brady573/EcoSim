@@ -1743,6 +1743,164 @@ function gate28(): void {
     `initialLiveLen=${initialLiveLen} grownLiveLen=${grownLiveLen} successfulMating.length=${flagLen} (grew: ${grew})`);
 }
 
+// Gate 29: successfulMating flag suppresses asexual for high-slot mating pair
+function gate29(): void {
+  // Deterministic high-slot mating integration test.
+  // Grows store past initial capacity, allocates a live mating pair at
+  // high indices (>1024), runs resolveMatingIntent/resolveContests,
+  // then verifies proposeReproduction skips asexual for those slots.
+  const SMALL = { founders: 10, worldW: 200, worldH: 200, seed: 88888,
+    consumerPhotoScale: 0, consumerBasalScale: 0.25,
+    decomposerPhotoScale: 0, decomposerFounders: 0.5,
+    decomposerDormancy: 0.05, sporeDispersal: 1,
+    grazeYieldScale: 1.0, plantYieldPerMass: 0, radiation: null,
+    foodDisease: 0.15, pioneerBonus: null, dormantSenescence: null,
+    dormantThreatBlind: null, mixotrophyCarbon: null,
+    mixotrophySaturation: 1.0, nutrientCyclic: true,
+    producerCaptureScale: 0.35, nutrientFloor: 0.05, reproSurplusTicks: 5,
+    basalFoodPerCell: 0.01, nutrientRegen: 0.0002,
+    excretionRate: 0.06, meatYieldPerMass: 0,
+  };
+
+  // Use a probe to observe asexual attempts via ReproProbe
+  class SlotProbe implements ReproProbe {
+    sexualSkipped = new Set<number>();
+    reached = new Set<number>();
+    reachedN = new Map<number, number>();
+    firedSet = new Set<number>();
+    blocked(slot: number, _guild: number, gate: number): void {
+      void _guild;
+      if (gate === REPRO_GATE.sexual) this.sexualSkipped.add(slot);
+    }
+    reachedRoll(slot: number, _guild: number, _drive: number, _m?: number, _a?: number, _s?: number): void {
+      void _guild; void _drive; void _m; void _a; void _s;
+      this.reached.add(slot);
+      this.reachedN.set(slot, (this.reachedN.get(slot) ?? 0) + 1);
+    }
+    fired(slot: number, _guild: number): void {
+      void _guild;
+      this.firedSet.add(slot);
+    }
+  }
+
+  type PW = {
+    store: { grow(cap: number): boolean; genome: Float32Array; bodyGenes: Uint8Array; physical: Float32Array; age: Int32Array; reproCooldown: Int32Array; damage: Float32Array; energy: Float32Array; role: Uint8Array; capacity: number; count: number; trait(slot: number, traitIndex: number): number; };
+    live: Uint8Array;
+    intent: Uint8Array; mateTarget: Int32Array;
+    mateCandA: Int32Array; mateCandB: Int32Array; mateCandN: number;
+    submittedByKind: Int32Array; successfulMating: Uint8Array;
+    pendingBirths: number; birthParentSlot: Int32Array; birthMateSlot: Int32Array;
+    proposeReproduction(): void; resolveMatingIntent(): void; resolveContests(): void;
+    ensureSlotArrays(slot: number): void;
+  };
+
+  const probe = new SlotProbe();
+  const w = new World({ config: SMALL, reproProbe: probe }) as unknown as PW;
+
+  // Grow World arrays and Store arrays past 1024
+  w.ensureSlotArrays(2048);
+  w.store.grow(4096); // Grow store arrays to cover high indices
+
+  const highA = 1500;
+  const highB = 1501;
+
+  // Manually create organisms at high slots (replicate populateSlot essentials)
+  // Increment count and set live
+  w.store.count = Math.max(w.store.count, highA + 1, highB + 1);
+  w.live[highA] = 1;
+  w.live[highB] = 1;
+
+  // Set up genome and body for both slots
+  const genomeA = new Float32Array(42);
+  const genomeB = new Float32Array(42);
+  const bodyA = new Uint8Array(8);
+  const bodyB = new Uint8Array(8);
+  for (let i = 0; i < 42; i++) {
+    genomeA[i] = 0.5;
+    genomeB[i] = 0.5;
+  }
+  // Set key traits in genome
+  genomeA[TRAIT.MATURITY_AGE] = 10;
+  genomeA[TRAIT.ASEXUAL_RATE] = 0.055;
+  genomeA[TRAIT.MATE_SEEKING] = 0;
+  genomeA[TRAIT.BASAL_COST] = 0.2;
+  genomeA[TRAIT.SIZE] = 1.0;
+  genomeA[TRAIT.MASS_COST] = 0.1;
+  genomeA[TRAIT.REPRO_THRESHOLD] = 0.3;
+  genomeA[TRAIT.METABOLIC_EFFICIENCY] = 0.5;
+  genomeA[TRAIT.STORAGE_CAPACITY] = 100;
+  genomeB[TRAIT.MATURITY_AGE] = 10;
+  genomeB[TRAIT.ASEXUAL_RATE] = 0.055;
+  genomeB[TRAIT.MATE_SEEKING] = 0;
+  genomeB[TRAIT.BASAL_COST] = 0.2;
+  genomeB[TRAIT.SIZE] = 1.0;
+  genomeB[TRAIT.MASS_COST] = 0.1;
+  genomeB[TRAIT.REPRO_THRESHOLD] = 0.3;
+  genomeB[TRAIT.METABOLIC_EFFICIENCY] = 0.5;
+  genomeB[TRAIT.STORAGE_CAPACITY] = 100;
+
+  // Copy genome to store
+  w.store.genome.set(genomeA, highA * 42);
+  w.store.genome.set(genomeB, highB * 42);
+  w.store.bodyGenes.set(bodyA, highA * 8);
+  w.store.bodyGenes.set(bodyB, highB * 8);
+
+  // Set runtime state for mating eligibility
+  w.store.age[highA] = 20;
+  w.store.age[highB] = 20;
+  w.store.reproCooldown[highA] = 0;
+  w.store.reproCooldown[highB] = 0;
+  w.store.damage[highA] = 0;
+  w.store.damage[highB] = 0;
+  w.store.energy[highA] = 1000;
+  w.store.energy[highB] = 1000;
+  w.store.role[highA * 8] = 1; // CONSUMER
+  w.store.role[highB * 8] = 1;
+
+  // Also sync expressed traits in physical array
+  const traits = [
+    [TRAIT.MATURITY_AGE, 10],
+    [TRAIT.ASEXUAL_RATE, 0.055],
+    [TRAIT.MATE_SEEKING, 0],
+    [TRAIT.BASAL_COST, 0.2],
+    [TRAIT.SIZE, 1.0],
+    [TRAIT.MASS_COST, 0.1],
+    [TRAIT.REPRO_THRESHOLD, 0.3],
+    [TRAIT.METABOLIC_EFFICIENCY, 0.5],
+    [TRAIT.STORAGE_CAPACITY, 100],
+  ] as const;
+  for (const [trait, val] of traits) {
+    w.store.physical[highA * 42 + trait] = val;
+    w.store.physical[highB * 42 + trait] = val;
+  }
+
+  w.intent.fill(INTENT.SETTLE, 0, w.store.capacity);
+  w.mateTarget.fill(-1, 0, w.store.capacity);
+
+  // Mutual intent, mutual selection
+  w.intent[highA] = INTENT.MATE; w.intent[highB] = INTENT.MATE;
+  w.mateTarget[highA] = highB; w.mateTarget[highB] = highA;
+  w.mateCandA[0] = highA; w.mateCandB[0] = highB; w.mateCandN = 1;
+
+  w.resolveMatingIntent();
+  w.resolveContests();
+
+  // Check that MATE was submitted and successfulMating flags set
+  const mated = w.successfulMating[highA] === 1 && w.successfulMating[highB] === 1;
+  const sexualQueued = w.pendingBirths === 2 && w.birthMateSlot[0] >= 0 && w.birthMateSlot[1] >= 0;
+
+  w.proposeReproduction();
+
+  // Verify no asexual attempt from high slots, sexual skip recorded
+  const noAsexReached = !probe.reached.has(highA) && !probe.reached.has(highB);
+  const sexualSkipped = probe.sexualSkipped.has(highA) && probe.sexualSkipped.has(highB);
+
+  const pass = mated && sexualQueued && noAsexReached && sexualSkipped;
+  record('G29', 'high-slot mating pair suppresses asexual (integration)',
+    pass,
+    `mated=${mated} sexualQueued=${sexualQueued} noAsexReached=${noAsexReached} sexualSkipped=${sexualSkipped} slots=(${highA},${highB})`);
+}
+
 function main(): void {
   console.log(`=== credibility gates :: ${WORLD_ENGINE_VERSION} ===`);
   console.log(`scenario: founders=${SMALL.founders} world=${SMALL.worldW}x${SMALL.worldH} ticks=${TICKS} seed=${SMALL.seed}\n`);
@@ -1773,6 +1931,7 @@ function main(): void {
   gate26();
   gate27();
   gate28();
+  gate29();
 
   const failed = results.filter((r) => !r.pass);
   console.log(`\n${results.length - failed.length}/${results.length} checks passed`);
