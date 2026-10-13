@@ -553,6 +553,55 @@ export class World {
   }
 
   /**
+   * Snapshot of per-pool, per-guild nutrient flux accumulators.
+   * Returns plain objects for external probe consumption.
+   * Layouts:
+   *   photoUptake[guild][pool]
+   *   excretionReturns[guild][pool]
+   *   bioticMineralization[guild][pool][source]  source: 0=sediment, 1=detritus, 2=litter
+   *   abioticRegen[pool]
+   *   abioticMineralization[pool][source]  source: 0=detritus, 1=sediment, 2=litter
+   */
+  getFluxSnapshot(): {
+    photoUptake: number[][];
+    excretionReturns: number[][];
+    bioticMineralization: number[][][];
+    abioticRegen: number[];
+    abioticMineralization: number[][];
+  } {
+    const photoUptake: number[][] = [];
+    const excretionReturns: number[][] = [];
+    const bioticMineralization: number[][][] = [];
+    for (let g = 0; g < TROPHIC_COUNT; g++) {
+      photoUptake[g] = [];
+      excretionReturns[g] = [];
+      bioticMineralization[g] = [];
+      for (let p = 0; p < NUTRIENT_COUNT; p++) {
+        photoUptake[g][p] = this.photoUptakeGuildPool[g * NUTRIENT_COUNT + p];
+        excretionReturns[g][p] = this.excretionReturnsGuildPool[g * NUTRIENT_COUNT + p];
+        bioticMineralization[g][p] = [
+          this.bioticMineralizationGuildPoolSource[g * NUTRIENT_COUNT * 3 + p * 3 + 0],
+          this.bioticMineralizationGuildPoolSource[g * NUTRIENT_COUNT * 3 + p * 3 + 1],
+          this.bioticMineralizationGuildPoolSource[g * NUTRIENT_COUNT * 3 + p * 3 + 2],
+        ];
+      }
+    }
+    const abioticRegen: number[] = [];
+    for (let p = 0; p < NUTRIENT_COUNT; p++) {
+      abioticRegen[p] = this.abioticRegenPool[p];
+    }
+    const abioticMineralization: number[][] = [];
+    for (let p = 0; p < NUTRIENT_COUNT; p++) {
+      abioticMineralization[p] = [
+        this.abioticMineralizationPoolSource[p * 3 + 0],
+        this.abioticMineralizationPoolSource[p * 3 + 1],
+        this.abioticMineralizationPoolSource[p * 3 + 2],
+      ];
+    }
+    return { photoUptake, excretionReturns, bioticMineralization, abioticRegen, abioticMineralization };
+  }
+
+  /**
    * Grow every per-slot array this class owns so index `slot` is writable.
    *
    * The organism store grows itself, but these parallel arrays are owned by
@@ -668,6 +717,22 @@ export class World {
    * REPORT.md, issue #2 P1-3.
    */
   private mineralisedCell = new Float64Array(0);
+
+  // --- Per-pool, per-guild flux measurement (Owner handoff Task 1) ----------
+  // These accumulate across the run. Access via getFluxSnapshot().
+  // Layouts:
+  //   photoUptake[guild * NUTRIENT_COUNT + pool]
+  //   excretionReturns[guild * NUTRIENT_COUNT + pool]
+  //   bioticMineralization[guild * NUTRIENT_COUNT * 3 + pool * 3 + source]
+  //     source: 0=sediment, 1=detritus, 2=litter
+  //   abioticRegen[pool]
+  //   abioticMineralization[pool * 3 + source]  source: 0=detritus, 1=sediment, 2=litter
+  private photoUptakeGuildPool = new Float64Array(TROPHIC_COUNT * NUTRIENT_COUNT);
+  private excretionReturnsGuildPool = new Float64Array(TROPHIC_COUNT * NUTRIENT_COUNT);
+  private bioticMineralizationGuildPoolSource = new Float64Array(TROPHIC_COUNT * NUTRIENT_COUNT * 3);
+  private abioticRegenPool = new Float64Array(NUTRIENT_COUNT);
+  private abioticMineralizationPoolSource = new Float64Array(NUTRIENT_COUNT * 3);
+
   /** Diagnostic counters: graze takes split from predation (the ledger merges
    * both kinds). Submissions are already public via submittedByKind[4].
    * Pure observation: incremented, never read by simulation logic. */
@@ -963,6 +1028,12 @@ export class World {
     this.shadeMass = new Float32Array(this.shadeCols * this.shadeRows);
     this.nutrients = [];
     this.mineralisedCell = new Float64Array(fieldCols * fieldRows);
+    // Flux measurement arrays (cumulative across run)
+    this.photoUptakeGuildPool = new Float64Array(TROPHIC_COUNT * NUTRIENT_COUNT);
+    this.excretionReturnsGuildPool = new Float64Array(TROPHIC_COUNT * NUTRIENT_COUNT);
+    this.bioticMineralizationGuildPoolSource = new Float64Array(TROPHIC_COUNT * NUTRIENT_COUNT * 3);
+    this.abioticRegenPool = new Float64Array(NUTRIENT_COUNT);
+    this.abioticMineralizationPoolSource = new Float64Array(NUTRIENT_COUNT * 3);
     for (let nIdx = 0; nIdx < NUTRIENT_COUNT; nIdx++) {
       this.nutrients.push(new ScalarField(`nutrient${nIdx}`, fieldCols, fieldRows, 0));
     }
@@ -1410,7 +1481,10 @@ export class World {
           if (raw > this.cyclicFluxLastTick) this.cyclicFluxLastTick = raw;
           rate *= raw / (raw + sat);
         }
+        const before = nData[i];
         nData[i] += (cap - nData[i]) * rate * drain[i];
+        // Flux measurement: abiotic regeneration per pool
+        this.abioticRegenPool[nIdx] += nData[i] - before;
         // Diagnostic: abiotic nutrient floor (nutrientFloor), a fraction of
         // capacity. This is the RECOVERY PATH for the A+C deadlock, not an
         // energy subsidy: it guarantees a remnant population can always
@@ -1501,6 +1575,11 @@ export class World {
         nData[i] += share;
         applied += share; // measured inside the loop, not derived from the formula
       }
+      // Flux measurement: abiotic mineralization from organic pools per pool
+      // Source: 0=detritus, 1=sediment, 2=litter (evenly distributed via share)
+      this.abioticMineralizationPoolSource[nIdx * 3 + 0] += share * nCells * (detritusMineralised / totalMineralised || 0);
+      this.abioticMineralizationPoolSource[nIdx * 3 + 1] += share * nCells * (sedimentMineralised / totalMineralised || 0);
+      this.abioticMineralizationPoolSource[nIdx * 3 + 2] += share * nCells * (litterMineralised / totalMineralised || 0);
     }
     this.recycledAppliedLastTick = applied;
     const t2 = now();
@@ -2114,9 +2193,17 @@ export class World {
       if (cfg.excretionRate > 0) {
         const excreted = (basal * cfg.excretionRate * 6) / NUTRIENT_COUNT;
         const cellCap = cfg.nutrientPerCell * this.habitat.fertility.data[ci];
+        const beforeA = nutA[ci];
+        const beforeB = nutB[ci];
+        const beforeC = nutC[ci];
         nutA[ci] = Math.min(cellCap, nutA[ci] + excreted);
         nutB[ci] = Math.min(cellCap, nutB[ci] + excreted);
         nutC[ci] = Math.min(cellCap, nutC[ci] + excreted);
+        // Flux measurement: excretion returns per guild per pool
+        const g = this.roleOf(slot).trophic;
+        this.excretionReturnsGuildPool[g * NUTRIENT_COUNT + 0] += nutA[ci] - beforeA;
+        this.excretionReturnsGuildPool[g * NUTRIENT_COUNT + 1] += nutB[ci] - beforeB;
+        this.excretionReturnsGuildPool[g * NUTRIENT_COUNT + 2] += nutC[ci] - beforeC;
       }
 
       // Crowding penalty: local density costs energy via interference.
@@ -2192,15 +2279,25 @@ export class World {
           // Consume from each pool, capped by what is present.
           if (affA > 1e-4) {
             const take = wA * lim;
-            nutA[ci] -= take < nutA[ci] ? take : nutA[ci];
+            const actualTake = take < nutA[ci] ? take : nutA[ci];
+            nutA[ci] -= actualTake;
+            // Flux measurement: photosynthesis uptake per guild per pool
+            const g = this.roleOf(slot).trophic;
+            this.photoUptakeGuildPool[g * NUTRIENT_COUNT + 0] += actualTake;
           }
           if (affB > 1e-4) {
             const take = wB * lim;
-            nutB[ci] -= take < nutB[ci] ? take : nutB[ci];
+            const actualTake = take < nutB[ci] ? take : nutB[ci];
+            nutB[ci] -= actualTake;
+            const g = this.roleOf(slot).trophic;
+            this.photoUptakeGuildPool[g * NUTRIENT_COUNT + 1] += actualTake;
           }
           if (affC > 1e-4) {
             const take = wC * lim;
-            nutC[ci] -= take < nutC[ci] ? take : nutC[ci];
+            const actualTake = take < nutC[ci] ? take : nutC[ci];
+            nutC[ci] -= actualTake;
+            const g = this.roleOf(slot).trophic;
+            this.photoUptakeGuildPool[g * NUTRIENT_COUNT + 2] += actualTake;
           }
 
           // Energy fixed is proportional to what was actually obtained.
@@ -2263,14 +2360,21 @@ export class World {
               const returned = taken * cfg.bioticMineralisation;
               // Returned across all pools so recycling is not pool-specific.
               const cap = cfg.nutrientPerCell * this.habitat.fertility.data[ci];
-              nutA[ci] += returned / NUTRIENT_COUNT;
-              nutB[ci] += returned / NUTRIENT_COUNT;
-              nutC[ci] += returned / NUTRIENT_COUNT;
-              if (nutA[ci] > cap) nutA[ci] = cap;
-              if (nutB[ci] > cap) nutB[ci] = cap;
-              if (nutC[ci] > cap) nutC[ci] = cap;
+              const perPool = returned / NUTRIENT_COUNT;
+              const beforeA = nutA[ci];
+              const beforeB = nutB[ci];
+              const beforeC = nutC[ci];
+              nutA[ci] = Math.min(cap, nutA[ci] + perPool);
+              nutB[ci] = Math.min(cap, nutB[ci] + perPool);
+              nutC[ci] = Math.min(cap, nutC[ci] + perPool);
               this.bioticMineralised += returned;
               this.mineralisedCell[ci] += returned;
+              // Flux measurement: biotic mineralization per guild per pool per source (0=sediment)
+              const g = this.roleOf(slot).trophic;
+              const base = g * NUTRIENT_COUNT * 3;
+              this.bioticMineralizationGuildPoolSource[base + 0 * 3 + 0] += nutA[ci] - beforeA;
+              this.bioticMineralizationGuildPoolSource[base + 1 * 3 + 0] += nutB[ci] - beforeB;
+              this.bioticMineralizationGuildPoolSource[base + 2 * 3 + 0] += nutC[ci] - beforeC;
             }
           }
         }
@@ -2323,14 +2427,21 @@ export class World {
               const returned = taken * cfg.bioticMineralisation;
               // Returned across all pools so recycling is not pool-specific.
               const cap = cfg.nutrientPerCell * this.habitat.fertility.data[ci];
-              nutA[ci] += returned / NUTRIENT_COUNT;
-              nutB[ci] += returned / NUTRIENT_COUNT;
-              nutC[ci] += returned / NUTRIENT_COUNT;
-              if (nutA[ci] > cap) nutA[ci] = cap;
-              if (nutB[ci] > cap) nutB[ci] = cap;
-              if (nutC[ci] > cap) nutC[ci] = cap;
+              const perPool = returned / NUTRIENT_COUNT;
+              const beforeA = nutA[ci];
+              const beforeB = nutB[ci];
+              const beforeC = nutC[ci];
+              nutA[ci] = Math.min(cap, nutA[ci] + perPool);
+              nutB[ci] = Math.min(cap, nutB[ci] + perPool);
+              nutC[ci] = Math.min(cap, nutC[ci] + perPool);
               this.bioticMineralised += returned;
               this.mineralisedCell[ci] += returned;
+              // Flux measurement: biotic mineralization per guild per pool per source (1=detritus)
+              const g = this.roleOf(slot).trophic;
+              const base = g * NUTRIENT_COUNT * 3;
+              this.bioticMineralizationGuildPoolSource[base + 0 * 3 + 1] += nutA[ci] - beforeA;
+              this.bioticMineralizationGuildPoolSource[base + 1 * 3 + 1] += nutB[ci] - beforeB;
+              this.bioticMineralizationGuildPoolSource[base + 2 * 3 + 1] += nutC[ci] - beforeC;
             }
           }
         }
@@ -2398,14 +2509,21 @@ export class World {
           if (this.bioticMineraliser[slot]) {
             const returned = taken * cfg.bioticMineralisation;
             const capN = cfg.nutrientPerCell * this.habitat.fertility.data[ci];
-            nutA[ci] += returned / NUTRIENT_COUNT;
-            nutB[ci] += returned / NUTRIENT_COUNT;
-            nutC[ci] += returned / NUTRIENT_COUNT;
-            if (nutA[ci] > capN) nutA[ci] = capN;
-            if (nutB[ci] > capN) nutB[ci] = capN;
-            if (nutC[ci] > capN) nutC[ci] = capN;
+            const perPool = returned / NUTRIENT_COUNT;
+            const beforeA = nutA[ci];
+            const beforeB = nutB[ci];
+            const beforeC = nutC[ci];
+            nutA[ci] = Math.min(capN, nutA[ci] + perPool);
+            nutB[ci] = Math.min(capN, nutB[ci] + perPool);
+            nutC[ci] = Math.min(capN, nutC[ci] + perPool);
             this.bioticMineralised += returned;
             this.mineralisedCell[ci] += returned;
+            // Flux measurement: biotic mineralization per guild per pool per source (2=litter)
+            const g = this.roleOf(slot).trophic;
+            const base = g * NUTRIENT_COUNT * 3;
+            this.bioticMineralizationGuildPoolSource[base + 0 * 3 + 2] += nutA[ci] - beforeA;
+            this.bioticMineralizationGuildPoolSource[base + 1 * 3 + 2] += nutB[ci] - beforeB;
+            this.bioticMineralizationGuildPoolSource[base + 2 * 3 + 2] += nutC[ci] - beforeC;
           }
         }
       } else {
