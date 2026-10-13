@@ -1492,12 +1492,18 @@ function gate26(): void {
   // radiationMultiplier dormant coupling (P2a fix verification).
   // The excess over 1x is coupled to dormantFrac/floor, not the total multiplier.
   // At 0 dormancy -> 1x (background). At dormantFrac >= floor -> full mult.
+  // Advance tick so scheduled multiplier m > 1 (excess > 0).
   const w = new World({
     config: { founders: 0, worldW: 100, worldH: 100, seed: 1,
-      radiation: { onset: 0, doubling: 100, cap: 8, overgrowthCoupling: 0.5 },
+      radiation: { onset: 10, doubling: 100, cap: 8, overgrowthCoupling: 0.5 },
     },
-  });
-  const base = w.radiationMultiplier();
+  }) as unknown as { dormantFrac: number; radiationMultiplier(): number; tick: number; step(): void; config: { radiation: { onset: number; doubling: number; cap: number; overgrowthCoupling: number } } };
+  // Step to tick 50 -> m = 2^((50-10)/100) = 2^0.4 ~ 1.3195
+  for (let i = 0; i < 50; i++) w.step();
+  // Read scheduled multiplier directly (without coupling): m = 2^((tick-onset)/doubling), clamped to cap
+  const r = w.config.radiation!;
+  const scheduled = Math.min(Math.max(1, r.cap), Math.pow(2, (w.tick - r.onset) / Math.max(1, r.doubling)));
+  // Test coupling by directly setting dormantFrac (natural dormantFrac stays 0 with no founders)
   w.dormantFrac = 0.0;
   const zero = w.radiationMultiplier();
   w.dormantFrac = 0.25; // half floor
@@ -1508,18 +1514,19 @@ function gate26(): void {
   const over = w.radiationMultiplier();
   const eps = 1e-9;
   const zeroOk = Math.abs(zero - 1.0) < eps;
-  const halfOk = Math.abs(half - (1 + (base - 1) * 0.5)) < eps;
-  const fullOk = Math.abs(full - base) < eps;
-  const overOk = Math.abs(over - base) < eps;
+  const halfOk = Math.abs(half - (1 + (scheduled - 1) * 0.5)) < eps;
+  const fullOk = Math.abs(full - scheduled) < eps;
+  const overOk = Math.abs(over - scheduled) < eps;
   record('G26', 'radiationMultiplier couples only excess over 1x to dormant share',
     zeroOk && halfOk && fullOk && overOk,
-    `base=${base.toFixed(3)} zero=${zero.toFixed(3)} half=${half.toFixed(3)} full=${full.toFixed(3)} over=${over.toFixed(3)}`);
+    `tick=${w.tick} scheduled=${scheduled.toFixed(4)} zero=${zero.toFixed(4)} half=${half.toFixed(4)} full=${full.toFixed(4)} over=${over.toFixed(4)}`);
 }
 
 function gate27(): void {
   // Mating logic: successfulMating flag gates asexual fallback (P1 fix verification).
-  // Four cases: no candidate, candidate without reciprocal, failed mutual, successful mutual.
-  const SMALL = { founders: 20, worldW: 400, worldH: 400, seed: 99999,
+  // Four cases: (A) no candidate -> asexual; (B) candidate no reciprocal -> asexual;
+  // (C) mutual intent but FAILED surplus -> asexual; (D) mutual intent PASSED surplus -> sexual, asexual skipped for mated.
+  const SMALL = { founders: 2, worldW: 200, worldH: 200, seed: 99999,
     consumerPhotoScale: 0, consumerBasalScale: 0.25,
     decomposerPhotoScale: 0, decomposerFounders: 0.5,
     decomposerDormancy: 0.05, sporeDispersal: 1,
@@ -1531,9 +1538,21 @@ function gate27(): void {
     basalFoodPerCell: 0.01, nutrientRegen: 0.0002,
     excretionRate: 0.06, meatYieldPerMass: 0,
   };
-  // Case A: no candidate nearby -> asexual should proceed
-  const wA = new World({ config: { ...SMALL, founders: 2 } });
-  for (let i = 0; i < 10; i++) wA.step();
+
+  function makeProbe(): any {
+    const w = new World({ config: SMALL }) as unknown as any;
+    for (let i = 0; i < 2; i++) {
+      w.store.energy[i] = 1000;
+      w.store.role[i * 8] = 1; // CONSUMER
+    }
+    return w;
+  }
+
+  // Case A: no candidate nearby -> asexual should proceed (flag stays 0)
+  const wA = makeProbe();
+  wA.intent.fill(INTENT.SETTLE, 0, 2);
+  wA.mateTarget.fill(-1, 0, 2);
+  wA.proposeReproduction();
   let asexualA = 0, sexualA = 0;
   for (let i = 0; i < wA.store.capacity; i++) {
     if (wA.live[i] && wA.successfulMating[i] === 0) asexualA++;
@@ -1541,27 +1560,59 @@ function gate27(): void {
   }
   const caseA = asexualA > 0 && sexualA === 0;
 
-  // Case B: candidate exists but no reciprocal intent -> asexual should proceed
-  // (hard to engineer deterministically without full control; verify flag stays 0)
-  const wB = new World({ config: { ...SMALL, founders: 20 } });
-  for (let i = 0; i < 50; i++) wB.step();
+  // Case B: candidate exists but no reciprocal intent -> asexual should proceed (flag stays 0)
+  const wB = makeProbe();
+  wB.intent[0] = INTENT.MATE;
+  wB.intent[1] = INTENT.FLEE; // not MATE
+  wB.mateTarget[0] = 1;
+  wB.mateTarget[1] = -1;
+  wB.mateCandA[0] = 0; wB.mateCandB[0] = 1; wB.mateCandN = 1;
+  wB.resolveMatingIntent(); // will not submit (intent mismatch)
+  wB.resolveContests(); // no records
+  wB.proposeReproduction();
   let asexualB = 0, sexualB = 0;
   for (let i = 0; i < wB.store.capacity; i++) {
     if (wB.live[i] && wB.successfulMating[i] === 0) asexualB++;
     if (wB.live[i] && wB.successfulMating[i] === 1) sexualB++;
   }
-  const caseB = asexualB > 0; // at least some asexual (flag=0) births
+  const caseB = asexualB > 0 && sexualB === 0;
 
-  // Case C: mutual intent but failed surplus -> asexual should proceed (flag=0)
-  // Case D: mutual intent AND surplus -> sexual proceeds (flag=1), asexual skipped
-  // These are verified by the flag semantics in proposeReproduction:
-  // successfulMating is ONLY set in resolveContests MATE handler AFTER surplus check.
-  // So Case C (failed surplus) -> flag stays 0 -> asexual attempted.
-  // Case D (passed surplus) -> flag=1 -> asexual skipped.
-  // We verify the invariant: successfulMating is never set without surplus check.
-  record('G27', 'successfulMating flag only set after surplus-checked mutual mating',
-    caseA && caseB,
-    `no-candidate: asexual=${asexualA} sexual=${sexualA} | candidates-present: asexual=${asexualB} sexual=${sexualB} (flag semantics ensure Cases C/D)`);
+  // Case C: mutual intent + mutual selection BUT FAILED surplus check -> asexual should proceed (flag=0)
+  const wC = makeProbe();
+  wC.intent[0] = INTENT.MATE; wC.intent[1] = INTENT.MATE;
+  wC.mateTarget[0] = 1; wC.mateTarget[1] = 0;
+  wC.mateCandA[0] = 0; wC.mateCandB[0] = 1; wC.mateCandN = 1;
+  wC.store.energy[0] = 0.1; wC.store.energy[1] = 0.1; // below surplus bar
+  wC.resolveMatingIntent();
+  wC.resolveContests(); // surplus check FAILS -> successfulMating NOT set
+  wC.proposeReproduction();
+  let asexualC = 0, sexualC = 0;
+  for (let i = 0; i < wC.store.capacity; i++) {
+    if (wC.live[i] && wC.successfulMating[i] === 0) asexualC++;
+    if (wC.live[i] && wC.successfulMating[i] === 1) sexualC++;
+  }
+  const caseC = asexualC > 0 && sexualC === 0;
+
+  // Case D: mutual intent + mutual selection + PASSED surplus -> sexual for mated (0,1), asexual skipped for them
+  const wD = makeProbe();
+  wD.intent[0] = INTENT.MATE; wD.intent[1] = INTENT.MATE;
+  wD.mateTarget[0] = 1; wD.mateTarget[1] = 0;
+  wD.mateCandA[0] = 0; wD.mateCandB[0] = 1; wD.mateCandN = 1;
+  wD.store.energy[0] = 1000; wD.store.energy[1] = 1000; // well above surplus bar
+  wD.resolveMatingIntent();
+  wD.resolveContests(); // surplus check PASSES -> successfulMating set to 1 for slots 0,1
+  wD.proposeReproduction();
+  // Check SPECIFICALLY the mated organisms (slots 0,1): they should have sexual, NOT asexual
+  let asexualMated = 0, sexualMated = 0;
+  for (const slot of [0, 1]) {
+    if (wD.live[slot] && wD.successfulMating[slot] === 0) asexualMated++;
+    if (wD.live[slot] && wD.successfulMating[slot] === 1) sexualMated++;
+  }
+  const caseD = sexualMated === 2 && asexualMated === 0;
+
+  record('G27', 'successfulMating flag gates asexual fallback (A no-candidate, B no-reciprocal, C failed-surplus, D passed-surplus)',
+    caseA && caseB && caseC && caseD,
+    `A: asex=${asexualA} sex=${sexualA} | B: asex=${asexualB} sex=${sexualB} | C: asex=${asexualC} sex=${sexualC} | D(mated): asex=${asexualMated} sex=${sexualMated}`);
 }
 
 // Gate 28: successfulMating array grows with population capacity
@@ -1578,14 +1629,17 @@ function gate28(): void {
     basalFoodPerCell: 0.01, nutrientRegen: 0.0002,
     excretionRate: 0.06, meatYieldPerMass: 0,
   };
-  const w = new World({ config: SMALL });
-  // Force many births to grow capacity
-  for (let t = 1; t <= 500; t++) w.step();
-  const cap = w.store.capacity;
+  const w = new World({ config: SMALL }) as unknown as { successfulMating: Uint8Array; live: Uint8Array; ensureSlotArrays(slot: number): void; step(): void };
+  // Initial capacity is 1024 (Math.max(1024, founders*2))
+  const initialLiveLen = w.live.length;
+  // Force growth by calling ensureSlotArrays with a slot beyond initial capacity
+  w.ensureSlotArrays(2000);
+  const grownLiveLen = w.live.length;
   const flagLen = w.successfulMating.length;
+  const grew = grownLiveLen > initialLiveLen;
   record('G28', 'successfulMating array grows with organism capacity',
-    flagLen === cap,
-    `capacity=${cap} successfulMating.length=${flagLen}`);
+    flagLen === grownLiveLen && grew,
+    `initialLiveLen=${initialLiveLen} grownLiveLen=${grownLiveLen} successfulMating.length=${flagLen} (grew: ${grew})`);
 }
 
 function main(): void {

@@ -7349,3 +7349,30 @@ attempted without Owner approval.
 
 All declared corrections validated: typecheck, 36/36 gates, 11/11 contract,
 153/153 workflow, deterministic repeat runs, bundle matches CLI.
+
+--------------------------------------------------------------------------------
+REVIEW RESPONSE CORRECTIONS V2 (2026-10-13, reviewer Acrius-max on head 87cefa7)
+--------------------------------------------------------------------------------
+
+### G26 — radiationMultiplier coupling (FIXED)
+**Defect:** Test read base multiplier at dormantFrac=0 (coupled to 1.0), not the scheduled multiplier.
+**Fix:** Compute scheduled multiplier directly from tick/onset/doubling/cap; test coupling against that.
+**Result:** tick=50 scheduled=1.3195 zero=1.0000 half=1.1598 full=1.3195 over=1.3195 ✓
+
+### G27 — successfulMating flag gates asexual fallback (FIXED)
+**Defect:** Case D test counted asexual from ALL live organisms, not just the mated pair.
+**Fix:** Use 2-organism world; check ONLY the mated slots (0,1) for asexual=0, sexual=2.
+**Result:** A: asex=2 sex=0 | B: asex=2 sex=0 | C: asex=2 sex=0 | D(mated): asex=0 sex=2 ✓
+
+### G28 — successfulMating array grows with capacity (FIXED)
+**Defect:** Checked against fixed store.capacity (1024) instead of live array length which actually grows.
+**Fix:** Compare successfulMating.length against live.length after ensureSlotArrays(2000).
+**Result:** initialLiveLen=1024 grownLiveLen=2048 successfulMating.length=2048 (grew: true) ✓
+
+### Full validation
+- Typecheck: clean
+- Gates: 36/36 pass (including G26, G27, G28)
+- Contract: 11/11 pass (parity re-pinned 0.6.2)
+- Workflow: 153/153 pass
+- Bundle matches CLI: ✓
+- Deterministic: byte-identical repeat runs ✓
