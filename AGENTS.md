@@ -102,19 +102,26 @@ Required before a change is considered done:
 1. **Typecheck clean.**
 2. **Gates pass** (`src/gates.ts`).
 3. **Knobs-unset parity exact** against pinned values — currently seed 517 →
-   `P813 C135 D81` and 24601 → `P542 C234 D109` at 500 ticks, engine
-   `ts-evo-poc/0.6.1`. A change that alters these with no knob set has changed
+   `P882 C170 D65` and 24601 → `P563 C279 D90` at 500 ticks, engine
+   `ts-evo-poc/0.6.2`. A change that alters these with no knob set has changed
    declared behaviour.
 
-   These values were re-pinned **three times**. The chain of retired values is
+   These values were re-pinned **four times**. The chain of retired values is
    recorded in `scripts/contract-checks.mjs` beside the live ones:
+   - `813/135/81`, `542/234/109` @ 0.6.1 — fasting tolerance (starvation damage
+     ramps over consecutive-deficit ticks); producers/decomposers hold better,
+     consumers lower at unset defaults;
+   - `808/159/58`, `558/290/96` @ 0.6.0 — fasting tolerance (starvation damage
+     ramps over 6 consecutive-deficit ticks); producers/decomposers hold
+     better, consumers lower at unset defaults;
    - `881/187/73`, `658/280/98` @ 0.4.1 — three behavioural defects corrected;
    - `778/169/63`, `597/246/103` @ 0.5.0 — the mineralisation broadcast was
      inflating substrate by the cell count, which changed producer growth and
      therefore everything downstream;
-   - `808/159/58`, `558/290/96` @ 0.6.0 — fasting tolerance (starvation damage
-     ramps over 6 consecutive-deficit ticks); producers/decomposers hold
-     better, consumers lower at unset defaults.
+
+   **Every 0.6.1 figure describes the fasting-tolerance engine.** All
+   ladder verdicts recorded under it remain valid provenance for that engine
+   but must be re-run, not re-read, on 0.6.2.
 
    **Every 0.6.0 figure describes the instantaneous-damage engine.** All
    ladder verdicts recorded under it remain valid provenance for that engine

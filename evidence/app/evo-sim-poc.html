@@ -4380,7 +4380,7 @@ __def("world/version.js", function(require, exports, module){/**
  * All figures recorded under 0.4.1 describe the DEFECTIVE semantics and are
  * provenance only. See REPORT.md.
  */
-const WORLD_ENGINE_VERSION = 'ts-evo-poc/0.6.1';
+const WORLD_ENGINE_VERSION = 'ts-evo-poc/0.6.2';
 /** Identifier for the credibility-check suite that accompanies this version. */
 const GATE_SUITE_VERSION = 'gates/0.4.0';
 
@@ -4938,6 +4938,7 @@ class World {
         this.grazeTarget = growI(this.grazeTarget, -1);
         this.threatTarget = growI(this.threatTarget, -1);
         this.mateTarget = growI(this.mateTarget, -1);
+        this.successfulMating = growU8(this.successfulMating);
         this.intent = growU8(this.intent);
         // `idToSlot` is deliberately NOT grown here. It is indexed by stable id,
         // which grows monotonically and far faster than slot count (one id per
