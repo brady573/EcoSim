@@ -865,6 +865,7 @@ export class World {
 
   /** Scratch buffers allocated once; the hot path must not allocate. */
   private chemOut = new Float64Array(POOL_COUNT);
+  private chemExtents = new Float64Array(RX_COUNT);
   private chemDemand = newElemVec();
   private chemScratch = newElemVec();
   private chemLabile = newElemVec();
@@ -4315,7 +4316,7 @@ export class World {
 
       const cell = chem.index(store.x[slot], store.y[slot]);
       out.fill(0);
-      const gained = runMetabolism(chem, st, slot, cell, cfg, out);
+      const gained = runMetabolism(chem, st, slot, cell, cfg, out, this.chemExtents);
       // Apply the organism's NET chemical transfers exactly once.
       for (let q = 0; q < POOL_COUNT; q++) {
         if (out[q] !== 0) chem.react(q, cell, out[q]);
@@ -4328,14 +4329,17 @@ export class World {
         const r = REACTIONS[id];
         if ((mask & r.cap) === 0) continue;
         if (st.capStrength[slot * CAP_COUNT + capBitIndex(r.cap)] <= 0) continue;
-        const moved = r.substrates.length > 0 ? Math.abs(out[r.substrates[0].pool]) : 0;
+        const moved = this.chemExtents[id];
         if (moved <= 0) continue;
         ev.extent[id] += moved;
         ev.runs[id]++;
         if (r.energy > 0) ev.energy[id] += r.energy * moved;
         // Nitrogen leaving as gas is a DECLARED EXPORT, counted here so the
         // cycle can balance against weathering over long runs.
-        if (r.family === 'nitrogen' && r.name === 'denitrification') {
+        // 2 NO3 -> 0.6 NH4 + 1.4 N2: 1.4 moles of nitrogen leave per unit
+        // extent. Booked from the reaction's OWN extent, so it is not confused
+        // with the net NO3 movement shared with nitrification.
+        if (r.name === 'denitrification') {
           chem.flux.gasExport[3] += moved * 1.4;
         }
 
@@ -4415,6 +4419,11 @@ export class World {
     // a bare assignment then erased the weathering totals. The vector is now
     // computed from the sources on every pass, so neither can leak.
     a.inputs.fill(0);
+    // Water: the opening reservoir is part of `initial`, NOT an input. Only a
+    // top-up drawn down by reactions counts as one, and H2O contributes one mole
+    // of H and one of O per molecule.
+    a.inputs[E.H] += chem.flux.waterInput;
+    a.inputs[E.O] += chem.flux.waterInput;
     a.inputs[E.C] += chem.flux.co2In;
     a.inputs[E.P] += chem.flux.weatherP;
     a.inputs[E.N] += chem.flux.weatherN;

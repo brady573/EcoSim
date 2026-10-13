@@ -67,7 +67,18 @@ export const enum POOL {
   SP = 21,
   SS = 22,
   SFE = 23,
-  COUNT = 24,
+  /**
+   * Water: an EXTERNAL, BUFFERED reservoir.
+   *
+   * Declared rather than simulated. Photosynthesis draws the hydrogen and
+   * oxygen it incorporates into tissue, and respiration returns them, so the
+   * O2 it releases and the H and O in organic matter have a real source and
+   * sink. A pool that is refilled to a fixed level is a BUFFER, not a claim of
+   * conservation across it: no conservation is asserted for water beyond the
+   * model boundary.
+   */
+  H2O = 24,
+  COUNT = 25,
 }
 
 export const POOL_COUNT = POOL.COUNT;
@@ -84,7 +95,7 @@ export const POOL_RT = {
   O2: 0, DIC: 1, NH4: 2, NO2: 3, NO3: 4, PO4: 5, SO4: 6, H2S: 7, FE2: 8,
   FE3: 9, OC: 10, ON: 11, OP: 12, OS: 13, OFE: 14,
   LC: 15, LN: 16, LP: 17, LS: 18,
-  SC: 19, SN: 20, SP: 21, SS: 22, SFE: 23,
+  SC: 19, SN: 20, SP: 21, SS: 22, SFE: 23, H2O: 24,
 } as const;
 
 /** Which conserved element each pool carries. */
@@ -94,6 +105,7 @@ const POOL_ELEMENT: readonly E[] = [
   E.C, E.N, E.P, E.S, E.FE,                     // 10-14 labile organic
   E.C, E.N, E.P, E.S,                           // 15-18 litter
   E.C, E.N, E.P, E.S, E.FE,                     // 19-23 sediment
+  E.C,                                          // 24 water (tracked separately)
 ];
 
 /** Transport class: how a pool moves through the grid. */
@@ -117,6 +129,7 @@ const POOL_CLASS: readonly CLASS[] = [
   CLASS.SEMI, CLASS.SEMI, CLASS.SEMI, CLASS.SEMI, CLASS.SEMI, // labile organic
   CLASS.IMMOBILE, CLASS.IMMOBILE, CLASS.IMMOBILE, CLASS.IMMOBILE, // litter
   CLASS.IMMOBILE, CLASS.IMMOBILE, CLASS.IMMOBILE, CLASS.IMMOBILE, CLASS.IMMOBILE, // sediment
+  CLASS.IMMOBILE,               // water: a buffer, not a field
 ];
 
 export const POOL_NAMES: readonly string[] = [
@@ -212,6 +225,8 @@ export interface ChemistryConfig {
   initialSO4: number;
   /** Initial ferrous iron per cell. */
   initialFe2: number;
+  /** Water reservoir level per cell. External, buffered, declared. */
+  waterReservoir: number;
   /** Initial labile organic carbon per cell (a pulse of legacy detritus). */
   initialOC: number;
 }
@@ -230,6 +245,7 @@ export const DEFAULT_CHEMISTRY: ChemistryConfig = {
   initialPO4: 0.0016,
   initialSO4: 0.010,
   initialFe2: 0.00035,
+  waterReservoir: 400.0,
   initialOC: 0.35,
 };
 
@@ -273,6 +289,8 @@ export interface BoundaryFluxes {
    * so no conservation claim is made across that boundary.
    */
   reservoirSink: Float64Array;
+  /** Water drawn from the external reservoir to hold it at its level. */
+  waterInput: number;
   /** Net draw from the external water reservoir, per element. */
   reservoirSource: Float64Array;
   /** Net O2 drawn from / returned to water, per element. */
@@ -284,7 +302,7 @@ export function newBoundaryFluxes(): BoundaryFluxes {
     co2In: 0, weatherP: 0, weatherN: 0, weatherS: 0, weatherFe: 0,
     sedimentOut: 0, exportOut: 0,
     founderMatter: new Float64Array(7), gasExport: new Float64Array(7),
-    reservoirSink: new Float64Array(7),
+    reservoirSink: new Float64Array(7), waterInput: 0,
     reservoirSource: new Float64Array(7), waterO2: new Float64Array(7),
   };
 }
@@ -348,6 +366,7 @@ export class Chemistry {
     }
     this.delta = new Float64Array(POOL_COUNT * n);
     this.claimed = new Float64Array(POOL_COUNT * n);
+    this.waterBuffer = cfg.waterReservoir;
     this.seedInitial();
   }
 
@@ -362,6 +381,8 @@ export class Chemistry {
     fill(POOL.SO4, c.initialSO4);
     fill(POOL.FE2, c.initialFe2);
     fill(POOL.OC, c.initialOC);
+    // Water is refilled to its reservoir level, not evolved.
+    fill(POOL.H2O, c.waterReservoir);
     // Reduced sulfur and fixed Fe start absent: sulfate is the oxidised,
     // available form, and ferrous iron only appears where oxygen is consumed.
     // This is what makes reduced niches something an ecosystem has to CREATE.
@@ -456,8 +477,26 @@ export class Chemistry {
       }
       this.delta.fill(0, base, base + n);
     }
+    // Water is a BUFFER. Refill each cell to its declared reservoir level and
+    // book the top-up as an external input, so the reservoir neither drains nor
+    // accumulates silently. No conservation is claimed across this boundary.
+    if (this.waterBuffer > 0) {
+      const f = this.fields[POOL.H2O];
+      const fd = f.data;
+      // Only a RESERVOIR TOP-UP is an external input: water the reactions
+      // actually drew down and that must be replenished from outside. Counting
+      // the initial fill as an input would double-book the opening inventory,
+      // which already contains it.
+      for (let i = 0; i < n; i++) {
+        const d = this.waterBuffer - fd[i];
+        if (d > 0) { fd[i] = this.waterBuffer; this.flux.waterInput += d; }
+      }
+    }
     this.transport();
   }
+
+  /** Declared water reservoir level per cell. */
+  waterBuffer: number = 0;
 
   /** Total magnitude clamped across all pools since construction. */
   totalClamped(): number {
@@ -493,6 +532,13 @@ export class Chemistry {
   elementTotal(e: E): number {
     const n = this.cols * this.rows;
     let sum = 0;
+    // Water is the one pool carrying TWO elements; it belongs in both books at
+    // its full molar amount, which is what makes photosynthesis' water draw
+    // balance against its products.
+    if (e === E.H || e === E.O) {
+      const w = this.fields[POOL.H2O].data;
+      for (let i = 0; i < n; i++) sum += w[i];
+    }
     for (let p = 0; p < POOL_COUNT; p++) {
       if (POOL_ELEMENT[p] !== e) continue;
       const f = this.fields[p].data;

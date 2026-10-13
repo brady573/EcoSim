@@ -200,6 +200,7 @@ export function runMetabolism(
   cell: number,
   cfg: ChemConfig,
   out: Float64Array,
+  extentOut?: Float64Array,
 ): number {
   const mask = st.capMask[slot];
   if (mask === 0) return 0;
@@ -223,6 +224,7 @@ export function runMetabolism(
     // phosphorus by 5,100% and iron by 7,400% on a 300-tick run, and it is
     // invisible to any check that does not close the books.
     if (r.energy > 0) energy += r.energy * extent;
+    if (extentOut) extentOut[id] = extent;
   }
   return cfg.freeEnergy ? energy * 0 : energy * cfg.energyScale;
 }

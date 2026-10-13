@@ -128,23 +128,37 @@ export const REACTIONS: readonly Reaction[] = [
   // which showed as a +7% oxygen residual. The water pool is EXTERNAL AND
   // BUFFERED (declared, not simulated), so the draw and the return are booked
   // against that reservoir rather than against a modelled pool.
+  // 1 DIC + 0.9 H2O -> 1 OC(CH1.8O0.5) + 0.2 O2  — balanced in H and O.
+  //
+  // The previous form emitted 1.9 O2 with DIC as its only substrate, which is
+  // an EMISSION rather than a balance: the hydrogen and oxygen it put into
+  // organic matter had no source, which measured as +374% H and +87% N.
+  // Deriving the coefficients from BIOMASS_STOICH rather than choosing them:
+  //   H: 2n = 1.8  -> n = 0.9 water
+  //   O: n = 0.5 + 2m -> m = 0.2 O2
   rx('photosynthesis', CAP.PHOTOSYNTHESIS, 'carbon fixation',
-    [s(POOL.DIC, 1)],
-    [s(POOL.OC, 1), s(POOL.O2, 1.9)], // O2 1.9 supplied by external water
+    [s(POOL.DIC, 1), s(POOL.H2O, 0.9)],
+    [s(POOL.OC, 1), s(POOL.O2, 0.2)],
     1.0, 0.055, [POOL.DIC, POOL.PO4, POOL.NH4],
     0, 1e9,
-    'Light-driven DIC fixation. O2 is produced stoichiometrically, so a '
-    + 'photosynthetic community makes its own oxygenated habitat. Requires '
-    + 'inorganic N and P: carbon fixation alone does not build biomass.'),
+    'Light-driven DIC fixation. O2 is a PRODUCT of the balance, not an '
+    + 'emission: the oxygen released and the H and O locked into tissue both '
+    + 'come from water, an external buffered reservoir. A photosynthetic '
+    + 'community therefore still makes its own oxygenated habitat, while the '
+    + 'chemistry stays closed. Requires inorganic N and P.'),
 
   // --- Family 2: aerobic organic metabolism --------------------------------
+  // The reverse of photosynthesis, in the same stoichiometry: 1 OC + 0.2 O2 +
+  // 0.9 H2O -> 1 DIC. Returning water matters — respiration is what closes the
+  // water loop, and without it the reservoir drains monotonically.
   rx('aerobic respiration', CAP.AEROBIC, 'aerobic',
-    [s(POOL.OC, 1), s(POOL.O2, 1.9)],
+    [s(POOL.OC, 1), s(POOL.O2, 0.2), s(POOL.H2O, 0.9)],
     [s(POOL.DIC, 1)],
     0.82, 0.085, [POOL.OC],
     0.02, 1e9,
-    'Oxidative breakdown. O2 is consumed and carbon returned as DIC, which is '
-    + 'the other half of why photosynthesis and respiration are coupled.'),
+    'Oxidative breakdown. O2 is consumed, carbon returned as DIC and water '
+    + 'returned to the reservoir: the exact inverse of photosynthesis, which is '
+    + 'why the two are stoichiometrically coupled rather than merely similar.'),
 
   // --- Family 3: O2-independent metabolism ---------------------------------
   rx('fermentation', CAP.FERMENT, 'anaerobic',
@@ -179,7 +193,7 @@ export const REACTIONS: readonly Reaction[] = [
   // --- Family 5: nitrogen ---------------------------------------------------
   rx('nitrification', CAP.NITRIFY, 'nitrogen',
     [s(POOL.NH4, 1), s(POOL.O2, 1.8)],
-    [s(POOL.NO3, 0.98)],
+    [s(POOL.NO3, 1)], // 1:1 in N; 0.98 silently destroyed 2% of every run
     0.10, 0.040, [POOL.NH4],
     0.02, 1e9,
     'Oxidises ammonium to nitrate. Requires oxygen, so it happens at oxic '
@@ -187,6 +201,8 @@ export const REACTIONS: readonly Reaction[] = [
     + 'ecosystem — it must be reduced again, which is what makes the '
     + 'anaerobic pathway valuable.'),
 
+  // 2 NO3 -> 0.6 NH4 + 1.4 N2(gas). The 1.4 is a real atmospheric export and
+  // must be booked, or the nitrogen books appear to leak.
   rx('denitrification', CAP.DENITRIFY, 'nitrogen',
     [s(POOL.NO3, 2)],
     [s(POOL.NH4, 0.6)],
