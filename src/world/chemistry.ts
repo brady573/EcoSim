@@ -451,6 +451,19 @@ export class Chemistry {
    */
   readonly clamped = new Float64Array(POOL_COUNT);
 
+  /**
+   * Running total of everything settle() has ever had to clamp, per pool.
+   *
+   * `clamped` is reset at the START of every settle, so it describes the most
+   * recent tick only. A method named `totalClamped()` that summed it was
+   * reporting one tick's worth under a name promising the whole run: it read
+   * 0.09 for a run whose true cumulative clamp was 13.07. A number whose name
+   * misdescribes its window is how a real defect stays invisible, so the
+   * cumulative figure is kept separately and accumulated where the clamp is
+   * actually taken.
+   */
+  readonly clampedCumulative = new Float64Array(POOL_COUNT);
+
   /** Cells that were clamped on the most recent settle, per pool. */
   readonly clampedCells = new Float64Array(POOL_COUNT);
 
@@ -469,6 +482,7 @@ export class Chemistry {
         const next = f.data[i] + d;
         if (next < 0) {
           this.clamped[p] += -next;
+          this.clampedCumulative[p] += -next;
           this.clampedCells[p]++;
           f.data[i] = 0;
         } else {
@@ -501,7 +515,7 @@ export class Chemistry {
   /** Total magnitude clamped across all pools since construction. */
   totalClamped(): number {
     let s = 0;
-    for (let p = 0; p < POOL_COUNT; p++) s += this.clamped[p];
+    for (let p = 0; p < POOL_COUNT; p++) s += this.clampedCumulative[p];
     return s;
   }
 

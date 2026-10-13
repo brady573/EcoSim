@@ -195,7 +195,10 @@ export const REACTIONS: readonly Reaction[] = [
   // Anaerobic recovery is worse (0.55) and the remainder stays organic — which
   // is why anoxic detritus persists and must be dealt with somewhere else.
   rx('anaerobic decomposition', CAP.AEROBIC, 'decomposition',
-    [s(POOL.OC, 1), s(POOL.ON, 0.16), s(POOL.OP, 0.009)],
+    // FINDING 5 FIXED. This reaction emits 0.012 mol of H2S but drew no organic
+    // sulfur, so the sulfide was created rather than reduced from organic
+    // matter. Organic sulfur is now a substrate with a matching coefficient.
+    [s(POOL.OC, 1), s(POOL.ON, 0.16), s(POOL.OP, 0.009), s(POOL.OS, 0.012)],
     [s(POOL.DIC, 0.55), s(POOL.NH4, 0.05), s(POOL.PO4, 0.004), s(POOL.H2S, 0.012),
      s(POOL.ON, 0.11), s(POOL.OP, 0.005), s(POOL.OC, 0.45)],
     0.0, 0.045, [POOL.OC],
@@ -250,8 +253,12 @@ export const REACTIONS: readonly Reaction[] = [
     + 'sulfide is the valuable product.'),
 
   rx('sulfur oxidation', CAP.SULF_OXIDIZE, 'sulfur',
-    [s(POOL.H2S, 1), s(POOL.O2, 1.1)],
-    [s(POOL.SO4, 1), s(POOL.OC, 0.42), s(POOL.DIC, 0.0)],
+    // FINDING 5 FIXED. DIC was a zero-coefficient PRODUCT placeholder, so the
+    // 0.42 mol of organic carbon this produces had no substrate. Chemolitho-
+    // autotrophy fixes CO2 with the energy released by oxidising sulfide, so
+    // DIC is now a substrate with a coefficient matching the carbon fixed.
+    [s(POOL.H2S, 1), s(POOL.O2, 1.1), s(POOL.DIC, 0.42)],
+    [s(POOL.SO4, 1), s(POOL.OC, 0.42)],
     0.74, 0.030, [POOL.H2S],
     0.02, 1e9,
     'CHIMOSYNTHESIS. Oxidises sulfide for energy and fixes DIC as carbon '
@@ -261,7 +268,10 @@ export const REACTIONS: readonly Reaction[] = [
 
   // --- Family 7: iron -------------------------------------------------------
   rx('iron oxidation', CAP.FE_CHEMO, 'iron',
-    [s(POOL.FE2, 1), s(POOL.O2, 0.35)],
+    // FINDING 5 FIXED, same defect: 0.34 mol of organic carbon per unit extent
+    // was produced with no carbon substrate anywhere in the reaction. DIC is
+    // now drawn to supply the carbon that is fixed.
+    [s(POOL.FE2, 1), s(POOL.O2, 0.35), s(POOL.DIC, 0.34)],
     [s(POOL.FE3, 1), s(POOL.OC, 0.34)],
     0.58, 0.026, [POOL.FE2],
     0.015, 1e9,
@@ -285,7 +295,7 @@ export const REACTIONS: readonly Reaction[] = [
   // carrying its own N and P back into the litter pools. The earlier form
   // destroyed 0.55 C and 0.07 N outright and conjured phosphorus from nothing.
   rx('ligninolysis', CAP.LIGNOLYTIC, 'decomposition',
-    [s(POOL.LC, 1), s(POOL.LN, 0.08)],
+    [s(POOL.LC, 1), s(POOL.LN, 0.08), s(POOL.LP, 0.001)],
     [s(POOL.DIC, 0.45), s(POOL.NH4, 0.012), s(POOL.PO4, 0.001),
      s(POOL.LC, 0.55), s(POOL.LN, 0.068)],
     0.0, 0.0035, [POOL.LC],
@@ -406,8 +416,21 @@ export function reactionExtent(
   // concentration and their combined draw is N times the pool.
   for (const sub of r.substrates) {
     if (sub.coeff <= 0) continue;
-    const avail = chem.remaining(sub.pool, cell);
-    rate = Math.min(rate, avail / sub.coeff);
+    // FINDING 4 FIXED. `remaining()` accounts for CLAIMS made by organisms
+    // already processed this tick, but this organism's own reactions do not
+    // claim until the world applies the NET `out` vector after runMetabolism
+    // returns. So several reactions inside ONE organism each read the same
+    // uncancelled availability and the combined draw could exceed the cell's
+    // contents. The overshoot was then clamped to zero by settle() while the
+    // matching PRODUCTS had already been credited at full value — clamping one
+    // side of a transfer and not the other is matter creation.
+    //
+    // `out[pool]` is this organism's running net for the pool, so adding back
+    // the negative part gives the budget genuinely left for this reaction. The
+    // buffer already exists and is already the right one; nothing new is
+    // allocated and the order of reaction execution stays irrelevant.
+    const avail = chem.remaining(sub.pool, cell) + Math.min(0, out[sub.pool]);
+    rate = Math.min(rate, (avail > 0 ? avail : 0) / sub.coeff);
   }
   if (rate <= 1e-12) return 0;
 
