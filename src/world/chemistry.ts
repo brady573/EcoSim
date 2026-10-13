@@ -30,7 +30,6 @@
  */
 
 import { E, ELEMENT_NAMES } from '../bio/elements.js';
-import { ScalarField } from '../core/field.js';
 
 /**
  * Chemical compartments.
@@ -73,6 +72,21 @@ export const enum POOL {
 
 export const POOL_COUNT = POOL.COUNT;
 
+/**
+ * Runtime accessor for the POOL constants.
+ *
+ * `POOL` is a const enum and therefore has NO runtime identity across module
+ * boundaries: a probe, a viewer or a test cannot import `POOL.DIC`. Everything
+ * that indexes pools at runtime — probes, the viewer, the conservation report —
+ * must go through this object instead.
+ */
+export const POOL_RT = {
+  O2: 0, DIC: 1, NH4: 2, NO2: 3, NO3: 4, PO4: 5, SO4: 6, H2S: 7, FE2: 8,
+  FE3: 9, OC: 10, ON: 11, OP: 12, OS: 13, OFE: 14,
+  LC: 15, LN: 16, LP: 17, LS: 18,
+  SC: 19, SN: 20, SP: 21, SS: 22, SFE: 23,
+} as const;
+
 /** Which conserved element each pool carries. */
 const POOL_ELEMENT: readonly E[] = [
   E.O, E.C, E.N, E.N, E.N, E.P, E.S, E.S, E.FE,   // 0-8 inorganic
@@ -114,6 +128,61 @@ export const POOL_NAMES: readonly string[] = [
 
 export function poolElement(p: POOL): E {
   return POOL_ELEMENT[p];
+}
+
+
+/**
+ * Float64 scalar field for chemical pools.
+ *
+ * A deliberately separate type from `ScalarField` rather than a widening of
+ * it. `ScalarField.data` is Float32Array and is used by the pre-existing
+ * nutrient fields; changing its precision would perturb their dynamics and move
+ * the pinned parity values, which this experiment is not permitted to do.
+ *
+ * The chemistry pools need float64 because the conservation books add small
+ * deltas to large concentrations thousands of times per run, and float32
+ * rounding at each application produced a 1-5% apparent loss on every element
+ * that is merely being accounted for.
+ */
+export class ChemField {
+  readonly data: Float64Array;
+  private scratch: Float64Array;
+
+  constructor(readonly name: string, readonly cols: number, readonly rows: number, fill = 0) {
+    this.data = new Float64Array(cols * rows);
+    this.scratch = new Float64Array(cols * rows);
+    if (fill !== 0) this.data.fill(fill);
+  }
+
+  /**
+   * Explicit 5-point diffusion with decay, in place. Pull-based, so every cell
+   * reads the pre-tick snapshot of its neighbours and the result cannot depend
+   * on iteration order.
+   *
+   * Reflecting boundaries reuse the boundary value, which is a zero-flux wall
+   * and conserves mass; clamping to zero would silently drain the edges.
+   */
+  step(diffusivity: number, decay: number): void {
+    const { cols, rows, data, scratch } = this;
+    for (let cy = 0; cy < rows; cy++) {
+      const row = cy * cols;
+      for (let cx = 0; cx < cols; cx++) {
+        const i = row + cx;
+        const left = cx > 0 ? data[i - 1] : data[i];
+        const right = cx < cols - 1 ? data[i + 1] : data[i];
+        const up = cy > 0 ? data[i - cols] : data[i];
+        const down = cy < rows - 1 ? data[i + cols] : data[i];
+        const centre = data[i];
+        scratch[i] = centre + diffusivity * (left + right + up + down - 4 * centre);
+      }
+    }
+    if (decay > 0) {
+      const keep = 1 - decay;
+      for (let i = 0; i < data.length; i++) data[i] = scratch[i] * keep;
+    } else {
+      data.set(scratch);
+    }
+  }
 }
 
 export interface ChemistryConfig {
@@ -230,7 +299,7 @@ export function newBoundaryFluxes(): BoundaryFluxes {
  * "who read first" — they both read the pre-tick pool snapshot.
  */
 export class Chemistry {
-  readonly fields: ScalarField[] = [];
+  readonly fields: ChemField[] = [];
   readonly cols: number;
   readonly rows: number;
   readonly cellArea: number;
@@ -246,7 +315,7 @@ export class Chemistry {
     this.cfg = cfg;
     const n = cols * rows;
     for (let p = 0; p < POOL_COUNT; p++) {
-      this.fields.push(new ScalarField(POOL_NAMES[p], cols, rows, 0));
+      this.fields.push(new ChemField(POOL_NAMES[p], cols, rows, 0));
     }
     this.delta = new Float64Array(POOL_COUNT * n);
     this.seedInitial();
