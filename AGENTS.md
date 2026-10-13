@@ -287,6 +287,13 @@ These are **limits, not claims**. Each is stated so a reader does not have to
 infer integration that does not exist, and G33 measures one of them so the
 declaration cannot silently become false.
 
+- **`freeEnergy` relaxes the growth DECISION, not the spend.** With the knob set,
+  the growth budget is exactly what the requested tissue costs, so growth depends
+  on matter alone as its contract states — but the cost is still charged against
+  `store.energy`, so maximal matter-permitted growth can still drive an organism
+  into legacy starvation. The contract is satisfied for the decision and not for
+  the organism; stated here because the original defect exploited exactly that
+  ambiguity.
 - **Energy has two books.** Chemical reaction income is credited directly to
   `store.energy` and chemical growth cost is charged directly out of it.
   Neither passes through the legacy ledger's capture/spend accounting. G3 runs
@@ -303,6 +310,15 @@ declaration cannot silently become false.
   mass that recycles through chemistry does not automatically become food for
   the legacy web. The `chemistryToLegacyDetritus` diagnostic bridges them and is
   how that separation was measured.
+- **The same coarse-canopy defect survives in the LEGACY light path**, at
+  `src/world/world.ts` in the photosynthesis block: `shadeMass` is coarse
+  (`shadeCols × shadeRows`, grain 4) but is indexed with a full-resolution
+  substrate index, so Beer-Lambert self-shading is disabled across most of the
+  world there. The chemistry path was fixed; this one was deliberately NOT, because
+  the parity pins were measured with it and fixing it changes declared behaviour.
+  It is a parity re-pin decision, not a bugfix, and it is the Owner's to make.
+  Until then, the canopy does not bind producer income in the legacy path, and the
+  density dependence the comment above it describes is largely not happening.
 - **Consequently**: this repository has NOT demonstrated a fully integrated
   food web. It has demonstrated a balanced chemistry subsystem coupled to the
   legacy ecosystem at the organism, not at the meal.

@@ -4072,6 +4072,17 @@ export class World {
   }
 
   /** Deaths broken down by proximate cause, for demographic history. */
+  /**
+   * Cumulative legacy energy capture, recorded once per joule.
+   *
+   * The per-organism `store.energyIngested` is cumulative for an organism's
+   * lifetime and is not reset on slot reuse, so it cannot be summed across
+   * ticks to measure total income. The ledger's capture counter can.
+   */
+  ledgerCaptureTotal(): number {
+    return this.ledger.capture;
+  }
+
   deathReasons(): { starve: number; age: number; damage: number } {
     return { starve: this.reasonStarve, age: this.reasonAge, damage: this.reasonDamage };
   }
