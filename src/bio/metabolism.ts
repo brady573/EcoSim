@@ -171,9 +171,17 @@ export const REACTIONS: readonly Reaction[] = [
     + 'an anoxic niche worth occupying and what limits how large it can get.'),
 
   // --- Family 4: decomposition and mineralisation --------------------------
+  // Organic matter is stored as SEPARATE single-element pools (OC, ON, OP,
+  // OS), so a reaction that breaks down carbon and MINERALISES nitrogen must
+  // draw BOTH. The earlier form consumed only OC and produced 0.05 NH4, which
+  // created nitrogen from nothing — the +82% residual.
+  //
+  // Per unit of organic carbon the tissue holds 0.16 N and 0.009 P, of which
+  // mineralisation releases a fraction and the remainder stays organic.
   rx('aerobic decomposition', CAP.AEROBIC, 'decomposition',
-    [s(POOL.OC, 1)],
-    [s(POOL.DIC, 0.7), s(POOL.NH4, 0.05), s(POOL.PO4, 0.004)],
+    [s(POOL.OC, 1), s(POOL.ON, 0.16), s(POOL.OP, 0.009)],
+    [s(POOL.DIC, 0.7), s(POOL.NH4, 0.05), s(POOL.PO4, 0.004),
+     s(POOL.ON, 0.11), s(POOL.OP, 0.005)],
     0.0, 0.075, [POOL.OC],
     0.02, 1e9,
     'Mineralises labile organic matter and returns N and P to available '
@@ -181,8 +189,9 @@ export const REACTIONS: readonly Reaction[] = [
     + 'funded by what they ingest, not a free lunch.'),
 
   rx('anaerobic decomposition', CAP.AEROBIC, 'decomposition',
-    [s(POOL.OC, 1)],
-    [s(POOL.DIC, 0.55), s(POOL.NH4, 0.05), s(POOL.PO4, 0.004), s(POOL.H2S, 0.012)],
+    [s(POOL.OC, 1), s(POOL.ON, 0.16), s(POOL.OP, 0.009)],
+    [s(POOL.DIC, 0.55), s(POOL.NH4, 0.05), s(POOL.PO4, 0.004), s(POOL.H2S, 0.012),
+     s(POOL.ON, 0.11), s(POOL.OP, 0.005)],
     0.0, 0.045, [POOL.OC],
     0, 0.02,
     'Same mineralisation without O2, but carbon is recovered less completely '
@@ -261,8 +270,10 @@ export const REACTIONS: readonly Reaction[] = [
     + 'reactions that need Fe-dependent machinery.'),
 
   // --- Structural litter and sediment ---------------------------------------
+  // Litter carries its own nitrogen in LN, so mineralising it draws LN. The
+  // earlier form produced NH4 from carbon alone, creating nitrogen outright.
   rx('ligninolysis', CAP.LIGNOLYTIC, 'decomposition',
-    [s(POOL.LC, 1)],
+    [s(POOL.LC, 1), s(POOL.LN, 0.08)],
     [s(POOL.DIC, 0.45), s(POOL.NH4, 0.012), s(POOL.PO4, 0.001)],
     0.0, 0.0035, [POOL.LC],
     0, 1e9,
@@ -271,8 +282,9 @@ export const REACTIONS: readonly Reaction[] = [
     + 'the water column — it buries, and only weathering brings it back. Litter '
     + 'is therefore a long-timescale sink, not a recycled pool.'),
 
+  // Likewise: sediment nitrogen lives in SN and must be drawn, not conjured.
   rx('sediment release', CAP.SEDIMENT_ACCESS, 'sediment',
-    [s(POOL.SC, 1)],
+    [s(POOL.SC, 1), s(POOL.SN, 0.02)],
     [s(POOL.OC, 0.7), s(POOL.PO4, 0.004), s(POOL.NH4, 0.02)],
     0.0, 0.0022, [POOL.SC],
     0, 1e9,

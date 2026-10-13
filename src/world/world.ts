@@ -4318,8 +4318,21 @@ export class World {
       out.fill(0);
       const gained = runMetabolism(chem, st, slot, cell, cfg, out, this.chemExtents);
       // Apply the organism's NET chemical transfers exactly once.
+      //
+      // CONSUMPTION IS BOOKED AS A CLAIM, not as a plain delta. `remaining()`
+      // — which every uptake path reads — accounts for claims, so without this
+      // the reactions' own substrate consumption was invisible to the organisms
+      // that ran later in the same tick. Each read the full pre-tick
+      // concentration, N organisms oversubscribed the pool N-fold, settle()
+      // clamped the CONSUMPTION to zero and the unmaterialised remainder simply
+      // vanished — while their PRODUCTS had already been credited at full
+      // value. Clamping one side of a transfer and not the other is matter
+      // creation, and it read as +80% nitrogen.
       for (let q = 0; q < POOL_COUNT; q++) {
-        if (out[q] !== 0) chem.react(q, cell, out[q]);
+        const v = out[q];
+        if (v === 0) continue;
+        if (v < 0) chem.claim(q, cell, -v);
+        else chem.react(q, cell, v);
       }
 
       // Evidence: record the extent each reaction actually executed, taken from

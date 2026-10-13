@@ -453,6 +453,19 @@ export function transferToOffspring(
 ): void {
   const pb = parent * E.COUNT;
   const cb = child * E.COUNT;
+  // The child slot is CLEARED before anything is credited to it.
+  //
+  // Slot reuse is the same hazard as the v1 genome leak this repository has
+  // already had to correct once: a slot freed without a chemistry clear (eviction
+  // at the population cap, disturbance, or any death path that does not run
+  // releaseOnDeath) leaves its previous occupant's tissue behind, and adding the
+  // new offspring's tissue on top of it mints whatever was left. Nitrogen ran at
+  // +80% with exactly this signature: per-tick creation tracking weathering from
+  // tick 1, then exceeding it once breeding began.
+  for (let e = 0; e < E.COUNT; e++) {
+    st.biomass[cb + e] = 0;
+    st.stores[cb + e] = 0;
+  }
   for (let e = 0; e < E.COUNT; e++) {
     const move = st.biomass[pb + e] * fraction;
     st.biomass[pb + e] -= move;
