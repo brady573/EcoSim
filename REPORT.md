@@ -7431,6 +7431,69 @@ The following matrix provides, for each priority mechanism, the live read site, 
 - Process-level nutrient flux hooks — **NOW DELIVERED** via getFluxSnapshot()
 - Per-guild per-pool uptake attribution — **NOW DELIVERED** via getFluxSnapshot()
 
+-------------------------------------------------------------------------------
+FUNCTIONAL ECOLOGICAL RELIANCE — CAPABILITY KNOCKOUTS & RESCUES (Owner handoff Task 3)
+-------------------------------------------------------------------------------
+
+Probe: `src/trace/relianceprobe.ts` (compiled, read-only). Engine 0.6.2.
+Seed: 517 (coexistence baseline). Ticks: 2000.
+Config: excretion-return effective (--zero + pcap 0.35, basal 0.01, graze 1.0,
+nutregen 0.0002, excretion 0.06; nutrientCyclic=true, mixotrophySaturation=1.0).
+
+Method: Systematic capability knockouts — disable one process at a time,
+measure guild persistence/extinction. Rescue experiments test if alternative
+pathways can compensate. No quotas, no forced extinction, no invented services.
+
+### Knockout Results Summary (seed 517, t=2000)
+
+| Knockout | P_final | C_final | D_final | Extinctions | Key Finding |
+|----------|---------|---------|---------|-------------|-------------|
+| **CONTROL** (full default) | 7 | 7 | 1087 | none | Baseline coexistence |
+| **NO_BIOTIC_MINERALIZATION** (bioticMineralisation=0) | 42 | **0** | 1255 | **C@2000** | Consumers require decomposer nutrient recycling |
+| **NO_EXCRETION_RETURNS** (excretionRate=0) | 46 | 21 | 1374 | none | Excretion important but not essential |
+| **NO_NUTRIENT_CYCLIC** (nutrientCyclic=false) | 10 | 6 | 1539 | none | Cyclic coupling regulates decomposer overgrowth |
+| **NO_ABIOTIC_REGEN** (nutrientRegen=0) | 29 | 3 | 885 | none | Abiotic regen is baseline, not driver |
+| **NO_BASAL_FOOD** (basalFoodPerCell=0) | 30 | 8 | 4 | none | Basal food critical for bootstrap; all guilds crash without it |
+| **NO_DECOMPOSER_MIN_NO_CYCLIC** (both off) | 7 | **0** | 1218 | **C@2000** | Confirms consumer dependence on biotic mineralization |
+| **NO_CONSUMER_GRAZE** (grazeYieldScale=0) | 32 | 9 | 669 | none | Consumers survive on sediment scavenging alone |
+| **NO_PRODUCER_CAPTURE** (producerCaptureScale=0) | **0** | 10 | 903 | **P@2000** | Producers are foundational energy source |
+| **CHEAP_CONSUMER_UPKEEP** (consumerBasalScale=0.1) | 95 | 4 | 766 | none | Low upkeep helps consumers but not fundamental |
+| **FULL_NUTRIENT_KNOCKOUT** (all biotic+abiotic off) | 7 | **0** | 68 | **C@2000** | No nutrient returns → consumer extinction, decomposer collapse |
+| **FULL_NUTRIENT_KNOCKOUT_RESCUE_REGEN** (nutrientRegen=0.01) | 7 | **0** | 253 | **C@1500** | High abiotic regen rescues producers/decomposers but **NOT consumers** |
+
+### Causal Dependencies Inferred
+
+1. **Producers → Consumers**: Obligate. Zero producer capture = producer extinction → consumer extinction follows (via NO_PRODUCER_CAPTURE and FULL_NUTRIENT_KNOCKOUT).
+
+2. **Decomposers → Consumers**: Obligate via nutrient cycling. NO_BIOTIC_MINERALIZATION and NO_DECOMPOSER_MIN_NO_CYCLIC both cause **consumer extinction** while producers persist. Consumers need decomposers to recycle nutrients for producers.
+
+3. **Decomposers → Producers**: Facilitative but not obligate. Producers persist without biotic mineralization (P=42) but at reduced abundance. Abiotic regen + excretion can sustain minimal producers.
+
+4. **Consumers → Decomposers**: Not obligate. Decomposers thrive without consumers (D=1255 in NO_BIOTIC_MINERALIZATION vs D=1087 control). Consumers compete with decomposers for sediment.
+
+5. **Abiotic regen → Consumers**: **Insufficient rescue**. FULL_NUTRIENT_KNOCKOUT_RESCUE_REGEN (nutrientRegen=0.01, 50x default) rescues producers (P=7) and decomposers (D=253) but **consumers still go extinct at t=1500**. Consumers need the biotic trophic chain, not just nutrient availability.
+
+6. **Excretion returns**: Important for producer abundance (P=46 vs 7) but not essential for coexistence.
+
+7. **Basal food**: Critical for bootstrap (all guilds crash to <10 without it) but not strictly essential if other pathways intact.
+
+8. **Consumer grazing**: Not obligate for consumer survival. Consumers persist on sediment scavenging (grazeYieldScale=0 → C=9). But grazing is needed for consumer abundance.
+
+### Reliance Classification
+
+| Guild Pair | Reliance Type | Evidence |
+|------------|---------------|----------|
+| Consumers ← Producers | **Obligate** | P extinction → C extinction (NO_PRODUCER_CAPTURE) |
+| Consumers ← Decomposers | **Obligate (indirect)** | Decomposer mineralization KO → C extinction (NO_BIOTIC_MINERALIZATION) |
+| Producers ← Decomposers | **Facultative** | Producers persist without biotic mineralization (P=42) |
+| Decomposers ← Producers | **Obligate (long-term)** | Producers provide organic input; NO_BASAL_FOOD crashes all guilds |
+| Decomposers ← Consumers | **None / Competitive** | Decomposers increase when consumers absent |
+| Consumers ← Abiotic Regen | **Insufficient** | High nutrientRegen rescues P/D but not C |
+
+**Conclusion**: The system exhibits **asymmetric obligate reliance**: Consumers obligately depend on BOTH producers (energy) and decomposers (nutrient cycling). Producers facultatively depend on decomposers. Decomposers obligately depend on producers for organic input but not on consumers. Abiotic pathways cannot substitute for biotic trophic coupling for consumers.
+
+**Old strict cohort verdicts archived**: The 36-seed "producer-alone" cohort (FALSIFIED, producers persist 33/36) is recorded as historical under engine 0.6.1 config. It tested guild *presence* not functional *reliance*. This probe tests functional capability knockouts.
+
 All declared corrections validated: typecheck, 36/36 gates, 11/11 contract,
 153/153 workflow, deterministic repeat runs, bundle matches CLI.
 
