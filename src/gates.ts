@@ -1518,9 +1518,48 @@ function gate26(): void {
   const halfOk = Math.abs(half - (1 + (scheduled - 1) * 0.5)) < eps;
   const fullOk = Math.abs(full - scheduled) < eps;
   const overOk = Math.abs(over - scheduled) < eps;
-  record('G26', 'radiationMultiplier couples only excess over 1x to dormant share',
-    zeroOk && halfOk && fullOk && overOk,
-    `tick=${w.tick} scheduled=${scheduled.toFixed(4)} zero=${zero.toFixed(4)} half=${half.toFixed(4)} full=${full.toFixed(4)} over=${over.toFixed(4)}`);
+
+  // --- Boundary assertions requested by handoff ---
+  // 1. Absent schedule (no radiation config) -> 1.0
+  const wNoRad = new World({ config: { founders: 0, worldW: 100, worldH: 100, seed: 2 } }) as unknown as { radiationMultiplier(): number };
+  const noRad = wNoRad.radiationMultiplier();
+  const noRadOk = Math.abs(noRad - 1.0) < eps;
+
+  // 2. Pre-onset (tick < onset) -> 1.0
+  const wPre = new World({
+    config: { founders: 0, worldW: 100, worldH: 100, seed: 3,
+      radiation: { onset: 100, doubling: 100, cap: 8, overgrowthCoupling: 0.5 },
+    },
+  }) as unknown as { radiationMultiplier(): number; tick: number; step(): void };
+  // At tick 0, before onset=100
+  const preOnset = wPre.radiationMultiplier();
+  const preOnsetOk = Math.abs(preOnset - 1.0) < eps;
+
+  // 3. Uncoupled (overgrowthCoupling = 0) -> scheduled multiplier regardless of dormantFrac
+  const wUncoupled = new World({
+    config: { founders: 0, worldW: 100, worldH: 100, seed: 4,
+      radiation: { onset: 10, doubling: 100, cap: 8, overgrowthCoupling: 0 },
+    },
+  }) as unknown as { dormantFrac: number; radiationMultiplier(): number; tick: number; step(): void; config: { radiation: { onset: number; doubling: number; cap: number; overgrowthCoupling: number } } };
+  for (let i = 0; i < 50; i++) wUncoupled.step();
+  const rUnc = wUncoupled.config.radiation!;
+  const scheduledUnc = Math.min(Math.max(1, rUnc.cap), Math.pow(2, (wUncoupled.tick - rUnc.onset) / Math.max(1, rUnc.doubling)));
+  wUncoupled.dormantFrac = 0.0;
+  const uncoupledZero = wUncoupled.radiationMultiplier();
+  wUncoupled.dormantFrac = 1.0;
+  const uncoupledFull = wUncoupled.radiationMultiplier();
+  const uncoupledOk = Math.abs(uncoupledZero - scheduledUnc) < eps && Math.abs(uncoupledFull - scheduledUnc) < eps;
+
+  // 4. Coupling floor behavior: at dormantFrac=0 with active coupling -> 1.0 (background)
+  // This is the "floor" boundary: the coupling floor is overgrowthCoupling itself.
+  // At dormantFrac=0, mult = 1 + (scheduled-1)*min(1, 0/floor) = 1.
+  // Already tested as 'zero' above. The floor IS overgrowthCoupling; there is no separate floor parameter.
+  // So this boundary is covered by zeroOk.
+
+  const allOk = zeroOk && halfOk && fullOk && overOk && noRadOk && preOnsetOk && uncoupledOk;
+  record('G26', 'radiationMultiplier couples only excess over 1x to dormant share (incl. boundaries)',
+    allOk,
+    `tick=${w.tick} scheduled=${scheduled.toFixed(4)} zero=${zero.toFixed(4)} half=${half.toFixed(4)} full=${full.toFixed(4)} over=${over.toFixed(4)} | noRad=${noRad.toFixed(4)} preOnset=${preOnset.toFixed(4)} uncoupledZero=${uncoupledZero.toFixed(4)} uncoupledFull=${uncoupledFull.toFixed(4)} scheduledUnc=${scheduledUnc.toFixed(4)}`);
 }
 
 function gate27(): void {

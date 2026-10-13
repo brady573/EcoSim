@@ -17,4 +17,4 @@ tools/diagnostics/evo-sim-poc.html
 
 # Stale compiler output beside sources. tsx resolves .js specifiers to .ts;
 # executing src/**/*.js directly would run a dead engine. See REPORT.
- src/**/*.js
+src/**/*.js

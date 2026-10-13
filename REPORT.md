@@ -7328,13 +7328,15 @@ t2000: P7/C7/D1087 | energy P29/C89/D4815
   nutrients: [54030.0, 42409.8, 36174.2] | capUtil: [0.48, 0.48, 0.52] | overCapCells: [0,0,0] | overCapValue: [0.0, 0.0, 0.0]
 ```
 
-### P2 — Parameter-to-biological-equivalent matrix (DELIVERED)
-The natural-equivalents inventory was recorded in REPORT.md (see entries
-7070-7240). Each mechanism classified as BP/DNA/EEF/SABF/IUC with
-citations, tradeoffs, and decision flags. Key actionable items:
-1. CRITICAL: Fix P2b excretion/returns to respect per-nutrient caps
-2. HIGH: Redesign pioneerBonus to local patch void
-3. HIGH: Make excretion stoichiometric and ingestion-scaled
+### P2 — Parameter-to-biological-equivalent matrix (INCOMPLETE)
+The natural-equivalents inventory claimed at lines 7070-7240 consists of knob
+sensitivity tables, aggregate nutrient observations, an ecological feedback
+audit with disclosed gaps, and an evolution-design proposal — not the
+parameter-by-parameter matrix required by the handoff. The handoff requires,
+for each priority mechanism: live read site, conditions of activation,
+defensible biological equivalent or explicit abstraction, tradeoff,
+supporting reference, and Owner-decision flag. That matrix is not present.
+This item remains open for an Owner-authorized follow-on.
 
 ### P2 — NFD mutation bias proposal correctly labeled (NOT IMPLEMENTED)
 REPORT.md entry 7244-7263 explicitly labeled as "Owner decision proposal"
