@@ -21,7 +21,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { World } from './world/world.js';
+import { World, type ChemistryAudit } from './world/world.js';
 import { WORLD_ENGINE_VERSION } from './world/version.js';
 import { INTERACTION, InteractionQueue } from './bio/interactions.js';
 import { TRAIT, TRAIT_COUNT, TRAITS, BODY_GENE_COUNT } from './bio/genome.js';
@@ -36,7 +36,8 @@ import { Rng } from './core/rng.js';
 import { INTENT } from './world/world.js';
 import { REACTIONS, CAP } from './bio/metabolism.js';
 import { runIdentity, CHEMISTRY_ENGINE_VERSION } from './world/version.js';
-import { E_RUNTIME_COUNT } from './bio/elements.js';
+import { E_RUNTIME_COUNT, E } from './bio/elements.js';
+import { newChemStores, transferPredationMatter } from './bio/chemlife.js';
 import { POOL_RT } from './world/chemistry.js';
 
 interface GateResult {
@@ -2074,6 +2075,86 @@ function gate34(): void {
     + `ratio ${isolated.ratio.toFixed(2)} (${isolatedResponds ? 'responds' : 'DID NOT RESPOND'})`);
 }
 
+/**
+ * G35 — the predation matter ride-along is inert when off and a real transfer when on.
+ *
+ * The knob is null-default: with `chemistryPredationMatter` unset the contest
+ * must move energy only (the declared state this PR shipped), and with it set
+ * the attacker must receive tissue carbon equal to the energy gained, while
+ * the conservation ledger sees the transfer rather than a mint.
+ */
+function gate35(): void {
+  const run = (on: boolean | null): { w: World; a: ChemistryAudit | null } => {
+    const w = new World({
+      config: { seed: 517, founders: 400, genomeV2: true, chemistry: true, chemistryPredationMatter: on } as never,
+    });
+    for (let i = 0; i < 300; i++) w.step();
+    return { w, a: w.chemAudit };
+  };
+  // `null` (unset) is the true null-default, not `false`: a wiring regression
+  // that accidentally enabled the knob on null would pass a false-vs-true arm
+  // while breaking the parity pins the whole experiment rests on.
+  const off = run(null);
+  const on = run(true);
+
+  const inertOff = off.w.predationMatterCarbon === 0;
+  const movedOn = on.w.predationMatterCarbon > 0;
+
+  // Conservation must survive the ride-along: the matter is moved, not minted.
+  // Copied verbatim from G27's two guards (denominator floor + settle clamp),
+  // which a naive reimplementation lacks: dividing by |accounted| for a near-
+  // zero element turns float noise into a false BREACH, and omitting the clamp
+  // check lets a settling defect that only manifests under contention slip.
+  const NAME = ['C', 'H', 'O', 'N', 'P', 'S', 'Fe'];
+  const CHECKED = ['C', 'N', 'P', 'S', 'Fe'];
+  const TOL = 1e-3;
+  const check = (a: ChemistryAudit, chem: World['chemistry']): boolean => {
+    for (let e = 0; e < NAME.length; e++) {
+      if (!CHECKED.includes(NAME[e])) continue;
+      const held = a.biomass[e] + a.stores[e] + a.environment[e];
+      const acc = a.initial[e] + a.inputs[e] - a.outputs[e];
+      const denom = Math.abs(acc);
+      if (denom < 1e-9) continue;
+      const rel = (held - acc) / denom;
+      if (Math.abs(rel) > TOL) return false;
+    }
+    return (chem?.totalClamped() ?? 0) <= 1;
+  };
+  const conservedOff = off.a ? check(off.a, off.w.chemistry) : false;
+  const conservedOn = on.a ? check(on.a, on.w.chemistry) : false;
+
+  // STOICHIOMETRY, not just conservation: a transfer that moves only carbon
+  // would conserve carbon and leave the rest untouched, passing the audit
+  // above while silently violating "every element in the same proportion".
+  // This calls the transfer on synthetic slots with a known prey composition
+  // and asserts the per-element ratio matches the prey's own stoichiometry.
+  const st = newChemStores(8);
+  const predSlot = 0, preySlot = 1;
+  for (let e = 0; e < E.COUNT; e++) st.biomass[preySlot * E.COUNT + e] = 10 * (e + 1);
+  const preyBefore = Float64Array.from({ length: E.COUNT },
+    (_, e) => st.biomass[preySlot * E.COUNT + e]);
+  const moved = transferPredationMatter(st, predSlot, preySlot, 1.1); // ~2 C moved
+  let stoichOk = moved > 0;
+  const movedC = preyBefore[E.C] - st.biomass[preySlot * E.COUNT + E.C];
+  for (let e = 0; e < E.COUNT; e++) {
+    const lost = preyBefore[e] - st.biomass[preySlot * E.COUNT + e];
+    const gainedE = st.stores[predSlot * E.COUNT + e];
+    if (Math.abs(lost - gainedE) > 1e-9) stoichOk = false;         // prey loss == predator gain
+    if (movedC > 0) {
+      const want = preyBefore[e] / preyBefore[E.C];
+      if (Math.abs((lost / movedC) - want) > 1e-6) stoichOk = false; // proportional
+    }
+  }
+
+  const pass = inertOff && movedOn && conservedOff && conservedOn && stoichOk;
+  record('G35', 'predation matter ride-along is inert-off and a real transfer when on', pass,
+    `carbon moved off(on null)/on: ${off.w.predationMatterCarbon.toFixed(4)} / `
+    + `${on.w.predationMatterCarbon.toFixed(4)} mol | conservation off/on: `
+    + `${conservedOff ? 'ok' : 'BREACH'} / ${conservedOn ? 'ok' : 'BREACH'} `
+    + `(tolerance ${(TOL * 100).toFixed(2)}%, clamp<=1) | stoichiometry `
+    + `${stoichOk ? 'proportional' : 'BREACH'}`);
+}
+
 function main(): void {
   console.log(`=== credibility gates :: ${WORLD_ENGINE_VERSION} ===`);
   console.log(`scenario: founders=${SMALL.founders} world=${SMALL.worldW}x${SMALL.worldH} ticks=${TICKS} seed=${SMALL.seed}\n`);
@@ -2110,6 +2191,7 @@ function main(): void {
   gate32();
   gate33();
   gate34();
+  gate35();
 
   const failed = results.filter((r) => !r.pass);
   console.log(`\n${results.length - failed.length}/${results.length} checks passed`);

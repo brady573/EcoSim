@@ -595,6 +595,13 @@ export interface WorldConfig {
   chemistryCo2WeatheringScale: number | null;
   /** H10 intervention: bridge chemistry death to the legacy detritus field. */
   chemistryToLegacyDetritus: boolean | null;
+  /**
+   * Transfer elemental matter along with energy in predation/graze contests.
+   * null = declared behaviour (energy-only transfer). When true, the attacker
+   * also assimilates the matching tissue carbon and the prey loses exactly
+   * that tissue; conservation ledger sees the transfer.
+   */
+  chemistryPredationMatter: boolean | null;
   /** Make energy free: growth then depends on matter ALONE. */
   chemistryFreeEnergy: boolean | null;
   /** Make nutrients free: growth then depends on energy ALONE. */
@@ -871,6 +878,7 @@ export const DEFAULT_CONFIG: WorldConfig = {
   chemistryNoNutrients: null,
   chemistryCo2WeatheringScale: null,
   chemistryToLegacyDetritus: null,
+  chemistryPredationMatter: null,
   chemistryFreeEnergy: null,
   chemistryFreeNutrients: null,
   nutrientFloor: 0,

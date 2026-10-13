@@ -49,7 +49,8 @@ import {
 } from '../bio/metabolism.js';
 import {
   ChemStores, DEFAULT_CHEM_CONFIG, ENERGY_PER_CARBON, assimilate, canAffordOffspring,
-  grow, newChemStores, releaseOnDeath, runMetabolism, seedBiomass, transferToOffspring,
+  grow, growChemStores, newChemStores, releaseOnDeath, runMetabolism, seedBiomass, transferToOffspring,
+  transferPredationMatter,
   type ChemConfig, type GrowthResult,
 } from '../bio/chemlife.js';
 import { HabitatMap } from '../bio/habitat.js';
@@ -657,6 +658,9 @@ export class World {
     this.threatTarget = growI(this.threatTarget, -1);
     this.mateTarget = growI(this.mateTarget, -1);
     this.intent = growU8(this.intent);
+    if (this.chemStores && this.chemCfg.enabled) {
+      this.chemStores = growChemStores(this.chemStores, cap);
+    }
     // `idToSlot` is deliberately NOT grown here. It is indexed by stable id,
     // which grows monotonically and far faster than slot count (one id per
     // organism ever born, including the dead). Sizing it from `slot` could
@@ -721,6 +725,11 @@ export class World {
   grazeEnergy = 0;
   /** Sum of scaled graze requests (pre-cap). granted/requested measures cap binding. */
   grazeRequested = 0;
+  /**
+   * Cumulative tissue carbon moved from prey to predators by the
+   * `chemistryPredationMatter` ride-along. Always 0 when the knob is unset.
+   */
+  predationMatterCarbon = 0;
   /**
    * Cumulative dormant-senescence deaths. Exact attribution for the senescence
    * mechanism (deaths whose largest damage share is senescence); the deaths
@@ -1234,14 +1243,16 @@ export class World {
     // child reuses a freed slot, the previous occupant's moduleCount and block
     // would otherwise survive and be inherited again — a zero-module organism
     // carrying its dead neighbour's DNA.
+    // Populate every side array to this new slot BEFORE any slot-indexed write,
+    // including the chemistry transfer below — sizing afterward would leave the
+    // newborn's chemistry write truncated.
+    this.ensureSlotArrays(slot);
+
     this.store.moduleCount[slot] = 0;
     // Seed an elemental body proportional to the organism's starting size.
     // Without this every organism would begin with zero biomass and could
     // neither grow nor die into the pools correctly.
     if (this.chemCfg.enabled && this.chemStores && this.chemistry && parentSlot >= 0) {
-      // A BIRTH builds tissue out of its parent's tissue. Seeding fresh biomass
-      // here instead created matter from nothing on every birth, which is the
-      // source of the 70-180% conservation residuals.
       transferToOffspring(this.chemStores, parentSlot, slot, OFFSPRING_TISSUE_FRACTION);
     } else if (this.chemCfg.enabled && this.chemStores && this.chemistry) {
       seedBiomass(this.chemStores, slot, 1);
@@ -1269,15 +1280,6 @@ export class World {
     if (this.profiling) this.phenotypeMs += now() - phenT0;
     this.store.phenotypeDerivations++;
 
-    // Grow every slot-indexed side array BEFORE writing into it.
-    //
-    // The organism store grows itself, but these parallel arrays are owned by
-    // World. If they are left at their initial size, typed-array writes past
-    // the end are silently dropped and reads return undefined: sensing targets
-    // vanish, birth queue entries are lost, and nothing throws. That failure is
-    // invisible until population exceeds the initial capacity - which is
-    // exactly the regime the benchmark ladder is meant to measure.
-    this.ensureSlotArrays(slot);
     this.live[slot] = 1;
     // Clear dormancy: allocate() reuses released slots, and dormant[] is only
     // overwritten in actPhase. Without this a newborn inherits the previous
@@ -2928,6 +2930,18 @@ export class World {
           const overflow = removed - gained;
           if (overflow > 0) this.ledger.recordSpill(overflow);
           if (gained > 0) store.hunger[as] = 0;
+          // MATTER RIDE-ALONG. With the knob unset this is exactly the old
+          // energy-only behaviour: nothing here runs. When enabled, the
+          // attacker assimilates the tissue equivalent of the energy DRAINED
+          // from the prey (`removed`), not the energy it actually kept
+          // (`gained`): `transferEnergy` caps the predator's gain at its own
+          // STORAGE_CAPACITY, so a satiated predator spills the overflow to
+          // detritus but must still take the matter it removed. Gating matter
+          // on `gained` would let a full predator strip a prey of energy while
+          // the tissue stayed behind, decoupling the two books again.
+          if (this.chemCfg.enabled && this.chemCfg.predationMatter && this.chemStores && removed > 0) {
+            this.predationMatterCarbon += transferPredationMatter(this.chemStores, as, ds, removed);
+          }
         }
       }
     }
@@ -4376,6 +4390,7 @@ export class World {
     }
     cc.freeEnergy = cfg.chemistryFreeEnergy === true;
     cc.freeNutrients = cfg.chemistryFreeNutrients === true;
+    cc.predationMatter = cfg.chemistryPredationMatter === true;
 
     const field = this.nutrients[0];
     const cols = field.cols;

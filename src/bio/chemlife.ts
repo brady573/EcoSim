@@ -157,6 +157,18 @@ export interface ChemConfig {
    */
   toLegacyDetritus: boolean;
   /**
+   * Transfer elemental matter along with energy in predation/graze contests.
+   *
+   * NULL = declared behaviour, exactly: predation moves energy only and the
+   * two economies stay decoupled at the meal (the state this PR shipped). When
+   * set, an attacker that gains `gained` energy also assimilates the
+   * corresponding tissue carbon (`gained / ENERGY_PER_CARBON`, capped by the
+   * prey's remaining biomass) and the prey loses exactly that tissue. The
+   * transfer is stoichiometric across ALL tracked elements, so matter is moved
+   * rather than created, and the conservation gate sees it.
+   */
+  predationMatter: boolean;
+  /**
    * Make energy free, as the config contract states: growth then depends on
    * matter ALONE. Applied at the growth BUDGET, not by suppressing income.
    */
@@ -175,6 +187,7 @@ export const DEFAULT_CHEM_CONFIG: ChemConfig = {
   noNutrients: false,
   co2WeatheringScale: 1,
   toLegacyDetritus: false,
+  predationMatter: false,
   freeEnergy: false,
   freeNutrients: false,
 };
@@ -577,9 +590,50 @@ export function releaseOnDeath(
       else if (e === E.P) chem.react(POOL.PO4, cell, s);
       else if (e === E.S) chem.react(POOL.SO4, cell, s);
       else if (e === E.FE) chem.react(POOL.FE2, cell, s);
+      // H and O stores previously fell through here and were voided by
+      // `clearSlot`, so any water/oxygen an organism held (including what the
+      // predation ride-along moved from prey biomass) silently vanished at
+      // death instead of returning to the external reservoir. They are routed
+      // through `labile` because world.ts already converts labile H/O into a
+      // reservoirSink debit — the same path their biomass half already took.
+      else if (e === E.H || e === E.O) labile[e] += s;
     }
   }
   clearSlot(st, slot);
+}
+
+/**
+ * Move eaten tissue from prey to predator along with the energy transfer.
+ *
+ * MATTER, NOT A MIRROR OF ENERGY. The legacy contest path moves energy only;
+ * this function moves the matching tissue carbon (`energyGained /
+ * ENERGY_PER_CARBON`, capped by what the prey actually holds) and every other
+ * tracked element in the same stoichiometric proportion. The prey loses exactly
+ * what the predator gains, so the conservation ledger sees a transfer rather
+ * than a mint. Hydrogen and oxygen ride along as tissue water; the reservoir
+ * accounting picks them up when the predator eventually dies.
+ *
+ * Returns the carbon actually moved (0 if the prey had no tissue or no energy
+ * was gained).
+ */
+export function transferPredationMatter(
+  st: ChemStores, predatorSlot: number, preySlot: number, energyGained: number,
+): number {
+  const preyBase = preySlot * E.COUNT;
+  const predBase = predatorSlot * E.COUNT;
+  const preyC = st.biomass[preyBase + E.C];
+  if (!(preyC > 0) || !(energyGained > 0)) return 0;
+  const carbonEquiv = energyGained / ENERGY_PER_CARBON;
+  const takeC = Math.min(preyC, carbonEquiv);
+  if (!Number.isFinite(takeC) || takeC <= 0) return 0;
+  const frac = takeC / preyC;
+  for (let e = 0; e < E.COUNT; e++) {
+    const moved = st.biomass[preyBase + e] * frac;
+    if (!(moved > 0)) continue;         // identical to <= for finite values; also skips NaN
+    st.biomass[preyBase + e] -= moved;
+    st.stores[predBase + e] += moved;
+  }
+  return takeC;
 }
 
 /**
