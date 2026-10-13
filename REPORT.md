@@ -7376,3 +7376,43 @@ REVIEW RESPONSE CORRECTIONS V2 (2026-10-13, reviewer Acrius-max on head 87cefa7)
 - Workflow: 153/153 pass
 - Bundle matches CLI: ✓
 - Deterministic: byte-identical repeat runs ✓
+
+--------------------------------------------------------------------------------
+REVIEW RESPONSE CORRECTIONS V3 (2026-10-13, reviewer Acrius-max on head a566a1e)
+--------------------------------------------------------------------------------
+
+### G27 — successfulMating flag gates asexual fallback (FULLY REVISED)
+**Prior defect:** Test used flag counts instead of actual birth outcomes; newborn
+founders didn't reach asexual branch; Case C energy made parents ineligible;
+Case D didn't verify asexual was SKIPPED (no duplicate births).
+
+**Complete rewrite using ReproProbe (SlotProbe) and birth queue inspection:**
+- Uses mature, eligible organisms (age > maturity, cooldown=0, energy=1000,
+  expressed traits pinned: ASEXUAL_RATE=0.055, MATE_SEEKING=0)
+- **Case A** (no candidate): verifies `reachedRoll` for both, `sexualSkipped` empty,
+  flags clean, 0 sexual in queue, asexual birth eventually queued
+- **Case B** (candidate, no reciprocal): verifies `resolveMatingIntent` submits
+  0 MATE interactions, then same asexual path as A
+- **Case C** (mutual, B fails surplus): B energy=0.1, A stays eligible.
+  Verifies NO mutual mating (successfulMating=0), A reaches roll and births
+  asexually while B does not reach roll
+- **Case D** (mutual, both pass surplus): Verifies `resolveContests` queues
+  exactly 2 sexual births BEFORE `proposeReproduction`, both flags set=1,
+  `proposeReproduction` skips asexual (no `reachedRoll`, no asexual in queue),
+  exactly 2 sexual births final, 0 asexual from mated pair
+
+**Result:** All four cases pass with detailed instrumentation trace:
+```
+A: reached(a=true,b=true) flags(0,0) sexualQ=0 asexBirth=true
+B: submittedDelta=true reached(a=true,b=true) sexualQ=0 asexBirth=true
+C: mated=false aReached=true bReached=false sexualQ=0 asexBirthA=true
+D: flags(1,1) sexualQ=2(pre=2) skipped(a=true,b=true) reached(a=false,b=false) asexFrom(a=0,b=0)
+```
+
+### Full validation
+- Typecheck: clean
+- Gates: 36/36 pass (G26, G27, G28 all substantive)
+- Contract: 11/11 pass (parity 0.6.2, bundle matches CLI)
+- Workflow: 153/153 pass
+- Bundle version: `WORLD_ENGINE_VERSION = 'ts-evo-poc/0.6.2'` ✓
+- Deterministic: byte-identical repeat runs ✓

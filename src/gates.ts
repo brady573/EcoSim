@@ -34,6 +34,7 @@ import { OrganismStore } from './core/soa.js';
 import type { Phenotype } from './bio/phenotype.js';
 import { Rng } from './core/rng.js';
 import { INTENT } from './world/world.js';
+import { REPRO_GATE, type ReproProbe } from './trace/reproprobe.js';
 
 interface GateResult {
   id: string;
@@ -1523,10 +1524,11 @@ function gate26(): void {
 }
 
 function gate27(): void {
-  // Mating logic: successfulMating flag gates asexual fallback (P1 fix verification).
-  // Four cases: (A) no candidate -> asexual; (B) candidate no reciprocal -> asexual;
-  // (C) mutual intent but FAILED surplus -> asexual; (D) mutual intent PASSED surplus -> sexual, asexual skipped for mated.
-  const SMALL = { founders: 2, worldW: 200, worldH: 200, seed: 99999,
+  // successfulMating gates asexual fallback. Asserted on BIRTHS, not flags.
+  // A/B/C must ATTEMPT asexual (reach the stochastic roll) and QUEUE an
+  // asexual birth; D must queue exactly 2 sexual births and 0 asexual
+  // births from the mated slots while recording the sexual-skip.
+  const CFG = { founders: 2, worldW: 200, worldH: 200, seed: 99999,
     consumerPhotoScale: 0, consumerBasalScale: 0.25,
     decomposerPhotoScale: 0, decomposerFounders: 0.5,
     decomposerDormancy: 0.05, sporeDispersal: 1,
@@ -1539,80 +1541,179 @@ function gate27(): void {
     excretionRate: 0.06, meatYieldPerMass: 0,
   };
 
-  function makeProbe(): any {
-    const w = new World({ config: SMALL }) as unknown as any;
-    for (let i = 0; i < 2; i++) {
-      w.store.energy[i] = 1000;
-      w.store.role[i * 8] = 1; // CONSUMER
+  /** Per-slot observer. ReproProbeLog aggregates per guild; D needs per-slot. */
+  class SlotProbe implements ReproProbe {
+    sexualSkipped = new Set<number>();
+    reached = new Set<number>();
+    reachedN = new Map<number, number>();
+    firedSet = new Set<number>();
+    blocked(slot: number, _guild: number, gate: number): void {
+      void _guild;
+      if (gate === REPRO_GATE.sexual) this.sexualSkipped.add(slot);
     }
-    return w;
+    reachedRoll(slot: number, _guild: number, _drive: number, _m?: number, _a?: number, _s?: number): void {
+      void _guild; void _drive; void _m; void _a; void _s;
+      this.reached.add(slot);
+      this.reachedN.set(slot, (this.reachedN.get(slot) ?? 0) + 1);
+    }
+    fired(slot: number, _guild: number): void {
+      void _guild;
+      this.firedSet.add(slot);
+    }
   }
 
-  // Case A: no candidate nearby -> asexual should proceed (flag stays 0)
-  const wA = makeProbe();
-  wA.intent.fill(INTENT.SETTLE, 0, 2);
-  wA.mateTarget.fill(-1, 0, 2);
-  wA.proposeReproduction();
-  let asexualA = 0, sexualA = 0;
-  for (let i = 0; i < wA.store.capacity; i++) {
-    if (wA.live[i] && wA.successfulMating[i] === 0) asexualA++;
-    if (wA.live[i] && wA.successfulMating[i] === 1) sexualA++;
-  }
-  const caseA = asexualA > 0 && sexualA === 0;
+  type PW = {
+    store: OrganismStore;
+    live: Uint8Array;
+    intent: Uint8Array; mateTarget: Int32Array;
+    mateCandA: Int32Array; mateCandB: Int32Array; mateCandN: number;
+    submittedByKind: Int32Array; successfulMating: Uint8Array;
+    pendingBirths: number; birthParentSlot: Int32Array; birthMateSlot: Int32Array;
+    proposeReproduction(): void; resolveMatingIntent(): void; resolveContests(): void;
+  };
 
-  // Case B: candidate exists but no reciprocal intent -> asexual should proceed (flag stays 0)
-  const wB = makeProbe();
-  wB.intent[0] = INTENT.MATE;
-  wB.intent[1] = INTENT.FLEE; // not MATE
-  wB.mateTarget[0] = 1;
-  wB.mateTarget[1] = -1;
-  wB.mateCandA[0] = 0; wB.mateCandB[0] = 1; wB.mateCandN = 1;
-  wB.resolveMatingIntent(); // will not submit (intent mismatch)
-  wB.resolveContests(); // no records
-  wB.proposeReproduction();
-  let asexualB = 0, sexualB = 0;
-  for (let i = 0; i < wB.store.capacity; i++) {
-    if (wB.live[i] && wB.successfulMating[i] === 0) asexualB++;
-    if (wB.live[i] && wB.successfulMating[i] === 1) sexualB++;
-  }
-  const caseB = asexualB > 0 && sexualB === 0;
+  const makeProbe = (): { w: PW; probe: SlotProbe; a: number; b: number } | null => {
+    const probe = new SlotProbe();
+    const w = new World({ config: CFG, reproProbe: probe }) as unknown as PW;
+    const live: number[] = [];
+    for (let i = 0; i < w.store.capacity && live.length < 2; i++) {
+      if (w.live[i]) live.push(i);
+    }
+    if (live.length < 2) return null;
+    return { w, probe, a: live[0], b: live[1] };
+  };
 
-  // Case C: mutual intent + mutual selection BUT FAILED surplus check -> asexual should proceed (flag=0)
-  const wC = makeProbe();
-  wC.intent[0] = INTENT.MATE; wC.intent[1] = INTENT.MATE;
-  wC.mateTarget[0] = 1; wC.mateTarget[1] = 0;
-  wC.mateCandA[0] = 0; wC.mateCandB[0] = 1; wC.mateCandN = 1;
-  wC.store.energy[0] = 0.1; wC.store.energy[1] = 0.1; // below surplus bar
-  wC.resolveMatingIntent();
-  wC.resolveContests(); // surplus check FAILS -> successfulMating NOT set
-  wC.proposeReproduction();
-  let asexualC = 0, sexualC = 0;
-  for (let i = 0; i < wC.store.capacity; i++) {
-    if (wC.live[i] && wC.successfulMating[i] === 0) asexualC++;
-    if (wC.live[i] && wC.successfulMating[i] === 1) sexualC++;
-  }
-  const caseC = asexualC > 0 && sexualC === 0;
+  /** Make slot eligible for the ASEXUAL branch: mature, off cooldown, undamaged, fed. */
+  const prime = (w: PW, slot: number, energy: number): void => {
+    const mat = w.store.trait(slot, TRAIT.MATURITY_AGE);
+    w.store.age[slot] = Math.ceil(mat) + 5;
+    w.store.reproCooldown[slot] = 0;
+    w.store.damage[slot] = 0;
+    w.store.energy[slot] = energy;
+    // Deterministic drive within bounded retries: founder asexualRate is
+    // ~0.01 physical (90% fire only at huge margin, still stochastic), so pin
+    // the EXPRESSED traits the drive formula actually reads.
+    w.store.physical[slot * TRAIT_COUNT + TRAIT.ASEXUAL_RATE] = 0.055;
+    w.store.physical[slot * TRAIT_COUNT + TRAIT.MATE_SEEKING] = 0;
+  };
 
-  // Case D: mutual intent + mutual selection + PASSED surplus -> sexual for mated (0,1), asexual skipped for them
-  const wD = makeProbe();
-  wD.intent[0] = INTENT.MATE; wD.intent[1] = INTENT.MATE;
-  wD.mateTarget[0] = 1; wD.mateTarget[1] = 0;
-  wD.mateCandA[0] = 0; wD.mateCandB[0] = 1; wD.mateCandN = 1;
-  wD.store.energy[0] = 1000; wD.store.energy[1] = 1000; // well above surplus bar
-  wD.resolveMatingIntent();
-  wD.resolveContests(); // surplus check PASSES -> successfulMating set to 1 for slots 0,1
-  wD.proposeReproduction();
-  // Check SPECIFICALLY the mated organisms (slots 0,1): they should have sexual, NOT asexual
-  let asexualMated = 0, sexualMated = 0;
-  for (const slot of [0, 1]) {
-    if (wD.live[slot] && wD.successfulMating[slot] === 0) asexualMated++;
-    if (wD.live[slot] && wD.successfulMating[slot] === 1) sexualMated++;
+  const scanQueue = (w: PW): { sexual: number; asexFrom: Map<number, number> } => {
+    let sexual = 0;
+    const asexFrom = new Map<number, number>();
+    for (let q = 0; q < w.pendingBirths; q++) {
+      if (w.birthMateSlot[q] >= 0) sexual++;
+      else asexFrom.set(w.birthParentSlot[q], (asexFrom.get(w.birthParentSlot[q]) ?? 0) + 1);
+    }
+    return { sexual, asexFrom };
+  };
+
+  /** One proposeReproduction proves the ATTEMPT; loop proves a BIRTH despite the lottery. */
+  const awaitAsexualBirth = (w: PW, slots: number[], tries = 30): boolean => {
+    for (let t = 0; t < tries; t++) {
+      for (const s of slots) if (w.store.energy[s] < 900) w.store.energy[s] = 1000;
+      w.proposeReproduction();
+      const q = scanQueue(w);
+      if (slots.some((s) => (q.asexFrom.get(s) ?? 0) > 0)) return true;
+    }
+    return false;
+  };
+
+  // ---- Case A: no candidate -> asexual attempt + birth, no sexual ----
+  let aDetail = 'no live pair', aPass = false;
+  {
+    const p = makeProbe();
+    if (p) {
+      const { w, probe, a, b } = p;
+      prime(w, a, 1000); prime(w, b, 1000);
+      w.intent.fill(INTENT.SETTLE, 0, w.store.capacity);
+      w.mateTarget.fill(-1, 0, w.store.capacity);
+      w.mateCandN = 0;
+      w.proposeReproduction();
+      const attempt = probe.reached.has(a) && probe.reached.has(b)
+        && !probe.sexualSkipped.has(a) && !probe.sexualSkipped.has(b);
+      const flagsClean = w.successfulMating[a] === 0 && w.successfulMating[b] === 0;
+      const q0 = scanQueue(w);
+      const born = awaitAsexualBirth(w, [a, b]);
+      const q1 = scanQueue(w);
+      aPass = attempt && flagsClean && q0.sexual === 0 && born && q1.sexual === 0;
+      aDetail = `reached(a=${probe.reached.has(a)},b=${probe.reached.has(b)}) flags(${w.successfulMating[a]},${w.successfulMating[b]}) sexualQ=${q1.sexual} asexBirth=${born}`;
+    }
   }
-  const caseD = sexualMated === 2 && asexualMated === 0;
+
+  // ---- Case B: candidate, no reciprocal -> same expectation as A ----
+  let bDetail = 'no live pair', bPass = false;
+  {
+    const p = makeProbe();
+    if (p) {
+      const { w, probe, a, b } = p;
+      prime(w, a, 1000); prime(w, b, 1000);
+      w.intent[a] = INTENT.MATE; w.intent[b] = INTENT.FLEE;
+      w.mateTarget[a] = b; w.mateTarget[b] = -1;
+      w.mateCandA[0] = Math.min(a, b); w.mateCandB[0] = Math.max(a, b); w.mateCandN = 1;
+      const m0 = w.submittedByKind[INTERACTION.MATE];
+      w.resolveMatingIntent();
+      w.resolveContests();
+      const noMate = w.submittedByKind[INTERACTION.MATE] - m0 === 0;
+      w.proposeReproduction();
+      const attempt = probe.reached.has(a) && probe.reached.has(b);
+      const born = awaitAsexualBirth(w, [a, b]);
+      const q = scanQueue(w);
+      bPass = noMate && attempt && w.successfulMating[a] === 0
+        && w.successfulMating[b] === 0 && q.sexual === 0 && born;
+      bDetail = `submittedDelta=${noMate} reached(a=${probe.reached.has(a)},b=${probe.reached.has(b)}) sexualQ=${q.sexual} asexBirth=${born}`;
+    }
+  }
+
+  // ---- Case C: mutual intent, surplus FAILS on ONE parent -> other still breeds asexually ----
+  let cDetail = 'no live pair', cPass = false;
+  {
+    const p = makeProbe();
+    if (p) {
+      const { w, probe, a, b } = p;
+      prime(w, a, 1000); prime(w, b, 1000);
+      w.store.energy[b] = 0.1; // B fails fraction+surplus; A stays eligible
+      w.intent[a] = INTENT.MATE; w.intent[b] = INTENT.MATE;
+      w.mateTarget[a] = b; w.mateTarget[b] = a;
+      w.mateCandA[0] = Math.min(a, b); w.mateCandB[0] = Math.max(a, b); w.mateCandN = 1;
+      w.resolveMatingIntent();
+      w.resolveContests(); // onMate surplus check must FAIL via B
+      const mated = w.successfulMating[a] === 1 || w.successfulMating[b] === 1;
+      w.proposeReproduction();
+      const aAttempted = probe.reached.has(a) && !probe.sexualSkipped.has(a);
+      const born = awaitAsexualBirth(w, [a]);
+      const q = scanQueue(w);
+      cPass = !mated && aAttempted && w.successfulMating[a] === 0 && q.sexual === 0 && born;
+      cDetail = `mated=${mated} aReached=${probe.reached.has(a)} bReached=${probe.reached.has(b)} sexualQ=${q.sexual} asexBirthA=${born}`;
+    }
+  }
+
+  // ---- Case D: mutual + surplus PASSES -> exactly 2 sexual, 0 asexual from pair ----
+  let dDetail = 'no live pair', dPass = false;
+  {
+    const p = makeProbe();
+    if (p) {
+      const { w, probe, a, b } = p;
+      prime(w, a, 1000); prime(w, b, 1000);
+      w.intent[a] = INTENT.MATE; w.intent[b] = INTENT.MATE;
+      w.mateTarget[a] = b; w.mateTarget[b] = a;
+      w.mateCandA[0] = Math.min(a, b); w.mateCandB[0] = Math.max(a, b); w.mateCandN = 1;
+      w.resolveMatingIntent();
+      w.resolveContests();
+      const queuedSexual = scanQueue(w).sexual; // must be 2 BEFORE proposeReproduction
+      const flagsSet = w.successfulMating[a] === 1 && w.successfulMating[b] === 1;
+      w.proposeReproduction(); // single call: skip must be deterministic, no retry loop
+      const q = scanQueue(w);
+      const skipped = probe.sexualSkipped.has(a) && probe.sexualSkipped.has(b);
+      const noAsexAttempt = !probe.reached.has(a) && !probe.reached.has(b);
+      const noAsexBirth = (q.asexFrom.get(a) ?? 0) === 0 && (q.asexFrom.get(b) ?? 0) === 0;
+      dPass = flagsSet && queuedSexual === 2 && skipped && noAsexAttempt && q.sexual === 2 && noAsexBirth;
+      dDetail = `flags(${w.successfulMating[a]},${w.successfulMating[b]}) sexualQ=${q.sexual}(pre=${queuedSexual}) skipped(a=${probe.sexualSkipped.has(a)},b=${probe.sexualSkipped.has(b)}) reached(a=${probe.reached.has(a)},b=${probe.reached.has(b)}) asexFrom(a=${q.asexFrom.get(a) ?? 0},b=${q.asexFrom.get(b) ?? 0})`;
+    }
+  }
 
   record('G27', 'successfulMating flag gates asexual fallback (A no-candidate, B no-reciprocal, C failed-surplus, D passed-surplus)',
-    caseA && caseB && caseC && caseD,
-    `A: asex=${asexualA} sex=${sexualA} | B: asex=${asexualB} sex=${sexualB} | C: asex=${asexualC} sex=${sexualC} | D(mated): asex=${asexualMated} sex=${sexualMated}`);
+    aPass && bPass && cPass && dPass,
+    `A: ${aDetail} | B: ${bDetail} | C: ${cDetail} | D: ${dDetail}`);
 }
 
 // Gate 28: successfulMating array grows with population capacity
