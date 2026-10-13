@@ -69,9 +69,14 @@ current figures digit-for-digit.
 
 | Hypothesis | 0.6.0 result | Status | 0.7.0 status |
 |---|---|---|---|
-| H9 organic-carbon supply | UNTESTED (lever wrong) | **HISTORICAL** | **PENDING** |
-| H10 legacy food-web bridge | FALSIFIED | **HISTORICAL** | **PENDING** |
-| H11 additive | FALSIFIED | **HISTORICAL** | **PENDING** |
+| H9 organic-carbon supply | UNTESTED (lever wrong) | **HISTORICAL** | **CURRENT — UNTESTED again** (lever moved DIC 29×, OC flat; see `PREDECLARATION-H9H10-070-RESULTS.md`) |
+| H10 legacy food-web bridge | FALSIFIED | **HISTORICAL** | **CURRENT — FALSIFIED again** (detritus 277→547, pop 6→5) |
+| H11 additive | FALSIFIED | **HISTORICAL** | **CURRENT — FALSIFIED again** (5 vs 7 and 5) |
+
+H9–H11 were re-run under `0.7.0` on 2026-10-13 using the same seed panel and
+horizon; see `PREDECLARATION-H9H10-070.md` (pre-declaration) and
+`PREDECLARATION-H9H10-070-RESULTS.md` (raw data). The `0.6.0` verdicts are
+retained as provenance.
 
 **The two inert-intervention bugs found there** (world coordinates passed to a
 100×100 field index; flag read off the wrong object) were fixed before this
