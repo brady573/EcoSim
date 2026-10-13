@@ -34,6 +34,7 @@ import { OrganismStore } from './core/soa.js';
 import type { Phenotype } from './bio/phenotype.js';
 import { Rng } from './core/rng.js';
 import { INTENT } from './world/world.js';
+import { REACTIONS } from './bio/metabolism.js';
 
 interface GateResult {
   id: string;
@@ -1440,6 +1441,119 @@ function gate22(): void {
   );
 }
 
+/**
+ * G26 — the reaction network is element-balanced on paper.
+ *
+ * FINDING 5 FOLLOW-UP. Four reactions created elements rather than
+ * transforming them: sulfur oxidation carried a zero-coefficient DIC
+ * placeholder where its carbon substrate belonged, iron oxidation had no carbon
+ * entry at all, anaerobic decomposition emitted sulfide without drawing organic
+ * sulfur, and ligninolysis released phosphate without drawing litter
+ * phosphorus. Every one of those produced a healthy-looking run and a
+ * conservation residual nobody could locate in the network, because by
+ * inspection the network looked fine.
+ *
+ * This is a STATIC check on the declared stoichiometry. It cannot be satisfied
+ * by a model that balances at runtime for the wrong reason, and it catches a
+ * mis-declared coefficient before a single tick runs.
+ *
+ * Denitrification is exempt BY DECLARATION: it destroys 1.4 mol of nitrogen per
+ * unit extent, and that nitrogen leaves as N2 gas, which is booked as an
+ * external export in the audit. An exemption that is written down is a claim;
+ * an exemption that is merely true is a hole.
+ */
+function gate26(): void {
+  // The `E` enum order is C, H, O, N, P, S, Fe. Guessing this order wrong makes
+  // every gate below report another element's residual, which is worse than no
+  // gate at all because it still looks like a measurement.
+  const NAME = ['C', 'H', 'O', 'N', 'P', 'S', 'Fe'];
+  const POOL_ELEMENT: readonly number[] = [
+    2, 0, 3, 3, 3, 4, 5, 5, 6, 6,
+    0, 3, 4, 5, 6,
+    0, 3, 4, 5,
+    0, 3, 4, 5, 6,
+    1,
+  ];
+  const EXEMPT: Record<string, string> = {
+    'denitrification': 'N2 leaves as gas; booked as an external export',
+  };
+  const bad: string[] = [];
+  for (const r of REACTIONS) {
+    const net: Record<string, number> = {};
+    for (const s of r.substrates) net[NAME[POOL_ELEMENT[s.pool]]] =
+      (net[NAME[POOL_ELEMENT[s.pool]]] ?? 0) - s.coeff;
+    for (const p of r.products) net[NAME[POOL_ELEMENT[p.pool]]] =
+      (net[NAME[POOL_ELEMENT[p.pool]]] ?? 0) + p.coeff;
+    const leak = Object.entries(net).filter(([e, v]) =>
+      Math.abs(v) > 1e-9 && e !== 'O' && e !== 'H' && !EXEMPT[r.name]);
+    if (leak.length) {
+      bad.push(`${r.name}: ${leak.map(([e, v]) => `${e} ${v > 0 ? '+' : ''}${v.toFixed(3)}`).join(', ')}`);
+    }
+  }
+  record('G26', 'reaction network is element-balanced', bad.length === 0,
+    bad.length === 0
+      ? `all ${REACTIONS.length} reactions balance across C, N, P, S, Fe `
+        + `(denitrification exempt by declared gas export)`
+      : `unbalanced reactions:\n         - ${bad.join('\n         - ')}`);
+}
+
+/**
+ * G27 — elemental conservation holds in a RUNNING world.
+ *
+ * G26 proves the declared coefficients are balanced. It says nothing about
+ * whether the engine HONOURS them: the same-organism contention defect (finding
+ * 4) had perfectly balanced stoichiometry and still created 13 mol of matter,
+ * because several reactions inside one organism read the same uncancelled
+ * availability and settle() clamped the consumption while crediting the
+ * products in full.
+ *
+ * So the balance must be observed in a live world, over a horizon long enough
+ * for organisms to grow, die and be replaced. Anything less would pass on a
+ * model that does nothing.
+ *
+ * H and O are EXCLUDED BY DECLARATION: they are carried by an external, buffered
+ * water reservoir. No conservation is claimed across that boundary, so a
+ * residual there is a known and accepted property of the model, not a pass and
+ * not a failure. Including them would make this gate green by asserting
+ * something the model never promised.
+ */
+function gate27(): void {
+  const chemCfg = { seed: 517, founders: 400, genomeV2: true, chemistry: true } as const;
+  const w = new World({ config: chemCfg as never });
+  for (let i = 0; i < 300; i++) w.step();
+  const a = w.chemAudit;
+  if (!a) {
+    record('G27', 'elemental conservation holds in a running world', false,
+      'no chemistry audit produced; the knob may not have engaged');
+    return;
+  }
+  const NAME = ['C', 'H', 'O', 'N', 'P', 'S', 'Fe'];
+  const CHECKED = ['C', 'N', 'P', 'S', 'Fe'];
+  // 0.1% of the accounted total. The measured residuals are ~0.0003%; the
+  // tolerance is loose enough to survive float64 reassociation and tight
+  // enough that the defects this gate exists for were 10^3 to 10^5 times larger.
+  const TOL = 1e-3;
+  const lines: string[] = [];
+  let worst = 0;
+  let fail = false;
+  for (let e = 0; e < NAME.length; e++) {
+    if (!CHECKED.includes(NAME[e])) continue;
+    const held = a.biomass[e] + a.stores[e] + a.environment[e];
+    const accounted = a.initial[e] + a.inputs[e] - a.outputs[e];
+    const denom = Math.abs(accounted);
+    if (denom < 1e-9) continue;
+    const rel = (held - accounted) / denom;
+    worst = Math.max(worst, Math.abs(rel));
+    if (Math.abs(rel) > TOL) fail = true;
+    lines.push(`${NAME[e]} ${(rel * 100).toFixed(4)}%`);
+  }
+  const clamp = w.chemistry!.totalClamped();
+  if (clamp > 1) fail = true;
+  record('G27', 'elemental conservation holds in a running world', !fail,
+    `${lines.join('  ')} | cumulative settle clamp ${clamp.toFixed(4)} mol `
+    + `(tolerance ${(TOL * 100).toFixed(2)}%)`);
+}
+
 function main(): void {
   console.log(`=== credibility gates :: ${WORLD_ENGINE_VERSION} ===`);
   console.log(`scenario: founders=${SMALL.founders} world=${SMALL.worldW}x${SMALL.worldH} ticks=${TICKS} seed=${SMALL.seed}\n`);
@@ -1467,6 +1581,8 @@ function main(): void {
   gate23();
   gate24();
   gate25();
+  gate26();
+  gate27();
 
   const failed = results.filter((r) => !r.pass);
   console.log(`\n${results.length - failed.length}/${results.length} checks passed`);
