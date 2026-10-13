@@ -14,6 +14,17 @@
 /**
  * Bump on any behavioural change to the simulation.
  *
+ * 0.6.2 corrects two behavioural defects found by independent review:
+ *   - radiationMultiplier dormant coupling inverted intent: at 0 dormancy
+ *     produced 0x mutation (should be 1x background). Fixed to couple only
+ *     the excess over 1x, so 0 dormancy = 1x, full dormant share = full mult.
+ *   - Mating logic: sensed mateTarget skipped asexual breeding even when no
+ *     mutual mating occurred. Fixed to only skip asexual for slots with a
+ *     confirmed successful mating this tick (surplus-checked, reciprocal).
+ *     Asexual is now always available as fallback; mate-seeking genotypes
+ *     breed slower asexually, creating a genuine trade-off.
+ *   Parity re-pinned: 517 -> 882/170/65, 24601 -> 563/279/90.
+ *
  * 0.6.1 grants fasting tolerance to starvation damage (Owner constraint
  * 2026-10-12: body reserves buffer brief deficits). Damage ramps 0 -> full
  * over STARVE_GRACE_TICKS consecutive-deficit ticks; sustained deficit still

@@ -860,6 +860,9 @@ export class World {
   /** How many entries of `lastResolutions` are valid this tick. */
   private lastResolutionCount = 0;
 
+  /** Tracks which slots had a successful mutual mating this tick (set in resolveContests, read in proposeReproduction). */
+  private successfulMating = new Uint8Array(0);
+
   /**
    * Bounded event log. Null when tracing is disabled, so the untraced hot path
    * pays one predictable null check per event site and allocates nothing.
@@ -1009,6 +1012,7 @@ export class World {
     this.grazeTarget = new Int32Array(this.store.capacity).fill(-1);
     this.threatTarget = new Int32Array(this.store.capacity).fill(-1);
     this.mateTarget = new Int32Array(this.store.capacity).fill(-1);
+    this.successfulMating = new Uint8Array(this.store.capacity);
     this.intent = new Uint8Array(this.store.capacity);
     this.localMods = emptyModifiers();
 
@@ -1338,6 +1342,7 @@ export class World {
 
   step(): void {
     this.tick++;
+    this.successfulMating.fill(0);
     const cfg = this.config;
     const store = this.store;
 
@@ -2707,6 +2712,11 @@ export class World {
         if (store.energy[a] <= upA * this.reproSurplus || store.energy[b] <= upB * this.reproSurplus) {
           return;
         }
+        // Mark both slots as having successfully mated this tick.
+        // This is read in proposeReproduction to allow asexual fallback
+        // for organisms that sensed a mate but did not achieve mutual mating.
+        this.successfulMating[a] = 1;
+        this.successfulMating[b] = 1;
         this.spend(a, 1.6 + store.trait(a, TRAIT.SIZE) * 0.25, 'reproduction');
         this.spend(b, 1.6 + store.trait(b, TRAIT.SIZE) * 0.25, 'reproduction');
         // Recombination forks the lineage, so lineage trees actually branch
@@ -2910,12 +2920,12 @@ export class World {
 
       const asexualRate = store.trait(slot, TRAIT.ASEXUAL_RATE);
       const mateSeeking = store.trait(slot, TRAIT.MATE_SEEKING);
-      const mate = this.mateTarget[slot];
 
-      // Sexual reproduction needs a mutual opportunity. Asexual reproduction
-      // is always available but slower for mate-seeking genotypes, which is
-      // what creates a real sexual/asexual trade-off instead of two free wins.
-      const sexual = mate >= 0 && this.live[mate] === 1;
+      // Sexual reproduction proceeds only for organisms that achieved a
+      // CONFIRMED mutual mating this tick (surplus-checked, reciprocal).
+      // Asexual reproduction is always available as a fallback; mate-seeking
+      // genotypes breed slower asexually, creating a genuine trade-off.
+      const sexual = this.successfulMating[slot] === 1;
       if (sexual) {
         if (probe !== null) probe.blocked(slot, guild, REPRO_GATE.sexual);
         continue; // handled by the MATE interaction, already queued
@@ -3635,7 +3645,9 @@ export class World {
     let mult = Math.min(Math.max(1, r.cap), m);
     const floor = r.overgrowthCoupling;
     if (floor !== null && floor !== undefined && floor > 0) {
-      mult *= Math.min(1, this.dormantFrac / floor);
+      // Couple the EXCESS over background (1x) to dormant share, not the total.
+      // At 0 dormancy → 1x background (not 0x). At dormantFrac >= floor → full mult.
+      mult = 1 + (mult - 1) * Math.min(1, this.dormantFrac / floor);
     }
     return mult;
   }

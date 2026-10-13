@@ -110,14 +110,20 @@ function probeArgs(over = {}) {
 }
 
 /**
- * Knobs-unset parity, live pin for engine ts-evo-poc/0.6.1.
+ * Knobs-unset parity, live pin for engine ts-evo-poc/0.6.2.
  *
- * 0.6.1 re-pin (fasting tolerance): 517 -> 813/135/81, 24601 -> 542/234/109,
- * each measured twice byte-identical on Node v24.21.0. Direction: producers
- * and decomposers hold better (less trough damage), consumers read lower at
- * knobs-unset defaults — no guild collapsed, no cap-hit, no explosion.
+ * 0.6.2 re-pin (radiationMultiplier + mating logic fixes): 517 -> 882/170/65,
+ * 24601 -> 563/279/90, each measured twice byte-identical on Node v24.21.0.
+ * Fixes: (1) radiationMultiplier dormant coupling inverted intent at 0 dormancy;
+ * (2) mating logic now only skips asexual for confirmed successful matings,
+ * restoring asexual fallback. Direction: consumers and decomposers higher at
+ * knobs-unset defaults (asexual fallback increases recruitment); producers
+ * slightly higher.
  *
  * Retired pairs live beside the live ones in PINNED below (never overwritten):
+ *   - 813/135/81, 542/234/109 @ 0.6.1 — fasting tolerance changes declared
+ *     behaviour by design (starvation damage ramps over consecutive-deficit
+ *     ticks instead of striking at full rate instantly);
  *   - 808/159/58, 558/290/96 @ 0.6.0 — fasting tolerance changes declared
  *     behaviour by design (starvation damage ramps over consecutive-deficit
  *     ticks instead of striking at full rate instantly);
@@ -137,11 +143,13 @@ function probeArgs(over = {}) {
  * that engine's semantics: valid provenance, not comparable behaviour. Do
  * not compare figures across pin boundaries; re-run, do not re-read. See
  * AGENTS.md for the per-version status (0.5.0 figures describe a LEAKY
- * engine; 0.6.0 figures describe the instantaneous-damage engine).
+ * engine; 0.6.0 figures describe the instantaneous-damage engine; 0.6.1
+ * figures describe the fasting-tolerance engine; 0.6.2 figures describe the
+ * radiationMultiplier+mating-fix engine).
  */
 const PINNED = [
-  { seed: 517, want: [813, 135, 81], retired: '808/159/58 @ 0.6.0; 881/187/73 @ 0.4.1; 778/169/63 @ 0.5.0 pre-P0-1' },
-  { seed: 24601, want: [542, 234, 109], retired: '558/290/96 @ 0.6.0; 658/280/98 @ 0.4.1; 597/246/103 @ 0.5.0 pre-P0-1' },
+  { seed: 517, want: [882, 170, 65], retired: '813/135/81 @ 0.6.1; 808/159/58 @ 0.6.0; 881/187/73 @ 0.4.1; 778/169/63 @ 0.5.0 pre-P0-1' },
+  { seed: 24601, want: [563, 279, 90], retired: '542/234/109 @ 0.6.1; 558/290/96 @ 0.6.0; 658/280/98 @ 0.4.1; 597/246/103 @ 0.5.0 pre-P0-1' },
 ];
 
 if (!hasBuild) {
@@ -152,8 +160,8 @@ if (!hasBuild) {
     const got = lastRow(runProbe(probeArgs({ seed: p.seed, ticks: 500 })));
     const ok = got !== null && got.prod === p.want[0] && got.cons === p.want[1] && got.dec === p.want[2];
     check('C1', `parity seed ${p.seed} (knobs unset)`, ok,
-      ok ? `P${got.prod}/C${got.cons}/D${got.dec} matches pinned (0.6.1; retired ${p.retired})`
-         : `expected P${p.want.join('/C')}/D${p.want[2]} (0.6.1), got ${fmt(got)}`);
+      ok ? `P${got.prod}/C${got.cons}/D${got.dec} matches pinned (0.6.2; retired ${p.retired})`
+         : `expected P${p.want.join('/C')}/D${p.want[2]} (0.6.2), got ${fmt(got)}`);
   }
 }
 

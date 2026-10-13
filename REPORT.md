@@ -6919,3 +6919,74 @@ multi-seed validation = the stated majority-time metric work. No forced
 ratios, hidden rescue, or quotas exist or are proposed; 6000-tick endpoints
 were never claimed as stability certificates. Archived falsifications stand
 immutable; nothing below rewrites them.
+
+--------------------------------------------------------------------------------
+ENGINE 0.6.2 — RADIATION MULTIPLIER + MATING LOGIC FIXES (2026-10-13)
+--------------------------------------------------------------------------------
+
+Two behavioural defects found by independent review (PR #13, Acrius-max),
+corrected with full validation pipeline.
+
+### Fix 1: radiationMultiplier dormant coupling (P2a)
+**File:** `src/world/world.ts:3630-3641` (radiationMultiplier)
+
+**Defect:** `overgrowthCoupling` (floor) multiplied the TOTAL mutation multiplier
+by `min(1, dormantFrac / floor)`. At 0 dormancy → 0x mutation (should be 1x
+background). At full dormancy → full multiplier.
+
+**Correction:** Couple only the EXCESS over background (1x):
+```typescript
+mult = 1 + (mult - 1) * Math.min(1, this.dormantFrac / floor);
+```
+Now: 0 dormancy = 1x (background), dormantFrac >= floor = full scheduled multiplier.
+
+**Intent preserved:** Radiation intensifies as overgrowth increases (dormant share
+rises), but never suppresses below background mutation.
+
+**Effect on defaults:** None (radiation is null by default). Only affects runs
+with explicit radiation schedule + overgrowthCoupling > 0.
+
+### Fix 2: Mating logic restores asexual fallback (P1)
+**Files:** `src/world/world.ts` (multiple sites)
+
+**Defect:** `proposeReproduction` (Phase 6) skipped asexual breeding for ANY
+organism with a living `mateTarget` (sensed in Phase 4), even if mutual mating
+never occurred. `resolveMatingIntent` (Phase 4b) requires mutual SELECTION and
+surplus check; `resolveContests` (Phase 5) resolves it. But Phase 6 checked
+only `mateTarget` existence.
+
+**Result:** Sensed mate → asexual skipped → if mating failed (no reciprocity,
+failed surplus), organism bred NOT AT ALL this tick. Contradicted documented
+invariant "asexual reproduction is always available."
+
+**Correction:**
+- Added `successfulMating` Uint8Array (cleared each tick at step start)
+- In `resolveContests` MATE handler: set `successfulMating[a] = successfulMating[b] = 1` ONLY after surplus check passes and births are queued
+- In `proposeReproduction`: check `this.successfulMating[slot] === 1` instead of `mateTarget` existence
+- Asexual is now always available as fallback; mate-seeking genotypes breed
+  slower asexually (`asexualRate * (1 - mateSeeking * 0.55)`), creating genuine
+  trade-off.
+
+**Behavioural change:** Organisms that sense mates but fail to mate now breed
+asexually. Increases consumer/decomposer recruitment at knobs-unset defaults.
+
+### Validation
+- Typecheck: clean
+- Gates: 33/33 pass
+- Contract checks: 11/11 pass (parity re-pinned)
+- Workflow fixtures: 153/153 pass
+- Determinism: byte-identical repeat runs confirmed
+
+### Parity re-pin (knobs-unset, 500 ticks)
+| Seed | 0.6.1 (retired) | 0.6.2 (live) |
+|------|-----------------|--------------|
+| 517  | P813/C135/D81   | P882/C170/D65 |
+| 24601| P542/C234/D109  | P563/C279/D90 |
+
+Direction: Consumers and decomposers higher at defaults (asexual fallback
+increases recruitment); producers slightly higher. No guild collapsed, no
+cap-hit, no explosion.
+
+All ladder/cohort verdicts recorded under 0.6.1 or earlier describe those
+engines' semantics — valid provenance, not comparable behaviour. Do not compare
+figures across pin boundaries; re-run, do not re-read.
