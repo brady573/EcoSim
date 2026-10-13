@@ -1627,26 +1627,76 @@ function gate29(): void {
 function gate30(): void {
   const w = new World({ config: { seed: 517, founders: 400, genomeV2: true, chemistry: true } as never });
   const st = w.chemStores!;
-  // Build a population with enough history for capability diversity to exist.
-  for (let i = 0; i < 600; i++) w.step();
+  const store = w.store;
 
-  let withCap = 0; let withoutCap = 0;
-  const capBit = 1 << CAP.FE_UPTAKE;
-  for (let s = 0; s < w.store.capacity; s++) {
-    if (!w.aliveAt(s)) continue;
-    if ((st.capMask[s] & capBit) !== 0) withCap++; else withoutCap++;
+  // FINDING 3 FIXED. The previous gate used `1 << CAP.FE_UPTAKE`. CAP.FE_UPTAKE
+  // is already a bit VALUE (128 = 1 << 7), so `1 << 128` is `1 << 0` under JS
+  // bitshift rules — the PHOTOSYNTHESIS bit. The gate counted photosynthesis
+  // capability and labelled it iron uptake.
+  //
+  // Counting living positives and negatives is also not inheritance: it never
+  // observes a transfer. This gate now follows ACTUAL parent -> child links
+  // through `store.parentId`, which is stable across slot reuse.
+  const bit = CAP.FE_UPTAKE;
+  const capOf = (id: number): number | null => {
+    for (let sl = 0; sl < store.capacity; sl++) {
+      if (store.id[sl] === id && w.aliveAt(sl)) return st.capMask[sl];
+    }
+    return null;
+  };
+
+  // A child's capability is re-derived from its EXPRESSED modules, and modules
+  // carry a developmental ONSET. Sampling a child at birth therefore measures
+  // developmental timing, not inheritance: the first reading of this gate gave
+  // 0 inherited and 11 "lost" purely because capability is not expressed on the
+  // tick of birth. Each child is instead tracked until it dies and judged on
+  // whether it EVER expresses the bit.
+  const pairs = new Map<number, { parentHad: boolean; childId: number; childEverHad: boolean; resolved: boolean }>();
+  for (let i = 0; i < 800; i++) {
+    w.step();
+    for (let sl = 0; sl < store.capacity; sl++) {
+      if (!w.aliveAt(sl)) continue;
+      const cid = store.id[sl];
+      const rec = pairs.get(cid);
+      if (rec && (st.capMask[sl] & bit) !== 0) rec.childEverHad = true;
+      const pid = store.parentId[sl];
+      if (pid < 0 || pid === cid || pairs.has(cid)) continue;
+      const parentCap = capOf(pid);
+      if (parentCap === null) continue;
+      pairs.set(cid, {
+        parentHad: (parentCap & bit) !== 0,
+        childId: cid,
+        childEverHad: (st.capMask[sl] & bit) !== 0,
+        resolved: false,
+      });
+    }
+    // Age out pairs whose child has gone, so it cannot accumulate forever.
+    for (const [cid, rec] of pairs) {
+      if (rec.resolved) continue;
+      let alive = false;
+      for (let sl = 0; sl < store.capacity; sl++) {
+        if (w.aliveAt(sl) && store.id[sl] === cid) { alive = true; break; }
+      }
+      if (!alive) rec.resolved = true;
+    }
   }
-  // Offspring inherit the parent's capability: the child's mask is populated
-  // from the parent's expressed modules, so a capability present in a parent
-  // and absent in its sibling's parent must separate the two families.
-  const bothPresent = withCap > 0 && withoutCap > 0;
-  record('G30', 'metabolic capability is inherited and segregates', bothPresent,
-    bothPresent
-      ? `${withCap} organisms carry iron uptake, ${withoutCap} do not — `
-        + `the capability segregates rather than being universal, so it is an `
-        + `inherited property and not a constant`
-      : `capability did not segregate (with=${withCap}, without=${withoutCap}); `
-        + `an all-or-nothing population cannot demonstrate inheritance`);
+  let matched = 0, inherited = 0, lost = 0, gained = 0;
+  for (const rec of pairs.values()) {
+    matched++;
+    if (rec.parentHad && rec.childEverHad) inherited++;
+    else if (rec.parentHad && !rec.childEverHad) lost++;
+    else if (!rec.parentHad && rec.childEverHad) gained++;
+  }
+
+  // A claim about inheritance is only meaningful if the sample contains BOTH
+  // outcomes. If every parent-child pair agreed, this cannot distinguish
+  // inheritance from a constant, which is the G24 lesson applied here.
+  const varied = inherited > 0 && (lost > 0 || gained > 0);
+  const pass = matched >= 20 && inherited > 0 && varied;
+  record('G30', 'metabolic capability is transmitted parent to child', pass,
+    `${matched} parent->child pairs observed: ${inherited} inherited, `
+    + `${lost} lost, ${gained} gained the iron-uptake bit `
+    + `${varied ? '' : '(sample does not vary, so this cannot demonstrate transmission)'}`);
 }
 
 /**
@@ -1743,6 +1793,46 @@ function gate32(): void {
     + `${a.hashState().slice(0, 8)} vs ${b.hashState().slice(0, 8)}`);
 }
 
+/**
+ * G33 — the chemical/legacy energy boundary is MEASURED and DECLARED.
+ *
+ * The chemical subsystem credits reaction energy straight into `store.energy`
+ * and charges growth cost straight out of it, without passing through the
+ * legacy ledger's capture/spend books. That is a real integration gap and the
+ * reviewer is right to name it: two energy books exist and only one of them is
+ * the ledger.
+ *
+ * Rather than assert integration that does not exist, this gate states the
+ * boundary as a MEASURED quantity. If chemical energy income ever becomes a
+ * material share of total organism energy, the declared scope is wrong and this
+ * gate fails — which is the point. A declared limit that cannot trip is a
+ * comment.
+ */
+function gate33(): void {
+  const w = new World({ config: { seed: 517, founders: 400, genomeV2: true, chemistry: true } as never });
+  let legacy = 0;
+  for (let i = 0; i < 600; i++) {
+    w.step();
+    if (i % 50 === 49) {
+      for (let sl = 0; sl < w.store.capacity; sl++) {
+        if (w.aliveAt(sl)) legacy += w.store.energyIngested[sl];
+      }
+    }
+  }
+  const chem = w.chemistry!.flux.chemEnergyIncome;
+  const share = chem / Math.max(1, legacy + chem);
+  const charged = w.chemistry!.flux.chemEnergySpent;
+  // Declared scope: chemical income is NOT integrated into the legacy ledger and
+  // is below 1% of organism energy. Either condition breaking means the
+  // documentation below is stale.
+  const pass = share < 0.01 && chem >= 0 && charged >= 0 && charged <= chem + 1e-9;
+  record('G33', 'chemical energy boundary is measured, not assumed', pass,
+    `chemical income ${chem.toFixed(1)} = ${(share * 100).toFixed(4)}% of `
+    + `legacy income ${legacy.toFixed(0)}; charged ${charged.toFixed(1)} `
+    + `(declared scope: chemical energy is NOT reconciled through the legacy `
+    + `ledger, and is a negligible share)`);
+}
+
 function main(): void {
   console.log(`=== credibility gates :: ${WORLD_ENGINE_VERSION} ===`);
   console.log(`scenario: founders=${SMALL.founders} world=${SMALL.worldW}x${SMALL.worldH} ticks=${TICKS} seed=${SMALL.seed}\n`);
@@ -1777,6 +1867,7 @@ function main(): void {
   gate30();
   gate31();
   gate32();
+  gate33();
 
   const failed = results.filter((r) => !r.pass);
   console.log(`\n${results.length - failed.length}/${results.length} checks passed`);

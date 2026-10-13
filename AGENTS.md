@@ -281,3 +281,28 @@ tested the helper and not the world. Four more rules follow from that:
   bytes/organism" for a buffer that is 256. The allocation is unconditional, so
   the cost is paid with the knob off.
 
+### Declared integration limits (chemistry ↔ legacy)
+
+These are **limits, not claims**. Each is stated so a reader does not have to
+infer integration that does not exist, and G33 measures one of them so the
+declaration cannot silently become false.
+
+- **Energy has two books.** Chemical reaction income is credited directly to
+  `store.energy` and chemical growth cost is charged directly out of it.
+  Neither passes through the legacy ledger's capture/spend accounting. G3 runs
+  with chemistry unset and therefore says nothing about this. Measured chemical
+  share of organism energy income: **0.73%** (G33).
+- **Predation transfers energy but not matter.** The legacy predator/grazer
+  interaction moves `store.energy` from prey to consumer with **no parallel
+  elemental transfer** from prey tissue or stores. A chemical mass ledger that
+  balances does not demonstrate an abiotic → producer → consumer → death →
+  recycling cycle, because the consumer link is energy-only.
+- **Death reaches the two economies by different paths.** Legacy detritus is fed
+  from an organism's remaining energy; chemistry pools are fed from its tissue.
+  The two are coupled only through the organism, not through a shared pool, so
+  mass that recycles through chemistry does not automatically become food for
+  the legacy web. The `chemistryToLegacyDetritus` diagnostic bridges them and is
+  how that separation was measured.
+- **Consequently**: this repository has NOT demonstrated a fully integrated
+  food web. It has demonstrated a balanced chemistry subsystem coupled to the
+  legacy ecosystem at the organism, not at the meal.

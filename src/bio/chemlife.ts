@@ -156,6 +156,10 @@ export interface ChemConfig {
    * between a mole of carbon and the legacy detritus units.
    */
   toLegacyDetritus: boolean;
+  /**
+   * Make energy free, as the config contract states: growth then depends on
+   * matter ALONE. Applied at the growth BUDGET, not by suppressing income.
+   */
   freeEnergy: boolean;
   freeNutrients: boolean;
 }
@@ -328,7 +332,15 @@ export function runMetabolism(
     if (r.energy > 0) energy += r.energy * extent;
     if (extentOut) extentOut[id] = extent;
   }
-  return cfg.freeEnergy ? energy * 0 : energy * cfg.energyScale;
+  // FINDING 1 FIXED. This used to return `energy * 0` when freeEnergy was set.
+  //
+  // The declared contract is "make energy free: growth then depends on matter
+  // ALONE". Zeroing reaction energy income instead removes the organism's
+  // supply, which is the opposite: the arm starved its subjects and was then
+  // reported as evidence that energy relief does not help. That is a knob
+  // wearing a coat of a result. Income is credited as declared, and the relief
+  // is applied where the contract puts it -- at the growth budget.
+  return energy * cfg.energyScale;
 }
 
 /** Ablations must actually gate execution, not merely be recorded. */
@@ -355,7 +367,9 @@ export function assimilate(
   demand: Float64Array,
 ): void {
   const base = slot * E.COUNT;
-  const eff = cfg.freeNutrients ? 1 : cfg.assimilationEfficiency;
+  // FINDING 2: efficiency is physical. A GATE diagnostic must not also rewrite
+  // how efficiently an organism draws, or the arm changes two mechanisms at once.
+  const eff = cfg.assimilationEfficiency;
   if ((st.capMask[slot] & CAP.N_ASSIM) !== 0) {
     const take = Math.min(
       chem.remaining(POOL.NH4, cell) * eff,
@@ -377,7 +391,14 @@ export function assimilate(
   //
   // Limited by what the cell actually holds, so it cannot draw on carbon that
   // is not there.
-  if (!cfg.freeNutrients) {
+  //
+  // FINDING 2 FIXED. This uptake was previously SKIPPED ENTIRELY when
+  // freeNutrients was set, leaving carbon stores permanently at zero. The
+  // growth ceiling ignored that and reported the full request as tissue built,
+  // while the population gain came from parent-to-child transfer rather than
+  // growth. The arm therefore measured nothing about nutrient relief.
+  // freeNutrients relaxes GATES; uptake is always physical.
+  {
     const oc = chem.remaining(POOL.OC, cell);
     const takeC = Math.min(oc * eff, demand[E.C] * ASSIMILATION_FRACTION);
     if (takeC > 0) {
@@ -396,7 +417,7 @@ export function assimilate(
   // permanently zero and growth was STRUCTURALLY IMPOSSIBLE for any organism,
   // whatever its energy or nutrient reserves. Tissue is built from the external
   // water reservoir, which is the declared source for both.
-  if (!cfg.freeNutrients) {
+  {
     const takeH = Math.min(chem.remaining(POOL.H2O, cell) * eff, demand[E.H] * ASSIMILATION_FRACTION);
     if (takeH > 0) {
       chem.claim(POOL.H2O, cell, takeH);
@@ -492,6 +513,12 @@ export function grow(
   result.nutrientLimited = carbon < energyCarbon && matterCarbon < requestedCarbon - 1e-12;
   result.energyLimited = carbon < matterCarbon;
 
+  // FINDING 2 FIXED. `result.carbon` reported the REQUESTED amount, which is
+  // only what tissue is assembled from when stores happen to hold it. Under
+  // freeNutrients that overstated carbon built by 4.6x (1,329.69 mol reported
+  // against 286.90 mol of actual tissue), so the counter measured a request
+  // rather than an outcome while appearing to measure growth.
+  const carbonBefore = st.stores[base + E.C];
   const built = biomassDemand(carbon, scratch);
   // STRICTLY CONSERVATIVE. Tissue is assembled ONLY from stores the organism
   // already holds. An earlier version added `built - drawn` to biomass, which
@@ -502,7 +529,11 @@ export function grow(
     st.stores[base + e] -= drawn;
     st.biomass[base + e] += drawn;
   }
-  result.carbon = carbon;
+
+  // What was actually assembled, not what was asked for. This must be the LAST
+  // assignment: an earlier `result.carbon = carbon` on the following line
+  // silently overwrote it and restored the overstatement.
+  result.carbon = Math.max(0, carbonBefore - st.stores[base + E.C]);
 }
 
 /**

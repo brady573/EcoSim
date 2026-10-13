@@ -4059,11 +4059,13 @@ export class World {
     if (chem) {
       // Pool inventories, sampled per pool. Summing instead would let two very
       // different spatial distributions hash identically.
+      // FINDING 5 FIXED. This previously hashed a per-pool SUM, and carried a
+      // comment saying that summing "would let two very different spatial
+      // distributions hash identically" — which is precisely what it did. Two
+      // worlds with all iron in one corner and all iron spread evenly hashed
+      // the same whenever organism state matched. Cell values are hashed now.
       for (let p = 0; p < POOL_COUNT; p++) {
-        const f = chem.fields[p].data;
-        let acc = 0;
-        for (let i = 0; i < f.length; i++) acc += f[i];
-        h.mixF32(acc);
+        h.mixF64Array(chem.fields[p].data);
       }
     }
     return h.digest();
@@ -4424,6 +4426,16 @@ export class World {
     const shadeM = this.shadeMass;
     const gLight = this.globalLight;
     const ext = this.config.shadeExtinction;
+    // FINDING 4 FIXED. `shadeMass` lives on a COARSE grid of shadeCols x
+    // shadeRows (shadeGrain cells per axis, default 4), while `chem.index`
+    // returns a FULL-RESOLUTION substrate cell. Indexing the canopy array with
+    // the full-resolution index read an unrelated cell, or ran off the end
+    // entirely once the index passed shadeCols*shadeRows. Beer-Lambert
+    // self-shading was therefore effectively disabled across most of the world,
+    // and the chemistry light gate was not attenuating through the canopy it
+    // claimed to.
+    const shadeGrain = Math.max(1, Math.floor(this.config.shadeGrain));
+    const sCols = this.shadeCols, sRows = this.shadeRows;
     const lmul = this.localMods.lightMul;
 
 
@@ -4431,7 +4443,10 @@ export class World {
       if (!this.live[slot]) continue;
       const ci = chem.index(store.x[slot], store.y[slot]);
       const cell = ci;
-      const canopy = shadeM[ci];
+      const cx = ci % chem.cols, cy = (ci / chem.cols) | 0;
+      const sx = Math.min(sCols - 1, (cx / shadeGrain) | 0);
+      const sy = Math.min(sRows - 1, (cy / shadeGrain) | 0);
+      const canopy = shadeM[sy * sCols + sx];
       const selfShade = canopy > 0 ? Math.exp(-ext * canopy) : 1;
       st.light[slot] = gLight * shadeArr[ci] * selfShade * lmul;
 
@@ -4536,7 +4551,14 @@ export class World {
       // Growth is the MINIMUM of what energy and what matter permit. This is
       // the energy/matter separation made operational rather than asserted.
       const requested = carbon * 0.012;
-      const spendable = store.energy[slot] * 0.30;
+      // FINDING 1 FIXED, second half. freeEnergy means growth depends on matter
+      // ALONE, so the energy budget is set to exactly what the requested tissue
+      // costs rather than drawn from the organism's reserves. Removing the
+      // constraint and removing the SUPPLY are opposite interventions; only the
+      // first matches the declared contract.
+      const spendable = cfg.freeEnergy
+        ? requested * ENERGY_PER_CARBON
+        : store.energy[slot] * 0.30;
       const r = this.chemGrowth;
       grow(st, slot, requested, spendable, cfg, r, this.chemScratch);
       if (r.nutrientLimited) this.chemNutrientLimited++;
