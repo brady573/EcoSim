@@ -742,6 +742,23 @@ export class World {
   }
 
   /**
+   * Read-only patch-census accessor for diagnostics (spatial-rescue probe).
+   * Pure read delegating to the census above: no state written, no RNG drawn,
+   * no branch of the simulation altered. Grid is row-major over patchCols x
+   * patchRows ([0,0] when disabled). Timing: the census rebuilds every tick
+   * before births are placed, so a post-step read excludes same-tick newborns
+   * (they would otherwise seed the patch they came from).
+   */
+  patchGridDims(): [number, number] {
+    return [this.patchCols, this.patchRows];
+  }
+
+  /** Living count of `trophic` guild within patch `p`; 0 when disabled/out of range. */
+  patchGuild(p: number, trophic: number): number {
+    return this.patchCount(p, trophic);
+  }
+
+  /**
    * Local heterotrophic-substrate availability in cell `ci`, as a 0..1
    * fraction that saturates at `mixotrophySaturation`.
    *
