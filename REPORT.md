@@ -6697,7 +6697,13 @@ No engine change; read-only instrument.
 
 MATRIX. Contrast seeds on the 0.6.1 viability config, 6000 ticks: 41002
 (C0, B/D ~0.7, chronic failer) vs 41004 (C1042, B/D 1.15, persister) vs 41012
-(bloom seed). READ: the gate distribution on the failer vs the persisters —
+(bloom seed). [PROVENANCE NOTE 2026-10-13, MATRIX text unaltered: the C1042 /
+B/D-1.15 label for 41004 describes the NUTREGEN arm
+(evidence/graze-nutregen-38264950151/cohort/.../seed-41004.txt), used at
+registration to pick a high-activity persister contrast — NOT the verified
+viability-061 endpoint, which is P11/C432/D441 (config-identity census,
+byte-exact). 41004 persists on both arms, so selection stands; quote C432
+for the 0.6.1 result.] READ: the gate distribution on the failer vs the persisters —
 if one gate dominates failer ticks while persisters clear it, that gate is
 the binding constraint and the next dial targets it; if distributions match,
 the constraint is upstream of breeding (maturation/recruitment, not gates).
@@ -6739,8 +6745,10 @@ READ (corrected). Fraction dominates absolutely at the actual decision point;
 surplus binds ZERO ticks on all three seeds (not 8-11% — those v1 ticks were
 fraction-blocked first under engine order). The exoneration is now far
 stronger than v1 stated: with the engine's own accounting, the drought
-reserve stops nothing. Damage is second but highest on persister 41004
-(29,991), so damage composition does not separate either. Roll conversion is
+reserve stops nothing. Maturity is second overall on all three seeds (8,424
+vs 1,821; 61,810 vs 29,991; 8,059 vs 1,302); damage runs second only among
+gates other than maturity. Neither composition separates failer from
+persisters. Roll conversion is
 ~1% everywhere (52/4445, 1183/105752, 41/4501). On scale the three seeds are
 heterogeneous, not ordered: failer 41002 (4,445 roll-reaching ticks) is
 near-identical to persister 41012 (4,501; difference 56, ~1.3%) with opposite
