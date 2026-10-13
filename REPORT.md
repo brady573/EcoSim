@@ -6861,3 +6861,61 @@ regimes); whether patches are over-coupled by movement is untested and NOT
 claimed — synchronized forcing vs synchronized coupling are not separated by
 this data.
 No arm registered; no promotion.
+
+--------------------------------------------------------------------------------
+CODE REVIEW RESPONSE (2026-10-13, reviewer Acrius-max): VERIFIED, CLASSIFIED
+--------------------------------------------------------------------------------
+
+P1 — mate-sensing disables asexual path: CONFIRMED (high severity for the
+consumer question). Verified line by line: mateTarget assigned on mere
+sensing (world.ts 1773-1783, mature + size band + range, no mutuality);
+reciprocal submission requires BOTH MATE intent AND mutual selection
+(2661-2664); proposeReproduction treats ANY living mateTarget as sexual and
+skips asexual (2901-2905); submitted mates can still fail the dual-surplus
+check (2707-2709). The "always available" invariant is contradicted in code
+(grep finds the documented claim it violates). Net effect: unmeasured
+density-dependent reproductive suppression — denser neighborhoods sense more
+candidates and lose more asexual attempts, with no fallback when mating
+fails. This matches the observed failure-to-launch pattern and is now the
+prime consumer-recruitment suspect. Magnitude unmeasured (reviewer's honesty
+preserved: static defect, size unknown).
+
+P1 CORRECTION DESIGN (proposed, NOT implemented — needs Owner direction):
+skip asexual ONLY for slots with a resolved successful mating this tick
+(success flag set in onMate, per-tick array, cleared each tick), otherwise
+attempt asexual. Phase order makes this decidable (4b submissions ->
+Phase 5 resolution -> Phase 6 proposals). Duplicate-free by construction
+(each slot breeds at most once per path; sexual path untouched). Deterministic
+tests (a)-(d) as new gates. Behavior change => own version + re-pin + ladder
+re-evaluation of viability configs (consumer numbers WILL move; that is
+confound repair toward the documented invariant, not tuning toward
+coexistence). Immediate no-engine-change diagnostic available first:
+suppressed-asexual ticks (existing ReproProbe.sexual) vs mutual submissions
+(interaction records) vs lineage-branching births vs total births — bounds
+the suppression magnitude with existing outputs.
+
+P2a — knockout not clean: PARTIALLY CONFIRMED. Spontaneous decay returns
+(1441-1476, no guild/mineraliser check) and initial stocks (982-985) are real
+independent return paths ACTIVE in our configs — the ablation removed seeding,
+not recycling, correct. Excretion sub-point does NOT apply to our runs
+(rate 0 there; code path real at 2108-2114, gated on rate>0). Mobile-consumer
+mineralization possible via label/function divergence (role.ts noted) but
+unmeasured — recorded, not asserted.
+
+P2b — per-pool ceiling violated: CONFIRMED as code inconsistency. Regen path
+uses per-nutrient mods (1393-1395, [1.0,0.78,0.62] per config.ts:701);
+excretion (2110-2113) and biotic returns (2259-2266, 2390-2396) clamp all
+three pools to the flat nutrientPerCell*fertility cap. Impact on past
+verdicts unknown but bounded (reviewer concurs it need not explain
+failures). Proposed fix (needs Owner direction): apply mod multipliers at
+the four return sites — small, bounded, full version/re-pin pipeline.
+Required before cyclic-closure interpretation per the review; accepted.
+
+ALIGNMENT. The reviewer's 5-step sequence maps onto this program without
+conflict: (1) reproductive bottlenecks = P1 correction + magnitude
+diagnostic; (2) bookkeeping = P2b fix; (3)-(4) one reversible feedback +
+matched knockout/rescue = already how this ladder is built; (5) time-weighted
+multi-seed validation = the stated majority-time metric work. No forced
+ratios, hidden rescue, or quotas exist or are proposed; 6000-tick endpoints
+were never claimed as stability certificates. Archived falsifications stand
+immutable; nothing below rewrites them.
