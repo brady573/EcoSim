@@ -5746,3 +5746,30 @@ same error this repository has already corrected twice.
 Also unmeasured: the cost weights in MODULE_SPECS are calibrated to produce
 visible consequences, not fitted to anything. They are a starting condition for
 selection to act on, not a biological claim.
+
+## Integrated biogeochemistry — predation-matter ride-along diagnostic
+
+Added `chemistryPredationMatter`, a null-default diagnostic that transfers the
+stoichiometric tissue equivalent of the energy drained in a predation/graze
+contest from prey `biomass` to predator `stores`. Default null remains
+energy-only, so legacy behaviour and parity pins are unchanged.
+
+Invariants added:
+- G35 proves the knob is inert when off, moves carbon when on, preserves the
+  G27-style conservation check (with denominator floor and settle clamp), and
+  transfers C/H/O/N/P/S/Fe in prey proportions.
+- H/O stores now return to the external reservoir at death instead of being
+  silently discarded, fixing a pre-existing leak in the chemistry death path.
+- `chemStores` is grown in `ensureSlotArrays`, so slot growth no longer leaves
+  new chemistry slots out of bounds.
+
+Diagnostic cohort: 5 seeds, 1000 ticks, 400 founders, post-hoc. Raw output:
+`evidence/chem-predation-knob-070-20261013.txt`; details:
+`CHEM-PREDATION-KNOB-DIAGNOSTICS.md`.
+
+  base              pop med 6   births med 6    matter carbon 0.0000
+  predationMatter   pop med 7   births med 18   matter carbon 6.2879 mol
+
+This is not claimed to rescue the ecosystem or demonstrate a full food web. It
+demonstrates a conservation-safe prey-to-predator matter-transfer mechanism as
+an opt-in diagnostic only.

@@ -325,7 +325,10 @@ declaration cannot silently become false.
   interaction moves `store.energy` from prey to consumer with **no parallel
   elemental transfer** from prey tissue or stores. A chemical mass ledger that
   balances does not demonstrate an abiotic → producer → consumer → death →
-  recycling cycle, because the consumer link is energy-only.
+  recycling cycle, because the consumer link is energy-only. The null-default
+  diagnostic `chemistryPredationMatter` can add a stoichiometric transfer when
+  explicitly enabled, but it is not declared default behaviour and no full food
+  web is claimed from it.
 - **Death reaches the two economies by different paths.** Legacy detritus is fed
   from an organism's remaining energy; chemistry pools are fed from its tissue.
   The two are coupled only through the organism, not through a shared pool, so

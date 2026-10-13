@@ -1,0 +1,15 @@
+IDENTITY: ts-evo-poc/0.7.0+chem/0.7.0 seeds: 5 ticks: 1000
+--- base ---
+ seed 517: pop 28 births 36 matterC 0.0000 C residual 0.0002% clamp 0.065
+ seed 1013: pop 3 births 3 matterC 0.0000 C residual 0.0003% clamp 0.074
+ seed 24601: pop 4 births 6 matterC 0.0000 C residual 0.0002% clamp 0.062
+ seed 7: pop 8 births 7 matterC 0.0000 C residual 0.0002% clamp 0.063
+ seed 99: pop 6 births 2 matterC 0.0000 C residual 0.0003% clamp 0.067
+base: pop med 6 [3..28] | births med 6 | matterC med 0.0000 | C residual med 0.0002%
+--- predationMatter ---
+ seed 517: pop 52 births 64 matterC 2.0960 C residual 0.0003% clamp 0.078
+ seed 1013: pop 3 births 3 matterC 6.2879 C residual 0.0003% clamp 0.076
+ seed 24601: pop 6 births 21 matterC 4.8169 C residual 0.0002% clamp 0.064
+ seed 7: pop 9 births 18 matterC 11.7571 C residual 0.0002% clamp 0.057
+ seed 99: pop 7 births 8 matterC 7.7680 C residual 0.0003% clamp 0.067
+predationMatter: pop med 7 [3..52] | births med 18 | matterC med 6.2879 | C residual med 0.0003%
