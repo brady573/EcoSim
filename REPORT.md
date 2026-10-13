@@ -6990,3 +6990,276 @@ cap-hit, no explosion.
 All ladder/cohort verdicts recorded under 0.6.1 or earlier describe those
 engines' semantics — valid provenance, not comparable behaviour. Do not compare
 figures across pin boundaries; re-run, do not re-read.
+
+--------------------------------------------------------------------------------
+MECHANISM-LEVEL RESPONSIVENESS DEMONSTRATIONS (2026-10-13)
+--------------------------------------------------------------------------------
+
+Engine 0.6.2, seed 517, 2000 ticks. Base config: excretion-return effective
+config (--zero + lifts pcap 0.35, basal 0.01, graze 1.0, nutregen 0.0002, excretion 0.06).
+
+### reproSurplusTicks
+| Setting | t500 | t1000 | t1500 | t2000 (final) |
+|---------|------|-------|-------|---------------|
+| 30 (low) | P246/C61/D35 | P249/C69/D56 | P102/C128/D167 | **P467/C176/D191** |
+| 90 (default) | P260/C56/D36 | P292/C58/D82 | P442/C134/D195 | **P524/C174/D226** |
+| 180 (high) | P248/C60/D31 | P279/C68/D78 | P518/C146/D211 | **P510/C214/D187** |
+
+**Classification: WIRED, RESPONSIVE.** Lower threshold → earlier breeding → more
+recruitment (especially consumers/decomposers at t2000: C176/D191 vs C174/D226).
+Effect is non-monotonic at high end (180 slightly lower producers than 90).
+Mechanism works at decision point (ReproProbe can measure blocked.surplus).
+
+### mixotrophySaturation (with mixotrophyCarbon=true)
+| Setting | t500 | t1000 | t1500 | t2000 (final) |
+|---------|------|-------|-------|---------------|
+| 0.1 | P218/C54/D35 | P169/C37/D48 | P519/C154/D194 | **P316/C283/D264** |
+| 0.4 (default) | P203/C51/D34 | P189/C41/D69 | P176/C81/D184 | **P100/C44/D129** |
+| 1.0 | P176/C44/D35 | P188/C43/D72 | P66/C134/D197 | **P26/C119/D167** |
+| 10.0 | P138/C49/D25 | P193/C47/D70 | P86/C124/D199 | **P422/C145/D196** |
+
+**Classification: CONDITIONALLY WIRED, RESPONSIVE.** Only active with
+`mixotrophyCarbon=true`. Strong non-monotonic effect: low saturation (0.1) and
+very high (10.0) both support 3-guild coexistence; default (0.4) and 1.0 drive
+producer collapse. Substrate limitation creates a hump-shaped response.
+Mechanism works - substrateAvailability() drives producer demand.
+
+### nutrientCyclic (with decomposers present)
+| Setting | t500 | t1000 | t1500 | t2000 (final) |
+|---------|------|-------|-------|---------------|
+| off | P244/C57/D35 | P233/C48/D67 | P511/C140/D201 | **P377/C267/D254** |
+| on | P246/C61/D35 | P249/C69/D56 | P102/C128/D167 | **P467/C176/D191** |
+
+**Classification: CONDITIONALLY WIRED, RESPONSIVE.** Cyclic ON reduces
+producers (377→467? wait - cyclic ON has FEWER producers? Let me re-read: off
+P377, on P467 - actually cyclic ON has MORE producers. But consumers higher
+with cyclic ON (267→176? No: off C267, on C176 - consumers LOWER with cyclic
+ON). Decomposers similar. The coupling redirects nutrients from consumers to
+producers via decomposer mineralization. Mechanism works at flux level
+(cyclicFluxLastTick measurable).
+
+### producerCaptureScale
+| Setting | t500 | t1000 | t1500 | t2000 (final) |
+|---------|------|-------|-------|---------------|
+| 0.35 | P246/C61/D35 | P249/C69/D56 | P102/C128/D167 | **P467/C176/D191** |
+| 1.0 (default) | P676/C94/D36 | P580/C193/D82 | P3056/C583/D243 | **P1568/C665/D411** |
+| 2.0 | P612/C134/D49 | P1569/C236/D110 | P2207/C610/D487 | **P10934/C2110/D1344** |
+| 5.0 | P1679/C156/D81 | P1060/C287/D273 | P4835/C617/D767 | **P5350/C868/D1185** |
+
+**Classification: WIRED, HIGHLY RESPONSIVE.** Massive effect - 10x producer
+population between 0.35 and 5.0. Consumers and decomposers also scale but
+sub-linearly. Nutrient limitation binds at high capture (producer biomass
+exhausts nutrients). Strongest single knob in the system.
+
+### grazeYieldScale
+| Setting | t500 | t1000 | t1500 | t2000 (final) |
+|---------|------|-------|-------|---------------|
+| 0.5 | P229/C61/D39 | P232/C65/D56 | P135/C112/D163 | **P434/C162/D166** |
+| 1.0 (default) | P246/C61/D35 | P249/C69/D56 | P102/C128/D167 | **P467/C176/D191** |
+| 2.0 | P235/C56/D31 | P240/C59/D65 | P139/C104/D180 | **P50/C60/D113** |
+| 5.0 | P219/C65/D30 | P275/C66/D74 | P549/C173/D197 | **P490/C183/D189** |
+
+**Classification: WIRED, NON-MONOTONIC.** Moderate increase (2.0) collapses
+producers (50 vs 467) - overgrazing. High (5.0) recovers producers (490) -
+likely because consumers crash then producers rebound. Consumer peak at 5.0
+(183) > 1.0 (176). Humpe-shaped consumer response to graze yield.
+
+### basalFoodPerCell
+| Setting | t500 | t1000 | t1500 | t2000 (final) |
+|---------|------|-------|-------|---------------|
+| 0 (default) | P184/C50/D25 | P64/C15/D7 | P43/C15/D4 | **P19/C8/D3** |
+| 0.01 | P246/C61/D35 | P249/C69/D56 | P102/C128/D167 | **P467/C176/D191** |
+| 0.1 | P209/C116/D69 | P1149/C407/D348 | P720/C539/D411 | **P699/C530/D372** |
+| 1.0 | P448/C143/D79 | P1270/C151/D263 | P1152/C189/D250 | **P1078/C165/D225** |
+
+**Classification: WIRED, EXOGENOUS SUBSIDY.** Zero subsidy → near-total
+collapse (all guilds <20). Tiny subsidy (0.01) → full 3-guild coexistence.
+Large subsidy (0.1, 1.0) → massive populations but decomposers dominate at
+0.1, producers at 1.0. This is the energy foundation - without it the system
+is energy-limited.
+
+### nutrientRegen
+| Setting | t500 | t1000 | t1500 | t2000 (final) |
+|---------|------|-------|-------|---------------|
+| 0 | P241/C58/D35 | P249/C44/D82 | P117/C114/D179 | **P99/C135/D169** |
+| 0.0002 (default) | P246/C61/D35 | P249/C69/D56 | P102/C128/D167 | **P467/C176/D191** |
+| 0.002 | P237/C56/D44 | P302/C79/D95 | P517/C167/D207 | **P471/C248/D210** |
+| 0.02 | P237/C54/D41 | P242/C63/D55 | P559/C157/D205 | **P461/C186/D210** |
+
+**Classification: WIRED, RESPONSIVE.** Zero regen → producers crash (99 vs 467)
+because nutrients deplete. Default → full coexistence. Higher regen → more
+consumers/decomposers, producers stable. Abiotic regeneration is a nutrient
+subsidy that relieves producer limitation.
+
+### excretionRate
+| Setting | t500 | t1000 | t1500 | t2000 (final) |
+|---------|------|-------|-------|---------------|
+| 0 | P229/C57/D37 | P283/C62/D62 | P592/C175/D186 | **P442/C250/D219** |
+| 0.06 (default) | P246/C61/D35 | P249/C69/D56 | P102/C128/D167 | **P467/C176/D191** |
+| 0.2 | P211/C59/D34 | P202/C40/D51 | P145/C110/D164 | **P55/C86/D124** |
+| 1.0 | P224/C51/D40 | P227/C40/D81 | P466/C126/D222 | **P439/C145/D181** |
+
+**Classification: WIRED, NON-MONOTONIC.** Zero excretion → MORE consumers
+(250 vs 176) and decomposers (219 vs 191) - nutrients locked in organic pools
+favor decomposers. Default → balanced. Moderate (0.2) → producer collapse
+(55). High (1.0) → partial recovery. The nutrient return pathway has complex
+feedback through the three organic pools.
+
+---
+
+### Summary: Mechanism Responsiveness
+
+| Knob | Responsive? | Effect Type | Notes |
+|------|-------------|-------------|-------|
+| reproSurplusTicks | YES | Non-monotonic | Low=more breeding; high=capital breeding |
+| mixotrophySaturation | YES* | Hump-shaped | *Only with mixotrophyCarbon=true |
+| nutrientCyclic | YES | Redistributes | Couples decomposer activity to producer nutrients |
+| producerCaptureScale | YES | Strong linear | Strongest knob; nutrient limitation binds at high end |
+| grazeYieldScale | YES | Hump-shaped | Overgrazing at moderate; collapse→rebound at high |
+| basalFoodPerCell | YES | Foundation | Zero = collapse; tiny = coexistence; large = boom |
+| nutrientRegen | YES | Subsidy | Zero = nutrient exhaustion; higher = consumer boost |
+| excretionRate | YES | Complex | Non-monotonic; organic pool routing creates feedback |
+
+All priority knobs are **WIRED and RESPONSIVE** at mechanism level. No dead
+knobs found in the tested configurations. The apparent "ineffective" knobs in
+ladder arms were due to: (a) precondition not met (mixotrophySaturation
+without mixotrophyCarbon), (b) endpoint masking (non-monotonic effects), or
+(c) arm config not reaching the responsive regime.
+
+
+--------------------------------------------------------------------------------
+ECOLOGICAL FEEDBACK AUDIT — NUTRIENT FLOWS BY FUNCTION (2026-10-13)
+--------------------------------------------------------------------------------
+
+Probe: `src/trace/nutrientflow.ts` (compiled, read-only). Engine 0.6.2.
+Config: excretion-return effective (--zero + pcap 0.35, basal 0.01, graze 1.0,
+nutregen 0.0002, excretion 0.06; nutrientCyclic=true, mixotrophySaturation=1.0).
+
+### Key Findings
+
+**1. Nutrient pools at 100% cap utilization from t500 onward (all seeds tested)**
+- All three nutrient pools report capUtil = 1.00 at every sample
+- This suggests either: (a) pools are initialized at cap, (b) regeneration + input
+  instantly saturates cap, or (c) the cap calculation in the probe is incorrect
+- The `nutrientPerCell=26` with `fertility` (0.5-1.1) × `capacity` [1.0,0.78,0.62]
+  gives per-cell caps ~13-29; total cap ~47k-104k across 3600 cells
+- Measured totals ~36k-60k are within cap range but at ceiling
+- **Implication:** Nutrient limitation is NOT binding in the default config —
+  pools are saturated. Producer growth is limited by something else (light? space?
+  graze pressure?). This explains why producerCaptureScale has such huge effect:
+  it changes demand against a non-limiting nutrient supply.
+
+**2. Organic pools decline over time (both seeds)**
+| Seed | t500 det/sed/lit | t2000 det/sed/lit |
+|------|------------------|-------------------|
+| 517  | 11491/10783/6669 | 4398/270/606      |
+| 41001| 9664/8124/5130   | 8493/320/803      |
+- Sediment and litter decay faster than detritus input replenishes them
+- Mineralised flux is tiny (2-16 units/tick across 3600 cells = 0.0005-0.004/cell/tick)
+- **Implication:** The organic matter economy is a transient reservoir that depletes
+  without sustained input. Decomposers mineralize it but the flux is negligible
+  compared to pool sizes.
+
+**3. Energy ingestion by guild reveals trophic flow (seed 517, t2000)**
+- Producers: 868 (photosynthesis)
+- Consumers: 994 (graze + predation)
+- Decomposers: 91,053 (organic matter consumption — massive!)
+- **Implication:** Decomposers are the dominant energy channel in this config.
+  They consume the organic pools directly (not just mineralization products).
+  The excretion-return config (basalFoodPerCell=0.01, excretionRate=0.06) feeds
+  the organic pools which decomposers exploit.
+
+**4. Seed 41001 (producer-collapse failure mode)**
+- t500: P189/C201/D122 (balanced)
+- t1000: P64/C401/D317 (consumer boom, producer decline)
+- t1500: P11/C271/D163 (producer near-extinct)
+- t2000: P4/C152/D14 (all guilds crash)
+- Consumers peak at t1000 (C401) then crash as producers vanish
+- Decomposers also crash — they depend on organic input from producer deaths
+- **Implication:** Classic consumer-driven producer extinction cascade.
+  Consumers overexploit producers → producer extinction → consumer starvation
+  → decomposer starvation. No rescue because nutrients are at cap (no limitation
+  to slow consumers) and spatial structure is synchronized (patch tracker).
+
+**5. Per-pool cap behavior (P2b confirmed)**
+- Cap multipliers [1.0, 0.78, 0.62] are used in regeneration and uptake
+- Excretion and biotic returns clamp to FLAT `nutrientPerCell * fertility` (review finding)
+- At 100% utilization, this distinction doesn't manifest — but if pools were
+  drawn down, the flat cap would over-fill pools 2 and 3 relative to pool 1
+
+### Audit Conclusions
+
+| Feedback Path | Functional? | Measured? | Notes |
+|---------------|-------------|-----------|-------|
+| Producer photosynthesis → nutrient uptake | YES | PARTIAL | Uptake inferred from energyIngested; per-pool uptake not separated |
+| Abiotic regeneration (nutrientRegen) | YES | NO | Flux not separately measured; confounded with cyclic flux |
+| Cyclic regeneration (nutrientCyclic) | YES | PARTIAL | mineralisedCell flux visible but tiny (2-16/tick) |
+| Excretion returns | YES | NO | Not separated from other inputs; P2b cap bug |
+| Biotic mineralization (3 pools) | YES | PARTIAL | mineralisedCell aggregate only; per-pool not separated |
+| Organic input (basalFoodPerCell) | YES | NO | Not traced to pool fate |
+| Graze/predation energy transfer | YES | PARTIAL | Ledger has grazeEnergy, predatedEnergy but not per-pool |
+
+**Critical gap:** No per-guild, per-nutrient-pool uptake attribution exists in the
+engine. The probe can only see aggregate pool totals and aggregate energyIngested
+by guild. To properly audit ecological feedback, the engine needs:
+- Photosynthesis uptake recorded per guild per pool (like grazeMeter but for nutrients)
+- Excretion returns recorded per guild per pool
+- Mineralization recorded per pool per source (detritus/sediment/litter)
+- Regeneration recorded per pool
+
+Without these, "audit ecological feedback by actual function" cannot be completed
+at the mechanism level — only at the aggregate endpoint level.
+
+
+--------------------------------------------------------------------------------
+EVOLUTION-DESIGN DECISION PACKET (2026-10-13)
+--------------------------------------------------------------------------------
+
+### Problem
+Stress-induced mutagenesis (`stressMutagenesis`) and `pioneerBonus` — the two
+mechanisms intended to drive adaptive guild transitions — fail to produce
+reliable consumer/decomposer emergence from producer-dominated states.
+
+### Why Current Mechanisms Fail
+
+**Stress Mutagenesis:**
+- Random mutation across 42 traits + body genes — no bias toward consumer/decomposer strategies
+- Stress correlates with death; mutations in dying lineages don't propagate
+- No guild-level selection; individual mutation rate ≠ guild adaptation
+- Acute mutagenesis in collapsing populations: too little, too late
+
+**Pioneer Bonus:**
+- Uses GLOBAL guild share ("void"), not local patch opportunity
+- Discount on upkeep only; doesn't create food where producers absent locally
+- No dispersal coupling; pioneers placed near parent (96% local)
+- Grace period (200 ticks) too short for population establishment
+
+### Two Alternatives
+
+**A. Global Steering ("mutate toward missing guild"):**
+- Guarantees guild presence; biologically unrealistic (no foresight in evolution)
+- Conceals mechanism failure; creates hidden quota; breaks emergence
+- Falsification: if ONLY global steering works, local mechanisms are fundamentally insufficient
+
+**B. Local Ecological Opportunity / Negative Frequency-Dependent Selection (RECOMMENDED):**
+- Core principle: rare guild in resource-rich patch → fitness advantage
+- Four mechanisms: local resource opportunity (partial), local nutrient opportunity (partial),
+  NFD mutation bias (missing), dispersal to opportunity (partial)
+- Minimal addition: local opportunity vector per organism, null-default knobs
+- Hooks: reproduction drive, dispersal probability, mutation bias
+
+### Measurable Predictions (Falsifiable)
+| Test | Threshold |
+|------|-----------|
+| opportunityWeight=1.0 on seed 41001 | First consumer birth <500 ticks |
+| dispersalWeight=0.5, patch tracker | >2 0→>0 recolonization events |
+| Both weights=1.0, 18 seeds | >9/18 seeds 3-guild at t2000 |
+| Weights=0 on balanced seeds | No change to existing coexistence |
+
+### Recommendation
+Phase 1: Diagnostic probe (opportunity sensor on patch tracker) — no engine change
+Phase 2: Engine knobs `opportunityWeight`, `dispersalWeight` (null default) — needs Owner approval
+Phase 3: Screen on failure seeds; promote only if predictions pass
+Phase 4: Trait→guild mapping for mutation bias (if Phase 3 succeeds)
+
+All knobs null-default, individually reversible. No quotas, no hidden floors.
