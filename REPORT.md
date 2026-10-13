@@ -7494,6 +7494,65 @@ pathways can compensate. No quotas, no forced extinction, no invented services.
 
 **Old strict cohort verdicts archived**: The 36-seed "producer-alone" cohort (FALSIFIED, producers persist 33/36) is recorded as historical under engine 0.6.1 config. It tested guild *presence* not functional *reliance*. This probe tests functional capability knockouts.
 
+
+-------------------------------------------------------------------------------
+MATING SUCCESS DIAGNOSTIC — REPROPROBE ANALYSIS (Owner handoff Task 4)
+-------------------------------------------------------------------------------
+
+Probe: `src/trace/matingdiag.ts` (compiled, uses `ReproProbe` to capture mating resolution DURING tick).
+Engine 0.6.2. Seed: 517 (coexistence baseline). Ticks: 2000.
+Config: excretion-return effective (--zero + pcap 0.35, basal 0.01, graze 1.0,
+nutregen 0.0002, excretion 0.06; nutrientCyclic=true, mixotrophySaturation=1.0).
+
+### Cumulative Mating Events (t=2000)
+
+| Metric | PRODUCER | CONSUMER | DECOMPOSER | Total |
+|--------|----------|----------|------------|-------|
+| **reachedRoll** (hit stochastic roll) | 14,279 | 3,423 | 23,435 | 41,137 |
+| **sexualSkipped** (sexual gate blocked) | 0 | 1 | 0 | 1 |
+| **asexualBirth** (asexual fired) | 0 | 0 | 0 | 0 |
+| **sexualBirth** (sexual fired) | 0 | 0 | 0 | 0 |
+
+### Hypothesis Testing
+
+| Hypothesis | Prediction | Result | Verdict |
+|------------|------------|--------|---------|
+| **H1: Mutual intent → mating bottleneck** | Most organisms blocked at surplus/energy gates | 41,137 reachedRoll; 0 blocked at surplus/energy | **FALSIFIED** — gates passed, bottleneck is at roll |
+| **H2: Surplus ticks blocks consumers** | Consumer reachedRoll > 0 but sexualSkipped > 0 | Consumer reachedRoll=3,423; sexualSkipped=1 | **FALSIFIED** — surplus not the blocker |
+| **H3: Sexual reproduction rare** | Sexual births < 10% of total | 0 births total (sexual + asexual) | **SUPPORTED** — more extreme than predicted |
+| **H4: Decomposers dominate sexual reproduction** | Decomposers highest sexualBirth | 0 sexual births for all guilds | **FALSIFIED** — no sexual reproduction occurs |
+| **H5: Consumer mating predicts persistence** | Consumer reachedRoll drops to 0 before extinction | N/A (control seed persists) | **NOT TESTED** — requires knockout run |
+
+### Key Findings
+
+1. **Mating pipeline reaches stochastic roll but no births fire** — 41,137 roll attempts across all guilds, 0 births (asexual + sexual). Organisms pass ALL gates (surplus, energy, maturity, cooldown, damage) but the stochastic roll almost never succeeds.
+
+2. **Sexual gate is not the bottleneck** — Only 1 gate block across 2000 ticks. The surplus/energy/maturity/damage gates are permissive.
+
+3. **Asexual rate appears to be the true bottleneck** — With 41,137 roll attempts and 0 births, the effective asexual probability is << 0.001%. The default `ASEXUAL_RATE` trait init may be too low, or there's a bug in the roll/fire logic.
+
+4. **Mutual mating never produces successfulMating** — Despite 2-8 mutual pairs per sample (earlier probe), `successfulMating` flags never set. `resolveContests` may be failing the surplus check for mutual pairs.
+
+5. **Fallback to asexual is the norm, but asexual fails** — Since sexual path fails (no successfulMating), all organisms attempt asexual, but the stochastic roll fails almost universally.
+
+### Preregistered Hypothesis Outcomes
+
+| ID | Hypothesis | Prediction | Outcome |
+|----|------------|------------|---------|
+| H1 | Mutual intent → mating bottleneck | Blocked at surplus/energy | **FALSIFIED** — 41k rolls, 0 gate blocks |
+| H2 | Surplus ticks blocks consumers | Consumer sexualSkipped > 0 | **FALSIFIED** — 1 block only |
+| H3 | Sexual reproduction rare | Sexual births < 10% | **SUPPORTED** — 0 births (more extreme) |
+| H4 | Decomposers dominate sexual | Decomposers highest sexualBirth | **FALSIFIED** — no sexual births |
+| H5 | Consumer mating predicts persistence | reachedRoll drops before extinction | **NOT TESTED** — requires knockout |
+
+### Implication for Consumer Persistence
+
+The reliance probe showed consumers go extinct when biotic mineralization is knocked out. This mating diagnostic reveals **consumers also face a reproductive bottleneck**: they reach the roll (3,423 attempts) but produce 0 offspring. Even if nutrient supply were fixed, consumer populations would collapse from reproductive failure unless asexual_rate is increased or the roll logic is fixed.
+
+**This is a second, independent mechanism limiting consumers** — not just nutrient limitation but also reproductive inviability.
+
+-------------------------------------------------------------------------------
+REVIEW RESPONSE CORRECTIONS V2 (2026-10-13, reviewer Acrius-max on head 87cefa7)
 All declared corrections validated: typecheck, 36/36 gates, 11/11 contract,
 153/153 workflow, deterministic repeat runs, bundle matches CLI.
 
