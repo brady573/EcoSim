@@ -284,6 +284,24 @@ export function assimilate(
     }
   }
 
+  // HYDROGEN AND OXYGEN FOR TISSUE.
+  //
+  // FINDING 2 FIXED. grow() requires C, H, O, N, P, S and Fe in stores, but
+  // only carbon and the mineral nutrients were ever taken up — so H and O were
+  // permanently zero and growth was STRUCTURALLY IMPOSSIBLE for any organism,
+  // whatever its energy or nutrient reserves. Tissue is built from the external
+  // water reservoir, which is the declared source for both.
+  if (!cfg.freeNutrients) {
+    const takeH = Math.min(chem.remaining(POOL.H2O, cell) * eff, demand[E.H] * 0.02);
+    if (takeH > 0) {
+      chem.claim(POOL.H2O, cell, takeH);
+      st.stores[base + E.H] += takeH;
+      // H2O carries its oxygen with it; the tissue takes it at the same ratio
+      // biomass uses, so O is drawn from the same molecule.
+      st.stores[base + E.O] += takeH * 0.5;
+    }
+  }
+
   // P and trace elements are taken by any living cell that carries tissue.
   const po4 = chem.remaining(POOL.PO4, cell);
   const takeP = Math.min(po4 * eff, demand[E.P] * 0.02);
@@ -413,8 +431,14 @@ export function releaseOnDeath(
       labile[e] += b - buried;
     }
     // Unexpended stores are excreted as available forms, not as dead tissue.
+    //
+    // FINDING 7 FIXED. Carbon was missing from this list. assimilate() fills
+    // carbon stores, and clearSlot() voided them on death, so every mole of
+    // unbuilt carbon an organism held simply DISAPPEARED — which is why the
+    // carbon books never closed no matter how the reactions were balanced.
     if (s > 0) {
-      if (e === E.N) chem.react(POOL.NH4, cell, s);
+      if (e === E.C) chem.react(POOL.OC, cell, s);
+      else if (e === E.N) chem.react(POOL.NH4, cell, s);
       else if (e === E.P) chem.react(POOL.PO4, cell, s);
       else if (e === E.S) chem.react(POOL.SO4, cell, s);
       else if (e === E.FE) chem.react(POOL.FE2, cell, s);

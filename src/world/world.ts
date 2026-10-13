@@ -3235,8 +3235,12 @@ export class World {
           }
           const labilePool = e === E.C ? POOL.OC : e === E.N ? POOL.ON
             : e === E.P ? POOL.OP : e === E.S ? POOL.OS : POOL.OFE;
+          // FINDING 6 FIXED. The ternary previously fell through to POOL.LS for
+          // Fe, depositing dead iron into the SULFUR litter pool — iron and
+          // sulfur in one compartment, which corrupts both elements' inventories
+          // and is the largest single contributor to the Fe residual.
           const litterPool = e === E.C ? POOL.LC : e === E.N ? POOL.LN
-            : e === E.P ? POOL.LP : POOL.LS;
+            : e === E.P ? POOL.LP : e === E.S ? POOL.LS : POOL.SFE;
           if (labile[e] > 0) this.chemistry.react(labilePool, cell, labile[e]);
           if (litter[e] > 0) this.chemistry.react(litterPool, cell, litter[e]);
         }
@@ -4329,6 +4333,10 @@ export class World {
 
       const cell = chem.index(store.x[slot], store.y[slot]);
       out.fill(0);
+      // FINDING 1 FIXED. chemExtents is a persistent buffer; it is cleared here
+      // per organism so a reaction that stopped firing this tick reads zero
+      // instead of retaining its previous value and being reported again.
+      this.chemExtents.fill(0);
       const gained = runMetabolism(chem, st, slot, cell, cfg, out, this.chemExtents);
       // Apply the organism's NET chemical transfers exactly once.
       //
