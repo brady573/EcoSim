@@ -5767,8 +5767,8 @@ Diagnostic cohort: 5 seeds, 1000 ticks, 400 founders, post-hoc. Raw output:
 `evidence/chem-predation-knob-070-20261013.txt`; details:
 `CHEM-PREDATION-KNOB-DIAGNOSTICS.md`.
 
-  base              pop med 6   births med 6    matter carbon 0.0000
-  predationMatter   pop med 7   births med 18   matter carbon 6.2879 mol
+  base              pop med 6   births med 10   matter carbon 0.0000
+  predationMatter   pop med 9   births med 17   matter carbon 6.9466 mol
 
 This is not claimed to rescue the ecosystem or demonstrate a full food web. It
 demonstrates a conservation-safe prey-to-predator matter-transfer mechanism as

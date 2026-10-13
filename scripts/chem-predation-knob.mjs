@@ -1,7 +1,7 @@
 import { World } from '../build/world/world.js';
 import { runIdentity } from '../build/world/version.js';
 
-const SEEDS = [517, 1013, 24601, 7, 99];
+const SEEDS = [517, 1013, 24601, 7, 99, 31337, 4242, 8080, 555, 12345];
 const TICKS = Number(process.argv[2] ?? 1000);
 
 function run(seed, extra = {}) {
