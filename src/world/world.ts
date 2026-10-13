@@ -53,6 +53,16 @@ import {
   type ChemConfig, type GrowthResult,
 } from '../bio/chemlife.js';
 import { HabitatMap } from '../bio/habitat.js';
+
+/**
+ * Moles of chemistry tissue carbon per unit of legacy detritus.
+ *
+ * ARBITRARY, and declared arbitrary. Used only by the H10 intervention, which
+ * exists to answer whether the legacy food web can see chemistry matter at all.
+ * It is not a calibrated conversion and no result depending on it should be
+ * read as an ecological quantity.
+ */
+const CHEM_TO_LEGACY_PER_CARBON = 0.5;
 import { deriveRole, developmentalScale, stageDamageFactor, MOTILITY, TROPHIC, TROPHIC_COUNT, type RoleReadout } from '../bio/role.js';
 import { TraceLog, TRACE, DEATH_CAUSE, type TraceOptions } from '../trace/trace.js';
 import { REPRO_GATE, type ReproProbe } from '../trace/reproprobe.js';
@@ -3245,6 +3255,23 @@ export class World {
             : e === E.P ? POOL.LP : e === E.S ? POOL.LS : POOL.SFE;
           if (labile[e] > 0) this.chemistry.react(labilePool, cell, labile[e]);
           if (litter[e] > 0) this.chemistry.react(litterPool, cell, litter[e]);
+          // H10 INTERVENTION, OFF BY DECLARATION.
+          //
+          // The chemistry and legacy economies are separate books. Matter from a
+          // chemistry death goes to chemistry pools; the legacy food web reads
+          // the detritus ScalarField and never sees it. An organism can hold
+          // hundreds of moles of chemical tissue and still starve on the legacy
+          // clock. This bridges them so the two mechanisms can be tested
+          // independently rather than argued about.
+          //
+          // The conversion factor is ARBITRARY and declared as such: there is
+          // no principled ratio between a mole of carbon and the legacy detritus
+          // units, so any result from this arm is a statement about the
+          // mechanism, not about a calibrated ecology.
+          if (this.chemCfg.toLegacyDetritus && e === E.C) {
+            const ci = this.detritus.index(store.x[slot], store.y[slot]);
+            if (ci >= 0) this.detritus.data[ci] += (labile[e] + litter[e]) * CHEM_TO_LEGACY_PER_CARBON;
+          }
         }
       }
 
@@ -4293,6 +4320,8 @@ export class World {
     cc.noAnaerobic = cfg.chemistryNoAnaerobic === true;
     cc.noNitrogenCycle = cfg.chemistryNoNitrogenCycle === true;
     cc.noNutrients = cfg.chemistryNoNutrients === true;
+    if (cfg.chemistryCo2WeatheringScale !== null) cc.co2WeatheringScale = cfg.chemistryCo2WeatheringScale;
+    if (cfg.chemistryToLegacyDetritus !== null) cc.toLegacyDetritus = cfg.chemistryToLegacyDetritus === true;
     cc.freeEnergy = cfg.chemistryFreeEnergy === true;
     cc.freeNutrients = cfg.chemistryFreeNutrients === true;
 
@@ -4326,7 +4355,7 @@ export class World {
     // Atmospheric CO2 dissolves into the water column, uniformly: the model has
     // no atmosphere, so a uniform source is a declared simplification rather
     // than a localised vent whose strength is quietly tuned.
-    const co2Each = per.co2Weathering;
+    const co2Each = per.co2Weathering * this.chemCfg.co2WeatheringScale;
     for (let i = 0; i < c; i++) chem.react(POOL.DIC, i, co2Each);
     // Pool values are moles PER CELL, so the counter is already in moles when
     // summed over cells. The earlier `* chem.cellArea` applied a 1600x factor

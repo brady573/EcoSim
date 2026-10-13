@@ -135,6 +135,27 @@ export interface ChemConfig {
    * births continue, the "nutrient-limited" label was decoration.
    */
   noNutrients: boolean;
+  /**
+   * Scale factor on atmospheric CO2 weathering. DIAGNOSTIC, for H9 only.
+   *
+   * The intervention used to test whether organic-carbon SUPPLY per cell is
+   * what limits reproduction. Declared here rather than buried in the probe so
+   * that the arm is part of the model's documented surface and is reproducible
+   * from a config line.
+   */
+  co2WeatheringScale: number;
+  /**
+   * Convert chemistry tissue released at death into legacy detritus.
+   *
+   * DIAGNOSTIC, for H10 only. The two economies are currently separate: matter
+   * released by a chemistry death goes to chemistry pools, while the legacy food
+   * web reads the detritus ScalarField. An organism can therefore hold 300 mol
+   * of chemical tissue and still starve on the legacy clock. This knob bridges
+   * them, and `CHEM_TO_LEGACY_PER_CARBON` declares the conversion — which is an
+   * ARBITRARY number, stated as such, because no principled factor exists
+   * between a mole of carbon and the legacy detritus units.
+   */
+  toLegacyDetritus: boolean;
   freeEnergy: boolean;
   freeNutrients: boolean;
 }
@@ -148,6 +169,8 @@ export const DEFAULT_CHEM_CONFIG: ChemConfig = {
   noAnaerobic: false,
   noNitrogenCycle: false,
   noNutrients: false,
+  co2WeatheringScale: 1,
+  toLegacyDetritus: false,
   freeEnergy: false,
   freeNutrients: false,
 };

@@ -591,6 +591,10 @@ export interface WorldConfig {
   chemistryNoNitrogenCycle: boolean | null;
   /** Ablation: remove mineral nutrients. Diagnostic only. */
   chemistryNoNutrients: boolean | null;
+  /** H9 intervention: scale CO2 weathering. null = declared behaviour. */
+  chemistryCo2WeatheringScale: number | null;
+  /** H10 intervention: bridge chemistry death to the legacy detritus field. */
+  chemistryToLegacyDetritus: boolean | null;
   /** Make energy free: growth then depends on matter ALONE. */
   chemistryFreeEnergy: boolean | null;
   /** Make nutrients free: growth then depends on energy ALONE. */
@@ -865,6 +869,8 @@ export const DEFAULT_CONFIG: WorldConfig = {
   chemistryNoAnaerobic: null,
   chemistryNoNitrogenCycle: null,
   chemistryNoNutrients: null,
+  chemistryCo2WeatheringScale: null,
+  chemistryToLegacyDetritus: null,
   chemistryFreeEnergy: null,
   chemistryFreeNutrients: null,
   nutrientFloor: 0,
