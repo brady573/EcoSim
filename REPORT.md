@@ -6705,7 +6705,7 @@ No promotion bar: this is diagnosis, and its output selects (not executes)
 the next screen.
 
 --------------------------------------------------------------------------------
-VIABILITY ATTRIBUTION RESULT: FRACTION GATE DOMINATES, SCALE SEPARATES (2026-10-12)
+VIABILITY ATTRIBUTION RESULT: FRACTION DOMINATES, SCALE HETEROGENEOUS (2026-10-12)
 --------------------------------------------------------------------------------
 
 RUN. viabilitygates.js (new read-only probe; gateattrib.ts untouched), 6000
@@ -6741,10 +6741,14 @@ fraction-blocked first under engine order). The exoneration is now far
 stronger than v1 stated: with the engine's own accounting, the drought
 reserve stops nothing. Damage is second but highest on persister 41004
 (29,991), so damage composition does not separate either. Roll conversion is
-~1% everywhere (52/4445, 1183/105752, 41/4501). What separates failer from
-persisters remains SCALE (roll-reaching ticks 4.4k vs 106k/4.5k), i.e.
-recruitment and retention upstream of breeding — the v1 scale conclusion
-survives the method correction even as its shares do not.
+~1% everywhere (52/4445, 1183/105752, 41/4501). On scale the three seeds are
+heterogeneous, not ordered: failer 41002 (4,445 roll-reaching ticks) is
+near-identical to persister 41012 (4,501; difference 56, ~1.3%) with opposite
+outcomes, while persister 41004 (105,752) dwarfs both — so high roll-entry
+volume distinguishes 41004, not 41012, from 41002. The cause of the 41002 /
+41012 endpoint difference is left unresolved; time distribution, survival and
+realized reproduction require separate evidence. No scale claim attaches to
+any verdict here.
 Adjacent (recorded, not fixed here): the pre-existing gateattrib.ts carries
 the same hand-replicated wrong-order attribution for default config; it feeds
 no verdict in this record and is left untouched pending an Owner call.
