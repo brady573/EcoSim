@@ -344,7 +344,7 @@ export function reactionExtent(
 
   let rate = r.vmax * capStrength;
   for (const pool of r.limits) {
-    const c = chem.fields[pool].data[cell];
+    const c = chem.remaining(pool, cell);
     // Monod half-saturation is expressed relative to the reaction's own vmax so
     // that a single convention covers pools spanning many orders of magnitude.
     // DECLARED IDEALISATION: a real Km is a property of a transporter, not of
@@ -355,12 +355,13 @@ export function reactionExtent(
   }
   if (rate <= 1e-12) return 0;
 
-  // Substrate availability caps the extent. Each substrate is checked against
-  // what the cell actually holds, so no reaction can run on matter that is not
-  // there. `out` receives the stoichiometric transfer.
+  // Substrate availability caps the extent, read through `remaining()` so that
+  // organisms earlier in this tick's sweep cannot take the same pool twice.
+  // Without this, N organisms in one cell each read the full pre-tick
+  // concentration and their combined draw is N times the pool.
   for (const sub of r.substrates) {
     if (sub.coeff <= 0) continue;
-    const avail = chem.fields[sub.pool].data[cell];
+    const avail = chem.remaining(sub.pool, cell);
     rate = Math.min(rate, avail / sub.coeff);
   }
   if (rate <= 1e-12) return 0;

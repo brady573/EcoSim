@@ -302,10 +302,39 @@ export class Chemistry {
   readonly fields: ChemField[] = [];
   readonly cols: number;
   readonly rows: number;
+  /**
+   * Moles represented by one field cell.
+   *
+   * FIXES THE UNIT MISMATCH AT ITS SOURCE. Pool values are moles PER CELL.
+   * `elementTotal` previously multiplied by cellArea = cellWidth^2 = 1600,
+   * while organism stores were credited in raw moles with no conversion — two
+   * incompatible units in the same conservation equation. It also made living
+   * biomass about 0.006% of standing carbon, so organisms were numerically
+   * irrelevant to the chemistry they were supposed to drive.
+   *
+   * One mole per cell puts an organism's carbon on the same scale as a cell's
+   * inventory: with 10,000 cells holding ~0.35 mol of labile carbon each, a
+   * founding cohort of 400 organisms at ~1 mol C each is ~11% of the standing
+   * pool — a real fraction that organisms can measurably deplete and refill.
+   */
   readonly cellArea: number;
   readonly cfg: ChemistryConfig;
   /** Per-cell reaction deltas, indexed pool*cellCount + cell. */
   readonly delta: Float64Array;
+  /**
+   * Per-cell quantity ALREADY CLAIMED by earlier organisms this tick.
+   *
+   * FINDING 3, fixed at the source. Competing organisms in one cell all read the
+   * same pre-tick concentration, so N organisms each drawing "up to 100% of
+   * what is there" sum to N times the pool and drive it negative. Flooring the
+   * result hides the overshoot but CREATES matter, because the part of the draw
+   * that never materialised still generated its reaction products elsewhere.
+   *
+   * Claiming makes the competition explicit and finite: an organism may take
+   * what is present MINUS what earlier organisms in the same tick already took.
+   * `remaining()` is what every uptake path must read.
+   */
+  readonly claimed: Float64Array;
   readonly flux = newBoundaryFluxes();
 
   constructor(cols: number, rows: number, cellArea: number, cfg: ChemistryConfig) {
@@ -318,6 +347,7 @@ export class Chemistry {
       this.fields.push(new ChemField(POOL_NAMES[p], cols, rows, 0));
     }
     this.delta = new Float64Array(POOL_COUNT * n);
+    this.claimed = new Float64Array(POOL_COUNT * n);
     this.seedInitial();
   }
 
@@ -369,19 +399,71 @@ export class Chemistry {
     this.delta[pool * this.cols * this.rows + cell] += amount;
   }
 
+  /**
+   * What is still available of a pool at a cell, after earlier claims this tick.
+   *
+   * Never negative: a fully-claimed pool reads zero, which is the correct answer
+   * for a finite resource that has already been taken.
+   */
+  remaining(pool: POOL, cell: number): number {
+    const i = pool * this.cols * this.rows + cell;
+    const free = this.fields[pool].data[cell] - this.claimed[i];
+    return free > 0 ? free : 0;
+  }
+
+  /** Book a draw against a pool so later organisms in this tick see less. */
+  claim(pool: POOL, cell: number, amount: number): void {
+    if (amount <= 0) return;
+    const i = pool * this.cols * this.rows + cell;
+    this.claimed[i] += amount;
+    this.delta[i] -= amount;
+  }
+
+  /**
+   * Cumulative magnitude clamped to zero by settling, per pool.
+   *
+   * FINDING 3. Competing organisms in one cell both read the same pre-tick
+   * concentration, so their combined draw can exceed what the cell holds and
+   * drive a pool negative — after which the next organism reads a negative
+   * "available" concentration and the model silently creates matter. Clamping
+   * makes the overshoot visible instead of letting it propagate.
+   */
+  readonly clamped = new Float64Array(POOL_COUNT);
+
+  /** Cells that were clamped on the most recent settle, per pool. */
+  readonly clampedCells = new Float64Array(POOL_COUNT);
+
   /** Apply accumulated deltas, then transport. Order is fixed and declared. */
   settle(): void {
     const n = this.cols * this.rows;
+    this.clamped.fill(0);
+    this.clampedCells.fill(0);
+    this.claimed.fill(0);
     for (let p = 0; p < POOL_COUNT; p++) {
       const f = this.fields[p];
       const base = p * n;
       for (let i = 0; i < n; i++) {
         const d = this.delta[base + i];
-        if (d !== 0) f.data[i] += d;
+        if (d === 0) continue;
+        const next = f.data[i] + d;
+        if (next < 0) {
+          this.clamped[p] += -next;
+          this.clampedCells[p]++;
+          f.data[i] = 0;
+        } else {
+          f.data[i] = next;
+        }
       }
       this.delta.fill(0, base, base + n);
     }
     this.transport();
+  }
+
+  /** Total magnitude clamped across all pools since construction. */
+  totalClamped(): number {
+    let s = 0;
+    for (let p = 0; p < POOL_COUNT; p++) s += this.clamped[p];
+    return s;
   }
 
   /**

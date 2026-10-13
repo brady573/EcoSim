@@ -254,37 +254,57 @@ export function assimilate(
   const eff = cfg.freeNutrients ? 1 : cfg.assimilationEfficiency;
   if ((st.capMask[slot] & CAP.N_ASSIM) !== 0) {
     const take = Math.min(
-      chem.fields[POOL.NH4].data[cell] * eff,
+      chem.remaining(POOL.NH4, cell) * eff,
       demand[E.N] * 0.02,
     );
     if (take > 0) {
-      chem.react(POOL.NH4, cell, -take);
+      chem.claim(POOL.NH4, cell, take);
       st.stores[base + E.N] += take;
     }
   }
+  // CARBON ACQUISITION — the pathway growth depends on.
+  //
+  // FINDING 4. `grow()` draws tissue from stores, and stores never received
+  // carbon from anywhere, so growth could never add a single gram of tissue: it
+  // computed a result and then moved nothing. Organisms now take labile
+  // organic carbon (OC) out of the cell into their stores, which is what makes
+  // the producer -> detritus -> consumer loop a real material path rather than
+  // a decorative pool.
+  //
+  // Limited by what the cell actually holds, so it cannot draw on carbon that
+  // is not there.
+  if (!cfg.freeNutrients) {
+    const oc = chem.remaining(POOL.OC, cell);
+    const takeC = Math.min(oc * eff, demand[E.C] * 0.02);
+    if (takeC > 0) {
+      chem.claim(POOL.OC, cell, takeC);
+      st.stores[base + E.C] += takeC;
+    }
+  }
+
   // P and trace elements are taken by any living cell that carries tissue.
-  const po4 = chem.fields[POOL.PO4].data[cell];
+  const po4 = chem.remaining(POOL.PO4, cell);
   const takeP = Math.min(po4 * eff, demand[E.P] * 0.02);
   if (takeP > 0) {
-    chem.react(POOL.PO4, cell, -takeP);
+    chem.claim(POOL.PO4, cell, takeP);
     st.stores[base + E.P] += takeP;
   }
   if ((st.capMask[slot] & CAP.FE_UPTAKE) !== 0) {
     const takeFe = Math.min(
-      chem.fields[POOL.FE2].data[cell] * eff, demand[E.FE] * 0.02,
+      chem.remaining(POOL.FE2, cell) * eff, demand[E.FE] * 0.02,
     );
     if (takeFe > 0) {
-      chem.react(POOL.FE2, cell, -takeFe);
+      chem.claim(POOL.FE2, cell, takeFe);
       st.stores[base + E.FE] += takeFe;
     }
   }
   if ((st.capMask[slot] & CAP.SULF_REDUCE) !== 0 || (st.capMask[slot] & CAP.SULF_OXIDIZE) !== 0) {
     const src = (st.capMask[slot] & CAP.SULF_OXIDIZE) !== 0 ? POOL.SO4 : POOL.H2S;
     const takeS = Math.min(
-      chem.fields[src].data[cell] * eff, demand[E.S] * 0.02,
+      chem.remaining(src, cell) * eff, demand[E.S] * 0.02,
     );
     if (takeS > 0) {
-      chem.react(src, cell, -takeS);
+      chem.claim(src, cell, takeS);
       st.stores[base + E.S] += takeS;
     }
   }
@@ -322,10 +342,14 @@ export function grow(
   // Matter-limited ceiling: what the organism's own stores can supply.
   let matterCarbon = requestedCarbon;
   const base = slot * E.COUNT;
-  for (const e of [...MACRONUTRIENTS, ...TRACE_ELEMENTS]) {
+  // STRUCTURAL elements come from stores, as do the macronutrients and traces.
+  // Standing biomass is deliberately NOT counted as available: it is tissue the
+  // organism already built, and treating it as feedstock would let an organism
+  // "grow" by cannibalising itself.
+  for (const e of [E.C, E.H, E.O, ...MACRONUTRIENTS, ...TRACE_ELEMENTS]) {
     const need = v[e];
     if (need <= 0) continue;
-    const have = st.stores[base + e] + st.biomass[base + e];
+    const have = st.stores[base + e];
     const possible = have / need;
     if (possible < matterCarbon) matterCarbon = possible;
   }
@@ -415,7 +439,7 @@ export function canAffordOffspring(
   for (const e of [...MACRONUTRIENTS, ...TRACE_ELEMENTS]) {
     const need = v[e] * cfg.reproNutrientDemand;
     if (need <= 0) continue;
-    if (st.stores[base + e] + st.biomass[base + e] < need) return { ok: false, lacking: 'nutrient' };
+    if (st.stores[base + e] < need) return { ok: false, lacking: 'nutrient' };
   }
   if (st.biomass[base + E.C] < demand) return { ok: false, lacking: 'carbon' };
   return { ok: true, lacking: 'none' };

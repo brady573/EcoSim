@@ -246,6 +246,9 @@ export interface ChemistryAudit {
   residual: ConservationReport[];
   hypoxicFraction: number;
   oxicFraction: number;
+  /** Matter created by clamping an oversubscribed pool, this tick / cumulative. */
+  clampedThisTick: number;
+  clampedTotal: number;
 }
 
 /** Bit index of a single-bit capability. */
@@ -4201,7 +4204,11 @@ export class World {
     const cols = field.cols;
     const rows = field.rows;
     const cellW = this.config.worldW / cols;
-    const chem = new Chemistry(cols, rows, cellW * cellW, { ...DEFAULT_CHEMISTRY });
+    // ONE MOLE PER CELL. See Chemistry.cellArea: pool values are moles per cell,
+    // so multiplying by cellWidth^2 put the environment 1600x out of scale with
+    // organism stores and reduced living biomass to a rounding error in its own
+    // nutrient budget.
+    const chem = new Chemistry(cols, rows, 1, { ...DEFAULT_CHEMISTRY });
     chem.setCellSize(cellW, this.config.worldH / rows);
     this.chemistry = chem;
     this.chemStores = newChemStores(this.store.capacity);
@@ -4375,6 +4382,7 @@ export class World {
         tick: 0, biomass: zero(), stores: zero(), environment: zero(),
         inputs: zero(), outputs: zero(), initial: zero(), residual: [],
         hypoxicFraction: 0, oxicFraction: 0,
+        clampedThisTick: 0, clampedTotal: 0,
       };
       // FINDING 7 FIXED. The opening inventory is captured from the fields at
       // construction, BEFORE any boundary flux or reaction has run. Capturing
@@ -4428,6 +4436,15 @@ export class World {
     const held = new Float64Array(n);
     for (let e = 0; e < n; e++) held[e] = a.biomass[e] + a.stores[e] + a.environment[e];
     for (let e = 0; e < n; e++) a.outputs[e] = chem.flux.gasExport[e] + chem.flux.reservoirSink[e];
+    // Overshoot clamped at settle is matter CREATED by clamping: two agents in
+    // one cell drew more than the cell held, the pool was floored at zero, and
+    // the unmaterialised remainder is now nowhere. It is booked as a declared
+    // correction term so it shows up in the residual rather than being absorbed
+    // — a clamp that silently improved the balance would be worse than no clamp.
+    let clampedTotal = 0;
+    for (let q = 0; q < POOL_COUNT; q++) clampedTotal += chem.clamped[q];
+    a.clampedThisTick = clampedTotal;
+    a.clampedTotal += clampedTotal;
     a.residual = conservationReport(
       a.initial, held, a.inputs, a.outputs,
     );
