@@ -224,6 +224,16 @@ troubleshooting shortcut.
 
 The repository has **no remote**. Creating one is an Owner decision.
 
+## Owner authorization (experimental branch)
+
+The Project Owner has granted blanket authorization for experimental implementation,
+parameter choice, sequencing, hypothesis re-runs, ablation work, and integration
+on this isolated branch. Routine experimental decisions are not Owner-gated during
+this phase.
+
+The only hard boundary remains: no merging and no integration into the
+maintained Digital Evolution product without explicit Owner approval.
+
 ## When to stop and ask
 
 Surface rather than guess when: a change would alter reproducibility semantics

@@ -1,0 +1,49 @@
+IDENTITY: ts-evo-poc/0.7.0+chem/0.7.0 | seeds: 10 | ticks: 1000 
+
+--- H1/H2/H7 arm comparison (per-seed) ---
+arm                517   1013  24601      7     99  31337   4242   8080    555  12345
+base                36      3      6      7      2     13      4     10     15     39
+noNutrients          0      0      0      0      0      0      0      0      0      0
+noChemo             75     37     25      6     25     12     30     20     27     30
+noAnaerobic         36      3      6      7      2     13      4     10     15     39
+noNitrogen         104     18     11     25      9      5      7      0     15     55
+chemOff           1011    510    814    409    788   1520    612    391    668    538
+
+(value shown: births for chemistry arms, final population for chemOff)
+
+--- H1 nutrient vs energy limitation ---
+nutrientLimited  min 156610.00 med 170252.00 max 192606.00
+energyLimited    min 8.00 med 123.00 max 143.00
+ratio med 1755.0  min 1310.1  max 21281.5
+seeds where nutrient-limited exceeds energy-limited >10x: 10/10
+
+--- H2 nutrient-starved reproduction (counterfactual) ---
+nutrients present : births min 2 med 10 max 39  (10/10 seeds nonzero)
+nutrients removed : births min 0 med 0 max 0  (0/10 seeds nonzero)
+
+--- H3 anaerobic realized opportunity ---
+fermentation         nonzero on 0/10 seeds  median 0.000
+sulfate reduction    nonzero on 0/10 seeds  median 0.000
+denitrification      nonzero on 0/10 seeds  median 0.000
+hypoxic fraction  nonzero on 0/10 seeds  max 0.00000
+
+--- H4 chemosynthesis ---
+sulfur oxidation     nonzero on 0/10 seeds  median 0.00
+iron oxidation       nonzero on 10/10 seeds  median 49.71
+photosynthesis       nonzero on 10/10 seeds  median 1127.17
+carbon built by chemistry path: median 274.3 mol
+
+--- H5 capability heritability ---
+iron-uptake capability segregates on 5/10 seeds
+per-seed (with/total): 28/28  3/3  2/4  7/8  6/6  4/4  3/3  5/6  13/14  27/29
+
+--- ablation arms ---
+base           pop med     6  [3..29]  births med    10  carbonBuilt med 274.3
+noChemo        pop med    16  [3..49]  births med    27  carbonBuilt med 364.8
+noAnaerobic    pop med     6  [3..29]  births med    10  carbonBuilt med 274.3
+noNitrogen     pop med     8  [3..97]  births med    15  carbonBuilt med 279.6
+chemOff        pop med   668  [391..1520]  births med     0  carbonBuilt med 0.0
+
+--- H7 terminal population vs 400 founders ---
+seeds ending BELOW 400 founders: 10/10  -> H7 SUPPORTED
+median terminal population 6

@@ -52,16 +52,18 @@ Repeat runs of the new pins are byte-identical on this runtime.
 
 | Hypothesis | 0.6.0 result | Status | 0.7.0 status |
 |---|---|---|---|
-| H1 nutrient vs energy limitation | SUPPORTED, 3235:1, 10/10 seeds | **HISTORICAL** | **PENDING** |
-| H2 nutrients gate reproduction | SUPPORTED, 10/10 vs 0/10 | **HISTORICAL** | **PENDING** (mechanism unaffected; population figures are) |
-| H3 anaerobic opportunity | FALSIFIED, 0/10 | **HISTORICAL** | **PENDING** |
-| H4 chemosynthesis | PARTIAL | **HISTORICAL** | **PENDING** |
-| H5 capability heritability | SUPPORTED, 8/10 | **HISTORICAL** | **PENDING** |
+| H1 nutrient vs energy limitation | SUPPORTED, 3235:1, 10/10 seeds | **HISTORICAL** | **CURRENT** — SUPPORTED, median 1755:1, 10/10 seeds (`PREREGISTRATION-070-RESULTS.md`) |
+| H2 nutrients gate reproduction | SUPPORTED, 10/10 vs 0/10 | **HISTORICAL** | **CURRENT** — SUPPORTED, births nonzero 10/10 with nutrients, exactly 0 on 10/10 without |
+| H3 anaerobic opportunity | FALSIFIED, 0/10 | **HISTORICAL** | **CURRENT** — FALSIFIED again, all three reactions zero 10/10, hypoxia identically 0 |
+| H4 chemosynthesis | PARTIAL | **HISTORICAL** | **CURRENT** — PARTIAL again, iron oxidation nonzero 10/10, sulfur oxidation zero 10/10 |
+| H5 capability heritability | SUPPORTED, 8/10 | **HISTORICAL** | **CURRENT but not supported** — segregated on only 5/10 seeds; offspring correlation NOT MEASURED, so the registered falsification condition is unestablished |
 | H6 performance floors | SUPPORTED | **HISTORICAL** | **CURRENT** (re-measured, all floors cleared) |
-| H7 does not self-sustain | SUPPORTED, 10/10 declining | **HISTORICAL** | **CURRENT** (still 10/10 declining) |
+| H7 does not self-sustain | SUPPORTED, 10/10 declining | **HISTORICAL** | **CURRENT** (still 10/10 declining, median terminal pop 6) |
 
-The H1–H5 verdicts are **not carried forward**. They were measured under a
-defective canopy and must be re-run before being quoted.
+H1–H5 were re-measured under `0.7.0` on 2026-10-13; see
+`PREREGISTRATION-070-RESULTS.md` for thresholds and raw data. The historical
+`0.6.0` verdicts above are retained as provenance and are not comparable to the
+current figures digit-for-digit.
 
 ## 4. H9/H10/H11 — `PREDECLARATION-H9H10.md`
 
