@@ -1,5 +1,13 @@
 # PR #13 corrected measurements
 
+Historical source snapshot: commit `4cc865f`. The repeat claim below concerns
+that measured snapshot, pinned by this directory's source hashes. The later
+D5 on/off proof adds TRAJECTORY lines and changes the opportunity footer;
+running today's command will not reproduce this older stdout byte-for-byte.
+The observer measurements were not changed. These archived runs/repeats are
+preserved, not rewritten; current-format on/off evidence is separately stored
+in `evidence/pr13-observer-nonperturbation/`.
+
 Engine `ts-evo-poc/0.6.3`, Node v24.21.0. Each probe prints its seed,
 horizon and resolved configuration. `source-sha256.txt` identifies the measured
 engine/probe/gate source. These are bounded diagnostics, not a new ecology cohort.

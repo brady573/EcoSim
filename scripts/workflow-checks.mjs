@@ -1414,6 +1414,19 @@ for (const [wfPath, label] of [
 
 // ===========================================================================
 
+{
+  let detail;
+  let pass = false;
+  try {
+    detail = execFileSync(process.execPath, [join(root, 'scripts/opportunity-check.mjs'), '--self-test'], {
+      cwd: root, encoding: 'utf8',
+    }).trim();
+    pass = detail.includes('PASS: opportunity evidence fixtures');
+  } catch (error) {
+    detail = String(error);
+  }
+  check('W9-observer', 'on/off evidence checker rejects corrupt/config/missing/duplicate frames', pass, detail);
+}
 console.log(`\n${results.length - failed}/${results.length} workflow checks passed`);
 if (failed > 0) {
   console.error('FAILED:');

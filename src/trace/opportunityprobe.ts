@@ -22,11 +22,10 @@
  * opportunity gradient exists and whether it is already being read by the
  * existing behaviour-arbitration scores.
  *
- * Nonperturbation is established structurally, not by an in-probe assertion:
- * the observer sets no knob, writes no engine state, and draws no randomness
- * beyond the World's own seeded stream, so it cannot alter a trajectory. The
- * companion evidence is contract check C1 (knobs-unset parity on both pinned
- * seeds), which passes unchanged with this probe present in the tree.
+ * Direct nonperturbation check: scripts/opportunity-check.mjs compares this
+ * recorder on/off using identical resolved configurations and seeds, checking
+ * World.hashState() after recording at every sample. C1 unset-default parity
+ * is a separate contract, not evidence of recorder on/off equivalence.
  *
  * Engine: ts-evo-poc/0.6.3
  * Run (compiled only): node build/trace/opportunityprobe.js [ticks] [seeds...]
@@ -51,6 +50,8 @@ if (SEEDS.some((s) => !Number.isFinite(s) || s <= 0)) {
 /** Sample cadence. Long enough that displacement is a real move, short enough
  *  that an organism is unlikely to have died and been recycled twice over. */
 const SAMPLE_EVERY = 250;
+// Diagnostic control only: skip observer reads/reporting, never alter config.
+const OBSERVER_ON = !process.argv.includes('--observer-off');
 
 /** The pinned excretion-return effective config — identical to patchtrack /
  * nutrientflow / relianceprobe so every diagnostic in this family describes
@@ -98,6 +99,7 @@ interface OpportunityInternals {
   step(): void;
   patchGridDims(): [number, number];
   patchGuild(p: number, trophic: number): number;
+  hashState(): string;
 }
 
 const GUILD_OF = (g: number): 0 | 1 | 2 =>
@@ -173,6 +175,7 @@ for (const seed of SEEDS) {
   console.log(`  field=${fieldCols}x${fieldRows} patches=${pCols}x${pRows} (excretion effective config)`);
   console.log('  READ-ONLY: no knob set, no state written, no RNG drawn by the observer.');
   console.log('');
+  console.log(`TRAJECTORY tick=0 digest=${w.hashState()}`);
 
   /** id -> position at the previous sample, for dispersal measurement. */
   let prevPos = new Map<number, { x: number; y: number; guild: 0 | 1 | 2 }>();
@@ -184,6 +187,10 @@ for (const seed of SEEDS) {
     w.step();
     const sampleNow = (t % SAMPLE_EVERY === 0) || t === TICKS;
     if (!sampleNow) continue;
+    if (!OBSERVER_ON) {
+      console.log(`TRAJECTORY tick=${t} digest=${w.hashState()}`);
+      continue;
+    }
 
     // --- census of living organisms -----------------------------------------
     const live: Organism[] = [];
@@ -380,10 +387,12 @@ for (const seed of SEEDS) {
     prevSample = sample;
     prevPos = new Map(sample.map((s) => [s.id, { x: s.x, y: s.y, guild: s.guild }]));
     prevEnergy = new Map(sample.map((s) => [s.id, s.energy]));
+    // Capture AFTER recorder work: changes to hash-covered state/RNG are visible.
+    // This supplied digest is not independent proof of coverage of every field.
+    console.log(`TRAJECTORY tick=${t} digest=${w.hashState()}`);
   }
 
   console.log('');
-  console.log(`  seed=${seed} complete. This observer sets no knob, so its output is a `);
-  console.log('  measurement of declared behaviour, not an experimental arm.');
+  console.log(`  seed=${seed} complete. Observer=${OBSERVER_ON ? 'on' : 'off'}; effective diagnostic configuration, not unset defaults.`);
   console.log('');
 }

@@ -1,0 +1,84 @@
+OPPORTUNITY/FITNESS OBSERVER seed=41001 ticks=3000
+engine=ts-evo-poc/0.6.3 resolvedConfig={"worldW":2400,"worldH":2400,"fieldCell":40,"spatialCell":42,"founders":400,"abioticPeriod":1,"baseLight":1.05,"lightAmplitude":0.22,"abioticCycle":900,"baseTemp":18,"tempAmplitude":9,"nutrientDiffusivity":0.11,"nutrientDecay":0.0001,"nutrientPerCell":26,"shadeExtinction":0.034,"shadeGrain":4,"nutrientCapacity":[1,0.78,0.62],"sedimentPerCell":5.5,"sedimentDecay":0.0000016,"detritusDiffusivity":0.09,"detritusDecay":0.000007,"recyclingRate":0.02,"energyPerFood":5.2,"basalFoodPerCell":0.01,"locomotionCostScale":1,"stressMutagenesis":1,"radiation":null,"pioneerBonus":null,"foodDisease":0.15,"meatYieldPerMass":0,"plantYieldPerMass":0,"metapopulationPatches":4,"immigrationWeight":1,"litterPerCell":2,"litterDecay":0.0000024,"litterFraction":0.1,"litterRainShare":0.06,"energyPerCarrion":3.1,"reproThresholdInit":null,"asexualRateInit":null,"clutchSizeInit":null,"reproActCostScale":null,"birthTransferScale":null,"predationYieldScale":null,"grazeYieldScale":1,"consumerPhotoScale":0,"decomposerPhotoScale":0,"consumerBasalScale":0.25,"producerCaptureScale":0.35,"decomposerFounders":0.25,"decomposerDormancy":0.05,"dormantThreatBlind":null,"reproSurplusTicks":30,"mixotrophyCarbon":null,"mixotrophySaturation":1,"nutrientCyclic":true,"genomeV2":null,"nutrientFloor":0.05,"sporeDispersal":1,"dormantSenescence":null,"birthCostFactor":0.42,"disturbanceInterval":260,"disturbanceChance":0.55,"maxPopulation":60000,"nutrientRegen":0.0002,"bioticMineralisation":0.45,"excretionRate":0.06,"label":"default","seed":41001}
+  field=60x60 patches=4x4 (excretion effective config)
+  READ-ONLY: no knob set, no state written, no RNG drawn by the observer.
+
+TRAJECTORY tick=0 digest=cc83d553
+  t=250 live=417 P=227 C=139 D=51
+    patch heterogeneity: nutrient CV=0.125 detritus CV=0.557 detritus mean=5.718
+TRAJECTORY tick=250 digest=584e0e0b
+  t=500 live=512 P=189 C=201 D=122
+    patch heterogeneity: nutrient CV=0.104 detritus CV=0.828 detritus mean=5.237
+    interval (250t): survived 268/417 (64.269%) newborns=244 dead=149 mean dE=-5.501 mean |dispersal|=131.339 max=800.607
+    PRODUCER n=227 nutrient: hi=0.620 lo=0.427 | survival hi=48.214% lo=71.429% | quartileN hi=56 lo=56 energyN hi=27 lo=40 | dE hi=-9.019 lo=0.104 | competitors=1.269 threats=0.507 cellCrowd=0.744 damage=14.359
+    CONSUMER n=139 prey: hi=2.206 lo=0.000 | survival hi=47.059% lo=47.059% | quartileN hi=34 lo=34 energyN hi=16 lo=16 | dE hi=-21.833 lo=-5.776 | competitors=2.727 threats=0.000 cellCrowd=1.439 damage=10.231
+    DECOMPOSER n=51 detritus: hi=2.152 lo=0.110 | survival hi=91.667% lo=100.000% | quartileN hi=12 lo=12 energyN hi=11 lo=12 | dE hi=-5.990 lo=-0.760 | competitors=0.098 threats=0.529 cellCrowd=0.020 damage=1.085
+TRAJECTORY tick=500 digest=b93a97b3
+  t=750 live=660 P=143 C=266 D=251
+    patch heterogeneity: nutrient CV=0.092 detritus CV=1.227 detritus mean=3.734
+    interval (250t): survived 338/512 (66.016%) newborns=322 dead=174 mean dE=-2.954 mean |dispersal|=159.271 max=1024.593
+    PRODUCER n=189 nutrient: hi=0.586 lo=0.393 | survival hi=40.426% lo=87.234% | quartileN hi=47 lo=47 energyN hi=19 lo=41 | dE hi=-5.799 lo=-0.823 | competitors=2.571 threats=0.630 cellCrowd=2.122 damage=16.495
+    CONSUMER n=201 prey: hi=2.820 lo=0.000 | survival hi=24.000% lo=78.000% | quartileN hi=50 lo=50 energyN hi=12 lo=39 | dE hi=-3.532 lo=4.458 | competitors=2.731 threats=0.000 cellCrowd=1.577 damage=24.707
+    DECOMPOSER n=122 detritus: hi=1.790 lo=0.089 | survival hi=86.667% lo=86.667% | quartileN hi=30 lo=30 energyN hi=26 lo=26 | dE hi=-1.571 lo=-1.786 | competitors=0.525 threats=0.467 cellCrowd=0.180 damage=4.338
+TRAJECTORY tick=750 digest=eb5afbba
+  t=1000 live=782 P=64 C=401 D=317
+    patch heterogeneity: nutrient CV=0.076 detritus CV=1.728 detritus mean=1.788
+    interval (250t): survived 417/660 (63.182%) newborns=365 dead=243 mean dE=-4.017 mean |dispersal|=205.795 max=1080.473
+    PRODUCER n=143 nutrient: hi=0.558 lo=0.375 | survival hi=22.857% lo=65.714% | quartileN hi=35 lo=35 energyN hi=8 lo=23 | dE hi=-9.449 lo=-2.621 | competitors=2.853 threats=0.503 cellCrowd=2.664 damage=21.281
+    CONSUMER n=266 prey: hi=1.636 lo=0.000 | survival hi=54.545% lo=65.152% | quartileN hi=66 lo=66 energyN hi=36 lo=43 | dE hi=-2.828 lo=-9.236 | competitors=1.767 threats=0.000 cellCrowd=0.718 damage=17.135
+    DECOMPOSER n=251 detritus: hi=1.873 lo=0.102 | survival hi=83.871% lo=80.645% | quartileN hi=62 lo=62 energyN hi=52 lo=50 | dE hi=-2.065 lo=-5.443 | competitors=1.116 threats=1.223 cellCrowd=0.199 damage=7.691
+TRAJECTORY tick=1000 digest=dc8d5508
+  t=1250 live=640 P=26 C=358 D=256
+    patch heterogeneity: nutrient CV=0.063 detritus CV=1.640 detritus mean=1.436
+    interval (250t): survived 487/782 (62.276%) newborns=153 dead=295 mean dE=-2.527 mean |dispersal|=235.056 max=1133.809
+    PRODUCER n=64 nutrient: hi=0.531 lo=0.375 | survival hi=25.000% lo=31.250% | quartileN hi=16 lo=16 energyN hi=4 lo=5 | dE hi=-3.372 lo=3.154 | competitors=3.078 threats=0.641 cellCrowd=3.063 damage=41.676
+    CONSUMER n=401 prey: hi=1.650 lo=0.000 | survival hi=47.000% lo=62.000% | quartileN hi=100 lo=100 energyN hi=47 lo=62 | dE hi=-7.200 lo=-6.336 | competitors=0.953 threats=0.000 cellCrowd=0.584 damage=19.478
+    DECOMPOSER n=317 detritus: hi=0.773 lo=0.121 | survival hi=75.949% lo=78.481% | quartileN hi=79 lo=79 energyN hi=60 lo=62 | dE hi=-0.931 lo=-2.030 | competitors=1.744 threats=1.940 cellCrowd=0.366 damage=7.695
+TRAJECTORY tick=1250 digest=11030c18
+  t=1500 live=445 P=11 C=271 D=163
+    patch heterogeneity: nutrient CV=0.051 detritus CV=1.281 detritus mean=1.536
+    interval (250t): survived 351/640 (54.844%) newborns=94 dead=289 mean dE=0.016 mean |dispersal|=265.889 max=1222.759
+    PRODUCER n=26 nutrient: hi=0.517 lo=0.397 | survival hi=16.667% lo=66.667% | quartileN hi=6 lo=6 energyN hi=1 lo=4 | dE hi=1.527 lo=6.138 | competitors=2.077 threats=0.231 cellCrowd=2.115 damage=48.577
+    CONSUMER n=358 prey: hi=1.247 lo=0.000 | survival hi=34.831% lo=64.045% | quartileN hi=89 lo=89 energyN hi=31 lo=57 | dE hi=0.261 lo=-0.425 | competitors=0.735 threats=0.000 cellCrowd=0.520 damage=25.427
+    DECOMPOSER n=256 detritus: hi=0.468 lo=0.096 | survival hi=60.938% lo=60.938% | quartileN hi=64 lo=64 energyN hi=39 lo=39 | dE hi=-0.637 lo=-1.554 | competitors=2.086 threats=1.637 cellCrowd=0.652 damage=13.465
+TRAJECTORY tick=1500 digest=2ebe392f
+  t=1750 live=271 P=4 C=192 D=75
+    patch heterogeneity: nutrient CV=0.040 detritus CV=0.861 detritus mean=1.958
+    interval (250t): survived 194/445 (43.596%) newborns=77 dead=251 mean dE=1.166 mean |dispersal|=241.787 max=1143.332
+    PRODUCER n=11 nutrient: hi=0.485 lo=0.405 | survival hi=0.000% lo=50.000% | quartileN hi=2 lo=2 energyN hi=0 lo=1 | dE hi=n/a lo=-0.787 | competitors=3.273 threats=0.636 cellCrowd=3.273 damage=41.644
+    CONSUMER n=271 prey: hi=1.537 lo=0.000 | survival hi=32.836% lo=41.791% | quartileN hi=67 lo=67 energyN hi=22 lo=28 | dE hi=1.101 lo=2.758 | competitors=1.033 threats=0.000 cellCrowd=0.819 damage=32.252
+    DECOMPOSER n=163 detritus: hi=0.537 lo=0.102 | survival hi=50.000% lo=50.000% | quartileN hi=40 lo=40 energyN hi=20 lo=20 | dE hi=0.359 lo=-2.086 | competitors=1.908 threats=1.736 cellCrowd=0.638 damage=22.650
+TRAJECTORY tick=1750 digest=434d0179
+  t=2000 live=170 P=4 C=152 D=14
+    patch heterogeneity: nutrient CV=0.032 detritus CV=0.804 detritus mean=2.627
+    interval (250t): survived 103/271 (38.007%) newborns=67 dead=168 mean dE=3.616 mean |dispersal|=326.472 max=989.897
+    CONSUMER n=192 prey: hi=0.479 lo=0.000 | survival hi=52.083% lo=45.833% | quartileN hi=48 lo=48 energyN hi=25 lo=22 | dE hi=4.732 lo=4.574 | competitors=0.313 threats=0.000 cellCrowd=0.214 damage=33.740
+    DECOMPOSER n=75 detritus: hi=0.501 lo=0.105 | survival hi=5.556% lo=5.556% | quartileN hi=18 lo=18 energyN hi=1 lo=1 | dE hi=0.011 lo=0.709 | competitors=1.173 threats=1.107 cellCrowd=0.227 damage=45.770
+TRAJECTORY tick=2000 digest=d5eeb3a3
+  t=2250 live=304 P=3 C=293 D=8
+    patch heterogeneity: nutrient CV=0.029 detritus CV=0.984 detritus mean=2.392
+    interval (250t): survived 100/170 (58.824%) newborns=204 dead=70 mean dE=3.882 mean |dispersal|=334.800 max=671.435
+    CONSUMER n=152 prey: hi=0.026 lo=0.000 | survival hi=60.526% lo=60.526% | quartileN hi=38 lo=38 energyN hi=23 lo=23 | dE hi=3.426 lo=6.648 | competitors=0.178 threats=0.000 cellCrowd=0.132 damage=27.044
+    DECOMPOSER n=14 detritus: hi=0.579 lo=0.149 | survival hi=33.333% lo=33.333% | quartileN hi=3 lo=3 energyN hi=1 lo=1 | dE hi=1.262 lo=2.816 | competitors=0.143 threats=0.286 cellCrowd=0.000 damage=3.161
+TRAJECTORY tick=2250 digest=c53a1a81
+  t=2500 live=496 P=0 C=488 D=8
+    patch heterogeneity: nutrient CV=0.024 detritus CV=1.167 detritus mean=1.366
+    interval (250t): survived 234/304 (76.974%) newborns=262 dead=70 mean dE=-0.823 mean |dispersal|=328.061 max=802.849
+    CONSUMER n=293 prey: hi=0.014 lo=0.000 | survival hi=75.342% lo=79.452% | quartileN hi=73 lo=73 energyN hi=55 lo=58 | dE hi=-0.846 lo=-1.197 | competitors=0.396 threats=0.000 cellCrowd=0.232 damage=12.227
+    DECOMPOSER n=8 detritus: hi=0.435 lo=0.140 | survival hi=100.000% lo=100.000% | quartileN hi=2 lo=2 energyN hi=2 lo=2 | dE hi=1.446 lo=0.353 | competitors=0.000 threats=0.375 cellCrowd=0.000 damage=0.881
+TRAJECTORY tick=2500 digest=e4165e48
+  t=2750 live=373 P=0 C=365 D=8
+    patch heterogeneity: nutrient CV=0.021 detritus CV=0.943 detritus mean=1.133
+    interval (250t): survived 296/496 (59.677%) newborns=77 dead=200 mean dE=-3.185 mean |dispersal|=331.769 max=1274.823
+    CONSUMER n=488 prey: hi=0.016 lo=0.000 | survival hi=58.197% lo=55.738% | quartileN hi=122 lo=122 energyN hi=71 lo=68 | dE hi=-1.908 lo=-4.103 | competitors=0.494 threats=0.000 cellCrowd=0.334 damage=20.256
+    DECOMPOSER n=8 detritus: hi=0.474 lo=0.070 | survival hi=100.000% lo=100.000% | quartileN hi=2 lo=2 energyN hi=2 lo=2 | dE hi=-0.881 lo=0.017 | competitors=0.000 threats=1.125 cellCrowd=0.125 damage=1.676
+TRAJECTORY tick=2750 digest=220d0fc3
+  t=3000 live=155 P=0 C=155 D=0
+    patch heterogeneity: nutrient CV=0.019 detritus CV=0.743 detritus mean=1.723
+    interval (250t): survived 126/373 (33.780%) newborns=29 dead=247 mean dE=2.062 mean |dispersal|=379.774 max=1091.012
+    CONSUMER n=365 prey: hi=0.000 lo=0.000 | survival hi=38.462% lo=27.473% | quartileN hi=91 lo=91 energyN hi=35 lo=25 | dE hi=1.507 lo=0.780 | competitors=0.255 threats=0.000 cellCrowd=0.148 damage=40.706
+    DECOMPOSER n=8 detritus: hi=0.448 lo=0.167 | survival hi=0.000% lo=0.000% | quartileN hi=2 lo=2 energyN hi=0 lo=0 | dE hi=n/a lo=n/a | competitors=0.000 threats=0.375 cellCrowd=0.000 damage=55.396
+TRAJECTORY tick=3000 digest=f892b201
+
+  seed=41001 complete. Observer=on; effective diagnostic configuration, not unset defaults.
+

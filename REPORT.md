@@ -7402,7 +7402,13 @@ t2000: P7/C7/D1087 | energy P29/C89/D4815
   nutrients: [54030.0, 42409.8, 36174.2] | capUtil: [0.48, 0.48, 0.52] | overCapCells: [0,0,0] | overCapValue: [0.0, 0.0, 0.0]
 ```
 
-### P2 — Parameter-to-biological-equivalent matrix (DELIVERED)
+### P2 — Parameter-to-biological-equivalent matrix (PARTIAL / INCOMPLETE)
+
+**Source-of-truth status — Owner D1 remains open.** The following original
+matrix and its supplement are implementation notes/proposals, not a completed
+scientific audit or Owner-approved equivalence. Full mechanism-by-mechanism
+scientific sourcing, current read paths and validated functional/phenotype
+reliance evidence are still outstanding. No scope split has been accepted.
 
 The following matrix provides, for each priority mechanism, the live read site, conditions of activation, defensible biological equivalent or explicit abstraction, tradeoff, supporting evidence, and Owner-decision classification.
 
@@ -7451,8 +7457,15 @@ Scientific sources (conceptual comparisons, **not validation of coefficients or 
 - Per-guild per-pool uptake attribution — **NOW DELIVERED** via getFluxSnapshot()
 
 -------------------------------------------------------------------------------
-FUNCTIONAL ECOLOGICAL RELIANCE — CAPABILITY KNOCKOUTS & RESCUES (Owner handoff Task 3)
+FUNCTIONAL ECOLOGICAL RELIANCE — SUPERSEDED CLAIMS / HISTORICAL PROCESS OBSERVATIONS
 -------------------------------------------------------------------------------
+
+**SUPERSEDED at point of presentation:** the original obligate-guild reliance
+classification, causal assertions and table interpretations in this section
+are withdrawn. Only the historical measured counts remain evidence; they
+establish bounded global-process sensitivity, not phenotype-specific service
+reliance. In particular P=0/C=10 does not demonstrate consumer extinction.
+See the final PR #13 correction section. Owner D1 remains incomplete.
 
 Probe: `src/trace/relianceprobe.ts` (compiled, read-only). Engine 0.6.2.
 Seed: 517 (coexistence baseline). Ticks: 2000.
@@ -7507,7 +7520,7 @@ No new seed threshold is established here. Guild-reliance claims require an Owne
 
 8. **Consumer grazing**: Not obligate for consumer survival. Consumers persist on sediment scavenging (grazeYieldScale=0 → C=9). But grazing is needed for consumer abundance.
 
-### Reliance Classification
+### Reliance Classification (SUPERSEDED — not a current scientific verdict)
 
 | Guild Pair | Reliance Type | Evidence |
 |------------|---------------|----------|
@@ -8108,3 +8121,37 @@ current inventory and earlier cleanup do. No new deletion is claimed here.
 Scientific-equivalence classifications remain proposals with Owner decision
 needed; the supplementary priority-control matrix supplies missing live paths
 and conceptual sources without inventing Owner approvals.
+
+-------------------------------------------------------------------------------
+PR #13 FOLLOW-UP — review 5523267409: report status and recorder nonperturbation
+-------------------------------------------------------------------------------
+
+The corrective `4cc865f` commit is accepted for its measurement-repair scope;
+**full PR-wide design/scientific audit acceptance remains pending**. Owner D1
+is explicitly PARTIAL / INCOMPLETE at the original matrix heading, with no
+accepted scope split. Original guild-reliance assertions are visibly SUPERSEDED
+at their original presentation; historical counts remain intact.
+
+### Direct D5 observer comparison (0.6.3)
+
+Evidence: `evidence/pr13-observer-nonperturbation/`, including four raw arm
+outputs, comparison result, source hashes, resolved configurations and commands.
+`node scripts/opportunity-check.mjs` runs the existing observer horizon/seeds
+(3000 ticks; 517 and 41001) with recording enabled and disabled separately.
+The off arm skips recorder census/spatial/identity/reporting work; no biological
+configuration changes. On-arm `World.hashState()` samples are taken **after**
+all observer work. Tick 0 and every 250 ticks through 3000 produce **13/13
+matching digests for each seed**, and the resolved-config headers match exactly.
+
+This is a same-effective-world recorder on/off comparison, unlike C1 unset-default
+parity, which does not prove this claim. The supplied engine hash checks its
+covered state/RNG at sample cadence, not every byte or all future-relevant fields
+at every tick. It is not a general ecological-reliance, full conservation or
+calibrated-equivalence result. No biology, balancing sweep or seed search was added.
+
+The lightweight checker fixtures reject mismatched config, changed digest,
+missing and duplicate frames. `scripts/workflow-checks.mjs` invokes these as
+W9-observer without creating a World or making CI run an ecological cohort.
+The original `4cc865f` opportunity stdout/repeats remain archived under their
+source hash; new TRAJECTORY lines/footer change current stdout format, not those
+historical measurements. Current-format comparison evidence is stored separately.
