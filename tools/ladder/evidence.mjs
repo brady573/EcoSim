@@ -49,6 +49,48 @@ export const GUILD_NAMES = ['producer', 'consumer', 'decomposer'];
  */
 export const CAPTURE_DIAL_BY_GUILD = ['producerCaptureScale', 'consumerPhotoScale', 'decomposerPhotoScale'];
 
+/** Parse the senesprobe/scenesprobe header without losing colon-bearing settings. */
+export function parseSenescenceHeader(line) {
+  if (!line.startsWith('SENESCENCE ')) throw new Error(`unexpected header: ${line.slice(0, 80)}`);
+  const cfg = {};
+  for (const tok of line.slice('SENESCENCE '.length).split(/\s+(?=[a-z]+[x=])/)) {
+    const eq = tok.indexOf('=');
+    if (eq > 0) cfg[tok.slice(0, eq)] = tok.slice(eq + 1);
+  }
+  return cfg;
+}
+
+/** Return direct header mismatches for the identity fields the probe echoes. */
+export function senescenceHeaderMismatches(cfg, { seed, ticks, setting }) {
+  const want = { seed: String(seed), ticks: String(ticks), setting: String(setting) };
+  const mismatch = Object.fromEntries(Object.entries(want)
+    .filter(([key, value]) => cfg[key] !== value)
+    .map(([key, value]) => [key, { want: value, got: cfg[key] ?? null }]));
+  return Object.keys(mismatch).length ? [{ want, got: cfg, mismatch }] : [];
+}
+
+/**
+ * Compare the echoed decomposer-founder value against the arm declaration.
+ * The probe echoes the EFFECTIVE value (dfound=0.25 default, explicit number
+ * otherwise); the last header token absorbs the " (probe config)" trailer, so
+ * the first whitespace-delimited field is compared numerically. A missing or
+ * unparseable echo fails: a stale probe that ignores slot 19 must fail open
+ * into a mismatch, never into a verdict on the wrong config.
+ */
+export function dfoundMismatch(cfg, arm) {
+  const raw = (arm.argvExtra ?? [])[0];
+  const want = raw === undefined || raw === 'null' ? 0.25 : Number(raw);
+  const echo = String(cfg.dfound ?? '').split(/\s/)[0];
+  // An absent echo is missing evidence, not a zero: Number('') === 0 would
+  // otherwise let a stale probe pass a founders-0 declaration. Fail closed.
+  if (echo === '') return [{ want: { dfound: String(want) }, got: null }];
+  const got = Number(echo);
+  if (!Number.isFinite(got) || got !== want) {
+    return [{ want: { dfound: String(want) }, got: cfg.dfound ?? null }];
+  }
+  return [];
+}
+
 /** Every numeric field the LEDGER line must carry. */
 export const LEDGER_NUMERIC_FIELDS = [
   'totalInput', 'founding', 'capture', 'organic',

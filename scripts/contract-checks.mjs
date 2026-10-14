@@ -110,33 +110,53 @@ function probeArgs(over = {}) {
 }
 
 /**
- * Knobs-unset parity, re-pinned for engine ts-evo-poc/0.5.0.
+ * Knobs-unset parity, live pin for engine ts-evo-poc/0.6.3.
  *
- * The PREVIOUS pin (seed 517 -> 881/187/73, seed 24601 -> 658/280/98) was
- * measured under 0.4.1 and is RETIRED, not corrected. Three behavioural
- * defects were fixed between the two versions:
+ * Under 0.6.3 the live pair is UNCHANGED and was NOT re-pinned. Relative to
+ * the reviewed head, nutrient-write arithmetic is unchanged; the four-book
+ * instrumentation does not change biology. The earlier per-pool cap fix was
+ * made on source snapshots still labelled 0.6.2; 0.6.3 identifies the corrected
+ * source and repaired measurement contract, with no new retirement pair.
  *
- *   - resource-gradient ascent compared north against east with no south
- *     sample, and probed east on the diagonal (both gradientHeading and
- *     detritusHeading);
- *   - predation assimilation was applied twice (effective yield carnivore
- *     digestion squared);
- *   - mating matured from a ONE-SIDED submission, charged onMate() twice when
- *     two organisms mutually selected each other, and dropped contacts
- *     according to slot index rather than mutual selection.
+ * The live pair itself was re-pinned under 0.6.2 (radiationMultiplier + mating
+ * logic fixes): 517 -> 882/170/65, 24601 -> 563/279/90, each measured twice
+ * byte-identical on Node v24.21.0. Fixes: (1) radiationMultiplier dormant
+ * coupling inverted intent at 0 dormancy; (2) mating logic now only skips
+ * asexual for confirmed successful matings, restoring asexual fallback.
+ * Direction: consumers and decomposers higher at knobs-unset defaults (asexual
+ * fallback increases recruitment); producers slightly higher.
  *
- * Measured in two passes: an intermediate 859/146/68 and 586/260/103 was
- * taken before mutual SELECTION (as opposed to mutual intent) was required of
- * a mating partner. That intermediate pair is not a pin and is not recorded as
- * one; the values below are the single 0.5.0 origin.
+ * Retired pairs live beside the live ones in PINNED below (never overwritten):
+ *   - 813/135/81, 542/234/109 @ 0.6.1 — fasting tolerance changes declared
+ *     behaviour by design (starvation damage ramps over consecutive-deficit
+ *     ticks instead of striking at full rate instantly);
+ *   - 808/159/58, 558/290/96 @ 0.6.0 — fasting tolerance changes declared
+ *     behaviour by design (starvation damage ramps over consecutive-deficit
+ *     ticks instead of striking at full rate instantly);
+ *   - 881/187/73, 658/280/98 @ 0.4.1 — three behavioural defects corrected
+ *     (gradient ascent sampled north-vs-east with no south sample and probed
+ *     east on the diagonal; predation assimilation applied twice; mating
+ *     matured one-sided, double-charged mutual pairs, dropped contacts by
+ *     slot index);
+ *   - 778/169/63, 597/246/103 @ 0.5.0 pre-P0-1 — intermediate, superseded.
  *
- * Every multi-seed ladder and balance verdict recorded before this pin
- * describes 0.4.1 semantics. They are provenance, not current behaviour, and
- * must not be compared against figures produced by this engine.
+ * Measured in two passes under 0.5.0: an intermediate 859/146/68 and
+ * 586/260/103 was taken before mutual SELECTION (as opposed to mutual
+ * intent) was required of a mating partner. That intermediate pair is not a
+ * pin and is not recorded as one.
+ *
+ * Every ladder and balance verdict recorded under an older engine describes
+ * that engine's semantics: valid provenance, not comparable behaviour. Do
+ * not compare figures across pin boundaries; re-run, do not re-read. See
+ * AGENTS.md for the per-version status (0.5.0 figures describe a LEAKY
+ * engine; 0.6.0 figures describe the instantaneous-damage engine; 0.6.1
+ * figures describe the fasting-tolerance engine; 0.6.2 figures describe the
+ * radiationMultiplier+mating-fix engine; 0.6.3 figures describe the
+ * per-pool-cap-corrected returns engine).
  */
 const PINNED = [
-  { seed: 517, want: [808, 159, 58], retired: '881/187/73 @ 0.4.1; 778/169/63 @ 0.5.0 pre-P0-1' },
-  { seed: 24601, want: [558, 290, 96], retired: '658/280/98 @ 0.4.1; 597/246/103 @ 0.5.0 pre-P0-1' },
+  { seed: 517, want: [882, 170, 65], retired: '813/135/81 @ 0.6.1; 808/159/58 @ 0.6.0; 881/187/73 @ 0.4.1; 778/169/63 @ 0.5.0 pre-P0-1' },
+  { seed: 24601, want: [563, 279, 90], retired: '542/234/109 @ 0.6.1; 558/290/96 @ 0.6.0; 658/280/98 @ 0.4.1; 597/246/103 @ 0.5.0 pre-P0-1' },
 ];
 
 if (!hasBuild) {
@@ -147,8 +167,8 @@ if (!hasBuild) {
     const got = lastRow(runProbe(probeArgs({ seed: p.seed, ticks: 500 })));
     const ok = got !== null && got.prod === p.want[0] && got.cons === p.want[1] && got.dec === p.want[2];
     check('C1', `parity seed ${p.seed} (knobs unset)`, ok,
-      ok ? `P${got.prod}/C${got.cons}/D${got.dec} matches pinned (0.5.0; retired ${p.retired})`
-         : `expected P${p.want.join('/C')}/D${p.want[2]} (0.5.0), got ${fmt(got)}`);
+      ok ? `P${got.prod}/C${got.cons}/D${got.dec} matches pinned (0.6.3: same pair as 0.6.2 — cap fix unreachable at declared defaults; retired ${p.retired})`
+         : `expected P${p.want.join('/C')}/D${p.want[2]} (0.6.3), got ${fmt(got)}`);
   }
 }
 

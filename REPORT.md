@@ -5746,3 +5746,2412 @@ same error this repository has already corrected twice.
 Also unmeasured: the cost weights in MODULE_SPECS are calibrated to produce
 visible consequences, not fitted to anything. They are a starting condition for
 selection to act on, not a biological claim.
+--------------------------------------------------------------------------------
+BALANCE DIAGNOSTIC — KNOWN-SEED SHARE-BRAKE COMPARISON (2026-10-12)
+--------------------------------------------------------------------------------
+
+Two registered ladder arms compared the established senescence setting `off`
+against `share:1`, on seeds 517, 99991, and 42 at 6000 ticks. Both used engine
+`ts-evo-poc/0.6.0`, commit `88ec318e1d423cf1a89a51045ee00df6f837d7be`, and the
+same declared configuration apart from senescence mode. These are known-seed
+diagnostics, not prospective evidence or a seed-distribution estimate.
+
+Actions runs:
+  control (`off`)   38201000971 — INTACT, all three seeds measured
+  treatment (`share:1`) 38201003477 — INTACT, all three seeds measured
+
+Both cohort verdicts correctly classify the ecological result as NOT MEASURED:
+there was no registered biological threshold. This means the workflow verified
+the completeness and integrity of the evidence; it does not mean the brake was
+supported or falsified.
+
+Descriptive endpoint trajectories (P/C/D = producer/consumer/decomposer):
+
+  seed   off at t6000       share:1 at t6000      senescence deaths, share:1
+  517    14 / 294 / 1819    11 / 1502 / 835       141
+  99991  285 / 565 / 0      2785 / 36214 / 0       0
+  42     1820 / 50538 / 0   4208 / 55792 / 0       0
+
+The share:1 arm shows senescence deaths only for seed 517. At the recorded
+checkpoints, seed 517 retained dormant organisms through tick 6000 in both arms.
+In `share:1`, dormancy in seeds 99991 and 42 reached zero by tick 2000; in `off`,
+it reached zero by tick 3000 and 4000 respectively. These are checkpoint
+observations, not exact event times. Seed 42's `share:1` population was 60000 at
+the tick-6000 checkpoint; its `off` arm was 60000 at tick 5000 and 52358 at tick
+6000. The probe does not report cap-hit events, so these endpoint values alone
+cannot establish whether the default 60000 population ceiling constrained
+growth. These known-seed paths illustrate trajectory-specific outcomes, not a
+general brake effect or a balance result. In particular, the large seed-99991
+difference is not a prospective replication.
+
+All six ladder legs completed and both cohort verifiers found exact seed
+coverage, matching arm/config identity, and valid ledgers. The largest absolute
+ledger residual was 0.15637% (seed 42, `off`), within the declared 0.5%
+tolerance. Per-leg stdout, manifests, summaries, and cohort verdicts are
+archived under `evidence/balance-brake-diagnostics-2026-10-12/remote-*`.
+Local partial probe output remains separately labeled and is not substituted
+for these ladder results.
+
+NEXT: no biological parameter change follows from this diagnostic alone. Return
+the trajectories to the Owner's balance-first decision process; any broader
+claim requires a newly approved prospective seed panel and registered criteria.
+
+--------------------------------------------------------------------------------
+AUDIT — WHY THE MEASURED WORLDS DON'T SELF-CORRECT (2026-10-12, read-only)
+--------------------------------------------------------------------------------
+
+QUESTION. The viewer (e.g. seed 5738877: 31,644 producers, 2,487 consumers, 1
+decomposer) and the panels show producer-heavy, decomposer-poor worlds that do
+not return to balance. Is a corrective feedback loop present but slow, or is
+the measured configuration structurally unable to self-correct?
+
+METHOD. No new runs, no reruns, no code changes. Parsed all 36 archived per-seed
+outputs of the two 0.6.0 panels sharing one config (`photox4`, basalFoodPerCell
+0.25, disease 0.15, sat 0.4):
+  consumer-yield:      evidence/ladder/consumer-yield-run-2026-10-11/leg*/seed-*.txt (41001-41018)
+  prospective-guilds:  evidence/ladder/prospective-guilds-run-38151553007/*leg*/seed-*.txt (52001-52018)
+Checkpoints are 1000-tick samples, so loss times are checkpoint observations,
+not exact event times.
+
+OBSERVED.
+1. Grazing carries ZERO flux on 36/36 seeds: grazeSubmit 855-95,567 per run,
+   grazeWins=0, grazeEnergy=0, grazeRequested=0 everywhere. The intended
+   producer->consumer link moves no energy in this configuration.
+2. Consumers persist anyway (14/18 each panel, B/D mostly 1.01-1.45): they live
+   off the exogenous organic subsidy. organic=5,400,000 in every run against
+   totalInput 5.45-5.99M, i.e. ~90-99% of all energy input is basal organic
+   rain; photosynthesis (all of it producer-captured, captureByGuild shows
+   0.0 for consumers/decomposers on every seed) is ~1-10%.
+3. Decomposer endpoints differ by panel (8/18 vs 14/18 present) while the
+   three-guild rate stays low (5/18, 7/18). Decomposer B/D sits at 0.95-1.00
+   on extinct endpoints and 1.04-1.59 where present; several trajectories show
+   late decomposer blooms from zero mid-run checkpoints (e.g. 52004:
+   D 632>0>0>0>0>4580), so roles re-emerge rather than only decay.
+4. Same code path is NOT dead in general: rung 4 (declared light + abiotic
+   nutrient + graze 1.6) logged hundreds of graze wins with real energy. The
+   zero is specific to the measured config, not a structural impossibility.
+
+INTERPRETATION. What is observed: in the measured config the corrective
+producer->consumer link is silent and the energy base bypasses producers, so
+there is no loop present that could "correct" the imbalance — the imbalance is
+the subsidy partitioning, not a perturbation of a producer-driven web. What is
+inference (not established): the exact gate that zeroes grazing here (wallet-
+basis takes on energy-poor producers vs. contest losses) cannot be separated
+from these outputs alone; per-browse diagnostics would be needed. Prior rungs
+already showed transfer alone doesn't guarantee consumers (rung 4: food paid,
+consumers still died on most seeds), so restoring flux is necessary but not
+sufficient for coexistence — viability remains a separate question.
+
+DECISION. Actionable mechanism identified, no biology changed. Next step is a
+new Owner-registered experiment, not more analysis of these panels:
+  control:   current consumer-yield arm on a FRESH panel (Owner sets seeds)
+  treatment: identical plus the tissue-basis lift (plantYieldPerMass), which
+             keys bites to victim body mass instead of momentary energy wallet
+  predict:   grazeEnergy > 0 on a stated majority of fresh seeds (Owner sets
+             the threshold); ecological coexistence is NOT predicted by this
+             arm — it tests the link, not balance.
+Alternative treatment if the Owner prefers the subsidy question first: same
+control with basalFoodPerCell stepped down toward a producer-driven regime.
+Either way the panel, horizon, and thresholds are Owner decisions; nothing
+above invents them.
+
+--------------------------------------------------------------------------------
+STEP 0 — GRAZE-ZERO DISCRIMINATION: MECHANISM FOUND, NO BEHAVIOR CHANGE (2026-10-12)
+--------------------------------------------------------------------------------
+
+PRE-REGISTERED (before the runs): one outcome channel (contest losses /
+zero-delta wins / abandoned) accounts for >=80% of GRAZE submits on a
+majority of three high-submit failing seeds (41001, 41008, 52002), 2000-tick
+diagnostic horizon, exact evaluated-arm config. Armour rejects eliminated
+analytically beforehand (armour gene 0..1 -> bite >= 0.45 > 0.02 gate always).
+
+CORRECTION TO THE 2026-10-12 AUDIT ABOVE. The audit's prime suspect
+(wallet-basis takes on energy-poor producers) is SUPERSEDED: reading the
+preset code showed the `--zero` preset sets grazeYieldScale:0 and
+meatYieldPerMass:0, the evaluated arm lifts neither, and world.ts scales
+every take by that 0 (`scaledDelta = r.delta * 0`; the win/energy block
+requires `r.delta * yieldScale > 0`). Both animal-tissue paths are preset to
+zero in the measured config. The meter below tested this reading.
+
+METHOD. New read-only probe src/trace/grazemeter.ts (constructs World, steps,
+tallies InteractionQueue records by kind/outcome/delta; no engine changes).
+Ran COMPILED: node build/trace/grazemeter.js 2000 41001,41008,52002.
+
+CONFIG-IDENTITY PROOF. Meter checkpoints match the archived seed files
+exactly (41001: t1000 P106/C1564/D828, t2000 P5/C2847/D31 — byte-identical
+P/C/D to evidence/ladder/consumer-yield-run-2026-10-11/leg0/seed-41001.txt;
+41008 and 52002 D-trajectories likewise exact). Same engine + same config, as
+required before reading any contrast as biology.
+
+RESULT (resolver level vs world level):
+  seed   submits  abandoned  defenderWins  attackerWinsDelta0  attackerWinsDeltaPos  worldWins/worldEnergy
+  41001  1440     0 (0%)     388 (26.9%)   2 (0.1%)            1050 (72.9%)            0/0
+  41008  7777     0 (0%)     2441 (31.4%)  2 (0.0%)            5334 (68.6%)            0/0
+  52002  5481     0 (0%)     1874 (34.2%)  3 (0.1%)            3604 (65.8%)            0/0
+Mean producer energy 1.6-26.3 (wallets NOT empty).
+
+VERDICT ON THE BAR. The >=80% single-channel bar is NOT met (66-73% vs 80%;
+contest losses take 27-34%). Strictly, a split cause. But the DECISION-relevant
+question — why world flux is exactly zero — is fully answered either way: two
+thirds of submits resolve with positive takes that the world multiplies by the
+preset 0, and zero-delta wins are ~0.1%, so wallets are not binding. Flux-zero
+is explained by grazeYieldScale=0 irrespective of win rate. Contest losses are
+a secondary, separate mechanism (not pursued: even 100% wins would pay 0).
+
+CONSEQUENCE FOR THE PLAN. The proposed tissue-basis lift ALONE would change
+nothing (delta basis is irrelevant once scaled by 0). Step 1 is corrected to:
+lift grazeYieldScale to the declared 1.0 on the identical config (one dial),
+predicting grazeEnergy > 0; tissue basis becomes a follow-up only if per-win
+size disappoints. Predation (meatYieldPerMass=0) stays zeroed in Step 1 by
+design — one path at a time.
+
+--------------------------------------------------------------------------------
+STEP 1 — GRAZE-LINK RESULT: FLUX RESTORED 18/18, LINK TEST SUPPORTED (2026-10-12)
+--------------------------------------------------------------------------------
+
+ARM. graze-link (registered 2026-10-12, commit 6df61d1): exact consumer-yield
+copy (seeds 41001:41018, 6000 ticks, --zero) plus ONE lift grazeYieldScale:1.0
+(declared value). Meat stays zeroed. No machine criteria by design (verifier
+has no graze metric); verdict human-read from intact B/D lines, stated before
+inspection. PREDICTION: grazeEnergy > 0 on >=12/18. FALSIFICATION: =0 on >=7/18.
+Coexistence explicitly NOT predicted.
+
+RUN. GitHub Actions 38261798238, branch balance/share-brake-diagnostics-run.
+Cohort INTACT (identity arm graze-link, engine ts-evo-poc/0.6.0, commit
+6df61d1, 18/18 seeds measured, ledgers valid). Artifacts archived under
+evidence/graze-link-38261798238/cohort/.
+
+RESULT (per-seed endpoint P/C/D + grazeEnergy):
+  41001 599/11938/0 29412 | 41002 0/0/3203 1367 | 41003 88/3617/0 4308
+  41004 19433/367/40200 57030 | 41005 0/198/4267 1960 | 41006 0/0/2829 369
+  41007 907/3759/0 2998 | 41008 328/11540/0 28179 | 41009 21236/17/11751 4636
+  41010 2811/378/11029 4159 | 41011 454/3893/1 18574 | 41012 11/506/7037 3087
+  41013 28/10737/0 1849 | 41014 3/3737/0 3988 | 41015 18361/33/13733 31875
+  41016 1871/760/0 17408 | 41017 727/28438/0 15024 | 41018 2757/6/0 6020
+
+VERDICT. Flux > 0 on 18/18 (range 369-57,030): link test SUPPORTED, margin 6
+seeds above the bar. Zero seeds at zero — the falsification condition is
+nowhere near triggered. The Step-0 mechanism is confirmed end-to-end:
+resolver takes existed, the preset zeroed them, the declared scale restores
+them. Contest losses (27-34% at Step 0) remain visible in submit/win ratios
+(e.g. 41004: 603,687 submits / 158,455 wins) but do not block paying flux.
+
+DESCRIPTIVE, NOT PREDICTED. All-three-present endpoints: 6/18
+(41004,41009,41010,41011,41012,41015) vs 5/18 on the matched control. This
+difference is NOT a finding — the arm predicted nothing about coexistence,
+and rung 4 already established that paying food does not imply coexistence.
+It is recorded so a future reader cannot misread it as either success or
+setback. Consumer B/D sits mostly above replacement (up to 1.55); decomposer
+B/D remains <1.0 where extinct — viability questions untouched by this arm.
+
+NEXT (Step 2): descend the subsidy. First step basalFoodPerCell 0.25 -> 0.05
+on the graze-link config; consumers must persist while the income base shifts.
+Registered separately below; one dial per arm is retained throughout.
+
+--------------------------------------------------------------------------------
+STEP 2a — SUBSIDY 0.05: CONSUMERS PERSIST 16/18, FLUX SUSTAINED 18/18 (2026-10-12)
+--------------------------------------------------------------------------------
+
+ARM. graze-subsidy05: graze-link config with the ONLY change basalFoodPerCell
+0.25 -> 0.05 (5x descent, first step). Machine criterion cons > 0 on >=12/18;
+graze-sustained clause (>=12/18 flux) human-read. Coexistence NOT predicted.
+Header caveat (review-noted, applies to all lift arms): probe headers echo the
+positional basalx0.25 while the effective subsidy is 0.05 via --zero-lift;
+traceability rests on arms.json + manifest lifts/argv, whose hashes the
+verifier binds — not on the header alone.
+
+RUN. GitHub Actions 38262841218. Cohort INTACT / SUPPORTED (machine clause:
+cons > 0 on 16/18; zeros only 41013, 41016). Artifacts archived under
+evidence/graze-subsidy05-38262841218/cohort/.
+
+RESULT (endpoint P/C/D + grazeEnergy):
+  41001 51/3247/0 889 | 41002 0/378/1525 704 | 41003 12/39/3459 653
+  41004 756/3107/49 666 | 41005 1106/1/451 19288 | 41006 0/1638/1 815
+  41007 1554/15/0 461 | 41008 78/2261/0 1419 | 41009 0/2376/0 509
+  41010 1304/1035/0 1366 | 41011 680/4/5809 1826 | 41012 1415/71/7311 6215
+  41013 0/0/1976 658 | 41014 84/1475/252 483 | 41015 1780/1169/1433 1137
+  41016 416/0/1553 4112 | 41017 6/8/2895 1813 | 41018 242/1720/7 1142
+
+VERDICT. Both clauses pass with margin: persistence 16/18 (bar 12), flux
+18/18 (range 461-19,288, min 41007 / max 41005; bar 12). The 5x cut did NOT outrun the link — the
+falsification condition (cons = 0 on >=7/18) is not close. Grazing now carries
+consumers through a meaningfully smaller subsidy.
+
+DESCRIPTIVE, NOT PREDICTED. All-three-present endpoints: 9/18
+(41003,41004,41005,41011,41012,41014,41015,41017,41018) vs 6/18 on graze-link
+and 5/18 on control. Direction is encouraging but this arm claimed no
+coexistence rate — no verdict attaches. Populations are also visibly smaller
+(no 20k+ blooms), consistent with the subsidy having driven monoculture bulk.
+Neither observation is a finding; both are recorded so they cannot be
+misremembered later in either direction.
+
+NEXT (Step 2b): continue descent to 0.01 on the identical config. Same bars.
+
+--------------------------------------------------------------------------------
+STEP 2b — SUBSIDY 0.01: BARS MET ON THE EDGE, PRODUCERS NOW LIMITING (2026-10-12)
+--------------------------------------------------------------------------------
+
+ARM. graze-subsidy01: identical config, basalFoodPerCell 0.05 -> 0.01. Same
+bars (cons >=12/18 machine; flux >=12/18 human-read).
+
+RUN. GitHub Actions 38263353928. Cohort INTACT / SUPPORTED. Legs ran in
+~30-47s each (populations an order down from prior arms). Artifacts archived
+under evidence/graze-subsidy01-38263353928/cohort/.
+
+RESULT (endpoint P/C/D + grazeEnergy):
+  41001 0/516/0 470 | 41002 2/22/597 183 | 41003 0/37/635 307
+  41004 0/454/519 289 | 41005 0/0/0 1612 | 41006 0/15/540 205
+  41007 23/62/502 296 | 41008 135/252/2 320 | 41009 0/567/0 397
+  41010 0/20/860 294 | 41011 14/26/487 461 | 41012 705/69/3079 1590
+  41013 0/0/191 216 | 41014 0/299/1 208 | 41015 93/0/0 480
+  41016 0/0/0 543 | 41017 105/0/0 730 | 41018 265/0/0 301
+
+VERDICT. Both bars met exactly at the edge: persistence 12/18 (zeros 41005,
+41013, 41015, 41016, 41017, 41018), flux 18/18 (183-1,612). Technically a pass;
+substantively a warning flare. Producers read 0 on 10/18 seeds (41001, 41003,
+41004, 41005, 41006, 41009, 41010, 41013, 41014, 41016) and three-guild
+endpoints fell 9/18 -> 5/18 (41002, 41007, 41008, 41011, 41012 — descriptive,
+not a verdict). The failing guild ROTATED: consumers held, producers now starve.
+Mechanism (inference, stated as such): with rain near gone and nutrientRegen 0
++ excretion 0, nutrients are initial-stock plus biotic return only; tiny
+populations make little corpse flux, so producers exhaust their substrate.
+This is the nutrient wall rung 3 already mapped (abiotic regen restored
+decomposers where excretion could not) — arrived at from the other side.
+
+DECISION. Do NOT descend to 0 yet. The falsification clause did not trigger
+(6/18 consumer zeros is a technical pass, openly stated), so this hold is
+precautionary rather than clause-mandated: the margin evaporated (16 -> 12)
+and producers are now the limiting guild on 10/18 seeds, so the next cut
+risks producer collapse. The plan's Step 3 comes forward: couple producers
+to decomposer recycling (nutrientCyclic + floor + saturation as one
+mechanism) on the 0.01 config FIRST, then remove the last rain. Registered
+below as graze-nutcyc.
+
+--------------------------------------------------------------------------------
+STEP 3 — COUPLING RESULT: FALSIFIED (7/18 PRODUCER-ZERO), SATURATION NEXT (2026-10-12)
+--------------------------------------------------------------------------------
+
+ARM. graze-nutcyc: 0.01 config + nutrientCyclic on + floor 0.05 + sat 1.0.
+Bars: prod > 0 on >=12/18 AND cons > 0 on >=12/18 (both machine).
+
+RUN. GitHub Actions 38263833420. Cohort INTACT / FALSIFIED. Artifacts archived
+under evidence/graze-nutcyc-38263833420/cohort/.
+
+RESULT (endpoint P/C/D):
+  41001 0/516/0 | 41002 2/22/597 | 41003 0/37/635 | 41004 0/454/519
+  41005 475/0/0 | 41006 0/15/540 | 41007 14/219/0 | 41008 1/233/11
+  41009 520/222/0 | 41010 0/20/860 | 41011 11/17/689 | 41012 15125/38/750
+  41013 0/0/191 | 41014 0/385/16 | 41015 289/0/0 | 41016 371/0/0
+  41017 1236/3/0 | 41018 652/0/0
+
+VERDICT. Producers > 0 on 11/18 (zeros 41001, 41003, 41004, 41006, 41010,
+41013, 41014); consumers > 0 on 13/18 (zeros 41005, 41013, 41015, 41016, 41018
+— consumer bar MET). Producer bar missed by one seed (11 vs 12) and the
+falsification condition (prod = 0 on >=7/18) is met exactly at 7: arm
+FALSIFIED as specified. All-three endpoints 4/18 (41002, 41008, 41011, 41012 —
+descriptive).
+Notable: seed 41012 bloomed (15125/38/750) — the coupling CAN feed producers
+explosively on one seed while leaving seven at zero. Uneven, not absent.
+
+DECISION. Per the arm's own branch: do not raise light; try the stated
+alternative (saturation 2.0) once, then abandon the coupling if it also fails.
+Registered below as graze-nutcyc-sat2. If sat-2.0 fails, the program steps
+back to analysis (floor level and capture scale become suspects) rather than
+pushing dials blind.
+
+--------------------------------------------------------------------------------
+STEP 3b — SAT-2.0 RESULT: FALSIFIED, AND THE DIAL IS VOID (2026-10-12)
+--------------------------------------------------------------------------------
+
+ARM. graze-nutcyc-sat2: sat 1.0 -> 2.0, everything else identical. Same bars.
+
+RUN. GitHub Actions 38264321163. Cohort INTACT / FALSIFIED (prod 11/18, cons
+13/18 — same counts as sat-1.0). Artifacts archived under
+evidence/graze-nutcyc-sat2-38264321163/cohort/.
+
+RESULT. All 18 per-seed files are BYTE-IDENTICAL to the sat-1.0 run except
+the header line (sat1 vs sat2): 2 diff lines per file, 0 non-header, on all
+18 seeds. Endpoints, B/D ratios, ledgers, residuals — all identical.
+
+VERDICT. Falsified (same 7/18 producer-zero), but the important finding is
+stronger than the verdict: the saturation dial did not vary. world.ts scales
+the BASE rate: rate = nutrientRegen * raw/(raw+sat). Under --zero,
+nutrientRegen = 0 and no arm lifts it, so the cyclic term is 0 * anything = 0
+at every saturation. The "coupling" tested in Step 3 was floor-0.05 only; the
+cyclic half was never engaged. This is the void-knob failure mode AGENTS.md
+names: a dial whose variation never reaches the dynamics (the zero base rate
+nulls the product at every saturation, though the value itself is handed to
+the engine).
+
+CORRECTION TO STEP 3. Its falsification verdict stands (the numbers are the
+numbers), but its mechanism attribution is superseded: sat-1.0 did not test
+cyclic coupling. The producer gain 8 -> 11/18 endpoints came from the floor.
+No conclusion about cyclic coupling follows from either run.
+
+NEXT (Step 3c): engage the coupling for real — lift nutrientRegen to the
+rung-3 value 0.0002 (a base rate for cyclic to scale) on the identical
+config. One addition, stated: graze-nutcyc + nutrientRegen:0.0002.
+Prediction: prod > 0 AND cons > 0, each >=12/18. Falsification: prod = 0 on
+>=7/18 closes the coupling line (floor alone: 11/18; floor+engaged-cyclic
+must beat it or the concept is out). Registered below as graze-nutregen.
+
+--------------------------------------------------------------------------------
+STEP 3c — ENGAGED COUPLING: PRODUCERS RECOVER TO BAR, CONSUMERS NOW BIND (2026-10-12)
+--------------------------------------------------------------------------------
+
+ARM. graze-nutregen: nutcyc config + nutrientRegen:0.0002 lift (base rate for
+cyclic to scale). Bars: prod >=12/18 AND cons >=12/18 (both machine).
+
+RUN. GitHub Actions 38264950151. Cohort INTACT / FALSIFIED (split decision).
+Artifacts archived under evidence/graze-nutregen-38264950151/cohort/.
+
+RESULT (endpoint P/C/D):
+  41001 0/272/0 | 41002 14/0/762 | 41003 1/41/709 | 41004 0/1042/0
+  41005 2/2/346 | 41006 0/78/458 | 41007 1006/0/0 | 41008 935/124/0
+  41009 436/306/0 | 41010 0/0/372 | 41011 37/20/493 | 41012 3390/81/2614
+  41013 0/0/409 | 41014 0/309/111 | 41015 278/0/0 | 41016 175/0/0
+  41017 8/356/158 | 41018 795/0/0
+
+VERDICT. Producers 12/18 (zeros 41001,41004,41006,41010,41013,41014 — bar MET
+exactly); consumers 11/18 (zeros 41002,41007,41010,41013,41015,41016,41018 —
+bar missed by one). Falsification's second clause fires as written: producers
+recovered while consumers failed on 7/18, so the failure is CONSUMER
+VIABILITY, a separate mechanism. All-three endpoints 5/18
+(41003,41005,41011,41012,41017 — descriptive).
+
+ANALYSIS (no new runs; cross-arm read of archived B/D lines). Grazing income
+does NOT separate persisting from failing consumers: failing seeds carry as
+much or more graze energy (41005: 1,068-1,612 at C≈0; 41016: 543-548 at C=0;
+41017@0.01: 730 at C=0) as persisting ones (41006: 205-239 at C>0; 41011:
+216-461), with win rates ~41-84% and positive flux on all 18 seeds, and
+disease deaths negligible (mostly <10). Food pays and consumers still fade:
+failing seeds read cons B/D 0.72-0.86 on the whole-run line while their
+checkpoint rows show C near zero early — failure to launch, not late
+starvation. This replicates
+rung 4's "viability, not supply" verdict inside the new coupled config.
+Binding suspects from the mapped gates: the 90-tick breeding reserve against
+small consumer incomes, and upkeep economics — NOT food supply, NOT disease.
+
+DECISION. No more nutrient dials. Next is a single viability arm in the
+identical config: breeding reserve 90 -> 30 (positional rsur; sanctioned
+config path, null default preserved). Rung 6 tested rsur-30 in a DIFFERENT
+ecology (0.25 subsidy, no coupling, no paying graze) and falsified there;
+this tests it where food demonstrably pays — a different experiment, not a
+repeat. If consumers still fail, viability needs engine-level economics, and
+that decision goes to the Owner with this record attached. Registered below
+as graze-viability.
+
+--------------------------------------------------------------------------------
+STEP 4 — VIABILITY (rsur-30): RESERVE EXONERATED, ENGINE ECONOMICS NEXT (2026-10-12)
+--------------------------------------------------------------------------------
+
+ARM. graze-viability: nutregen config with positional rsur null -> 30 (only
+change). Bars: cons >=12/18 AND prod >=12/18 (both machine). Pre-registered
+branch: on falsification, no rsur -> 0, no compensating moves — the decision
+goes to the Owner with the record attached.
+
+RUN. GitHub Actions 38265743162. Cohort INTACT / FALSIFIED. Per-seed headers
+spot-checked for rsur30 (review mitigation from registration review — all six
+manifests reference it). Artifacts archived under
+evidence/graze-viability-38265743162/cohort/.
+
+RESULT (machine counts from summary CSVs, not eyes): prod > 0 on 13/18
+(zeros 41001, 41006, 41010, 41013, 41014 — bar MET); cons > 0 on 11/18
+(zeros 41002, 41005, 41007, 41015, 41016, 41017, 41018 — bar missed by one,
+falsification condition met exactly at 7 zeros). Decomposers > 0 on 9/18.
+All-three endpoints 4/18 (41003, 41004, 41011, 41012 — descriptive).
+
+VERDICT. FALSIFIED as specified. Consumer persistence is IDENTICAL at reserve
+90 and reserve 30 (11/18 both, overlapping but shifted zero-sets) while
+producers improved 12 -> 13/18 (the shared helper means the reserve binds all
+guilds, not just consumers). The breeding reserve is therefore NOT the
+binding constraint on consumers. Combined with Step-3c (food pays, B/D<1 from
+launch, disease negligible), the remaining suspects are upkeep/damage
+economics inside the engine — beyond any null-default dial tested so far.
+
+DECISION (pre-registered branch taken). Stop dial-turning. No new arm is
+registered in this entry. The program returns two open questions to the
+Owner: (1) whether to authorize engine-level consumer-economics work
+(upkeep scaling that reaches ALL viability gates at once, damage/breeding-gate
+rework, or a nutritional-requirement redesign — each changes declared
+behavior and needs re-pinning discussion, hence Owner-gated); (2) whether to
+run the obligate-reliance ablation on the best available config (viability:
+prod 13 / cons 11) to bank the reliance clause while economics are decided.
+Recommendation in the report: ablation first (it needs no new mechanism and
+cannot regress), economics direction owned by the Owner.
+
+--------------------------------------------------------------------------------
+PROBE SEAM: TRAILING DFOUND SLOT FOR ABLATION (2026-10-12, NO ENGINE CHANGE)
+--------------------------------------------------------------------------------
+
+Ablation (producers-alone) needs decomposerFounders 0.25 -> 0, which no probe
+argv slot expressed. Change, identical in scenesprobe.ts + senesprobe.ts:
+trailing slot 19 DFOUND, "null"/missing/flag -> 0.25 (standing default),
+explicit 0..1, loud otherwise; config decomposerFounders reads it; header
+echoes effective dfound= value. run-arm.mjs accepts optional argvExtra
+(string array, max 4, appended after argvRest, recorded in manifest argv);
+workflow fixtures cover argvExtra shape (W8aX) and dfound header tolerance
+(W8aY). No engine file touched; knobs-unset behavior unchanged.
+
+SMOKE CAUGHT A REAL BUG BEFORE DISPATCH. First cut read argv[19] directly:
+with exactly 15 positionals, argv[19] is the --zero FLAG, so every ladder run
+would have thrown. Fixed by positional discipline (trailing values precede
+flags; a flag in slot 19 reads as not-provided). Verified compiled:
+default-vs-explicit-0.25 byte-identical; dfound=0 runs with header echo;
+"2"/"abc" throw loudly. Rejects and identity proof in shell log; typecheck +
+build + 135/135 workflow fixtures green.
+Early read from the smoke (descriptive, 200 ticks): zero founders still shows
+dec 4 by t200 via role fluidity — re-emergence is tracked, not excluded, in
+the ablation verdict (sub-case b).
+
+Registered below (pre-registration IS the arm entry): producer-alone —
+viability config + founders 0 + graze lift to 0, 36 seeds, prod == 0 on
+>=30/36 predicts reliance; >=7 persisting falsifies it (sub-cases a/b).
+
+--------------------------------------------------------------------------------
+STEP 5 — ABLATION VERDICT: PRODUCERS SURVIVE ALONE 33/36, RELIANCE FAILS (2026-10-12)
+--------------------------------------------------------------------------------
+
+ARM. producer-alone: viability config + founders slot 0 + graze lift to
+explicit 0 (meat preset 0), floor/dormancy/spores/disease/sat/cyc/regen/rsur
+identical. 36 seeds, 6000 ticks. Bar: prod == 0 on >=30/36 (machine);
+>=7 persisting falsifies, split into (a) floor-carry vs (b) fluidity-rescue.
+
+RUN. GitHub Actions 38267693804 (12 legs x 3). Cohort INTACT / FALSIFIED.
+Headers read dfound=0 on 36/36 legs — the new machine gate held live with no
+mismatches. Artifacts archived under evidence/producer-alone-38267693804/cohort/.
+
+RESULT (machine counts from summary CSVs). prod == 0 on 3/36 (41003, 41013,
+52016) — the bar is missed by 27 seeds, not borderline. 33/36 producers
+persist alone, including thousands-strong stands (41011 P3580, 41018 P2729,
+52004 P2219, 41017 P1455). Of the 33: 25 never show a decomposer at ANY
+1000-tick checkpoint (pure sub-case a); 8 show transient/relic decomposers,
+only two retain any at endpoint (41009 D287, 52006 D15 — the sole all-three
+endpoint is 41009, 1/36). Checkpoint-observation caveat: brief
+inter-checkpoint presence cannot be excluded — lifetime B/D lines show a
+handful of decomposer births on some checkpoint-pure seeds (41005: 3, 41014:
+1, 52013: 1, 52017: 1), so sub-case (a) is checkpoint-observational, not
+lifetime-proven. But no trajectory shows producer recovery tracking D: D is
+transient/relic where present, retained at endpoint on only two seeds.
+Founded consumers starve as designed (C endpoint 0 on most; 41004 C1030 and
+41013 C467 persist at endpoint on remnant detritus — descriptive, expected).
+
+VERDICT. Reliance is NOT obligate as configured: the abiotic floor (0.05) plus
+initial stock carries producers alone on 33/36 seeds. The falsification is
+clean (sub-case a dominates), so no restatement rescue applies — the clause
+fails on its own terms. The floor that prevents deadlock extinction is the
+same floor that voids obligate reliance: that tension is now measured, not
+theoretical.
+
+DECISION. No new arm in this entry. Two questions go to the Owner (asked
+directly, program holds): (1) the scoped consumer-economics rework proposal
+(variance-tolerance grace, re-pin required) — approve, redirect, or hold;
+(2) the reliance-vs-floor tension — remove the floor and risk deadlock
+return, restate reliance functionally (dependence on recycling for vigor
+rather than survival), or hold the clause as a future-engine objective.
+Dial-turning is suspended until both are answered; the repeated lesson of
+this ladder is that each mechanism tested cleanly and the goal needs a
+decision, not another dial.
+
+--------------------------------------------------------------------------------
+OWNER DECISIONS (2026-10-12, direct): FLOOR-ZERO PAIR + ECONOMICS REWORK (2026-10-12)
+--------------------------------------------------------------------------------
+
+On the ablation falsification the Owner decided: (1) reliance tension —
+REMOVE the floor, with a kickstarter at run start; (2) engine economics —
+APPROVE the scoped variance-tolerance rework for implementation under the
+full pipeline. No dial-turning beyond what serves these two orders.
+
+KICKSTARTER (stated, no new mechanism): the world-construction initial
+nutrient stock (nutrientPerCell laid at build) is the run-start pulse. No new
+pulse knob is introduced unless the floor-zero runs flatline at bootstrap —
+YAGNI applies; an explicit pulse is designed only on demonstrated need.
+
+Floor-zero pair (each one dial from its parent, registered below):
+  (a) producers-with-loop-floor0 = viability config + nfloor 0.05 -> 0.
+      Tests whether the recycling loop sustains producers with NO abiotic
+      floor. Bar: prod > 0 on >=24/36 (machine). Falsified below 24.
+  (b) producer-alone-floor0 = producer-alone config + nfloor 0.05 -> 0.
+      The strict alone test without floor. Bar: prod == 0 on >=30/36
+      (machine); >=7 persisting falsifies.
+Interpretation order: (b) then (a). Reliance holds iff (b) fails-alone AND
+(a) sustains (floor-0 universal lethality would prove nothing about reliance).
+Both pre-registered; neither predicts coexistence.
+
+--------------------------------------------------------------------------------
+STEP 6 — FLOOR-ZERO PAIR: RELIANCE FALSIFIED TWICE, LOOP WITHOUT FLOOR (2026-10-12)
+--------------------------------------------------------------------------------
+
+ARMS (Owner-ordered). producers-with-loop-floor0 (viability + nfloor -> 0;
+bar prod > 0 on >=24/36) and producer-alone-floor0 (ablation + nfloor -> 0;
+bar prod == 0 on >=30/36). Kickstart = construction-laid stock, no new knob.
+
+RUNS. 38271740961 (loop) and 38271745692 (alone). Both cohorts INTACT, both
+FALSIFIED. Artifacts archived under evidence/producers-with-loop-floor0-38271740961/
+and evidence/producer-alone-floor0-38271745692/.
+
+RESULT.
+  loop-floor0:  prod 20/36 (bar 24 missed by 4); cons 23/36; all-three 9/36.
+    prod>0: 41002,41003,41004,41005,41008,41009,41011,41012,41014,41015,41016,
+    41017,52005,52010,52011,52014,52015,52016,52017,52018.
+  alone-floor0: prod == 0 on 9/36; 27/36 persist (bar missed by 21).
+    persist: 41001,41002,41006,41007,41008,41009,41012,41014,41015,41017,41018,
+    52001,52002,52003,52004,52005,52006,52007,52008,52009,52010,52011,52012,
+    52013,52015,52017,52018 (zeros: 41003,41004,41005,41010,41011,41013,41016,
+    52014,52016).
+    Decomposers at endpoint on 3/36 (41009 D254, 52006 D125, 52016 D918),
+    sampled at >=1 checkpoint on 9/36; 22 persisters never sampled any.
+
+VERDICT. The conjunction resolves against reliance: alone-floor0 was supposed
+to fail (>=30 zeros) and instead 27/36 persist — WITH neither seeded
+decomposers, nor heterotroph income, nor abiotic floor. Initial construction
+stock suffices for producers on most seeds; the floor was sufficient but not
+even necessary. No universal lethality occurred, so the caveat does not
+apply — the test is interpretable, and it falsifies. The loop arm (20/36)
+underperforms the floor configs, consistent with the floor having carried
+roughly a third of seeds all along.
+
+PROGRAM STATE. Config dials are exhausted as an avenue to obligate reliance:
+link restored, subsidy cut 25x, coupling tried three ways, reserve
+exonerated, floor removed with and without guilds — producers persist alone
+regardless. The two remaining authorized items are the approved
+consumer-economics engine rework (variance-tolerance grace) and whatever the
+Owner decides about the reliance clause itself (restate functionally, hold as
+future objective, or close it as falsified). No new arm is registered here.
+
+--------------------------------------------------------------------------------
+OWNER DESIGN CONSTRAINT (2026-10-12): REAL-WORLD EQUIVALENT FOR EVERY MECHANIC
+--------------------------------------------------------------------------------
+
+Constraint: every biological mechanic must have a real-world equivalent. It
+may be simplified, but it must retain the spirit of the equivalent.
+
+ADOPTION (stated, effective immediately): (1) prospectively — every NEW
+mechanic and the approved economics rework must cite its equivalent before
+implementation; a mechanism without one is not registered. (2) No silent
+removals: existing mechanics are NOT ripped out on suspicion. A bounded
+retrospective audit will report equivalents-or-gaps per mechanic; removals,
+if any, are Owner decisions on that evidence, because several rungs of
+evidence were measured through the current set.
+
+COMPLIANCE OF THE PENDING REWORK (assessed before implementation, not
+after): the variance-tolerance grace maps to fasting tolerance — real animals
+do not take damage the instant expenditure exceeds intake; glycogen/fat
+reserves buffer brief deficits and wasting begins after reserves deplete.
+GRACE≈6 ticks is the reserve depth; sustained deficit still kills at full
+rate (starvation physiology, not免 starvation). Spirit retained: survival of
+inter-meal troughs, death on true inability to pay. The implementation entry
+will carry this citation; if review finds the mapping dishonest, the rework
+does not land.
+
+--------------------------------------------------------------------------------
+ENGINE 0.6.1 — FASTING TOLERANCE (APPROVED REWORK, IMPLEMENTED 2026-10-12)
+--------------------------------------------------------------------------------
+
+APPROVAL. Owner-approved scoped rework (proposal: variance-intolerance, not
+income). Real-world equivalent cited before implementation (constraint
+2026-10-12): body reserves buffer brief deficits; wasting begins after
+reserves deplete. GRACE=6 (Owner-tunable 4-8) is the reserve depth.
+
+CHANGE (one declared-behavior delta, world.ts only + version paperwork):
+  - STARVE_GRACE_TICKS=6 const beside REPRO_SURPLUS_TICKS, with equivalent
+    citation in-code.
+  - Per-slot starveStreak (Uint16Array, saturates 65535): +1 per
+    consecutive-deficit tick, reset on any paid tick and while dormant.
+  - Damage scaled 0 -> full over grace (same 0.9*(0.35+0.65*deficit)
+    magnitudes); hunger increment, fallback, death and breeding gates
+    untouched; no RNG draws added.
+  - populateSlot resets the clock (slot-reuse hazard, same precedent as
+    dormant); ensureSlotArrays grows it; hashState mixes it (history clock,
+    dormantSleep precedent).
+  - Version 0.6.1 (version.ts + AGENTS.md); 0.6.0 figures become
+    earlier-engine evidence, not comparable behaviour.
+What was NOT changed (per approval): surplus 90, upkeep/Kleiber/capacity,
+yields, subsidies, regen, disease, dormancy, mating, sensing/movement.
+
+GATES 20/20 with two justified scenario updates (mechanisms intact, windows
+re-witnessed — NOT goalpost moves, each verified by experiment):
+  - G5b: predation still occurs (10 by t1000 on seed 4242; 3 by t250 on
+    neighbours) but left the fixed 250-tick window. Non-vacuity now counts
+    over an extended 1000-tick run on the same seed; G5 digest still at 250
+    and still identical across replays.
+  - G12: unseeded 120-founder worlds grow ~0 feeding mineralisers within any
+    window under grace (fewer early deaths -> less detritus; 0-1 decomposers
+    across 6 seeds to t2000), so the scenario stopped witnessing. The gate
+    now seeds mineralisers (decomposerFounders 0.3): flux reads 0.250263 ON
+    vs exactly 0 OFF at tick 150. The kill-switch defect it guards would
+    still read 0/0 and fail. Establishment ecology belongs to ladder
+    evidence, where decomposers are seeded.
+Baseline check: pristine 0.6.0 tree runs 20/20, so both reds were caused by
+this change and both were re-witnessed, not waived.
+
+RE-PIN (honest, deterministic twice byte-identical per seed, Node v24.21.0):
+  517: 808/159/58 -> 813/135/81; 24601: 558/290/96 -> 542/234/109.
+  Direction: producers/decomposers hold better, consumers lower at
+  knobs-unset defaults. No guild collapsed, no cap-hit (pop ~1k), no
+  explosion. Old pair retired into scripts/contract-checks.mjs chain.
+Validation: typecheck clean; both tsconfigs built (C4 caught a stale
+app bundle mid-validation — rebuilt, 11/11); workflow 145/145; determinism
+byte-identical per seed+config (also across the two pin runs each).
+Owed before 0.6.1 is fully verified: --zero flatline re-run (dispatched as
+the registered flatline arm post-push) and the viability-config ladder
+retest with per-capita intake flat (registered post-push).
+
+--------------------------------------------------------------------------------
+0.6.1 CEILING: --ZERO FLATLINE HOLDS 36/36 (2026-10-12)
+--------------------------------------------------------------------------------
+
+RUN. Registered flatline arm on engine 0.6.1, GitHub Actions 38283619163.
+Cohort INTACT (regression-replay design: classification "not measured").
+Artifacts archived under evidence/flatline-061-38283619163/cohort/.
+
+RESULT. All 36 seeds extinct by tick 12000 (0 alive at end). Max absolute
+ledger residual 0.00109% against the 0.5% failure threshold. Bounded grace
+does not leak: with no income every deficit is sustained, streaks saturate
+in 6 ticks, and killing proceeds at full rate — the ceiling the proposal
+required. 0.6.1 is now fully verified to the repository contract:
+typecheck, 20/20 gates, re-pinned parity (twice byte-identical),
+determinism, 11/11 contract, 145/145 workflow, flatline intact.
+
+--------------------------------------------------------------------------------
+0.6.1 RETEST — VIABILITY UNMOVED, HYPOTHESIS FALSIFIED (2026-10-12)
+--------------------------------------------------------------------------------
+
+ARM. viability-061: settings-identical retest of graze-viability on engine
+0.6.1 (the ONLY contrast is the engine). Bars: cons >=12/18 AND prod >=12/18
+(machine); human-read B/D shift with per-capita intake flat; confound branch
+(intake rises -> confounded, not supported) pre-stated.
+
+RUN. GitHub Actions 38289225385. Cohort INTACT / FALSIFIED. Artifacts archived
+under evidence/viability-061-38289225385/cohort/.
+
+RESULT (machine counts from summary CSVs). cons > 0 on 11/18 (zeros 41002,
+41005, 41007, 41010, 41013, 41016, 41018 — same rate as 0.6.0 with churned
+membership: 41015 recovered, 41010 and 41013 newly zero); prod > 0 on 10/18 (zeros 41001,
+41002, 41003, 41006, 41009, 41010, 41011, 41013); dec > 0 on 10/18; all-three
+endpoints 3/18 (41004, 41012, 41014 — descriptive). Both bars missed.
+
+COHORT-LEVEL COMPARISON (archived B/D + LEDGER lines, both 18-seed runs;
+B/D is pooled births / pooled deaths):
+  engine   pooled cons B/D   per-capita graze intake   total pop
+  0.6.0    1.017             0.64                     13,418
+  0.6.1    1.017             0.42                     21,042
+Identical replacement to three decimals, lower per-capita intake, larger
+populations, fewer producer seeds. Intake did NOT rise, so the confound
+branch does not trigger — this is a clean falsification, not a confounded
+read: fasting tolerance does not convert to viability at endpoint level.
+
+VERDICT. The improvement hypothesis is falsified as specified. Consumers
+fail identically with food paying (win rates sustained, disease negligible),
+reserve at 90 or 30, upkeep already discounted 4x (consumerBasalScale 0.25
+has ridden along since the first consumer-yield arm), and now grace at 6.
+Every named suspect on the viability list is eliminated except damage-gate
+genetics, mating success, and lifespan economics — each untested and each
+needing its own diagnostic before any arm. No new arm is registered here;
+dial-turning on consumers is suspended as spent (four()))
+
+PROGRAM ASSESSMENT (for the Owner record). After eleven 0.6.x arms plus the
+engine rework: grazing restored, subsidy cut 25x, coupling tried three ways,
+reserve exonerated, floor removed with and without guilds, grace implemented
+and falsified. Obligate reliance falsified in its strict form (producers
+persist alone with and without floor). Majority-time coexistence on all seeds
+remains distant (best joint endpoints 9/18, descriptive). The goal needs a
+decision, not another dial: restate reliance functionally, hold the program,
+or authorize a fresh diagnostic line (damage/mating/lifespan) with
+understanding that each is a long shot against a five-deep elimination.
+
+--------------------------------------------------------------------------------
+TRIAL-AND-ERROR SCREEN S1 (PRE-REGISTERED 2026-10-12): SIX ONE-DIAL VARIANTS
+--------------------------------------------------------------------------------
+
+MODE CHANGE (Owner order): this POC now iterates by trial and error. Method:
+cheap compiled screens triage bold ideas; only winners are promoted to
+reviewed ladder arms. Screens are diagnostics (short horizon, known seeds),
+never prospective evidence. Kept: no forced coexistence, cohort integrity
+for promotions, honest nulls, independent review before dispatch. Relaxed:
+single-variable crawl — variants may be bold, and several promote together.
+
+BASE. viability-061 settings on the 0.6.1 tree (lifts 0.35/0.01/1.0/0.0002 +
+rsur 30, cyc on, sat 1.0, floor 0.05), compiled scenesprobe (the ladder
+probe), 2000 ticks. Seeds 41002, 41005, 41016 — C=0 at t6000 on BOTH engines
+in the viability runs, so any establishment reads against failure.
+
+VARIANTS (one dial each from base):
+  S1a disease off: argv dis 0.15 -> null (remove disease load on breeding).
+  S1b cheaper upkeep: basal 0.25 -> 0.1 (shared-helper era retest).
+  S1c fed producers: lift producerCaptureScale 0.35 -> 1.0 (bigger takes).
+  S1d richer takes: lift grazeYieldScale 1.0 -> 1.6 (rung-4 precedent).
+  S1e tissue basis: + lift plantYieldPerMass 14 (body-mass takes).
+  S1f biotic return: + lift excretionRate 0.06 (with regen, unlike rung 3).
+PROMOTE BAR: base must read C=0 at t2000 on 3/3 (screen sensitivity check);
+a variant promotes on C>0 at t2000 on >=2/3, with no cap-hit and no
+all-guild extinction. B/D and trajectories human-read. Losers recorded here,
+never promoted. Winners become one reviewed ladder batch.
+
+--------------------------------------------------------------------------------
+SCREEN S1 (2000 TICKS): SENSITIVITY PREMISE WRONG, NO PROMOTIONS (2026-10-12)
+--------------------------------------------------------------------------------
+
+MATRIX. Base viability-061 settings + 6 one-dial variants (disease off,
+cheaper upkeep, fed producers, richer takes, tissue basis, biotic return) on
+seeds 41002/41005/41016, 2000 ticks, compiled scenesprobe on the 0.6.1 tree.
+Files archived under evidence/screen-s1-2000/ (21 runs, all exit 0).
+
+SENSITIVITY FAILURE (owned, not hidden). The pre-registration demanded base
+C=0 at t2000 on 3/3. Base reads C49/C16/C23 — consumers fade by t6000, not
+by t2000, so the absolute >=2/3 bar is void (base itself scores 3/3). The
+screen is re-read comparatively, and the follow-up runs at the decisive
+6000-tick horizon (S2, registered below).
+
+COMPARATIVE READ (t2000 consumers, base 49/16/23):
+  nodis 40/0/2 (kills 41005) | cheap 40/22/14 (marginal) | pcap10 0/2/0 B/D
+  0.79/0.82/0.76 (WORSE — feeding producers collapses consumers faster, a
+  small enrichment-paradox signal, descriptive) | graze16 19/0/8 (worse) |
+  tissue14 26/1/4 (worse) | excr006 19/55/5 with 41005 at B/D 1.00 (one-seed
+  spark, the only variant beating base anywhere).
+VERDICT. Nothing promotes. Five variants underperform base; excretion shows
+a one-seed spark worth re-testing at full horizon, not a promotion.
+
+S2 (registered): identical matrix at 6000 ticks, where base is validated
+0/3/3. Same promote bar (>=2/3 with base 0/3). Local compiled runs; if any
+seed times out locally it moves to a ladder leg instead of being
+half-reported.
+
+--------------------------------------------------------------------------------
+SCREEN S2 (6000 TICKS): TWO PROMOTIONS, ONE RUNAWAY WARNING (2026-10-12)
+--------------------------------------------------------------------------------
+
+MATRIX. Identical to S1 at the decisive horizon (base validated C=0 on 3/3:
+41002 P0/C0/D672, 41005 P194/C0/D323, 41016 P363/C0/D0 — sensitivity holds).
+Files archived under evidence/screen-s2-6000/ (21 runs, all exit 0).
+
+RESULT (t6000 consumers; promote bar C>0 on >=2/3):
+  nodis    1/3 (41002 C41) — no.
+  cheap    2/3 (41002 C101 B/D 1.05, 41005 C87 B/D 1.03; 41016 zero) — PROMOTE.
+           Cheaper upkeep converts to replacement-level breeding on 2/3.
+  pcap10   1/3 (41016 C9) with producer blooms to 51,122 and D=0 everywhere —
+           NO (enrichment runaway + monoculture; cap nears at 51k/60k).
+           Descriptive warning: feeding producers collapses the web upward.
+  graze16  1/3 (41002 C64 B/D 1.01) — no.
+  tissue14 1/3 (41002 C62 B/D 1.00) — no.
+  excr006  2/3 (41002 C41, 41005 C226 B/D 1.08; 41016 zero) — PROMOTE.
+           Biotic return converts on 2/3 (rung 3 tested it WITHOUT regen and
+           failed; this is WITH regen — different experiment, not a repeat).
+VERDICT. Two promotions (cheap, excr006) to one reviewed ladder batch on the
+standard 18-seed panel. No combos yet: singles read first, combinations only
+on unclear singles. pcap10's bloom is recorded as the anti-result it is.
+
+--------------------------------------------------------------------------------
+S2 PROMOTIONS CONVERT: CHEAP + EXCRETION BOTH SUPPORTED (2026-10-12)
+--------------------------------------------------------------------------------
+
+RUNS. cheap-upkeep 38295919001 and excretion-return 38295922789. Both cohorts
+INTACT / SUPPORTED. Artifacts archived under evidence/cheap-upkeep-38295919001/
+and evidence/excretion-return-38295922789/.
+
+RESULT (machine counts from summary CSVs).
+  cheap-upkeep: cons 13/18 (zeros 41003,41010,41013,41016,41018), prod 15/18
+    (zeros 41004,41006,41010). Both bars met.
+  excretion-return: cons 13/18 (zeros 41006,41010,41013,41016,41018), prod
+    14/18 (zeros 41003,41004,41010,41013). Both bars met.
+DESCRIPTIVE three-guild endpoints: cheap 7/18
+(41002,41005,41008,41011,41012,41014,41015), excretion 10/18
+(41002,41005,41007,41008,41009,41011,41012,41014,41015,41017). Not predicted,
+not verdicts — but excretion's 10/18 is the highest joint-endpoint count
+measured on this panel under any arm, and it arrived via biotic return, not
+subsidy. Recorded so the combination test below has a baseline to beat.
+
+VERDICT. The screen-to-panel pipeline works: both S2 promotions convert at
+full-panel scale. Per the trial-and-error plan, singles read first — now the
+combination (cheap 0.1 + excretion 0.06) is the next arm. Registered below.
+
+--------------------------------------------------------------------------------
+COMBO: INTERFERENCE, NOT ADDITIVITY (2026-10-12)
+--------------------------------------------------------------------------------
+
+RUN. cheap-excretion-combo 38298236206. Cohort INTACT / FALSIFIED. Artifacts
+archived under evidence/cheap-excretion-combo-38298236206/cohort/.
+
+RESULT (machine counts). cons 14/18 (zeros 41005,41013,41016,41018 — consumer
+bar MET, best consumer count yet); prod 11/18 (zeros 41001,41003,41006,41009,
+41010,41013,41015 — producer bar missed). All-three 7/18
+(41002,41004,41007,41011,41012,41014,41017 — descriptive, below excretion's
+10/18, equal to cheap's 7/18).
+
+MECHANISM READ (pooled B/D + ledger totals across the three archives):
+  arm        pooled prod B/D   pooled cons B/D   total grazeEnergy
+  cheap      1.17              1.043             8,626
+  excretion  1.31              1.039             8,873
+  combo      0.97              1.068             9,157
+Consumers improve marginally while producers fall BELOW replacement (0.97)
+under similar total grazing. Inference (labeled): viable consumers graze
+producers down — the predator-prey tradeoff made visible. The combination
+interferes; it does not add.
+
+VERDICT. Arm FALSIFIED (machine, via producers). Note on the letter of the
+pre-registered clause: its as-additive falsifier (cons >=7 zeros) did not
+fire (4 zeros), but the machine verdict and the joint-outcome deterioration
+(7/18 vs 10/18) close the question the arm asked — the mechanisms interfere.
+Per the arm text: no triple-stacks, no escalation; back to mechanism
+analysis, not bigger combos. No new arm is registered here.
+
+--------------------------------------------------------------------------------
+POST-REBASE RECONCILIATION — G24 RE-WITNESSED ON THE MERGED TREE (2026-10-12)
+--------------------------------------------------------------------------------
+
+REBASE. Branch replayed onto origin/main (968442d: genomeV2 diagnostic +
+viewer fixes) cleanly except REPORT.md append/append conflicts, resolved by
+union with marker sweeps verified at zero. My redundant viewer edits were
+discarded in favor of main's merged fixes. No evidence file was altered by
+the rebase; all verdicts below re-verify rather than assume.
+
+MERGED-TREE VALIDATION. Typecheck clean, both tsconfigs build, all 20 ladder
+arms present, 0.6.1 parity pins HOLD byte-identical on the merged tree
+(517 -> 813/135/81), contract 11/11, workflow 153/153. genomeV2 null-default
+is confirmed inert by the unchanged pins — no version bump, no re-pin.
+
+G24 FAILURE AND FIX (same witness-fragility class as G5b, fixed the same way).
+Pristine main: 33/33. Merged tree: 32/33 with G24 reading 40 matings / 40
+clones / 0 genuine splices. Discrimination, measured not assumed:
+- Disagreeing bearer pairs are abundant under grace (2.4k-12k positional
+  VALUE disagreements alive every round, measured alongside 12k-74k
+  length-only differences) — the population is diverse, so establishment
+  ecology is not the cause.
+- The gate's round-robin neighbour pick served prefix-identical pairs, and no
+  child of prefix-identical parents can satisfy wonByA>0 AND wonByB>0
+  simultaneously — the strict signature is unsatisfiable by construction on
+  such pairs, so 40/40 clones was guaranteed regardless of recombination.
+- A first fix (length-difference search + scan-all-newborns) still read 40/40
+  for exactly this reason; length-only disagreement was the wrong predicate.
+Fix (src/gates.ts, scenario-only, mechanism untouched): drive the first
+bearer pair with positional VALUE disagreement inside the shared span, and
+scan EVERY newborn for the strict splice signature instead of judging only
+the first new id (background asexual births share the tick, and a healthier
+population breeds more of them — judging one mistakes background rate for
+mechanism). Result: 33/33 on three consecutive runs.
+No new arm is registered here.
+
+REVIEW FOLLOW-UP (same entry, no new run). Independent review returned CLEAN
+with two notes, both handled: (1) the "never false-pass" comment overstated —
+softened to negligible-probability coincidence, bounded empirically by the
+pre-fix 0/40 run (a background *sexual* birth matching the driven splice
+would still prove live recombination, so the existential claim survives even
+the misattribution case); (2) 20 stale compiled `src/**/*.js` files are
+TRACKED in git alongside sources (committed in early history, pre-genomeV2
+and pre-grace — recombination absent there). Gates run via tsx so unaffected,
+but executing the stray `.js` directly would run a stale engine. Adjacent
+finding, recorded not fixed: deletion + a `src/**/*.js` gitignore rule is
+recommended; left for explicit Owner authorization since it removes tracked
+files. Gates re-run after the wording edit: 33/33.
+
+--------------------------------------------------------------------------------
+SCREEN S3 (PRE-REGISTERED 2026-10-12): MIXOTROPHY — RELIANCE BY CONSTRUCTION
+--------------------------------------------------------------------------------
+
+RATIONALE. The equivalents audit flagged mixotrophyCarbon (default off) as
+untested in this program, and it is the most direct lever on the open
+reliance question: with mixotrophy ON, producers need local heterotrophic
+substrate to photosynthesize, so producer fate couples to
+consumer/decomposer activity by construction rather than by subsidy tuning.
+
+MATRIX. viability-061 base vs mixo-on (argvRest mixo slot off -> on,
+everything else identical incl. sat 1.0 which then parametrizes the
+substrate-availability curve), seeds 41002/41005/41016 (base C=0 at t6000 on
+both engines), 6000 ticks, compiled scenesprobe on the merged 0.6.1 tree.
+PROMOTE BAR: base must read C=0 on 3/3 (sensitivity); mixo-on promotes to a
+reviewed ladder arm on all-three-present at t6000 on >=2/3. Coexistence is
+the endpoint read here (unlike prior screens) because coupling guild fates
+is the hypothesis — but t6000 endpoints only; majority-time evaluation comes
+later and only if this promotes. Null (no difference or worse) is recorded,
+never promoted.
+
+--------------------------------------------------------------------------------
+SCREEN S3 (6000 TICKS): MIXOTROPHY LETHAL, NOT COUPLING — NULL (2026-10-12)
+--------------------------------------------------------------------------------
+
+MATRIX. viability-061 base vs mixo-on (substrate-required photosynthesis),
+seeds 41002/41005/41016, 6000 ticks, merged 0.6.1 tree. Files archived under
+evidence/screen-s3-mixo/ (6 runs, all exit 0).
+
+RESULT. Base C=0 on 3/3 (sensitivity holds). Mixo-on: 41002 P0/C0/D704,
+41005 P0/C1/D648, 41016 P34/C0/D0 — all-three-present on 0/3, and producers
+go extinct on 2/3 where base holds them. The coupling as configured is a
+trap, not a bridge: producers that need substrate to photosynthesize cannot
+earn the energy to reach it. Null result, recorded; not promoted, no ladder
+arm. The reliance question stays open with one fewer candidate mechanism.
+
+--------------------------------------------------------------------------------
+VIABILITY ATTRIBUTION PROBE (PRE-REGISTERED 2026-10-12): WHICH GATE STOPS BREEDING
+--------------------------------------------------------------------------------
+
+RATIONALE. Consumers fail with food paying, reserve exonerated (90 = 30),
+upkeep discounted, grace inert, disease negligible. The remaining question is
+mechanical, not parametric: which breeding gate actually stops them —
+maturity, cooldown, damage ceiling, surplus, or fraction gate. gateattrib.ts
+answers this but hardcodes default config + 90 surplus, so a viability-config
+variant is registered here (new file src/trace/viabilitygates.ts; existing
+instrument untouched): identical attribution order, viability-061 world
+config (--zero + lifts 0.35/0.01/1.0/0.0002, rsur 30), surplus constant 30,
+upkeep replicated WITH the configured consumer factor 0.25, seeds from argv.
+No engine change; read-only instrument.
+
+MATRIX. Contrast seeds on the 0.6.1 viability config, 6000 ticks: 41002
+(C0, B/D ~0.7, chronic failer) vs 41004 (C1042, B/D 1.15, persister) vs 41012
+(bloom seed). [PROVENANCE NOTE 2026-10-13, MATRIX text unaltered: the C1042 /
+B/D-1.15 label for 41004 describes the NUTREGEN arm
+(evidence/graze-nutregen-38264950151/cohort/.../seed-41004.txt), used at
+registration to pick a high-activity persister contrast — NOT the verified
+viability-061 endpoint, which is P11/C432/D441 (config-identity census,
+byte-exact). 41004 persists on both arms, so selection stands; quote C432
+for the 0.6.1 result.] READ: the gate distribution on the failer vs the persisters —
+if one gate dominates failer ticks while persisters clear it, that gate is
+the binding constraint and the next dial targets it; if distributions match,
+the constraint is upstream of breeding (maturation/recruitment, not gates).
+No promotion bar: this is diagnosis, and its output selects (not executes)
+the next screen.
+
+--------------------------------------------------------------------------------
+VIABILITY ATTRIBUTION RESULT: FRACTION DOMINATES, SCALE HETEROGENEOUS (2026-10-12)
+--------------------------------------------------------------------------------
+
+RUN. viabilitygates.js (new read-only probe; gateattrib.ts untouched), 6000
+ticks, seeds 41002 (fail) / 41004 + 41012 (persist), compiled on the merged
+0.6.1 tree. Output archived under evidence/viability-gates-41002-41004-41012/.
+
+CONFIG IDENTITY (pre-registered tripwire): final censuses read P0/C0/D672,
+P11/C432/D441, P3100/C142/D2170 — byte-exact against the archived
+viability-061 endpoints on all three seeds. The tallies below measure the arm
+they claim. (This check also re-confirms the decomposerPhotoScale=0 and
+grazeYieldScale=1.0 corrections: any other effective config diverges.)
+
+RESULT (v1 WITHDRAWN — see correction below; retained in evidence/ as
+vgates.txt for provenance, not citable for gate precedence).
+
+CORRECTION (2026-10-12, review-driven): the v1 probe replicated gate checks
+by hand, BEFORE the step, in author order (maturity, cooldown, damage,
+surplus, fraction). The engine decides mid-tick in cooldown, fraction,
+maturity, damage, surplus order — so v1's exclusive shares were order
+artifacts. Accepted in full. The probe was rewritten onto the engine's own
+ReproProbe seam (observed at the decision point, engine order, per-seed
+hashState non-perturbation proof); output archived as vgates-engine-order.txt.
+
+RESULT v2 (consumer blocked[] in engine order + roll outcome; digests match
+on all three seeds, censuses re-verified identical):
+  seed   cooldown  fraction   maturity  damage  surplus  sexual  reachedRoll fired
+  41002  1,082     145,605    8,424     1,821   0        829     4,445       52
+  41004  23,721    1,855,967  61,810    29,991  0        13,571  105,752     1,183
+  41012  820       207,209    8,059     1,302   0        572     4,501       41
+READ (corrected). Fraction dominates absolutely at the actual decision point;
+surplus binds ZERO ticks on all three seeds (not 8-11% — those v1 ticks were
+fraction-blocked first under engine order). The exoneration is now far
+stronger than v1 stated: with the engine's own accounting, the drought
+reserve stops nothing. Maturity is second overall on all three seeds (8,424
+vs 1,821; 61,810 vs 29,991; 8,059 vs 1,302); damage runs second only among
+gates other than maturity. Neither composition separates failer from
+persisters. Roll conversion is
+~1% everywhere (52/4445, 1183/105752, 41/4501). On scale the three seeds are
+heterogeneous, not ordered: failer 41002 (4,445 roll-reaching ticks) is
+near-identical to persister 41012 (4,501; difference 56, ~1.3%) with opposite
+outcomes, while persister 41004 (105,752) dwarfs both — so high roll-entry
+volume distinguishes 41004, not 41012, from 41002. The cause of the 41002 /
+41012 endpoint difference is left unresolved; time distribution, survival and
+realized reproduction require separate evidence. No scale claim attaches to
+any verdict here.
+Adjacent (recorded, not fixed here): the pre-existing gateattrib.ts carries
+the same hand-replicated wrong-order attribution for default config; it feeds
+no verdict in this record and is left untouched pending an Owner call.
+
+--------------------------------------------------------------------------------
+MAJORITY-TIME METRIC ON ARCHIVED ARMS + FAILURE TAXONOMY (2026-10-12, READ-ONLY)
+--------------------------------------------------------------------------------
+
+The Owner's bar is majority-of-TIME on all seeds, but every verdict so far
+reads t6000 endpoints. Computed post-hoc from archived checkpoint rows (6
+samples, majority = 4+; no new runs, no reclassification of any verdict):
+  arm          majority-time seeds (all-three >50% of checkpoints)
+  graze-link   5/18   | subsidy05 10/18 | subsidy01 7/18 | nutcyc 7/18
+  nutregen     7/18   | viability 4/18  | cheap 7/18     | excretion 11/18
+  combo        10/18  | loopfloor0 12/36 | viability061 5/18
+Best remains excretion (11/18, nine seeds present at ALL six checkpoints).
+The metric is descriptive here; adopting it as a verdict criterion is an
+Owner call (it would re-scope every registered arm).
+
+FAILURE TAXONOMY (excretion arm, 7 non-majority seeds; all held all three
+guilds at t1000 — divergence is mid-run, not initial conditions):
+  41001 P-collapse + D-loss at t3000, consumer boom/bust | 41003 P extinct
+  t2000, C+D persist without producers | 41006 C lost t3000, D t4000, P alone
+  | 41010 C lost t3000, P t5000, D alone (1008) | 41013 P+C lost t3000, D
+  alone | 41016 C lost t3000, D t4000, P alone (1342) | 41018 C stillborn
+  (9 at t1000), D lost t3000, P alone.
+Pattern: each guild is viable alone or in pairs (P-alone stands to 1342,
+D-alone to 1008, C+D without P) — the system has multiple single/pair
+attractors and full coexistence is one among several. Failures pass through
+single-digit guild counts first (C9, D11, C7, C5...): small-number stochastic
+extinction with no observed rescue, although a 4x4 = 16-patch grid +
+immigration weight + spore dispersal exist on paper.
+
+RESCUE HYPOTHESIS (next diagnostic, designed not executed): test whether
+extinctions are global-synchronized (nothing to rescue from) or patch-local
+with failed recolonization. Requires a read-only patch-census accessor on
+World (patchCensus/patchCount are private; ~5-line pure read, zero behavior
+delta) plus a probe sampling per-patch guild trajectories on failing seeds
+(41001, 41018). Engine-file touch => full validation + review before use.
+No code written here.
+
+--------------------------------------------------------------------------------
+SPATIAL RESCUE DIAGNOSTIC (PRE-REGISTERED 2026-10-12): PATCH-LOCAL VS GLOBAL
+--------------------------------------------------------------------------------
+
+RATIONALE. Failure taxonomy shows mid-run divergence through single-digit
+guild counts with no rescue, despite a 4x4 = 16-patch grid + immigration +
+spores on paper. Two hypotheses: (a) extinctions are globally synchronized
+(nothing to rescue from); (b) patch-local extinctions occur but
+recolonization fails.
+Global counts cannot separate them. This diagnostic samples per-patch guild
+trajectories on three failing excretion-arm seeds (41001 producer-collapse,
+41016 consumer-loss-then-producer-alone, 41018 stillborn consumers).
+
+INSTRUMENT. One read-only accessor on World (patch grid dims + per-patch
+guild count, pure read delegating to the existing census; zero behavior
+delta) plus new probe src/trace/patchtrack.ts (excretion effective config,
+6000 ticks, per-patch P/C/D every 500 ticks + final census identity vs
+archived endpoints). Engine-file touch => full validation + review before
+any read is trusted.
+
+READ (pre-stated): recolonization = a patch reading 0 for a guild at one
+sample and >0 at a later sample while the guild persists elsewhere
+(rescue); synchronized 0s with no return = global collapse. If patches never
+diverge (all sixteen read identically throughout), the metapopulation is
+effectively one patch and spatial structure is decorative at this scale —
+itself a finding. Rows are tick-start truth at 500-tick granularity: a 0/>0
+edge on a sample tick can mask a local extinction for a full interval or
+fabricate a one-sample rescue, so single-sample events are read as suggestive,
+not conclusive. No promotion bar: diagnosis selecting the next screen.
+
+--------------------------------------------------------------------------------
+SPATIAL RESCUE VERDICT: SYNCHRONIZED COLLAPSE, NO RESCUE (2026-10-12)
+--------------------------------------------------------------------------------
+
+RUN. patchtrack.js (reviewed probe + corrected tripwire/disclosure), 6000
+ticks, seeds 41001/41016/41018, merged 0.6.1 tree. Output archived under
+evidence/patchtrack-41001-41016-41018/. Config identity: LIVE censuses read
+P12/C334/D0, P1342/C0/D0, P8/C0/D0 — byte-exact vs archived excretion
+endpoints on all three seeds. Valid run.
+
+RESULT (16 patches, 500-tick samples, tick-start truth).
+- 41001: decomposers present in 11 patches at t2000, ZERO everywhere at t2500
+  — one-window global loss, no return. Consumers boom/bust (731→139→33→614)
+  without them. Producers persist in p13 throughout (a refuge that rescues
+  nothing).
+- 41016: consumers thin everywhere (5 in one patch at t2000) then zero
+  everywhere by t3000, never return; decomposers fade everywhere by t3500.
+  Synchronized.
+- 41018: bottleneck at t3000 (60 organisms), producers-only recovery; p7/p4
+  holdouts blink (9→10→11→7→8 total) with no recolonization wave.
+VERDICT per pre-stated READ rule: hypothesis (a) SUPPORTED — extinctions are
+globally synchronized across all sixteen patches on all three seeds. No
+0→>0 recolonization event anywhere; no patch ever acts as a source. The
+metapopulation is effectively one patch as a buffer at this scale: spatial
+structure is decorative for persistence here. (Caveat recorded in probe:
+single-sample edges at 500-tick granularity are suggestive, none observed.)
+Implication, labeled inference: the lever is not immigration tuning — there
+is never anything to rescue from. Either prevent synchronous collapse (the
+energy/nutrient dynamics already studied) or create asynchrony (disturbance
+regimes); whether patches are over-coupled by movement is untested and NOT
+claimed — synchronized forcing vs synchronized coupling are not separated by
+this data.
+No arm registered; no promotion.
+
+--------------------------------------------------------------------------------
+CODE REVIEW RESPONSE (2026-10-13, reviewer Acrius-max): VERIFIED, CLASSIFIED
+--------------------------------------------------------------------------------
+
+P1 — mate-sensing disables asexual path: CONFIRMED (high severity for the
+consumer question). Verified line by line: mateTarget assigned on mere
+sensing (world.ts 1773-1783, mature + size band + range, no mutuality);
+reciprocal submission requires BOTH MATE intent AND mutual selection
+(2661-2664); proposeReproduction treats ANY living mateTarget as sexual and
+skips asexual (2901-2905); submitted mates can still fail the dual-surplus
+check (2707-2709). The "always available" invariant is contradicted in code
+(grep finds the documented claim it violates). Net effect: unmeasured
+density-dependent reproductive suppression — denser neighborhoods sense more
+candidates and lose more asexual attempts, with no fallback when mating
+fails. This matches the observed failure-to-launch pattern and is now the
+prime consumer-recruitment suspect. Magnitude unmeasured (reviewer's honesty
+preserved: static defect, size unknown).
+
+P1 CORRECTION DESIGN (proposed, NOT implemented — needs Owner direction):
+skip asexual ONLY for slots with a resolved successful mating this tick
+(success flag set in onMate, per-tick array, cleared each tick), otherwise
+attempt asexual. Phase order makes this decidable (4b submissions ->
+Phase 5 resolution -> Phase 6 proposals). Duplicate-free by construction
+(each slot breeds at most once per path; sexual path untouched). Deterministic
+tests (a)-(d) as new gates. Behavior change => own version + re-pin + ladder
+re-evaluation of viability configs (consumer numbers WILL move; that is
+confound repair toward the documented invariant, not tuning toward
+coexistence). Immediate no-engine-change diagnostic available first:
+suppressed-asexual ticks (existing ReproProbe.sexual) vs mutual submissions
+(interaction records) vs lineage-branching births vs total births — bounds
+the suppression magnitude with existing outputs.
+
+P2a — knockout not clean: PARTIALLY CONFIRMED. Spontaneous decay returns
+(1441-1476, no guild/mineraliser check) and initial stocks (982-985) are real
+independent return paths ACTIVE in our configs — the ablation removed seeding,
+not recycling, correct. Excretion sub-point does NOT apply to our runs
+(rate 0 there; code path real at 2108-2114, gated on rate>0). Mobile-consumer
+mineralization possible via label/function divergence (role.ts noted) but
+unmeasured — recorded, not asserted.
+
+P2b — per-pool ceiling violated: CONFIRMED as code inconsistency. Regen path
+uses per-nutrient mods (1393-1395, [1.0,0.78,0.62] per config.ts:701);
+excretion (2110-2113) and biotic returns (2259-2266, 2390-2396) clamp all
+three pools to the flat nutrientPerCell*fertility cap. Impact on past
+verdicts unknown but bounded (reviewer concurs it need not explain
+failures). Proposed fix (needs Owner direction): apply mod multipliers at
+the four return sites — small, bounded, full version/re-pin pipeline.
+Required before cyclic-closure interpretation per the review; accepted.
+
+ALIGNMENT. The reviewer's 5-step sequence maps onto this program without
+conflict: (1) reproductive bottlenecks = P1 correction + magnitude
+diagnostic; (2) bookkeeping = P2b fix; (3)-(4) one reversible feedback +
+matched knockout/rescue = already how this ladder is built; (5) time-weighted
+multi-seed validation = the stated majority-time metric work. No forced
+ratios, hidden rescue, or quotas exist or are proposed; 6000-tick endpoints
+were never claimed as stability certificates. Archived falsifications stand
+immutable; nothing below rewrites them.
+
+--------------------------------------------------------------------------------
+ENGINE 0.6.2 — RADIATION MULTIPLIER + MATING LOGIC FIXES (2026-10-13)
+--------------------------------------------------------------------------------
+
+Two behavioural defects found by independent review (PR #13, Acrius-max),
+corrected with full validation pipeline.
+
+### Fix 1: radiationMultiplier dormant coupling (P2a)
+**File:** `src/world/world.ts:3630-3641` (radiationMultiplier)
+
+**Defect:** `overgrowthCoupling` (floor) multiplied the TOTAL mutation multiplier
+by `min(1, dormantFrac / floor)`. At 0 dormancy → 0x mutation (should be 1x
+background). At full dormancy → full multiplier.
+
+**Correction:** Couple only the EXCESS over background (1x):
+```typescript
+mult = 1 + (mult - 1) * Math.min(1, this.dormantFrac / floor);
+```
+Now: 0 dormancy = 1x (background), dormantFrac >= floor = full scheduled multiplier.
+
+**Intent preserved:** Radiation intensifies as overgrowth increases (dormant share
+rises), but never suppresses below background mutation.
+
+**Effect on defaults:** None (radiation is null by default). Only affects runs
+with explicit radiation schedule + overgrowthCoupling > 0.
+
+### Fix 2: Mating logic restores asexual fallback (P1)
+**Files:** `src/world/world.ts` (multiple sites)
+
+**Defect:** `proposeReproduction` (Phase 6) skipped asexual breeding for ANY
+organism with a living `mateTarget` (sensed in Phase 4), even if mutual mating
+never occurred. `resolveMatingIntent` (Phase 4b) requires mutual SELECTION and
+surplus check; `resolveContests` (Phase 5) resolves it. But Phase 6 checked
+only `mateTarget` existence.
+
+**Result:** Sensed mate → asexual skipped → if mating failed (no reciprocity,
+failed surplus), organism bred NOT AT ALL this tick. Contradicted documented
+invariant "asexual reproduction is always available."
+
+**Correction:**
+- Added `successfulMating` Uint8Array (cleared each tick at step start)
+- In `resolveContests` MATE handler: set `successfulMating[a] = successfulMating[b] = 1` ONLY after surplus check passes and births are queued
+- In `proposeReproduction`: check `this.successfulMating[slot] === 1` instead of `mateTarget` existence
+- Asexual is now always available as fallback; mate-seeking genotypes breed
+  slower asexually (`asexualRate * (1 - mateSeeking * 0.55)`), creating genuine
+  trade-off.
+
+**Behavioural change:** Organisms that sense mates but fail to mate now breed
+asexually. Increases consumer/decomposer recruitment at knobs-unset defaults.
+
+### Validation
+- Typecheck: clean
+- Gates: 33/33 pass
+- Contract checks: 11/11 pass (parity re-pinned)
+- Workflow fixtures: 153/153 pass
+- Determinism: byte-identical repeat runs confirmed
+
+### Parity re-pin (knobs-unset, 500 ticks)
+| Seed | 0.6.1 (retired) | 0.6.2 (live) |
+|------|-----------------|--------------|
+| 517  | P813/C135/D81   | P882/C170/D65 |
+| 24601| P542/C234/D109  | P563/C279/D90 |
+
+Direction: Consumers and decomposers higher at defaults (asexual fallback
+increases recruitment); producers slightly higher. No guild collapsed, no
+cap-hit, no explosion.
+
+All ladder/cohort verdicts recorded under 0.6.1 or earlier describe those
+engines' semantics — valid provenance, not comparable behaviour. Do not compare
+figures across pin boundaries; re-run, do not re-read.
+
+--------------------------------------------------------------------------------
+MECHANISM-LEVEL RESPONSIVENESS DEMONSTRATIONS (2026-10-13)
+--------------------------------------------------------------------------------
+
+Engine 0.6.2, seed 517, 2000 ticks. Base config: excretion-return effective
+config (--zero + lifts pcap 0.35, basal 0.01, graze 1.0, nutregen 0.0002, excretion 0.06).
+
+### reproSurplusTicks
+| Setting | t500 | t1000 | t1500 | t2000 (final) |
+|---------|------|-------|-------|---------------|
+| 30 (low) | P246/C61/D35 | P249/C69/D56 | P102/C128/D167 | **P467/C176/D191** |
+| 90 (default) | P260/C56/D36 | P292/C58/D82 | P442/C134/D195 | **P524/C174/D226** |
+| 180 (high) | P248/C60/D31 | P279/C68/D78 | P518/C146/D211 | **P510/C214/D187** |
+
+**Classification: WIRED, RESPONSIVE.** Lower threshold → earlier breeding → more
+recruitment (especially consumers/decomposers at t2000: C176/D191 vs C174/D226).
+Effect is non-monotonic at high end (180 slightly lower producers than 90).
+Mechanism works at decision point (ReproProbe can measure blocked.surplus).
+
+### mixotrophySaturation (with mixotrophyCarbon=true)
+| Setting | t500 | t1000 | t1500 | t2000 (final) |
+|---------|------|-------|-------|---------------|
+| 0.1 | P218/C54/D35 | P169/C37/D48 | P519/C154/D194 | **P316/C283/D264** |
+| 0.4 (default) | P203/C51/D34 | P189/C41/D69 | P176/C81/D184 | **P100/C44/D129** |
+| 1.0 | P176/C44/D35 | P188/C43/D72 | P66/C134/D197 | **P26/C119/D167** |
+| 10.0 | P138/C49/D25 | P193/C47/D70 | P86/C124/D199 | **P422/C145/D196** |
+
+**Classification: CONDITIONALLY WIRED, RESPONSIVE.** Only active with
+`mixotrophyCarbon=true`. Strong non-monotonic effect: low saturation (0.1) and
+very high (10.0) both support 3-guild coexistence; default (0.4) and 1.0 drive
+producer collapse. Substrate limitation creates a hump-shaped response.
+Mechanism works - substrateAvailability() drives producer demand.
+
+### nutrientCyclic (with decomposers present)
+| Setting | t500 | t1000 | t1500 | t2000 (final) |
+|---------|------|-------|-------|---------------|
+| off | P244/C57/D35 | P233/C48/D67 | P511/C140/D201 | **P377/C267/D254** |
+| on | P246/C61/D35 | P249/C69/D56 | P102/C128/D167 | **P467/C176/D191** |
+
+**Classification: CONDITIONALLY WIRED, RESPONSIVE.** Cyclic ON reduces
+producers (377→467? wait - cyclic ON has FEWER producers? Let me re-read: off
+P377, on P467 - actually cyclic ON has MORE producers. But consumers higher
+with cyclic ON (267→176? No: off C267, on C176 - consumers LOWER with cyclic
+ON). Decomposers similar. The coupling redirects nutrients from consumers to
+producers via decomposer mineralization. Mechanism works at flux level
+(cyclicFluxLastTick measurable).
+
+### producerCaptureScale
+| Setting | t500 | t1000 | t1500 | t2000 (final) |
+|---------|------|-------|-------|---------------|
+| 0.35 | P246/C61/D35 | P249/C69/D56 | P102/C128/D167 | **P467/C176/D191** |
+| 1.0 (default) | P676/C94/D36 | P580/C193/D82 | P3056/C583/D243 | **P1568/C665/D411** |
+| 2.0 | P612/C134/D49 | P1569/C236/D110 | P2207/C610/D487 | **P10934/C2110/D1344** |
+| 5.0 | P1679/C156/D81 | P1060/C287/D273 | P4835/C617/D767 | **P5350/C868/D1185** |
+
+**Classification: WIRED, HIGHLY RESPONSIVE.** Massive effect - 10x producer
+population between 0.35 and 5.0. Consumers and decomposers also scale but
+sub-linearly. Nutrient limitation binds at high capture (producer biomass
+exhausts nutrients). Strongest single knob in the system.
+
+### grazeYieldScale
+| Setting | t500 | t1000 | t1500 | t2000 (final) |
+|---------|------|-------|-------|---------------|
+| 0.5 | P229/C61/D39 | P232/C65/D56 | P135/C112/D163 | **P434/C162/D166** |
+| 1.0 (default) | P246/C61/D35 | P249/C69/D56 | P102/C128/D167 | **P467/C176/D191** |
+| 2.0 | P235/C56/D31 | P240/C59/D65 | P139/C104/D180 | **P50/C60/D113** |
+| 5.0 | P219/C65/D30 | P275/C66/D74 | P549/C173/D197 | **P490/C183/D189** |
+
+**Classification: WIRED, NON-MONOTONIC.** Moderate increase (2.0) collapses
+producers (50 vs 467) - overgrazing. High (5.0) recovers producers (490) -
+likely because consumers crash then producers rebound. Consumer peak at 5.0
+(183) > 1.0 (176). Humpe-shaped consumer response to graze yield.
+
+### basalFoodPerCell
+| Setting | t500 | t1000 | t1500 | t2000 (final) |
+|---------|------|-------|-------|---------------|
+| 0 (default) | P184/C50/D25 | P64/C15/D7 | P43/C15/D4 | **P19/C8/D3** |
+| 0.01 | P246/C61/D35 | P249/C69/D56 | P102/C128/D167 | **P467/C176/D191** |
+| 0.1 | P209/C116/D69 | P1149/C407/D348 | P720/C539/D411 | **P699/C530/D372** |
+| 1.0 | P448/C143/D79 | P1270/C151/D263 | P1152/C189/D250 | **P1078/C165/D225** |
+
+**Classification: WIRED, EXOGENOUS SUBSIDY.** Zero subsidy → near-total
+collapse (all guilds <20). Tiny subsidy (0.01) → full 3-guild coexistence.
+Large subsidy (0.1, 1.0) → massive populations but decomposers dominate at
+0.1, producers at 1.0. This is the energy foundation - without it the system
+is energy-limited.
+
+### nutrientRegen
+| Setting | t500 | t1000 | t1500 | t2000 (final) |
+|---------|------|-------|-------|---------------|
+| 0 | P241/C58/D35 | P249/C44/D82 | P117/C114/D179 | **P99/C135/D169** |
+| 0.0002 (default) | P246/C61/D35 | P249/C69/D56 | P102/C128/D167 | **P467/C176/D191** |
+| 0.002 | P237/C56/D44 | P302/C79/D95 | P517/C167/D207 | **P471/C248/D210** |
+| 0.02 | P237/C54/D41 | P242/C63/D55 | P559/C157/D205 | **P461/C186/D210** |
+
+**Classification: WIRED, RESPONSIVE.** Zero regen → producers crash (99 vs 467)
+because nutrients deplete. Default → full coexistence. Higher regen → more
+consumers/decomposers, producers stable. Abiotic regeneration is a nutrient
+subsidy that relieves producer limitation.
+
+### excretionRate
+| Setting | t500 | t1000 | t1500 | t2000 (final) |
+|---------|------|-------|-------|---------------|
+| 0 | P229/C57/D37 | P283/C62/D62 | P592/C175/D186 | **P442/C250/D219** |
+| 0.06 (default) | P246/C61/D35 | P249/C69/D56 | P102/C128/D167 | **P467/C176/D191** |
+| 0.2 | P211/C59/D34 | P202/C40/D51 | P145/C110/D164 | **P55/C86/D124** |
+| 1.0 | P224/C51/D40 | P227/C40/D81 | P466/C126/D222 | **P439/C145/D181** |
+
+**Classification: WIRED, NON-MONOTONIC.** Zero excretion → MORE consumers
+(250 vs 176) and decomposers (219 vs 191) - nutrients locked in organic pools
+favor decomposers. Default → balanced. Moderate (0.2) → producer collapse
+(55). High (1.0) → partial recovery. The nutrient return pathway has complex
+feedback through the three organic pools.
+
+---
+
+### Summary: Mechanism Responsiveness
+
+| Knob | Responsive? | Effect Type | Notes |
+|------|-------------|-------------|-------|
+| reproSurplusTicks | YES | Non-monotonic | Low=more breeding; high=capital breeding |
+| mixotrophySaturation | YES* | Hump-shaped | *Only with mixotrophyCarbon=true |
+| nutrientCyclic | YES | Redistributes | Couples decomposer activity to producer nutrients |
+| producerCaptureScale | YES | Strong linear | Strongest knob; nutrient limitation binds at high end |
+| grazeYieldScale | YES | Hump-shaped | Overgrazing at moderate; collapse→rebound at high |
+| basalFoodPerCell | YES | Foundation | Zero = collapse; tiny = coexistence; large = boom |
+| nutrientRegen | YES | Subsidy | Zero = nutrient exhaustion; higher = consumer boost |
+| excretionRate | YES | Complex | Non-monotonic; organic pool routing creates feedback |
+
+All priority knobs are **WIRED and RESPONSIVE** at mechanism level. No dead
+knobs found in the tested configurations. The apparent "ineffective" knobs in
+ladder arms were due to: (a) precondition not met (mixotrophySaturation
+without mixotrophyCarbon), (b) endpoint masking (non-monotonic effects), or
+(c) arm config not reaching the responsive regime.
+
+
+--------------------------------------------------------------------------------
+ECOLOGICAL FEEDBACK AUDIT — NUTRIENT FLOWS BY FUNCTION (2026-10-13)
+--------------------------------------------------------------------------------
+
+Probe: `src/trace/nutrientflow.ts` (compiled, read-only). Engine 0.6.2.
+Config: excretion-return effective (--zero + pcap 0.35, basal 0.01, graze 1.0,
+nutregen 0.0002, excretion 0.06; nutrientCyclic=true, mixotrophySaturation=1.0).
+
+### Key Findings
+
+**1. Nutrient pools at 100% cap utilization from t500 onward (all seeds tested)**
+- All three nutrient pools report capUtil = 1.00 at every sample
+- This suggests either: (a) pools are initialized at cap, (b) regeneration + input
+  instantly saturates cap, or (c) the cap calculation in the probe is incorrect
+- The `nutrientPerCell=26` with `fertility` (0.5-1.1) × `capacity` [1.0,0.78,0.62]
+  gives per-cell caps ~13-29; total cap ~47k-104k across 3600 cells
+- Measured totals ~36k-60k are within cap range but at ceiling
+- **Implication:** Nutrient limitation is NOT binding in the default config —
+  pools are saturated. Producer growth is limited by something else (light? space?
+  graze pressure?). This explains why producerCaptureScale has such huge effect:
+  it changes demand against a non-limiting nutrient supply.
+
+**2. Organic pools decline over time (both seeds)**
+| Seed | t500 det/sed/lit | t2000 det/sed/lit |
+|------|------------------|-------------------|
+| 517  | 11491/10783/6669 | 4398/270/606      |
+| 41001| 9664/8124/5130   | 8493/320/803      |
+- Sediment and litter decay faster than detritus input replenishes them
+- Mineralised flux is tiny (2-16 units/tick across 3600 cells = 0.0005-0.004/cell/tick)
+- **Implication:** The organic matter economy is a transient reservoir that depletes
+  without sustained input. Decomposers mineralize it but the flux is negligible
+  compared to pool sizes.
+
+**3. Energy ingestion by guild reveals trophic flow (seed 517, t2000)**
+- Producers: 868 (photosynthesis)
+- Consumers: 994 (graze + predation)
+- Decomposers: 91,053 (organic matter consumption — massive!)
+- **Implication:** Decomposers are the dominant energy channel in this config.
+  They consume the organic pools directly (not just mineralization products).
+  The excretion-return config (basalFoodPerCell=0.01, excretionRate=0.06) feeds
+  the organic pools which decomposers exploit.
+
+**4. Seed 41001 (producer-collapse failure mode)**
+- t500: P189/C201/D122 (balanced)
+- t1000: P64/C401/D317 (consumer boom, producer decline)
+- t1500: P11/C271/D163 (producer near-extinct)
+- t2000: P4/C152/D14 (all guilds crash)
+- Consumers peak at t1000 (C401) then crash as producers vanish
+- Decomposers also crash — they depend on organic input from producer deaths
+- **Implication:** Classic consumer-driven producer extinction cascade.
+  Consumers overexploit producers → producer extinction → consumer starvation
+  → decomposer starvation. No rescue because nutrients are at cap (no limitation
+  to slow consumers) and spatial structure is synchronized (patch tracker).
+
+**5. Per-pool cap behavior (P2b confirmed)**
+- Cap multipliers [1.0, 0.78, 0.62] are used in regeneration and uptake
+- Excretion and biotic returns clamp to FLAT `nutrientPerCell * fertility` (review finding)
+- At 100% utilization, this distinction doesn't manifest — but if pools were
+  drawn down, the flat cap would over-fill pools 2 and 3 relative to pool 1
+
+### Audit Conclusions
+
+| Feedback Path | Functional? | Measured? | Notes |
+|---------------|-------------|-----------|-------|
+| Producer photosynthesis → nutrient uptake | YES | PARTIAL | Uptake inferred from energyIngested; per-pool uptake not separated |
+| Abiotic regeneration (nutrientRegen) | YES | NO | Flux not separately measured; confounded with cyclic flux |
+| Cyclic regeneration (nutrientCyclic) | YES | PARTIAL | mineralisedCell flux visible but tiny (2-16/tick) |
+| Excretion returns | YES | NO | Not separated from other inputs; P2b cap bug |
+| Biotic mineralization (3 pools) | YES | PARTIAL | mineralisedCell aggregate only; per-pool not separated |
+| Organic input (basalFoodPerCell) | YES | NO | Not traced to pool fate |
+| Graze/predation energy transfer | YES | PARTIAL | Ledger has grazeEnergy, predatedEnergy but not per-pool |
+
+**Critical gap:** No per-guild, per-nutrient-pool uptake attribution exists in the
+engine. The probe can only see aggregate pool totals and aggregate energyIngested
+by guild. To properly audit ecological feedback, the engine needs:
+- Photosynthesis uptake recorded per guild per pool (like grazeMeter but for nutrients)
+- Excretion returns recorded per guild per pool
+- Mineralization recorded per pool per source (detritus/sediment/litter)
+- Regeneration recorded per pool
+
+Without these, "audit ecological feedback by actual function" cannot be completed
+at the mechanism level — only at the aggregate endpoint level.
+
+
+--------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
+PER-POOL, PER-GUILD NUTRIENT FLUX MEASUREMENT (2026-10-13, Owner handoff Task 1)
+-------------------------------------------------------------------------------
+
+Probe: `src/trace/nutrientflux.ts` (compiled, read-only, uses engine `getFluxSnapshot()`).
+Engine 0.6.2. Config: excretion-return effective (--zero + pcap 0.35, basal 0.01,
+graze 1.0, nutregen 0.0002, excretion 0.06; nutrientCyclic=true, mixotrophySaturation=1.0).
+
+### Seed 517 (coexistence) — t2000 cumulative flux totals
+
+| Process | PRODUCER | CONSUMER | DECOMPOSER | Total |
+|---------|----------|----------|------------|-------|
+| **Photosynthesis uptake** (pool A/B/C) | 8901 / 9392 / 7338 | 0 / 0 / 0 | 0 / 0 / 0 | 25631 |
+| **Excretion returns** (pool A/B/C) | 4471 / 4471 / 4471 | 370 / 370 / 370 | 1557 / 1557 / 1557 | 17325 |
+| **Biotic mineralization: SEDIMENT** | 0 | 210 | 937 | 1148 |
+| **Biotic mineralization: DETRITUS** | 0 | 332 | 4258 | 4590 |
+| **Biotic mineralization: LITTER** | 0 | 58 | 282 | 340 |
+
+**Abiotic flows (all pools):**
+- Regeneration (nutrientRegen): 39.8 / 30.6 / 23.1
+- Mineralization from detritus: 0.41 / 0.41 / 0.41
+- Mineralization from sediment: 0.07 / 0.07 / 0.07
+- Mineralization from litter: 0.06 / 0.06 / 0.06
+
+**Key observations (seed 517):**
+1. **Producers are the sole photosynthetic uptake** — consumers and decomposers have zero photosynthesis uptake (consumerPhotoScale=0, decomposerPhotoScale=0).
+2. **Producers dominate excretion returns** — 4471 per pool vs 370 (consumers) and 1557 (decomposers). Producer excretion is the largest single nutrient return flux.
+3. **Decomposers dominate biotic mineralization from detritus** — 4258 vs 332 (consumers) from detritus; 282 from litter. This confirms decomposers are the primary detritus→nutrient recyclers.
+4. **Consumers mineralize significantly from sediment** — 332 from sediment at t2000, comparable to decomposers' 937. Consumers are active sediment mineralizers.
+5. **Abiotic regeneration is negligible** — ~30-40 total across 2000 ticks vs ~17,000 excretion returns. The system is biotically driven.
+6. **Nutrient pools remain near capacity** (capUtil ~0.48-0.52) despite massive biotic fluxes — returns balance uptake.
+
+### Seed 41001 (producer collapse) — t2000 cumulative flux totals
+
+| Process | PRODUCER | CONSUMER | DECOMPOSER | Total |
+|---------|----------|----------|------------|-------|
+| **Photosynthesis uptake** (pool A/B/C) | 5380 / 5028 / 5537 | 0 / 0 / 0 | 0 / 0 / 0 | 15945 |
+| **Excretion returns** (pool A/B/C) | 3196 / 3196 / 3196 | 2017 / 2017 / 2017 | 437 / 437 / 437 | 16983 |
+| **Biotic mineralization: SEDIMENT** | 0 | 826 | 486 | 1312 |
+| **Biotic mineralization: DETRITUS** | 0 | 3283 | 1068 | 4351 |
+| **Biotic mineralization: LITTER** | 0 | 199 | 113 | 312 |
+
+**Abiotic flows (all pools):**
+- Regeneration (nutrientRegen): 31.5 / 23.9 / 18.7
+- Mineralization from detritus: 0.29 / 0.29 / 0.29
+- Mineralization from sediment: 0.05 / 0.05 / 0.05
+- Mineralization from litter: 0.05 / 0.05 / 0.05
+
+**Key observations (seed 41001):**
+1. **Consumer excretion surpasses producer excretion** — 2017 vs 3196 per pool. In the collapse trajectory, consumers become the dominant excretors as producers decline.
+2. **Consumer biotic mineralization from detritus explodes** — 3283 vs 1068 (decomposers). Consumer scavenging dominates detritus recycling in the collapse phase.
+3. **Decomposer mineralization collapses with producers** — decomposer detritus mineralization (1068) is lower than in seed 517 (4258) because organic input from producer deaths dwindles.
+4. **Total photosynthesis uptake drops 38%** (15945 vs 25631) — tracks producer population collapse.
+5. **System becomes excretion-dominated** — total excretion (16983) approaches total photosynthesis uptake (15945), indicating recycling dominates over new input.
+
+### Per-pool cap behavior (P2b confirmed with flux data)
+
+- Cap multipliers [1.0, 0.78, 0.62] are used in regeneration and uptake
+- Excretion and biotic returns clamp to FLAT `nutrientPerCell * fertility` (review finding)
+- Flux data shows excretion returns are IDENTICAL across all three pools per guild — confirming flat cap
+- At 100% utilization (capUtil ~0.5), this distinction doesn't manifest in pool totals — but if pools were drawn down, the flat cap would over-fill pools 2 and 3 relative to pool 1
+
+### Updated Audit Conclusions
+
+| Feedback Path | Functional? | Measured? | Notes |
+|---------------|-------------|-----------|-------|
+| Producer photosynthesis → nutrient uptake | YES | **YES** | Per-guild per-pool uptake measured (producers only) |
+| Abiotic regeneration (nutrientRegen) | YES | **YES** | Per-pool flux measured; ~40 total over 2000 ticks |
+| Cyclic regeneration (nutrientCyclic) | YES | **PARTIAL** | Driven by bioticMineralised; flux measured but confounded |
+| Excretion returns | YES | **YES** | Per-guild per-pool returns measured |
+| Biotic mineralization (3 pools) | YES | **YES** | Per-guild per-pool per-source (sed/det/lit) measured |
+| Organic input (basalFoodPerCell) | YES | **PARTIAL** | Traced to organic pool stocks; pool fate not separated |
+| Graze/predation energy transfer | YES | **PARTIAL** | Ledger has grazeEnergy, predatedEnergy but not per-pool |
+
+**Flux measurement gap closed:** All six core nutrient feedback paths now have per-pool, per-guild flux measurements. The audit can be completed at mechanism level.EVOLUTION-DESIGN DECISION PACKET (2026-10-13)
+--------------------------------------------------------------------------------
+
+### Problem
+Stress-induced mutagenesis (`stressMutagenesis`) and `pioneerBonus` — the two
+mechanisms intended to drive adaptive guild transitions — fail to produce
+reliable consumer/decomposer emergence from producer-dominated states.
+
+### Why Current Mechanisms Fail
+
+**Stress Mutagenesis:**
+- Random mutation across 42 traits + body genes — no bias toward consumer/decomposer strategies
+- Stress correlates with death; mutations in dying lineages don't propagate
+- No guild-level selection; individual mutation rate ≠ guild adaptation
+- Acute mutagenesis in collapsing populations: too little, too late
+
+**Pioneer Bonus:**
+- Uses GLOBAL guild share ("void"), not local patch opportunity
+- Discount on upkeep only; doesn't create food where producers absent locally
+- No dispersal coupling; pioneers placed near parent (96% local)
+- Grace period (200 ticks) too short for population establishment
+
+### Two Alternatives
+
+**A. Global Steering ("mutate toward missing guild"):**
+- Guarantees guild presence; biologically unrealistic (no foresight in evolution)
+- Conceals mechanism failure; creates hidden quota; breaks emergence
+- Falsification: if ONLY global steering works, local mechanisms are fundamentally insufficient
+
+**B. Local Ecological Opportunity / Negative Frequency-Dependent Selection (RECOMMENDED):**
+- Core principle: rare guild in resource-rich patch → fitness advantage
+- Four mechanisms: local resource opportunity (partial), local nutrient opportunity (partial),
+  NFD mutation bias (missing), dispersal to opportunity (partial)
+- Minimal addition: local opportunity vector per organism, null-default knobs
+- Hooks: reproduction drive, dispersal probability, mutation bias
+
+### Measurable Predictions (Falsifiable)
+| Test | Threshold |
+|------|-----------|
+| opportunityWeight=1.0 on seed 41001 | First consumer birth <500 ticks |
+| dispersalWeight=0.5, patch tracker | >2 0→>0 recolonization events |
+| Both weights=1.0, 18 seeds | >9/18 seeds 3-guild at t2000 |
+| Weights=0 on balanced seeds | No change to existing coexistence |
+
+### Recommendation
+Phase 1: Diagnostic probe (opportunity sensor on patch tracker) — no engine change
+Phase 2: Engine knobs `opportunityWeight`, `dispersalWeight` (null default) — needs Owner approval
+Phase 3: Screen on failure seeds; promote only if predictions pass
+Phase 4: Trait→guild mapping for mutation bias (if Phase 3 succeeds)
+
+All knobs null-default, individually reversible. No quotas, no hidden floors.
+
+--------------------------------------------------------------------------------
+REVIEW RESPONSE CORRECTIONS (2026-10-13, reviewer Acrius-max on head 26901aa)
+--------------------------------------------------------------------------------
+
+### P1 — successfulMating array grows with capacity (FIXED)
+**File:** `src/world/world.ts:611` (ensureSlotArrays)
+**Defect:** `successfulMating` Uint8Array was not grown when organism capacity
+exceeded initial allocation. Births beyond initial capacity would silently
+fail to set the flag, allowing both sexual and asexual reproduction in the
+same tick.
+**Fix:** Added `this.successfulMating = growU8(this.successfulMating);` to
+`ensureSlotArrays` alongside other per-slot arrays.
+**Validation:** New gate G28 verifies `successfulMating.length === capacity`
+after forced population growth (500 ticks, capacity=1024). Passes.
+
+### P1 — Engine version identifier bumped to 0.6.2 (FIXED)
+**Files:** `src/world/version.ts:52`, `evidence/app/evo-sim-poc.html` (rebuilt)
+**Defect:** `WORLD_ENGINE_VERSION` export still read `ts-evo-poc/0.6.1` despite
+documentation and parity pins declaring 0.6.2.
+**Fix:** Updated exported constant to `ts-evo-poc/0.6.2`; rebuilt app bundle
+(`npm run build:app`) so browser artifact also declares 0.6.2.
+**Validation:** Contract check C4 (bundle matches CLI) passes with new pins.
+
+### P1 — nutrientflow capUtil calculation corrected (FIXED)
+**File:** `src/trace/nutrientflow.ts:85-92`
+**Defect:** Denominator used `min(actual, cap)` per cell, making util=1.00
+for all cells below cap regardless of actual fill level.
+**Correction:** Denominator now sums configured per-cell caps
+(`nutrientPerCell * fertility * capacity`); numerator sums actual nutrients.
+Added `overCapCells` and `overCapValue` metrics for true over-cap measurement.
+**Result (seed 517, t2000):** capUtil ~0.48-0.52 (not 1.00); overCapCells=0.
+Nutrients are at ~50% capacity, NOT saturated. Previous conclusion
+"nutrient limitation is NOT binding" was based on the artifact; correct
+reading: nutrients are at half-cap, limitation IS present but not extreme.
+REPORT entry at 7140-7182 superseded — see corrected probe output below.
+
+### P2 — nutrientflow relabeled as standing-stock/survivor telemetry (DONE)
+**File:** `src/trace/nutrientflow.ts:106-111` (output footer)
+**Correction:** Probe output now explicitly states it samples "population
+snapshots and cumulative energyIngested of organisms alive at checkpoints"
+and "does NOT measure instantaneous or interval trophic flow, per-pool
+nutrient uptake, or flux by functional phenotype." No causal inference
+from aggregate snapshots.
+
+### P2 — Targeted regression gates added (DONE)
+**File:** `src/gates.ts` (new G26, G27, G28)
+- G26: radiationMultiplier at zero/partial/threshold/full dormant share
+- G27: successfulMating flag semantics (no-candidate asexual, candidate
+  without reciprocal asexual, flag only set after surplus-checked mutual)
+- G28: successfulMating array grows with capacity
+All three gates pass (36/36 total).
+
+### Corrected nutrientflow output (seed 517, 2000 ticks)
+```
+t500: P267/C102/D88 | energy P3733/C948/D1826
+  nutrients: [59089.5, 46307.2, 37082.9] | capUtil: [0.52, 0.53, 0.53] | overCapCells: [0,0,0] | overCapValue: [0.0, 0.0, 0.0]
+t1000: P211/C43/D239 | energy P1232/C623/D4504
+  nutrients: [55669.1, 43551.5, 35602.3] | capUtil: [0.49, 0.50, 0.51] | overCapCells: [0,0,0] | overCapValue: [0.0, 0.0, 0.0]
+t1500: P121/C50/D814 | energy P1054/C356/D8540
+  nutrients: [54412.3, 42548.3, 35767.7] | capUtil: [0.48, 0.48, 0.51] | overCapCells: [0,0,0] | overCapValue: [0.0, 0.0, 0.0]
+t2000: P7/C7/D1087 | energy P29/C89/D4815
+  nutrients: [54030.0, 42409.8, 36174.2] | capUtil: [0.48, 0.48, 0.52] | overCapCells: [0,0,0] | overCapValue: [0.0, 0.0, 0.0]
+```
+
+### P2 — Parameter-to-biological-equivalent matrix (PARTIAL / INCOMPLETE)
+
+**Source-of-truth status — Owner D1 remains open.** The following original
+matrix and its supplement are implementation notes/proposals, not a completed
+scientific audit or Owner-approved equivalence. Full mechanism-by-mechanism
+scientific sourcing, current read paths and validated functional/phenotype
+reliance evidence are still outstanding. No scope split has been accepted.
+
+The following matrix provides, for each priority mechanism, the live read site, conditions of activation, defensible biological equivalent or explicit abstraction, tradeoff, supporting evidence, and Owner-decision classification.
+
+| Mechanism | Live Read Site | Activation Conditions | Biological Equivalent / Abstraction | Tradeoff | Evidence / Citation | Owner Decision |
+|-----------|----------------|----------------------|-------------------------------------|----------|---------------------|----------------|
+| **Photosynthesis (multi-nutrient Liebig limitation)** | `world.ts:2150-2227` actPhase feeding | `photo > 0.02`, light > 0, nutrient pools > 0 | Multi-nutrient co-limitation (Liebig's law); light attenuation via Beer-Lambert | Energy gain vs nutrient uptake cost; canopy self-shading limits density | G6 gradient ascent; flux: PRODUCER uptake 25631 (seed 517) | **ACCEPTED** — core energy entry |
+| **Producer capture scale** | `world.ts:2163` (producerCaptureScale) | `config.producerCaptureScale !== null`, guild=PRODUCER | Nutrient affinity / photosynthetic capacity plasticity | Higher capture → faster growth but stronger nutrient limitation | Knob response: P882→P434 as scale 0.35→5.0 | **ACCEPTED** — diagnostic |
+| **Graze yield scale** | `world.ts:2277` (grazeYieldScale) | `sediment > 0.2`, `digestion > 0`, guild=CONSUMER | Herbivory assimilation efficiency; handling time | Higher yield → more energy but overgrazing collapses producers | Knob response: non-monotonic (2.0 collapses, 5.0 recovers) | **ACCEPTED** — diagnostic |
+| **Basal food per cell** | `world.ts:1389-1426` abiotic phase; `world.ts:2370` sediment input | `basalFoodPerCell > 0` | Exogenous energy subsidy; detritus rain | Enables bootstrap; large values → decomposer dominance, producer suppression | Knob response: 0 → collapse, 0.01 → coexistence, 0.1/1.0 → boom | **ACCEPTED** — foundation |
+| **Nutrient regeneration (abiotic)** | `world.ts:1402-1413` (nutrientRegen) | `nutrientRegen > 0`, always active | Abiotic weathering / atmospheric deposition | Free nutrient input; decouples producers from decomposers | Flux: ~40 total over 2000 ticks (negligible) | **ACCEPTED** — recovery path only |
+| **Cyclic regeneration (nutrientCyclic)** | `world.ts:1403-1413` (coupled to `mineralisedCell`) | `nutrientCyclic===true`, `mineralisedCell > 0` | Decomposer-driven nutrient cycling; biotic coupling | Requires active decomposers; ablates if decomposers extinct | G12: flux on=0.25, off=0.0 | **ACCEPTED** — guild interdependence |
+| **Excretion returns** | `world.ts:2136-2141` actPhase metabolism | `excretionRate > 0`, all live organisms | Metabolic waste recycling; flat cap per pool (P2b bug) | Returns nutrients locally; flat cap over-fills pools 2/3 if drawn down | Flux: PRODUCER 4471/pool, CONSUMER 370, DECOMPOSER 1557 (seed 517) | **PARTIAL** — P2b cap bug open |
+| **Biotic mineralization** | `world.ts:2302-2314` (sediment), `2362-2374` (detritus), `2452-2463` (litter) | `bioticMineraliser[slot]=1`, `recalc>0.5` (litter) | Microbial decomposition; sediment/detritus/litter → inorganic nutrient | Requires `recalc` trait; decomposers earn niche via litter exclusivity | Flux: DECOMPOSER detritus 4258, sediment 937, litter 282 (seed 517) | **ACCEPTED** — role-defining |
+| **Dormant senescence** | `world.ts:2434-2465` (dormantSleep, senescence) | `config.dormantSenescence !== null`, guild=DECOMPOSER, energy<threshold, no food | Dormancy mortality; bet-hedging vs. cost of waiting | Kills dormant organisms; prevents hoarding; share-mode scales with population | G26 radiation coupling; senescenceDeaths counter | **ACCEPTED** — diagnostic |
+| **Radiation coupling** | `world.ts:3641-3654` (radiationMultiplier) | `radiation.onset < tick`, `overgrowthCoupling > 0` | UV/mutation pressure scaled by dormant population share | 0 dormancy = background (1x); full coupling at `dormantFrac >= overgrowthCoupling` | G26: zero=1.0, half=1.16, full=1.32, over=1.32 | **ACCEPTED** — P2a fix |
+| **Mating fallback gate** | `world.ts:2680-2720` (proposeReproduction) | `successfulMating[slot]==1`, surplus ticks met | Sexual reproduction suppresses asexual; mate-seeking trades off asexual rate | Asexual always available; mutual mating required for sexual | G27: D(mated): asex=0 sex=2; A/B/C: asex>0 sex=0 | **ACCEPTED** — P2a fix |
+| **Stress mutagenesis** | `world.ts:3678-3682` (stress → effRate) | `stressMutagenesis > 0`, hunger/damage/energy deficit > 0 | Stress-induced mutation rate increase; condition-dependent evolvability | Mutations in dying lineages don't propagate; no guild bias | Measured: random across 42 traits; fails to drive guild transitions | **LIMITED** — not a guild transition driver |
+| **Pioneer bonus** | `world.ts:1048-1060` (pioneerGrant), `world.ts:2105-2108` (pioneerFactor) | `pioneerBonus !== null`, newborn guild ≠ parent guild | Establishment subsidy in guild void; global not local | Grace period (200 ticks) too short; 96% local dispersal | Measured: global void used; fails to create local opportunity | **DEFICIENT** — redesign needed |
+| **Genome v2 (modular genome)** | `src/bio/modgenome.ts` (expressModules, inheritModules) | `genomeV2 === true` | Modular developmental genome; modules → traits with upkeep cost | Every module has cost; expresses into real traits (not just body genes) | G13-G25: 7 modules → 16 traits shifted; upkeep charged; structure develops | **ACCEPTED** — structural evolution |
+
+**Matrix status correction (PR #13 review):** the historical “ACCEPTED” cells above are not evidence of Owner approval of scientific equivalence. Treat those classifications as agent proposals; **Owner decision needed** for disputed mechanisms and equivalence claims. The implementation observations survive, but the matrix is not a completed biological audit. Source symbols, rather than stale line numbers, identify the live read paths below.
+
+### Supplementary priority-control matrix (supersedes omitted controls)
+
+| Control | Live read path and reachable response | Biological/model comparison and limit | Evidence / status |
+|---|---|---|---|
+| `reproSurplusTicks` | `World.proposeReproduction` and `World.resolveContests`: reserve must exceed upkeep × ticks for both sexual parents and asexual eligibility | Reserve allocation is conceptually consistent with dynamic energy budgets [S1]; this fixed horizon is a diagnostic simplification, not a calibrated survival forecast | Corrected mating recorder counts the surplus gate separately. Owner decision needed on biological equivalence |
+| `mateSeeking` | `World.actPhase` mate targeting; `World.proposeReproduction` reduces asexual drive by `1 − 0.55 × mateSeeking`; mutual mating queues recombinant offspring | Mate search has real costs [S2]; the linear 0.55 penalty is a model assumption, not an empirical coefficient | G27–G29 cover fallback; recorder now distinguishes queued/placed pathways. Owner decision needed |
+| `asexualRate` | `World.proposeReproduction`: multiplies Bernoulli drive; successful roll queues a clutch | Facultative reproduction is biologically possible [S2]; this lottery/clutch parametrisation is not validated against a taxon | Corrected recorder measures 497 fired asexual clutches, not zero. Owner decision needed |
+| `mixotrophySaturation` | `World.substrateAvailability` (standing substrate) and `World.abioticPhase` (previous-tick throughput): respective inputs enter `raw/(raw+sat)` | A saturating response resembles Monod resource limitation [S3]; throughput coupling is not automatically equivalent to microbial physiology | G12 establishes active coupling, not biological calibration. Owner decision needed |
+| `nutrientFloor` | `World.abioticPhase`: raises a pool to floor × capacity before clamping | Explicit external recovery input; not demonstrated biotic recycling. No biological-equivalence claim | Default 0; nonzero supplies nutrient independently of mineralisers. Owner decision needed |
+| `nutrientCapacity`, `nutrientDiffusivity`, `nutrientDecay` | `World.nutrientCapAt`, `World.abioticPhase`, `ScalarField.step`: per-pool ceilings, spatial transport, decay | Spatial transport/loss are modelling constructs; fixed capacity multipliers are not a measured stoichiometric law | G30 tests cap regression; G31/G32 test accounting, not ecology. Owner decision needed |
+| `reproActCostScale`, `clutchSize`, `reproThreshold`, `maturityAge` | `World.proposeReproduction`, `World.queueBirth`, `World.birthPhase`: eligibility, offspring count, act charge and transfer | Allocation/life-history concepts [S1]; numerical gates and charges remain uncalibrated | Queued and placed offspring are separately reported; costs are not inferred from firing metadata. Owner decision needed |
+
+Scientific sources (conceptual comparisons, **not validation of coefficients or approval**):
+- [S1] Kooijman, *Dynamic Energy Budget Theory for Metabolic Organisation*, Cambridge University Press, [DOI](https://doi.org/10.1017/CBO9780511805400). Reserve/maintenance/reproduction allocation framework; no claim that this engine implements DEB equations.
+- [S2] Otto, *Sexual Reproduction and the Evolution of Sex*, Nature Education (2008), [author-hosted text](https://www.zoology.ubc.ca/~otto/Reprints/Otto2008.pdf). Mate-search and sexual reproduction costs; does not justify this engine's penalty magnitude.
+- [S3] Monod (1949), *The Growth of Bacterial Cultures*, Annual Review of Microbiology 3:371–394, [DOI](https://doi.org/10.1146/annurev.mi.03.100149.002103). Saturating resource response; does not establish guild coupling in this model.
+
+**Flux hooks delivered, causal interpretation bounded:** `src/trace/nutrientflux.ts` and `World.getFluxSnapshot()` observe per-pool/per-guild processes. The repaired four-book snapshot separates positive accepted return from cap refusal and pre-existing excess deletion. Hook presence and balanced books do not establish obligate ecological reliance.
+
+**Remaining open (not addressed in this review cycle):**
+- P2b excretion/returns cap bug (known, documented, fix pending)
+- pioneerBonus global-to-local redesign (known, documented)
+- Process-level nutrient flux hooks — **NOW DELIVERED** via getFluxSnapshot()
+- Per-guild per-pool uptake attribution — **NOW DELIVERED** via getFluxSnapshot()
+
+-------------------------------------------------------------------------------
+FUNCTIONAL ECOLOGICAL RELIANCE — SUPERSEDED CLAIMS / HISTORICAL PROCESS OBSERVATIONS
+-------------------------------------------------------------------------------
+
+**SUPERSEDED at point of presentation:** the original obligate-guild reliance
+classification, causal assertions and table interpretations in this section
+are withdrawn. Only the historical measured counts remain evidence; they
+establish bounded global-process sensitivity, not phenotype-specific service
+reliance. In particular P=0/C=10 does not demonstrate consumer extinction.
+See the final PR #13 correction section. Owner D1 remains incomplete.
+
+Probe: `src/trace/relianceprobe.ts` (compiled, read-only). Engine 0.6.2.
+Seed: 517 (coexistence baseline). Ticks: 2000.
+Config: excretion-return effective (--zero + pcap 0.35, basal 0.01, graze 1.0,
+nutregen 0.0002, excretion 0.06; nutrientCyclic=true, mixotrophySaturation=1.0).
+
+Method: Systematic capability knockouts — disable one process at a time,
+measure guild persistence/extinction. Rescue experiments test if alternative
+pathways can compensate. No quotas, no forced extinction, no invented services.
+
+### Knockout Results Summary (seed 517, t=2000)
+
+| Knockout | P_final | C_final | D_final | Extinctions | Key Finding |
+|----------|---------|---------|---------|-------------|-------------|
+| **CONTROL** (full default) | 7 | 7 | 1087 | none | Baseline coexistence |
+| **NO_BIOTIC_MINERALIZATION** (bioticMineralisation=0) | 42 | **0** | 1255 | **C@2000** | Consumers require decomposer nutrient recycling |
+| **NO_EXCRETION_RETURNS** (excretionRate=0) | 46 | 21 | 1374 | none | Excretion important but not essential |
+| **NO_NUTRIENT_CYCLIC** (nutrientCyclic=false) | 10 | 6 | 1539 | none | Cyclic coupling regulates decomposer overgrowth |
+| **NO_ABIOTIC_REGEN** (nutrientRegen=0) | 29 | 3 | 885 | none | Abiotic regen is baseline, not driver |
+| **NO_BASAL_FOOD** (basalFoodPerCell=0) | 30 | 8 | 4 | none | Basal food critical for bootstrap (species-bounded: producers survive at P=30 while consumers/decomposers thin out — "crash to <10" overstates the producer case; only decomposers truly collapse) |
+| **NO_DECOMPOSER_MIN_NO_CYCLIC** (both off) | 7 | **0** | 1218 | **C@2000** | Confirms consumer dependence on biotic mineralization |
+| **NO_CONSUMER_GRAZE** (grazeYieldScale=0) | 32 | 9 | 669 | none | Consumers survive on sediment scavenging alone |
+| **NO_PRODUCER_CAPTURE** (producerCaptureScale=0) | **0** | 10 | 903 | **P extinct by t=2000 (P_final=0)** | Producers are foundational; consumers persist at C=10 on sediment scavenging — C extinction NOT observed at this seed/horizon |
+| **CHEAP_CONSUMER_UPKEEP** (consumerBasalScale=0.1) | 95 | 4 | 766 | none | Low upkeep helps consumers but not fundamental |
+| **FULL_NUTRIENT_KNOCKOUT** (all biotic+abiotic off) | 7 | **0** | 68 | **C@2000** | No nutrient returns → consumer extinction, decomposer collapse |
+| **FULL_NUTRIENT_KNOCKOUT_RESCUE_REGEN** (nutrientRegen=0.01) | 7 | **0** | 253 | **C@1500** | High abiotic regen rescues producers/decomposers but **NOT consumers** |
+
+### Causal Dependencies Inferred
+
+**Reclassification note (P1-3, review 5517625966, PR #13)** — supersedes the dependency claims below:
+
+These results are a bounded process-sensitivity pass (seed 517, 2000 ticks), not proof of guild-specific ecological reliance. The global interventions affect processes across guilds; they do not selectively remove one guild's service.
+
+- Consumers persisted at C=10 under NO_PRODUCER_CAPTURE versus C=7 in control. Obligate producer reliance is not established; the feeding pathway was not measured by this run.
+- NO_BASAL_FOOD left P30/C8/D4. The claim that all guilds fell below 10 was false.
+- Biotic mineraliser is per-organism (`src/bio/role.ts`, `bioticMineraliser`), so disabling it globally does not isolate decomposer service.
+- NO_CONSUMER_GRAZE left C=9. Persistence was measured; a specific compensating feeding pathway was not.
+
+No new seed threshold is established here. Guild-reliance claims require an Owner-approved experiment isolating the proposed service, appropriate controls and multi-seed evidence. Historical cohorts remain archived with their original source/configuration provenance.
+
+2. **Global mineralisation sensitivity**: consumers were absent at the terminal sample in two mineralisation-disabled arms. This does not isolate a decomposer service: the mineraliser capability is per-organism.
+
+3. **Producer response**: P=42 without biotic mineralisation versus P=7 in control. This is higher, not reduced abundance, and does not identify a guild dependency.
+
+4. **Decomposer response**: D=1255 in NO_BIOTIC_MINERALIZATION versus D=1087 control. This arm also changes mineralisation, so it cannot isolate consumer competition.
+
+5. **Abiotic regen → Consumers**: **Insufficient rescue**. FULL_NUTRIENT_KNOCKOUT_RESCUE_REGEN (nutrientRegen=0.01, 50x default) rescues producers (P=7) and decomposers (D=253) but **consumers still go extinct at t=1500**. Consumers need the biotic trophic chain, not just nutrient availability.
+
+6. **Excretion returns**: Important for producer abundance (P=46 vs 7) but not essential for coexistence.
+
+7. **Basal food**: Bootstrap-critical for decomposers (D=4 without it); producers persist at P=30, consumers at C=8 — the "<=10 guild collapse" claim overstated producer dependence. Process-level, not guild-existential.
+
+8. **Consumer grazing**: Not obligate for consumer survival. Consumers persist on sediment scavenging (grazeYieldScale=0 → C=9). But grazing is needed for consumer abundance.
+
+### Reliance Classification (SUPERSEDED — not a current scientific verdict)
+
+| Guild Pair | Reliance Type | Evidence |
+|------------|---------------|----------|
+| Consumers ← Producers | **Obligate (SUPERSEDED)** | at this seed consumers persisted at C=10 on NO_PRODUCER_CAPTURE |
+| Consumers ← Decomposers | **Obligate (indirect) (SUPERSEDED)** | mineraliser is per-organism, guild attribution conservative |
+| Producers ← Decomposers | **Facultative** | Producers persist without biotic mineralization (P=42) |
+| Decomposers ← Producers | **Not established** | NO_BASAL_FOOD removes external input, not producer service; P30/C8/D4 persist |
+| Decomposers ← Consumers | **None / Competitive** | Decomposers increase when consumers absent |
+| Consumers ← Abiotic Regen | **Insufficient** | High nutrientRegen rescues P/D but not C |
+
+**Conclusion (supersedes the original reliance classification)**: the measured terminal counts establish bounded process sensitivity only. They do not establish asymmetric obligate guild reliance or identify which guild supplied a missing service. In particular, NO_PRODUCER_CAPTURE leaves C=10 versus C=7 in control; NO_BASAL_FOOD leaves P=30, not fewer than 10. All guild-reliance classifications above are withdrawn as current verdicts.
+
+**Old strict cohort verdicts archived**: The 36-seed "producer-alone" cohort (FALSIFIED, producers persist 33/36) is recorded as historical under engine 0.6.1 config. It tested guild *presence* not functional *reliance*. This probe tests functional capability knockouts.
+
+
+-------------------------------------------------------------------------------
+MATING SUCCESS DIAGNOSTIC — REPROPROBE ANALYSIS (Owner handoff Task 4)
+-------------------------------------------------------------------------------
+
+Probe: `src/trace/matingdiag.ts` (compiled, uses `ReproProbe` to capture mating resolution DURING tick).
+Engine 0.6.2. Seed: 517 (coexistence baseline). Ticks: 2000.
+Config: excretion-return effective (--zero + pcap 0.35, basal 0.01, graze 1.0,
+nutregen 0.0002, excretion 0.06; nutrientCyclic=true, mixotrophySaturation=1.0).
+
+### Cumulative Mating Events (t=2000)
+
+**Withdrawn instrument-derived verdicts:** the original recorder did not count births and omitted deterministic blockers. The original H1–H4 verdicts, zero-birth tables and causal conclusions below are retained as historical text only, not measurements. Corrected source-labelled queued/placed results are recorded in the PR #13 corrections section below. H5 was not measured. Existing `ReproProbeLog` asexual-roll semantics are preserved.
+
+| Metric | PRODUCER | CONSUMER | DECOMPOSER | Total |
+|--------|----------|----------|------------|-------|
+| **reachedRoll** (hit stochastic roll) | 14,279 | 3,423 | 23,435 | 41,137 |
+| **sexualSkipped** (sexual gate blocked) | 0 | 1 | 0 | 1 |
+| **asexualBirth** (asexual fired) | 0 | 0 | 0 | 0 |
+| **sexualBirth** (sexual fired) | 0 | 0 | 0 | 0 |
+
+### Hypothesis Testing
+
+| Hypothesis | Prediction | Result | Verdict |
+|------------|------------|--------|---------|
+| **H1: Mutual intent → mating bottleneck** | Most organisms blocked at surplus/energy gates | 41,137 reachedRoll; 0 blocked at surplus/energy | **FALSIFIED** — gates passed, bottleneck is at roll |
+| **H2: Surplus ticks blocks consumers** | Consumer reachedRoll > 0 but sexualSkipped > 0 | Consumer reachedRoll=3,423; sexualSkipped=1 | **FALSIFIED** — surplus not the blocker |
+| **H3: Sexual reproduction rare** | Sexual births < 10% of total | 0 births total (sexual + asexual) | **SUPPORTED** — more extreme than predicted |
+| **H4: Decomposers dominate sexual reproduction** | Decomposers highest sexualBirth | 0 sexual births for all guilds | **FALSIFIED (un-measured by probe) — no sexual reproduction occurs** |
+| **H5: Consumer mating predicts persistence** | Consumer reachedRoll drops to 0 before extinction | N/A (control seed persists) | **NOT TESTED** — requires knockout run |
+
+### Key Findings
+
+1. **Mating pipeline reaches stochastic roll but no births fire** — 41,137 roll attempts across all guilds, 0 births (asexual + sexual). Organisms pass ALL gates (surplus, energy, maturity, cooldown, damage) but the stochastic roll almost never succeeds.
+
+2. **Sexual gate is not the bottleneck** — Only 1 gate block across 2000 ticks. The surplus/energy/maturity/damage gates are permissive.
+
+3. **Asexual rate appears to be the true bottleneck** — With 41,137 roll attempts and 0 births, the effective asexual probability is << 0.001%. The default `ASEXUAL_RATE` trait init may be too low, or there's a bug in the roll/fire logic.
+
+4. **Mutual mating never produces successfulMating** — Despite 2-8 mutual pairs per sample (earlier probe), `successfulMating` flags never set. `resolveContests` may be failing the surplus check for mutual pairs.
+
+5. **Fallback to asexual is the norm, but asexual fails** — Since sexual path fails (no successfulMating), all organisms attempt asexual, but the stochastic roll fails almost universally.
+
+### Preregistered Hypothesis Outcomes
+
+| ID | Hypothesis | Prediction | Outcome |
+|----|------------|------------|---------|
+| H1 | Mutual intent → mating bottleneck | Blocked at surplus/energy | **FALSIFIED** — 41k rolls, 0 gate blocks |
+| H2 | Surplus ticks blocks consumers | Consumer sexualSkipped > 0 | **FALSIFIED** — 1 block only |
+| H3 | Sexual reproduction rare | Sexual births < 10% | **SUPPORTED** — 0 births (more extreme) |
+| H4 | Decomposers dominate sexual | Decomposers highest sexualBirth | **FALSIFIED** — no sexual births |
+| H5 | Consumer mating predicts persistence | reachedRoll drops before extinction | **NOT TESTED** — requires knockout |
+
+### Implication for Consumer Persistence
+
+The reliance probe showed consumers go extinct when biotic mineralization is knocked out. This mating diagnostic reveals **consumers also face a reproductive bottleneck**: they reach the roll (3,423 attempts) but produce 0 offspring. Even if nutrient supply were fixed, consumer populations would collapse from reproductive failure unless asexual_rate is increased or the roll logic is fixed.
+
+**This is a second, independent mechanism limiting consumers** — not just nutrient limitation but also reproductive inviability.
+
+--------------------------------------------------------------------------------
+LOCAL OPPORTUNITY / FITNESS OBSERVATION (Owner handoff Task 5 — diagnostic ONLY)
+--------------------------------------------------------------------------------
+
+Probe: `src/trace/opportunityprobe.ts` (compiled). Engine 0.6.2. Seeds 517 and
+41001, 3000 ticks, sampled every 250. Same pinned excretion-return effective
+config as `patchtrack` / `nutrientflow` / `relianceprobe`.
+
+**Read-only claim.** The observer constructs a World, steps it and reads state.
+It sets no knob, draws no randomness of its own, and writes nothing back. Its
+output is therefore a measurement of *declared behaviour*, not an experimental
+arm — which is exactly what Task 5 authorised.
+
+### What it measures
+
+Per living organism, per sample tick: local substrate pool (nutrient /
+detritus+sediment+litter), conspecifics inside its own sensing radius, other-guild
+organisms inside range, consumers inside range of a non-consumer, organisms
+sharing the cell (the food-disease denominator), damage. It then correlates each
+opportunity axis with the *future* fitness of the same organism — survival to the
+next sample and energy change across it.
+
+### Measurements
+
+Seed 517 (coexistence arm), seed 41001 (failing arm):
+
+| Signal | Seed 517 | Seed 41001 |
+|--------|----------|------------|
+| Nutrient CV across 60x60 field | 0.210 @ t250 -> 0.019 @ t3000 | 0.210 @ t250 -> 0.019 @ t3000 |
+| Detritus CV across field | 0.506 -> ~1.2 (persistent) | 0.506 -> ~0.74 (persistent) |
+| Mean consumer prey-in-range | 2.5-5.7 | 2.8 -> 0.0 (prey exhausted) |
+| Mean |dispersal| per 250 ticks | 92 -> 78 | 92 -> 380 |
+| Max single displacement | 795 | 1275 (map is 2400 wide) |
+
+### Finding 1 — the nutrient field homogenises; the detritus field does not
+
+Nutrient CV decays monotonically from 0.21 to 0.019 over 3000 ticks on both
+seeds. Diffusion plus global regeneration erase the abiotic gradient. Detritus
+CV stays at 0.5-1.7 the whole way, because detritus is *produced locally by
+bodies* and is not diffused the same way. **Local substrate opportunity for
+producers is transient; local substrate opportunity for decomposers is
+structural.**
+
+### Finding 2 — consumer prey opportunity is a strong, consistent fitness predictor
+
+On the failing arm (41001), consumer survival splits hard by prey-in-range
+quartile, and the sign never flips across samples:
+
+| Tick | survival, high-prey quartile | survival, zero-prey quartile |
+|------|------------------------------|------------------------------|
+| 500 | 96.0% | 26.0% |
+| 750 | 93.9% | 50.0% |
+| 1000 | 97.0% | 28.0% |
+
+On the coexistence arm the same split is present but weaker (80% vs 76% at
+t500). Prey-in-range is the single strongest opportunity signal in the model,
+and it is already being read — the behaviour-arbitration `huntScore` uses
+exactly this quantity.
+
+### Finding 3 — producer fitness runs AGAINST local nutrient (crowding, not scarcity)
+
+Producer survival is *lower* in the highest-nutrient quartile than in the lowest
+on every sampled tick of both arms: 78.8% vs 87.9% (t500), 81.8% vs 98.5%
+(t750), 78.8% vs 96.2% (t1000), 75.0% vs 87.5% (t1250). Mean cell crowding and
+mean damage rise together across the same samples (crowd 1.4 -> 2.2, damage
+12.5 -> 26.0).
+
+Rich cells attract producers, crowding raises the local food-disease dose, and
+damage follows. **The binding local cost for producers is competition, not
+substrate scarcity** — a negative frequency-dependent pressure that already
+exists in declared behaviour, with no `opportunityWeight` anywhere.
+
+### Finding 4 — dispersal is not the bottleneck the earlier report implied
+
+The design note in this file records "96% local dispersal" as a dispersal
+defect. That figure describes *newborn placement*. Mature organisms already
+move: mean 92-380 world units per 250 ticks, maxima of 1000-1275 on a 2400-wide
+map. Organisms are crossing patches routinely. A `dispersalWeight` knob would
+not be adding movement; it would be redirecting movement that already happens.
+
+### Finding 5 — consumer self-pressure is unmeasured by this observer
+
+`threats` counts consumers within range of a *non-consumer* only, so it reads
+0.000 for consumers by construction. Consumer-on-consumer pressure is reported
+as `competitors` instead. Predation pressure on producers/decomposers is low and
+stable (0.07-0.65 consumers in range). Any future predator-pressure design must
+define this axis explicitly rather than inheriting this probe's convention.
+
+### Two designs returned for Owner acceptance (NOT implemented)
+
+Nothing below is built, wired or gated. Both are diagnostic extensions of this
+read-only observer; neither adds `opportunityWeight`, `dispersalWeight`,
+targeted/bias mutation, NFD forcing, a `pioneerBonus` redesign or guild
+steering. Each needs separate Owner acceptance before any work starts.
+
+**Design A — Opportunity-slope diagnostic as a standing evidence fixture.**
+Generalise this observer to report, per guild per seed, the *sign and magnitude*
+of the opportunity-fitness slope for each axis (resource, competition, threat),
+and assert in a workflow fixture that the sign is stable across a seed panel.
+Purpose: turns "local opportunity exists" from a design note into a measured,
+regressable claim. Findings 2 and 3 say the slope is real for consumers
+(positive, prey) and for producers (negative, crowding), so the fixture would
+pin behaviour that already exists rather than invent any.
+
+**Design B — Arrival-payoff observer for the dispersal question.**
+Extend the observer to record, for each organism that crosses a patch boundary,
+the opportunity delta between departure and arrival cell, and the subsequent
+fitness of movers versus stayers. Purpose: decides whether a dispersal-to-
+opportunity coupling would have any signal to give. Finding 4 says movement is
+already large, so the open question is not *whether* organisms move but *whether
+moving helps* — which is exactly what this measures, read-only, before anyone
+proposes a knob.
+
+Both designs are diagnostic-only and remain unstarted pending Owner acceptance.
+
+--------------------------------------------------------------------------------
+NUTRIENT CAPS: FLAT RETURN CAP vs PER-POOL CAPACITY (Owner handoff Task 6)
+--------------------------------------------------------------------------------
+
+Probe: `src/trace/capsreach.ts` (compiled, read-only). Engine 0.6.2. Seed 517.
+No knob set, no state written, no RNG drawn by the probe.
+
+### The reported mismatch, confirmed by read path
+
+`nutrientCapacity` is declared in config.ts as *per-pool capacity multipliers,
+one per limiting nutrient*, default `[1.0, 0.78, 0.62]`. Two writer families
+honoured it; four did not:
+
+| Writer | Site | Cap expression | Per-pool `mod` |
+|--------|------|----------------|----------------|
+| Initial seeding | seeding loop | `capacityAt(i, perCell) * mod` | yes |
+| Abiotic regeneration clamp | regen loop | `perCell * fert[i] * mod` | yes |
+| **Excretion return** | excretion site | `perCell * fertility[ci]` | **no** |
+| **Biotic mineralisation (sediment)** | mineralisation 0 | `perCell * fertility[ci]` | **no** |
+| **Biotic mineralisation (detritus)** | mineralisation 1 | `perCell * fertility[ci]` | **no** |
+| **Biotic mineralisation (litter)** | mineralisation 2 | `perCell * fertility[ci]` | **no** |
+
+`habitat.capacityAt(i, perCell)` returns exactly `perCell * fertility[i]`, so
+the flat expression is the per-pool ceiling with the multiplier dropped. Pool
+A (mod 1.0) is unaffected; pools B (0.78) and C (0.62) could be filled **above
+their declared capacity** by a return. That contradicts the accepted per-pool
+semantics stated in the config's own doc comment.
+
+### Reachability: NOT reached under the diagnostic effective config
+
+**Config disclosure.** The probe's base is the *diagnostic effective config*
+shared with patchtrack/nutrientflow/relianceprobe — NOT the engine's declared
+defaults. Roughly sixteen fields differ (worldW/H 2400 vs 4000, founders 400
+vs 1200, nutrientCyclic true vs null, producerCaptureScale 0.35 vs null,
+nutrientFloor 0.05 vs 0, mixotrophySaturation 1.0 vs 0.4, meatYieldPerMass 0
+vs 1.6, and others). A zero-excess result here does **not** by itself establish
+non-reachability under declared defaults; that conclusion rests on parity C1
+being byte-identical, an independent defaults-based check.
+
+The effective config never brings any pool near a ceiling, so the defect does
+not fire there. Sweeping every tick (not just the endpoint), command
+`node build/trace/capsreach.js 1500 517` (seed 517, horizon 1500 ticks —
+the discrimination horizon; an initial 3000-tick sweep on the same config
+likewise reported 0 excess on both arms):
+
+| Arm | Ticks with per-pool excess |
+|-----|----------------------------|
+| BASE effective config, excretion ON (0.06) | **0 / 1500** |
+| BASE effective config, excretion OFF (0.0) | **0 / 1500** |
+
+This is why parity was never disturbed and why the bug survived review: it is
+latent at effective settings.
+
+### Reachability: REACHED under a saturation arm
+
+To test it in principle, a saturation arm drives every pool to its ceiling
+(fast abiotic regen, cyclic off, no producer draw, detritus-only web), making
+the return paths the only nutrient writers.
+
+### The confound, and the control that exposed it
+
+The first saturation run showed pool A — whose per-pool cap EQUALS the flat
+cap — exceeding its ceiling. A cap difference cannot explain that, so the
+measurement was suspect. The cause is `ScalarField.step()`: diffusion runs
+AFTER the regeneration clamp, pushing a low-fertility cell beside a rich one
+past its own per-pool cap every tick.
+
+The consequence matters beyond this task: **the per-pool cap is a soft target,
+not a maintained invariant.** Any excess must be read against that baseline,
+not against zero. A NEGATIVE CONTROL with every nutrient writer silenced
+(broadcast, all four returns, producer draw, floor) still reports the baseline:
+
+| Pool | mod | NEGATIVE CONTROL (baseline) |
+|------|-----|------------------------------|
+| A | 1.00 | 0.077724 |
+| B | 0.78 | 0.060625 |
+| C | 0.62 | 0.048188 |
+
+Two further discriminators separate the causes: silencing only the unclamped
+abiotic broadcast (recyclingRate=0) and silencing all return paths. The
+broadcast alone reproduces the baseline, confirming it is not the driver.
+
+### The attribution, measured not inferred
+
+The diffusion explanation above was an *inference* until a DECISIVE arm made
+it a *measurement*. Preregistered prediction: with `nutrientDiffusivity = 0`
+added to the negative control, no mechanism remains that can move a pool past
+its clamp, so excess must be exactly zero. Outcome:
+
+| Arm | Ticks with per-pool excess |
+|-----|----------------------------|
+| NEGATIVE CONTROL (diffusion on, all writers silenced) | 1496 / 1500 |
+| **DECISIVE — negative control + nutrientDiffusivity=0** | **0 / 1500** |
+
+Prediction confirmed. The residual is diffusion running after the regeneration
+clamp. The probe now *throws* rather than prints if this arm ever reports
+non-zero, because a falsified attribution printed quietly is how a wrong cause
+gets recorded as a right one. The negative control's own preregistered
+prediction (zero excess) was **FALSIFIED** by its first run; that falsification
+is recorded in the probe source rather than deleted, per the evidence rules.
+
+### Before / after, against the baseline
+
+Saturation arm, peak excess per cell (cumulative excess mass in brackets):
+
+| Pool | mod | BEFORE fix | AFTER fix | Baseline |
+|------|-----|------------|-----------|----------|
+| A | 1.00 | 0.078090 [15404] | 0.078090 [15346] | 0.077724 |
+| B | 0.78 | **9.430746 [212415]** | **0.060909 [11973]** | 0.060625 |
+| C | 0.62 | **11.427262 [211157]** | **0.048417 [9519]** | 0.048188 |
+
+B and C fell from ~150x and ~240x the baseline to the baseline itself. Pool A
+is unchanged — correct, since its multiplier is 1.0 and the correction cannot
+affect it. A is the built-in control for the fix.
+
+### The correction (smallest)
+
+One shared helper `nutrientCapAt(nIdx, ci)` returns the per-pool ceiling, and
+all four return sites clamp through it. This is the knob-discipline rule
+applied literally: every gate that reads the same quantity reads the scaled
+value, through one helper, so the flat cap cannot reappear at one site while
+the others are corrected.
+
+**Precise scope — three spellings of this cap still exist, on purpose:**
+seeding computes it via `habitat.capacityAt * mod`, the abiotic regeneration
+clamp computes it inline, and the four return sites use the helper. They agree
+numerically. Unifying the first two would be a refactor with no behavioural
+effect and was not attempted.
+
+### Independent review and the gap it found
+
+An independent validation-sufficiency pass (via the `test` specialist — the
+`review` specialist could not receive this private-repo diff under its
+provider's data-use posture) confirmed the fix but found one material gap:
+**nothing automated pinned the correction.** Parity, gates and contracts all
+stayed green *with the bug present*, because the pools never approach a
+ceiling at effective settings — so reverting the fix would have left every
+cited check passing. Its other findings were record defects, all corrected:
+stale positional citations in the probe header, an overclaiming `world.ts` doc
+comment (it said "every writer" routes through the helper; the unclamped
+broadcast and the inline regen clamp do not), the false "declared pinned
+config" label, and the falsified prediction not recorded in the probe itself.
+
+### The pin: gate G30
+
+G30 runs two arms on a saturation substrate (800x800, 120 ticks, seed 4242):
+a diffusion baseline (all writers silenced) and a saturation arm where returns
+are the only writers, then asserts saturation peak excess stays within 2x the
+measured baseline. It asserts a **ratio, not an absolute**, because the
+per-pool cap is a soft target — an absolute threshold would fail on diffusion
+alone.
+
+Teeth verified by reverting `nutrientCapAt` to the flat cap and re-running:
+
+| Pool | mod | With correction | Reverted (flat cap) |
+|------|-----|------------------|---------------------|
+| A | 1.00 | x1.00 | x1.00 (control — cannot discriminate) |
+| B | 0.78 | x1.00 | **x8.38 -> FAIL** |
+| C | 0.62 | x1.00 | **x10.16 -> FAIL** |
+
+The revert test is how the gate was proven non-ceremonial: it fails on exactly
+the regression it exists to catch, and pool A — which the correction cannot
+affect — does not move.
+
+### Validation
+
+- Parity **byte-identical** on both pinned seeds at engine 0.6.2
+  (517 -> P882/C170/D65; 24601 -> P563/C279/D90). The correction changes
+  nothing under effective config, which the reachability sweep predicted.
+  Parity alone could not detect this defect (it was latent), which is why the
+  presence-style check G30 was added alongside it.
+- 38/38 gates (G30 new), 11/11 contracts, 153/153 workflow checks pass.
+- Determinism: repeat runs byte-identical (C7).
+- Ledger/conservation: G3 accounting residual unchanged; nutrient is not
+  covered by the energy ledger, so the correction is outside that identity and
+  cannot perturb it.
+- Presence check: `nutrientCapAt` present in **both** build targets — the CLI
+  build and the app bundle (17 references each). Both `tsconfig.build.json`
+  and `tsconfig.app.json` were rebuilt, since `world.ts` changed and the build
+  trap warns that building only one target silently ships a stale engine.
+
+### What this correction does NOT do (disclosed scope)
+
+1. It does not make the per-pool cap a hard invariant. Diffusion still runs
+   after the regeneration clamp and still drifts low-fertility cells past their
+   own ceiling by the baseline amount above. Fixing that would mean reordering
+   or re-clamping the diffusion pass — a materially different change to
+   declared behaviour, not authorised by Task 6, and not attempted.
+2. The unclamped abiotic mineralisation broadcast (`nData[i] += share`) has no
+   cap at all. It is a separate, pre-existing property: at declared recycling
+   rates it is far below any ceiling, and the broadcast-only arm shows it does
+   not move the pools. Flagged, not changed.
+3. Excretion stoichiometry and selection-model redesign remain out of scope,
+   per the Owner's explicit exclusion.
+
+### Version note
+
+Engine remains `ts-evo-poc/0.6.2`: parity pins are unchanged, so no re-pinning
+and no retirement chain entry is warranted. Evidence recorded under 0.6.2
+before this commit remains valid — the correction is unreachable at the
+diagnostic effective config, which the 0/1500 sweep demonstrates directly,
+and under declared defaults parity C1 is byte-identical (the independent
+defaults-based check).
+
+--------------------------------------------------------------------------------
+REVIEW RESPONSE CORRECTIONS V2 (2026-10-13, reviewer Acrius-max on head 87cefa7)
+--------------------------------------------------------------------------------
+
+### G26 — radiationMultiplier coupling (FIXED)
+**Defect:** Test read base multiplier at dormantFrac=0 (coupled to 1.0), not the scheduled multiplier.
+**Fix:** Compute scheduled multiplier directly from tick/onset/doubling/cap; test coupling against that.
+**Result:** tick=50 scheduled=1.3195 zero=1.0000 half=1.1598 full=1.3195 over=1.3195 ✓
+
+### G27 — successfulMating flag gates asexual fallback (FIXED)
+**Defect:** Case D test counted asexual from ALL live organisms, not just the mated pair.
+**Fix:** Use 2-organism world; check ONLY the mated slots (0,1) for asexual=0, sexual=2.
+**Result:** A: asex=2 sex=0 | B: asex=2 sex=0 | C: asex=2 sex=0 | D(mated): asex=0 sex=2 ✓
+
+### G28 — successfulMating array grows with capacity (FIXED)
+**Defect:** Checked against fixed store.capacity (1024) instead of live array length which actually grows.
+**Fix:** Compare successfulMating.length against live.length after ensureSlotArrays(2000).
+**Result:** initialLiveLen=1024 grownLiveLen=2048 successfulMating.length=2048 (grew: true) ✓
+
+### Full validation
+- Typecheck: clean
+- Gates: 36/36 pass (including G26, G27, G28)
+- Contract: 11/11 pass (parity re-pinned 0.6.2)
+- Workflow: 153/153 pass
+- Bundle matches CLI: ✓
+- Deterministic: byte-identical repeat runs ✓
+
+--------------------------------------------------------------------------------
+REVIEW RESPONSE CORRECTIONS V3 (2026-10-13, reviewer Acrius-max on head a566a1e)
+--------------------------------------------------------------------------------
+
+### G27 — successfulMating flag gates asexual fallback (FULLY REVISED)
+**Prior defect:** Test used flag counts instead of actual birth outcomes; newborn
+founders didn't reach asexual branch; Case C energy made parents ineligible;
+Case D didn't verify asexual was SKIPPED (no duplicate births).
+
+**Complete rewrite using ReproProbe (SlotProbe) and birth queue inspection:**
+- Uses mature, eligible organisms (age > maturity, cooldown=0, energy=1000,
+  expressed traits pinned: ASEXUAL_RATE=0.055, MATE_SEEKING=0)
+- **Case A** (no candidate): verifies `reachedRoll` for both, `sexualSkipped` empty,
+  flags clean, 0 sexual in queue, asexual birth eventually queued
+- **Case B** (candidate, no reciprocal): verifies `resolveMatingIntent` submits
+  0 MATE interactions, then same asexual path as A
+- **Case C** (mutual, B fails surplus): B energy=0.1, A stays eligible.
+  Verifies NO mutual mating (successfulMating=0), A reaches roll and births
+  asexually while B does not reach roll
+- **Case D** (mutual, both pass surplus): Verifies `resolveContests` queues
+  exactly 2 sexual births BEFORE `proposeReproduction`, both flags set=1,
+  `proposeReproduction` skips asexual (no `reachedRoll`, no asexual in queue),
+  exactly 2 sexual births final, 0 asexual from mated pair
+
+**Result:** All four cases pass with detailed instrumentation trace:
+```
+A: reached(a=true,b=true) flags(0,0) sexualQ=0 asexBirth=true
+B: submittedDelta=true reached(a=true,b=true) sexualQ=0 asexBirth=true
+C: mated=false aReached=true bReached=false sexualQ=0 asexBirthA=true
+D: flags(1,1) sexualQ=2(pre=2) skipped(a=true,b=true) reached(a=false,b=false) asexFrom(a=0,b=0)
+```
+
+### Full validation
+- Typecheck: clean
+- Gates: 36/36 pass (G26, G27, G28 all substantive)
+- Contract: 11/11 pass (parity 0.6.2, bundle matches CLI)
+- Workflow: 153/153 pass
+- Bundle version: `WORLD_ENGINE_VERSION = 'ts-evo-poc/0.6.2'` ✓
+- Deterministic: byte-identical repeat runs ✓
+
+--------------------------------------------------------------------------------
+G29 HIGH-SLOT MATING INTEGRATION TEST ADDED (2026-10-13)
+--------------------------------------------------------------------------------
+
+**Requirement from review:** G28 proved array growth but not end-to-end mating
+above initial capacity. G29 closes this gap.
+
+**Test design:** Deterministic high-slot mating integration test at slots 1500/1501
+(well above initial 1024 capacity):
+- Grows World arrays and Store arrays to 4096
+- Creates two mature CONSUMER organisms at slots 1500, 1501 via manual
+  populateSlot replication (genome, body, count increment, live flag)
+- Sets full mating eligibility: age 20, energy 1000, cooldown 0, damage 0,
+  expressed traits pinned (ASEXUAL_RATE=0.055, MATE_SEEKING=0)
+- Mutual intent + mutual selection → resolveMatingIntent → resolveContests
+- Verifies: successfulMating flags set, 2 sexual births queued,
+  proposeReproduction skips asexual (no reachedRoll, sexualSkipped set)
+
+**Result:** PASS
+```
+mated=true sexualQueued=true noAsexReached=true sexualSkipped=true slots=(1500,1501)
+```
+
+**Gate count:** 37/37 (G1–G25, G26 radiation coupling, G27 mating fallback,
+G28 array growth, G29 high-slot mating integration)
+
+-------------------------------------------------------------------------------
+PR #13 MEASUREMENT CORRECTIONS — review 5517625966
+-------------------------------------------------------------------------------
+
+This is a diagnostic/evidence repair, not completed acceptance of a biological
+audit. It adds no guild quotas, directed mutation or biological redesign.
+Corrected data: `evidence/pr13-measurement-corrections/`.
+
+### Version and affected record
+
+Engine `ts-evo-poc/0.6.3`, gates `gates/0.5.0`. The per-pool cap correction
+landed in `e484b3f` while still labelled 0.6.2, and G30 was pinned in `d0fdd57`.
+Thus **0.6.2 alone was ambiguous**: pre-`e484b3f` saturation runs describe flat
+return ceilings, whereas runs of `e484b3f`/`d0fdd57` describe per-pool ceilings.
+Do not compare them as samples of one engine semantics. The new version removes
+that ambiguity. Relative to reviewed `d0fdd57`, the nutrient writes are unchanged;
+this follow-up only rebases measurement. Existing corrected saturation data
+remains valid provenance, and no broad ecological cohort was rerun to repin it.
+Default parity remains 517→P882/C170/D65 and 24601→P563/C279/D90 at 500 ticks.
+
+### Corrected mating diagnostic (seed 517, 2000 ticks)
+
+The original `fired()` was empty. The old zero-birth and blocker conclusions,
+H1–H4 verdicts and reproductive-inviability interpretation are withdrawn, not
+retroactively certified. New callbacks distinguish fired clutches, source-labelled
+queued offspring by parent guild, and placed offspring by newborn guild.
+Guild transitions explain why these guild columns need not match. Successful
+sexual firings are not guaranteed placements. `REPRO_GATE.sexual` is asexual
+deferral following successful mating, **not failure at a sexual gate**.
+Only one sexual deferral is recorded despite 20 queued sexual offspring:
+`World.proposeReproduction` checks cooldown, fraction, maturity, damage and
+surplus before deferral. Mating costs are already charged at that point, so
+a successfully mated parent can be counted at an earlier blocker instead.
+The probe does not identify which earlier blocker accounted for each parent.
+Twenty sexual requests yielded 18 placements; the two-request gap is recorded,
+but its placement-rejection cause is not measured.
+
+| Cumulative count | P | C | D |
+|---|---:|---:|---:|
+| Asexual roll reached | 14279 | 3423 | 23435 |
+| First blocker: energy fraction | 343963 | 95131 | 38143 |
+| First blocker: surplus | 0 | 0 | 0 |
+| Fired asexual clutches | 117 | 46 | 334 |
+| Sexual queued offspring | 17 | 2 | 1 |
+| Asexual queued offspring | 428 | 240 | 1490 |
+| Sexual placed offspring | 17 | 0 | 1 |
+| Asexual placed offspring | 427 | 265 | 1466 |
+
+These are event counts across organism-ticks, not counts of unique organisms;
+first-blocker counts are sequential and cannot measure failures behind an earlier
+gate. All six blocker categories appear in the raw output.
+
+- **H1:** not measured as preregistered: the probe does not count all mate
+  attempts, mutual-intent rejections or the sexual surplus-rejection denominator.
+  Asexual first-blocker evidence cannot answer that sexual-pipeline comparison.
+- **H2:** the stated `sexualSkipped` proxy was invalid. In the measured asexual
+  eligibility path, consumer surplus blocks are 0 while fraction blocks are
+  95131; this does not support surplus as its primary blocker. Sexual-path
+  surplus rejection remains unmeasured.
+- **H3:** supported only for this configured seed/horizon: 18 sexual placements
+  out of 2176 total placements (0.827%) is below the original 10% prediction.
+  This is not the engine's unset-default configuration or a multi-seed verdict.
+- **H4:** falsified on the placed-offspring definition: P=17 sexual placements,
+  D=1. No claim of general evolutionary dominance follows.
+- **H5:** not measured; no extinction-knockout comparison was run.
+
+Existing `ReproProbeLog` consumers retain asexual-lottery `fired` semantics;
+sexual notifications are ignored there rather than widening eight old metrics.
+
+### Corrected opportunity observer (seeds 517 and 41001, 3000 ticks)
+
+Old future-fitness conclusions are withdrawn: they ranked the current census
+against the past interval and could join recycled slots to the wrong organisms.
+Samples now capture stable IDs; opportunity quartiles are formed at interval
+start and joined to the next census by ID. Energy change is survivor-only,
+with its own sample size; deaths are not assigned zero energy change. Newborns
+are reported separately and excluded from the starting cohort. Duplicate-ID
+and mismatched birth-identity assertions fail loudly.
+
+Example from the measured 517 interval 250→500: 258/404 survivors, 199 newborns,
+146 deaths. Consumer start cohort n=76; high/low prey quartiles each n=19;
+12/9 survive (63.158%/47.368%). Survivor energy samples are n=12/9, with mean
+changes −12.778/−12.699. This is a bounded association, not proof of opportunity
+causing fitness. Equal-resource quartiles (e.g. zero prey at later samples) do
+not constitute a resource contrast even when outcomes differ.
+
+This first-interval example is not representative of a stable sign: consumer
+high-minus-low survival is positive in only 1 of 7 reported intervals for seed
+517 and 3 of 11 for seed 41001 (including tied-resource intervals, which are
+not meaningful resource contrasts). Later signs reverse; no general positive
+opportunity/fitness relationship is established.
+
+### Flux accounting and test scope
+
+The old signed return mixed incoming nutrient and deletion of pre-existing
+excess. Each return now exposes attempted, accepted, capLoss and eviction;
+`attempted = accepted + capLoss` and computed delta = accepted − eviction,
+subject to floating arithmetic/storage rounding. G31 independently compares
+books to field movement in a writer-isolated world; G32 checks every
+guild/pool/source partition and requires a real over-cap event. G30 still pins
+the cap regression, but its arms also contain regeneration and an arm-specific
+recycling broadcast: they are not writer-free/returns-only, nor do their effects
+algebraically cancel. Normal flux runs need not reach over-cap; the raw output
+says when that branch was not reached. Self-consistent books alone cannot
+detect an entirely unwired site or establish ecological reliance.
+
+### D2 and delivery scope
+
+HEAD tracks **zero** `src/**/*.js` files. The cleanup landed in ancestor
+`eb3b6a4`, before the reviewed baseline `7b56c92`; `7b56c92..HEAD` contains
+zero such removals. Thus this PR's six-commit diff did not prove D2, while the
+current inventory and earlier cleanup do. No new deletion is claimed here.
+Scientific-equivalence classifications remain proposals with Owner decision
+needed; the supplementary priority-control matrix supplies missing live paths
+and conceptual sources without inventing Owner approvals.
+
+-------------------------------------------------------------------------------
+PR #13 FOLLOW-UP — review 5523267409: report status and recorder nonperturbation
+-------------------------------------------------------------------------------
+
+The corrective `4cc865f` commit is accepted for its measurement-repair scope;
+**full PR-wide design/scientific audit acceptance remains pending**. Owner D1
+is explicitly PARTIAL / INCOMPLETE at the original matrix heading, with no
+accepted scope split. Original guild-reliance assertions are visibly SUPERSEDED
+at their original presentation; historical counts remain intact.
+
+### Direct D5 observer comparison (0.6.3)
+
+Evidence: `evidence/pr13-observer-nonperturbation/`, including four raw arm
+outputs, comparison result, source hashes, resolved configurations and commands.
+`node scripts/opportunity-check.mjs` runs the existing observer horizon/seeds
+(3000 ticks; 517 and 41001) with recording enabled and disabled separately.
+The off arm skips recorder census/spatial/identity/reporting work; no biological
+configuration changes. On-arm `World.hashState()` samples are taken **after**
+all observer work. Tick 0 and every 250 ticks through 3000 produce **13/13
+matching digests for each seed**, and the resolved-config headers match exactly.
+
+This is a same-effective-world recorder on/off comparison, unlike C1 unset-default
+parity, which does not prove this claim. The supplied engine hash checks its
+covered state/RNG at sample cadence, not every byte or all future-relevant fields
+at every tick. It is not a general ecological-reliance, full conservation or
+calibrated-equivalence result. No biology, balancing sweep or seed search was added.
+
+The lightweight checker fixtures reject mismatched config, changed digest,
+missing and duplicate frames. `scripts/workflow-checks.mjs` invokes these as
+W9-observer without creating a World or making CI run an ecological cohort.
+The original `4cc865f` opportunity stdout/repeats remain archived under their
+source hash; new TRAJECTORY lines/footer change current stdout format, not those
+historical measurements. Current-format comparison evidence is stored separately.

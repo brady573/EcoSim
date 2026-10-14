@@ -1,0 +1,3 @@
+PASS seed=517 ticks=3000: 13 identical on/off digests; exact resolved config; recorder active only in on arm; digest/config/missing/duplicate controls rejected
+PASS seed=41001 ticks=3000: 13 identical on/off digests; exact resolved config; recorder active only in on arm; digest/config/missing/duplicate controls rejected
+PASS: bounded observer nonperturbation at 0.6.3 cadence (not an ecology or full-state-equivalence verdict)

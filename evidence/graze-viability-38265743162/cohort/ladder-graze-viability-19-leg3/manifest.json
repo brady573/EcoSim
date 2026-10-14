@@ -1,0 +1,217 @@
+{
+  "arm": "graze-viability",
+  "title": "VIABILITY: breeding reserve 90 -> 30 where food demonstrably pays?",
+  "preregistered": "2026-10-12",
+  "identity": {
+    "engine": "ts-evo-poc/0.6.0",
+    "gateSuite": "gates/0.4.0",
+    "engineError": null,
+    "commit": "2fdc20b530616f3e7ffda8e9810b5f58b5c08c8c",
+    "ref": "refs/heads/balance/share-brake-diagnostics-run",
+    "runtime": "v24.21.0",
+    "armSpecHash": "bdb594d147dac63ca131e5d251c50a448c2f0c4cad54b1499edafaf9f465d39c",
+    "armSpecPath": "tools/ladder/arms.json",
+    "note": "The probe always ran from the current checkout. A historical arm spec applied here is a settings replay, not a reproduction of its original figure."
+  },
+  "capturePolicy": {
+    "zero": true,
+    "permitted": [
+      true,
+      false,
+      false
+    ]
+  },
+  "seedCount": 3,
+  "seeds": [
+    41004,
+    41010,
+    41016
+  ],
+  "declaredSeedCount": 18,
+  "shard": {
+    "index": 3,
+    "count": 6
+  },
+  "historicalSpec": false,
+  "historicalEngineReproduced": false,
+  "ticks": 6000,
+  "declaredTicks": 6000,
+  "ticksOverrideApplied": false,
+  "zero": true,
+  "lifts": {
+    "producerCaptureScale": 0.35,
+    "basalFoodPerCell": 0.01,
+    "grazeYieldScale": 1,
+    "nutrientRegen": 0.0002
+  },
+  "preregistration": {
+    "hypothesis": "Step-3c analysis showed grazing income does not separate persisting from failing consumers (failures carry equal or greater graze energy; disease negligible; B/D<1 from the first checkpoints). The mapped gates point at the 90-tick breeding reserve against small consumer incomes. Rung 6 falsified rsur-30 in a different ecology (0.25 subsidy, uncoupled, unpaid graze); this tests the same dial where food demonstrably pays.",
+    "prediction": "cons > 0 on at least 12/18 AND prod > 0 on at least 12/18 seeds at tick 6000 (both machine criteria). Coexistence rate NOT predicted.",
+    "falsification": "FALSIFIED if cons = 0 on 7 or more of 18 seeds: the reserve is not the binding constraint — viability needs engine-level upkeep/damage economics, and that decision goes to the Owner with this record attached. No further reserve descent (30 -> 0 would breed from nothing and break the closed budget); no compensating light or subsidy moves.",
+    "notPredicted": "Coexistence rates, capture shares, extinction counts (descriptive), decomposer endpoints, per-win sizes.",
+    "confoundsControlled": [
+      "Same 18-seed panel, horizon, engine, lifts, and 14/15 argvRest entries as graze-nutregen; the ONLY difference is positional rsur null -> 30 (argv slot 18)",
+      "Matched comparison against the archived nutregen run isolates the reserve effect",
+      "Null default (90) preserved in config; the arm exercises the sanctioned config path only",
+      "conservation enforced per seed at 0.5%; a seed above it fails the run rather than reporting"
+    ],
+    "criteria": [
+      {
+        "id": "consumers-viable",
+        "metric": "cons",
+        "op": ">",
+        "value": 0,
+        "required": 12,
+        "statement": "consumers > 0 at tick 6000 on at least 12/18 seeds"
+      },
+      {
+        "id": "producers-fed",
+        "metric": "prod",
+        "op": ">",
+        "value": 0,
+        "required": 12,
+        "statement": "producers > 0 at tick 6000 on at least 12/18 seeds"
+      }
+    ]
+  },
+  "runs": [
+    {
+      "seed": 41004,
+      "argv": [
+        "41004",
+        "6000",
+        "off",
+        "4",
+        "0.25",
+        "null",
+        "null",
+        "null",
+        "0.15",
+        "null",
+        "off",
+        "off",
+        "on",
+        "1.0",
+        "null",
+        "0.05",
+        "30",
+        "--zero",
+        "--zero-lift=producerCaptureScale:0.35",
+        "--zero-lift=basalFoodPerCell:0.01",
+        "--zero-lift=grazeYieldScale:1",
+        "--zero-lift=nutrientRegen:0.0002"
+      ],
+      "header": "SENESCENCE seed=41004 ticks=6000 setting=off photox4 basalx0.25 grazexnull tissuexnull radxnull disx0.15 pioxnull dtboff mixooff cycon sat1 pcapnull nfloor0.05 rsur30 ZERO-BASELINE (probe config)",
+      "prod": 15,
+      "cons": 473,
+      "dec": 377,
+      "pop": 865,
+      "finalTick": 6000,
+      "ledgerStatus": "ok",
+      "ledgerClass": "valid",
+      "totalInput": 289532.4,
+      "residualPct": 0.01845,
+      "capture": 26906.9,
+      "captureByGuild": [
+        26906.9,
+        0,
+        0
+      ],
+      "residualOk": true,
+      "capturePolicyOk": true
+    },
+    {
+      "seed": 41010,
+      "argv": [
+        "41010",
+        "6000",
+        "off",
+        "4",
+        "0.25",
+        "null",
+        "null",
+        "null",
+        "0.15",
+        "null",
+        "off",
+        "off",
+        "on",
+        "1.0",
+        "null",
+        "0.05",
+        "30",
+        "--zero",
+        "--zero-lift=producerCaptureScale:0.35",
+        "--zero-lift=basalFoodPerCell:0.01",
+        "--zero-lift=grazeYieldScale:1",
+        "--zero-lift=nutrientRegen:0.0002"
+      ],
+      "header": "SENESCENCE seed=41010 ticks=6000 setting=off photox4 basalx0.25 grazexnull tissuexnull radxnull disx0.15 pioxnull dtboff mixooff cycon sat1 pcapnull nfloor0.05 rsur30 ZERO-BASELINE (probe config)",
+      "prod": 0,
+      "cons": 2,
+      "dec": 771,
+      "pop": 773,
+      "finalTick": 6000,
+      "ledgerStatus": "ok",
+      "ledgerClass": "valid",
+      "totalInput": 279706.8,
+      "residualPct": 0.01761,
+      "capture": 17209.5,
+      "captureByGuild": [
+        17209.5,
+        0,
+        0
+      ],
+      "residualOk": true,
+      "capturePolicyOk": true
+    },
+    {
+      "seed": 41016,
+      "argv": [
+        "41016",
+        "6000",
+        "off",
+        "4",
+        "0.25",
+        "null",
+        "null",
+        "null",
+        "0.15",
+        "null",
+        "off",
+        "off",
+        "on",
+        "1.0",
+        "null",
+        "0.05",
+        "30",
+        "--zero",
+        "--zero-lift=producerCaptureScale:0.35",
+        "--zero-lift=basalFoodPerCell:0.01",
+        "--zero-lift=grazeYieldScale:1",
+        "--zero-lift=nutrientRegen:0.0002"
+      ],
+      "header": "SENESCENCE seed=41016 ticks=6000 setting=off photox4 basalx0.25 grazexnull tissuexnull radxnull disx0.15 pioxnull dtboff mixooff cycon sat1 pcapnull nfloor0.05 rsur30 ZERO-BASELINE (probe config)",
+      "prod": 1428,
+      "cons": 0,
+      "dec": 0,
+      "pop": 1428,
+      "finalTick": 6000,
+      "ledgerStatus": "ok",
+      "ledgerClass": "valid",
+      "totalInput": 448038.6,
+      "residualPct": 0.02734,
+      "capture": 186077.6,
+      "captureByGuild": [
+        186077.6,
+        0,
+        0
+      ],
+      "residualOk": true,
+      "capturePolicyOk": true
+    }
+  ],
+  "headerMismatches": [],
+  "failures": [],
+  "warnings": []
+}

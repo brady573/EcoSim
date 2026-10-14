@@ -1,0 +1,11 @@
+SENESCENCE seed=41015 ticks=6000 setting=off photox4 basalx0.25 grazexnull tissuexnull radxnull disx0.15 pioxnull dtboff mixooff cycon sat1 pcapnull nfloor0.05 rsurnull ZERO-BASELINE (probe config)
+tick      pop   prod  cons  decomp | dormant  senescDeaths
+1000    327   56    115   156    | 132      0 disD:1 pools:29807 pioG:0
+2000    1173  55    17    1101   | 1064     0 disD:1 pools:8491 pioG:0
+3000    500   243   17    240    | 233      0 disD:2 pools:5488 pioG:0
+4000    291   268   0     23     | 23       0 disD:2 pools:7792 pioG:0
+5000    334   334   0     0      | 0        0 disD:2 pools:10023 pioG:0
+6000    289   289   0     0      | 0        0 disD:2 pools:13426 pioG:0
+B/D prod=1704/1720=0.99 cons=382/434=0.88 decomp=1695/1738=0.98 senescenceDeaths=0 diseaseDeaths=2 diseaseMeals=3756 pioneerGrants=0 pioGPG=0/0/0 grazeSubmit=529 grazeWins=220 grazeEnergy=480 grazeRequested=537
+LEDGER totalInput=333549.4 founding=43553.0 capture=73996.4 organic=216000.0 captureByGuild=73996.4/0.0/0.0 biomass=7045.3 detritus=3857.6 dissipated=313020.8 accounted=323923.7 residualPct=0.01718
+{"seed":41015,"ticks":6000,"setting":"off"}

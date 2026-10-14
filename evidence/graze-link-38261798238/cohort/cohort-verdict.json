@@ -1,0 +1,49 @@
+{
+  "arm": "graze-link",
+  "title": "LINK TEST: does lifting grazeYieldScale to declared restore grazing flux?",
+  "preregistered": "2026-10-12",
+  "classification": "not measured",
+  "integrity": "INTACT",
+  "headline": "**NOT MEASURED** — no pre-registered verdict can be issued from this run.",
+  "numerators": {},
+  "denominators": {},
+  "notMet": [],
+  "identity": {
+    "arm": "graze-link",
+    "engine": "ts-evo-poc/0.6.0",
+    "commit": "6df61d14446396a226dd5cf26e9ef8f8db9e0a68",
+    "armSpecHash": "3c62c97ffe9b5bbb45c27740638dd93aff9812454bc5e944a8f458968f9c2e82",
+    "ticks": 6000,
+    "declaredTicks": 6000
+  },
+  "seedsMeasured": [
+    41001,
+    41002,
+    41003,
+    41004,
+    41005,
+    41006,
+    41007,
+    41008,
+    41009,
+    41010,
+    41011,
+    41012,
+    41013,
+    41014,
+    41015,
+    41016,
+    41017,
+    41018
+  ],
+  "exitPolicy": {
+    "greenMeans": "the evidence is trustworthy",
+    "greenDoesNotMean": "the hypothesis was correct",
+    "nonzeroReservedFor": [
+      "evidence-integrity violation",
+      "execution failure"
+    ]
+  },
+  "prediction": "grazeEnergy > 0 on at least 12/18 seeds at tick 6000 (read from per-seed B/D lines; the cohort verifier has no graze metric, so this arm carries no machine criteria and classifies 'not measured' by design — the verdict is human-read from intact evidence, stated here before inspection). Ecological coexistence is explicitly NOT predicted by this arm: it tests the link, not balance.",
+  "falsification": "FALSIFIED as a link restoration if grazeEnergy = 0 on 7 or more of 18 seeds. A falsification here sends the program back to contest biology (defender losses were 27-34% at Step 0), not to a larger scale — do not push to 1.6+ blindly; rung 4 already showed enriched transfer without coexistence."
+}

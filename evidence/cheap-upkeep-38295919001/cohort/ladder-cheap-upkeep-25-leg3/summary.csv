@@ -1,0 +1,4 @@
+seed,prod,cons,dec,pop,totalInput,residualPct,ledgerStatus,capturePolicyOk
+41004,0,825,144,969,285913.2,0.03122,ok,true
+41010,0,0,716,716,281834.5,0.03091,ok,true
+41016,672,0,0,672,491265.8,0.01107,ok,true

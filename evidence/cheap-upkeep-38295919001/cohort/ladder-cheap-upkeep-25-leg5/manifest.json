@@ -1,0 +1,216 @@
+{
+  "arm": "cheap-upkeep",
+  "title": "S2 PROMOTION: cheaper consumer upkeep (0.25 -> 0.1) converts to replacement?",
+  "preregistered": "2026-10-12",
+  "identity": {
+    "engine": "ts-evo-poc/0.6.1",
+    "gateSuite": "gates/0.4.0",
+    "engineError": null,
+    "commit": "4b4d14296ec19ab4b57132b8dafe420544a59ae5",
+    "ref": "refs/heads/balance/share-brake-diagnostics-run",
+    "runtime": "v24.21.0",
+    "armSpecHash": "f67bdf21d8bcc7a25b6c548c6c4388b85402202fcea16baeb69a8ffe7336e747",
+    "armSpecPath": "tools/ladder/arms.json",
+    "note": "The probe always ran from the current checkout. A historical arm spec applied here is a settings replay, not a reproduction of its original figure."
+  },
+  "capturePolicy": {
+    "zero": true,
+    "permitted": [
+      true,
+      false,
+      false
+    ]
+  },
+  "seedCount": 3,
+  "seeds": [
+    41006,
+    41012,
+    41018
+  ],
+  "declaredSeedCount": 18,
+  "shard": {
+    "index": 5,
+    "count": 6
+  },
+  "historicalSpec": false,
+  "historicalEngineReproduced": false,
+  "ticks": 6000,
+  "declaredTicks": 6000,
+  "ticksOverrideApplied": false,
+  "zero": true,
+  "lifts": {
+    "producerCaptureScale": 0.35,
+    "basalFoodPerCell": 0.01,
+    "grazeYieldScale": 1,
+    "nutrientRegen": 0.0002
+  },
+  "preregistration": {
+    "hypothesis": "S2 screen: basal 0.1 read C101 B/D 1.05 (41002) and C87 B/D 1.03 (41005) where base reads C0 — the shared-helper era may let upkeep discounts reach the gates they previously missed. Full-panel test.",
+    "prediction": "cons > 0 on at least 12/18 AND prod > 0 on at least 12/18 seeds at tick 6000 (both machine). Coexistence NOT predicted.",
+    "falsification": "FALSIFIED if cons = 0 on 7 or more of 18: cheaper upkeep does not convert at panel scale — the screen read was seed luck. No further upkeep descent in this line.",
+    "notPredicted": "Coexistence rates, capture shares, B/D distributions (descriptive).",
+    "confoundsControlled": [
+      "Same 18-seed panel, horizon, engine, lifts, and 14/15 argvRest entries as viability-061; the ONLY difference is basal 0.25 -> 0.1",
+      "Screen seeds are a subset of this panel; the panel result rules, not the screen",
+      "conservation enforced per seed at 0.5%; a seed above it fails the run rather than reporting"
+    ],
+    "criteria": [
+      {
+        "id": "consumers-viable",
+        "metric": "cons",
+        "op": ">",
+        "value": 0,
+        "required": 12,
+        "statement": "consumers > 0 at tick 6000 on at least 12/18 seeds"
+      },
+      {
+        "id": "producers-fed",
+        "metric": "prod",
+        "op": ">",
+        "value": 0,
+        "required": 12,
+        "statement": "producers > 0 at tick 6000 on at least 12/18 seeds"
+      }
+    ]
+  },
+  "runs": [
+    {
+      "seed": 41006,
+      "argv": [
+        "41006",
+        "6000",
+        "off",
+        "4",
+        "0.1",
+        "null",
+        "null",
+        "null",
+        "0.15",
+        "null",
+        "off",
+        "off",
+        "on",
+        "1.0",
+        "null",
+        "0.05",
+        "30",
+        "--zero",
+        "--zero-lift=producerCaptureScale:0.35",
+        "--zero-lift=basalFoodPerCell:0.01",
+        "--zero-lift=grazeYieldScale:1",
+        "--zero-lift=nutrientRegen:0.0002"
+      ],
+      "header": "SENESCENCE seed=41006 ticks=6000 setting=off photox4 basalx0.1 grazexnull tissuexnull radxnull disx0.15 pioxnull dtboff mixooff cycon sat1 pcapnull nfloor0.05 rsur30 dfound=0.25 ZERO-BASELINE (probe config)",
+      "prod": 0,
+      "cons": 249,
+      "dec": 254,
+      "pop": 503,
+      "finalTick": 6000,
+      "ledgerStatus": "ok",
+      "ledgerClass": "valid",
+      "totalInput": 268516.7,
+      "residualPct": 0.01464,
+      "capture": 9696.4,
+      "captureByGuild": [
+        9696.4,
+        0,
+        0
+      ],
+      "residualOk": true,
+      "capturePolicyOk": true
+    },
+    {
+      "seed": 41012,
+      "argv": [
+        "41012",
+        "6000",
+        "off",
+        "4",
+        "0.1",
+        "null",
+        "null",
+        "null",
+        "0.15",
+        "null",
+        "off",
+        "off",
+        "on",
+        "1.0",
+        "null",
+        "0.05",
+        "30",
+        "--zero",
+        "--zero-lift=producerCaptureScale:0.35",
+        "--zero-lift=basalFoodPerCell:0.01",
+        "--zero-lift=grazeYieldScale:1",
+        "--zero-lift=nutrientRegen:0.0002"
+      ],
+      "header": "SENESCENCE seed=41012 ticks=6000 setting=off photox4 basalx0.1 grazexnull tissuexnull radxnull disx0.15 pioxnull dtboff mixooff cycon sat1 pcapnull nfloor0.05 rsur30 dfound=0.25 ZERO-BASELINE (probe config)",
+      "prod": 5961,
+      "cons": 135,
+      "dec": 467,
+      "pop": 6563,
+      "finalTick": 6000,
+      "ledgerStatus": "ok",
+      "ledgerClass": "valid",
+      "totalInput": 484931.2,
+      "residualPct": 0.02776,
+      "capture": 229218.4,
+      "captureByGuild": [
+        229218.4,
+        0,
+        0
+      ],
+      "residualOk": true,
+      "capturePolicyOk": true
+    },
+    {
+      "seed": 41018,
+      "argv": [
+        "41018",
+        "6000",
+        "off",
+        "4",
+        "0.1",
+        "null",
+        "null",
+        "null",
+        "0.15",
+        "null",
+        "off",
+        "off",
+        "on",
+        "1.0",
+        "null",
+        "0.05",
+        "30",
+        "--zero",
+        "--zero-lift=producerCaptureScale:0.35",
+        "--zero-lift=basalFoodPerCell:0.01",
+        "--zero-lift=grazeYieldScale:1",
+        "--zero-lift=nutrientRegen:0.0002"
+      ],
+      "header": "SENESCENCE seed=41018 ticks=6000 setting=off photox4 basalx0.1 grazexnull tissuexnull radxnull disx0.15 pioxnull dtboff mixooff cycon sat1 pcapnull nfloor0.05 rsur30 dfound=0.25 ZERO-BASELINE (probe config)",
+      "prod": 180,
+      "cons": 0,
+      "dec": 0,
+      "pop": 180,
+      "finalTick": 6000,
+      "ledgerStatus": "ok",
+      "ledgerClass": "valid",
+      "totalInput": 421553.9,
+      "residualPct": 0.01511,
+      "capture": 161704.1,
+      "captureByGuild": [
+        161704.1,
+        0,
+        0
+      ],
+      "residualOk": true,
+      "capturePolicyOk": true
+    }
+  ],
+  "headerMismatches": [],
+  "failures": [],
+  "warnings": []
+}

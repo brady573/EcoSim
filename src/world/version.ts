@@ -14,6 +14,57 @@
 /**
  * Bump on any behavioural change to the simulation.
  *
+ * 0.6.3 is a MEASUREMENT re-base, not a behavioural change. Engine semantics,
+ * seed parity and reproducibility are untouched: the pools themselves, the
+ * writer paths, and every default are the same, and the pinned pair 517 ->
+ * 882/170/65, 24601 -> 563/279/90 (500 ticks) still holds — no new
+ * retirement-chain entry, no re-pin.
+ *
+ * What this release changes is the instrumentation the probes read:
+ *   - `getFluxSnapshot()` exposes four books per return (attempted, accepted,
+ *     capLoss, eviction) under one `ReturnBooks<T>` grouping, instead of a
+ *     single signed "returns" number computed as `min(cap, before + in) -
+ *     before`, which went NEGATIVE whenever a cell was already over its own
+ *     cap when a return arrived — routine, because diffusion runs after the
+ *     regeneration clamp — so ceiling deletion was being reported as
+ *     biological recycling. The returned `accepted` quantity is the same
+ *     `Math.min(cap, before + amount)` arithmetic as before; what moved is
+ *     what is OBSERVED, not what is WRITTEN. The exact identities hold in
+ *     the float64 clamp arithmetic:
+ *         accepted - eviction == observed delta
+ *         attempted == accepted + capLoss
+ *     The pools are Float32Array, so field agreement carries float32 write
+ *     rounding (~1e-8 relative, measured end-to-end by G31).
+ *
+ *   - ReproProbe accepts labelled sexual events for matingdiag. ReproProbeLog
+ *     ignores these events, preserving its asexual-lottery metrics.
+ *
+ * Historical note: the per-pool RETURN cap (configuration multipliers [1.0, 0.78,
+ * 0.62] instead of one flat `nutrientPerCell * fertility`) was corrected under
+ * 0.6.2 and pinned by G30 at `gates/0.4.0`. 0.6.2 saturation figures are valid
+ * provenance for that corrected engine. Earlier flat-cap measurements remain
+ * evidence of the earlier source snapshot, not of the corrected paths.
+ * No nutrient-write arithmetic changes relative to this PR's reviewed head;
+ * existing corrected saturation runs do not require biological remeasurement.
+ *
+ * 0.6.2 corrects two behavioural defects found by independent review:
+ *   - radiationMultiplier dormant coupling inverted intent: at 0 dormancy
+ *     produced 0x mutation (should be 1x background). Fixed to couple only
+ *     the excess over 1x, so 0 dormancy = 1x, full dormant share = full mult.
+ *   - Mating logic: sensed mateTarget skipped asexual breeding even when no
+ *     mutual mating occurred. Fixed to only skip asexual for slots with a
+ *     confirmed successful mating this tick (surplus-checked, reciprocal).
+ *     Asexual is now always available as fallback; mate-seeking genotypes
+ *     breed slower asexually, creating a genuine trade-off.
+ *   Parity re-pinned: 517 -> 882/170/65, 24601 -> 563/279/90.
+ *
+ * 0.6.1 grants fasting tolerance to starvation damage (Owner constraint
+ * 2026-10-12: body reserves buffer brief deficits). Damage ramps 0 -> full
+ * over STARVE_GRACE_TICKS consecutive-deficit ticks; sustained deficit still
+ * kills at full rate. Parity is re-pinned below; all figures recorded under
+ * 0.6.0 describe the instantaneous-damage semantics and are earlier-engine
+ * evidence, not current behaviour.
+ *
  * 0.6.0 closes the energy accounting defects found by independent review
  * (issue #2). Parity is re-pinned: 517 -> 808/159/58, 24601 -> 558/290/96.
  * All figures recorded under 0.5.0 describe a LEAKY engine — decomposer
@@ -31,7 +82,11 @@
  * All figures recorded under 0.4.1 describe the DEFECTIVE semantics and are
  * provenance only. See REPORT.md.
  */
-export const WORLD_ENGINE_VERSION = 'ts-evo-poc/0.6.0';
+export const WORLD_ENGINE_VERSION = 'ts-evo-poc/0.6.3';
 
-/** Identifier for the credibility-check suite that accompanies this version. */
-export const GATE_SUITE_VERSION = 'gates/0.4.0';
+/**
+ * Identifier for the credibility-check suite. G30 (per-pool nutrient cap on
+ * return paths) shipped with gates/0.4.0; only G31 and G32 (the book-level
+ * checks) were added in this release.
+ */
+export const GATE_SUITE_VERSION = 'gates/0.5.0';

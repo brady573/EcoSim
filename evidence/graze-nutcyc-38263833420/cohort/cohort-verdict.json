@@ -1,0 +1,57 @@
+{
+  "arm": "graze-nutcyc",
+  "title": "COUPLING: producers fed by decomposer-processed substrate (cyclic+floor) on the 0.01 config?",
+  "preregistered": "2026-10-12",
+  "classification": "falsified",
+  "integrity": "INTACT",
+  "headline": "**PREDICTION FALSIFIED** — the pre-registered outcome did NOT occur. This run is trustworthy evidence and a negative result. The workflow is GREEN because the evidence is sound, NOT because anything was confirmed.",
+  "numerators": {
+    "producers-fed": 11,
+    "consumers-persist": 13
+  },
+  "denominators": {
+    "producers-fed": 18,
+    "consumers-persist": 18
+  },
+  "notMet": [
+    "producers-fed: 11/18 met 'producers > 0 at tick 6000 on at least 12/18 seeds' (needed >= 12)"
+  ],
+  "identity": {
+    "arm": "graze-nutcyc",
+    "engine": "ts-evo-poc/0.6.0",
+    "commit": "3a4c7dac729e656b4c7ed2e3fd5fc85ef7bd2d5a",
+    "armSpecHash": "61d8a7ab1e6c6a3244ea90cde8a65d0b4f09713a296e29b46b3625e1a47f2fea",
+    "ticks": 6000,
+    "declaredTicks": 6000
+  },
+  "seedsMeasured": [
+    41001,
+    41002,
+    41003,
+    41004,
+    41005,
+    41006,
+    41007,
+    41008,
+    41009,
+    41010,
+    41011,
+    41012,
+    41013,
+    41014,
+    41015,
+    41016,
+    41017,
+    41018
+  ],
+  "exitPolicy": {
+    "greenMeans": "the evidence is trustworthy",
+    "greenDoesNotMean": "the hypothesis was correct",
+    "nonzeroReservedFor": [
+      "evidence-integrity violation",
+      "execution failure"
+    ]
+  },
+  "prediction": "prod > 0 on at least 12/18 AND cons > 0 on at least 12/18 seeds at tick 6000 (both machine criteria). Coexistence rate NOT predicted.",
+  "falsification": "FALSIFIED if prod = 0 on 7 or more of 18 seeds: the coupling does not feed producers — loosen saturation further or abandon the coupling; do NOT raise light to compensate (the pcap sweep proved light rotates collapse). If cons = 0 on >=7/18 while producers recover, the failure is consumer viability, a separate mechanism."
+}

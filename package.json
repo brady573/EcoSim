@@ -20,6 +20,7 @@
     "diag": "node tools/diagnostics/evo-diagnostics.mjs",
     "contract": "node scripts/contract-checks.mjs .",
     "workflow": "node scripts/workflow-checks.mjs",
+    "opportunity:check": "node scripts/opportunity-check.mjs",
     "cohort": "node tools/ladder/cohort-verify.mjs"
   },
   "devDependencies": {

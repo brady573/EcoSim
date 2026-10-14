@@ -241,6 +241,853 @@
           "statement": "all three guilds non-zero on AT MOST 8/18 seeds \u2014 encoded as its exact complement, at least 10/18 seeds where allGuildsNonZero == 0. Counting the complement is what makes the boundary machine-checkable: 8 versus 9 is the supported/falsified edge."
         }
       ]
+    },
+    "graze-link": {
+      "title": "LINK TEST: does lifting grazeYieldScale to declared restore grazing flux?",
+      "preregistered": "2026-10-12",
+      "registrationKind": "KNOWN_SEED_DIAGNOSTIC_NOT_PROSPECTIVE",
+      "seeds": "41001:41018",
+      "ticks": 6000,
+      "zero": true,
+      "lifts": {
+        "producerCaptureScale": 0.35,
+        "basalFoodPerCell": 0.25,
+        "grazeYieldScale": 1.0
+      },
+      "argvRest": [
+        "off",
+        "4",
+        "0.25",
+        "null",
+        "null",
+        "null",
+        "0.15",
+        "null",
+        "off",
+        "off",
+        "off",
+        "0.4",
+        "null",
+        "0",
+        "null"
+      ],
+      "hypothesis": "Step-0 meter (2026-10-12) showed 66-73% of graze submits resolve with positive takes that the world multiplies by the preset grazeYieldScale=0, so world flux is exactly zero by configuration. Restoring the declared scale (1.0) on the otherwise identical config should restore paying graze wins. Meat stays zeroed by design: one path at a time.",
+      "prediction": "grazeEnergy > 0 on at least 12/18 seeds at tick 6000 (read from per-seed B/D lines; the cohort verifier has no graze metric, so this arm carries no machine criteria and classifies 'not measured' by design — the verdict is human-read from intact evidence, stated here before inspection). Ecological coexistence is explicitly NOT predicted by this arm: it tests the link, not balance.",
+      "falsification": "FALSIFIED as a link restoration if grazeEnergy = 0 on 7 or more of 18 seeds. A falsification here sends the program back to contest biology (defender losses were 27-34% at Step 0), not to a larger scale — do not push to 1.6+ blindly; rung 4 already showed enriched transfer without coexistence.",
+      "notPredicted": "Endpoint guild counts, coexistence rates, and per-win sizes are not predicted. Tissue basis (plantYieldPerMass) is a follow-up only if per-win size disappoints, not part of this arm.",
+      "confoundsControlled": [
+        "Same 18-seed panel, horizon, engine, and lifts as consumer-yield; the ONLY difference is +grazeYieldScale:1.0",
+        "Matched comparison against the archived consumer-yield run: any graze flux difference is attributable to the one dial",
+        "conservation enforced per seed at 0.5%; a seed above it fails the run rather than reporting"
+      ],
+      "knownLimits": "Link test only. Cohort integrity is machine-verified; the graze verdict is human-read from B/D lines and reported as observed, not as a machine classification. Says nothing about balance, viability, or decomposers."
+    },
+    "graze-subsidy05": {
+      "title": "SUBSIDY STEP 1: consumers persist as basal food descends 0.25 -> 0.05 on the paying-graze config?",
+      "preregistered": "2026-10-12",
+      "registrationKind": "KNOWN_SEED_DIAGNOSTIC_NOT_PROSPECTIVE",
+      "seeds": "41001:41018",
+      "ticks": 6000,
+      "zero": true,
+      "lifts": {
+        "producerCaptureScale": 0.35,
+        "basalFoodPerCell": 0.05,
+        "grazeYieldScale": 1.0
+      },
+      "argvRest": [
+        "off",
+        "4",
+        "0.25",
+        "null",
+        "null",
+        "null",
+        "0.15",
+        "null",
+        "off",
+        "off",
+        "off",
+        "0.4",
+        "null",
+        "0",
+        "null"
+      ],
+      "hypothesis": "Step 1 restored paying grazing (18/18 flux) while the 0.25 basal rain still supplies ~90%+ of input. Stepping the rain down 5x should shift the income base toward producers/grazing without killing consumers; the graze link (now paying) is what carries them through the descent.",
+      "prediction": "cons > 0 on at least 12/18 seeds at tick 6000 (machine criterion below) AND grazeEnergy > 0 sustained on at least 12/18 (human-read from B/D lines: the verifier has no graze metric). Coexistence NOT predicted.",
+      "falsification": "FALSIFIED if cons = 0 on 7 or more of 18 seeds: the cut outran the link — hold the subsidy at 0.25, do not descend further, return to link/viability work. Separately, if consumers persist but grazeEnergy = 0 on >=7/18, the descent re-silenced the link and the config is incoherent: stop, do not interpret persistence as success.",
+      "notPredicted": "Endpoint guild composition, coexistence rates, capture shares, and per-win sizes. Further descent steps (0.01, 0) are separate arms, registered only if this one passes.",
+      "confoundsControlled": [
+        "Same 18-seed panel, horizon, engine as graze-link; the ONLY difference is basalFoodPerCell 0.25 -> 0.05",
+        "Matched comparison against the archived graze-link run isolates the subsidy effect",
+        "conservation enforced per seed at 0.5%; a seed above it fails the run rather than reporting"
+      ],
+      "knownLimits": "First descent step only (5x, not to zero). Consumer persistence is machine-verified; the graze-sustained clause is human-read. Says nothing about balance or obligate reliance — those are later steps.",
+      "criteria": [
+        {
+          "id": "consumers-persist",
+          "metric": "cons",
+          "op": ">",
+          "value": 0,
+          "required": 12,
+          "statement": "consumers > 0 at tick 6000 on at least 12/18 seeds"
+        }
+      ]
+    },
+    "graze-subsidy01": {
+      "title": "SUBSIDY STEP 2: consumers persist as basal food descends 0.05 -> 0.01?",
+      "preregistered": "2026-10-12",
+      "registrationKind": "KNOWN_SEED_DIAGNOSTIC_NOT_PROSPECTIVE",
+      "seeds": "41001:41018",
+      "ticks": 6000,
+      "zero": true,
+      "lifts": {
+        "producerCaptureScale": 0.35,
+        "basalFoodPerCell": 0.01,
+        "grazeYieldScale": 1.0
+      },
+      "argvRest": [
+        "off",
+        "4",
+        "0.25",
+        "null",
+        "null",
+        "null",
+        "0.15",
+        "null",
+        "off",
+        "off",
+        "off",
+        "0.4",
+        "null",
+        "0",
+        "null"
+      ],
+      "hypothesis": "Step 2a (0.05) kept consumers on 16/18 with flux on 18/18 while three-guild endpoints rose descriptively 6/18 -> 9/18. A further 5x descent should continue shifting the income base toward producers/grazing; the paying graze link carries consumers through.",
+      "prediction": "cons > 0 on at least 12/18 seeds at tick 6000 (machine criterion) AND grazeEnergy > 0 sustained on at least 12/18 (human-read from B/D lines). Coexistence NOT predicted.",
+      "falsification": "FALSIFIED if cons = 0 on 7 or more of 18 seeds: the cut outran the link — hold the subsidy at 0.05, do not descend to 0, return to link/viability work. If consumers persist but grazeEnergy = 0 on >=7/18, the config is incoherent: stop, do not interpret persistence as success.",
+      "notPredicted": "Endpoint guild composition, coexistence rates, capture shares, per-win sizes. Descent to 0 is a separate arm, registered only if this one passes.",
+      "confoundsControlled": [
+        "Same 18-seed panel, horizon, engine as graze-subsidy05; the ONLY difference is basalFoodPerCell 0.05 -> 0.01",
+        "Matched comparison against the archived 0.05 run isolates the subsidy effect",
+        "conservation enforced per seed at 0.5%; a seed above it fails the run rather than reporting"
+      ],
+      "knownLimits": "Second descent step only. Consumer persistence is machine-verified; the graze-sustained clause is human-read. Says nothing about balance or obligate reliance.",
+      "criteria": [
+        {
+          "id": "consumers-persist",
+          "metric": "cons",
+          "op": ">",
+          "value": 0,
+          "required": 12,
+          "statement": "consumers > 0 at tick 6000 on at least 12/18 seeds"
+        }
+      ]
+    },
+    "graze-nutcyc": {
+      "title": "COUPLING: producers fed by decomposer-processed substrate (cyclic+floor) on the 0.01 config?",
+      "preregistered": "2026-10-12",
+      "registrationKind": "KNOWN_SEED_DIAGNOSTIC_NOT_PROSPECTIVE",
+      "seeds": "41001:41018",
+      "ticks": 6000,
+      "zero": true,
+      "lifts": {
+        "producerCaptureScale": 0.35,
+        "basalFoodPerCell": 0.01,
+        "grazeYieldScale": 1.0
+      },
+      "argvRest": [
+        "off",
+        "4",
+        "0.25",
+        "null",
+        "null",
+        "null",
+        "0.15",
+        "null",
+        "off",
+        "off",
+        "on",
+        "1.0",
+        "null",
+        "0.05",
+        "null"
+      ],
+      "hypothesis": "Step 2b hit the nutrient wall: rain nearly gone, regen and excretion zeroed, producers 0 on 8/18. nutrientCyclic scales regeneration by locally PROCESSED substrate (biotic mineralisation), coupling producers to decomposer activity; the 0.05 floor is the deadlock recovery the A+C post-mortem prescribed; saturation 1.0 replaces the falsified-tight 0.4. mixotrophyCarbon stays off: one coupling at a time.",
+      "prediction": "prod > 0 on at least 12/18 AND cons > 0 on at least 12/18 seeds at tick 6000 (both machine criteria). Coexistence rate NOT predicted.",
+      "falsification": "FALSIFIED if prod = 0 on 7 or more of 18 seeds: the coupling does not feed producers — loosen saturation further or abandon the coupling; do NOT raise light to compensate (the pcap sweep proved light rotates collapse). If cons = 0 on >=7/18 while producers recover, the failure is consumer viability, a separate mechanism.",
+      "notPredicted": "Coexistence rates, capture shares, extinction counts (descriptive), decomposer endpoints.",
+      "confoundsControlled": [
+        "Same 18-seed panel, horizon, engine, lifts as graze-subsidy01; the ONLY differences are the three positional coupling dials cyc off->on, sat 0.4->1.0, nfloor 0->0.05",
+        "One-dial-per-arm is deliberately bent here and stated: the three are interdependent parts of one coupling (cyclic without a floor risks the measured deadlock; 0.4 saturation was already falsified as too tight). A lone-cyc arm would test a known-deadlocked configuration",
+        "conservation enforced per seed at 0.5%; a seed above it fails the run rather than reporting"
+      ],
+      "knownLimits": "Coupling test only. Says nothing about balance, zero-subsidy behavior, or obligate reliance — ablation comes after the coupling works.",
+      "criteria": [
+        {
+          "id": "producers-fed",
+          "metric": "prod",
+          "op": ">",
+          "value": 0,
+          "required": 12,
+          "statement": "producers > 0 at tick 6000 on at least 12/18 seeds"
+        },
+        {
+          "id": "consumers-persist",
+          "metric": "cons",
+          "op": ">",
+          "value": 0,
+          "required": 12,
+          "statement": "consumers > 0 at tick 6000 on at least 12/18 seeds"
+        }
+      ]
+    },
+    "graze-nutcyc-sat2": {
+      "title": "COUPLING VARIANT: saturation 2.0 — the stated alternative after sat-1.0 falsified?",
+      "preregistered": "2026-10-12",
+      "registrationKind": "KNOWN_SEED_DIAGNOSTIC_NOT_PROSPECTIVE",
+      "seeds": "41001:41018",
+      "ticks": 6000,
+      "zero": true,
+      "lifts": {
+        "producerCaptureScale": 0.35,
+        "basalFoodPerCell": 0.01,
+        "grazeYieldScale": 1.0
+      },
+      "argvRest": [
+        "off",
+        "4",
+        "0.25",
+        "null",
+        "null",
+        "null",
+        "0.15",
+        "null",
+        "off",
+        "off",
+        "on",
+        "2.0",
+        "null",
+        "0.05",
+        "null"
+      ],
+      "hypothesis": "graze-nutcyc (sat 1.0) falsified at exactly 7/18 producer-zero; one seed (41012) bloomed, so the coupling is uneven rather than absent. The arm's stated alternative is one saturation step looser before abandonment.",
+      "prediction": "prod > 0 on at least 12/18 AND cons > 0 on at least 12/18 seeds at tick 6000 (both machine criteria). Coexistence rate NOT predicted.",
+      "falsification": "FALSIFIED if prod = 0 on 7 or more of 18 seeds: the coupling is abandoned entirely — no sat 4.0, no light rescue. The program steps back to analysis (floor level and producer capture scale become suspects on fresh evidence, not blind dial pushes). If cons = 0 on >=7/18 while producers recover, the failure is consumer viability, a separate mechanism.",
+      "notPredicted": "Coexistence rates, capture shares, extinction counts (descriptive), decomposer endpoints.",
+      "confoundsControlled": [
+        "Same 18-seed panel, horizon, engine, lifts as graze-nutcyc; the ONLY difference is sat 1.0 -> 2.0",
+        "Matched comparison against the archived sat-1.0 run isolates the saturation effect",
+        "conservation enforced per seed at 0.5%; a seed above it fails the run rather than reporting"
+      ],
+      "knownLimits": "Last coupling variant. A second falsification closes the coupling line; it does not close the program.",
+      "criteria": [
+        {
+          "id": "producers-fed",
+          "metric": "prod",
+          "op": ">",
+          "value": 0,
+          "required": 12,
+          "statement": "producers > 0 at tick 6000 on at least 12/18 seeds"
+        },
+        {
+          "id": "consumers-persist",
+          "metric": "cons",
+          "op": ">",
+          "value": 0,
+          "required": 12,
+          "statement": "consumers > 0 at tick 6000 on at least 12/18 seeds"
+        }
+      ]
+    },
+    "graze-nutregen": {
+      "title": "COUPLING ENGAGED: nonzero base regen for cyclic to scale (rung-3 value) on the floor config?",
+      "preregistered": "2026-10-12",
+      "registrationKind": "KNOWN_SEED_DIAGNOSTIC_NOT_PROSPECTIVE",
+      "seeds": "41001:41018",
+      "ticks": 6000,
+      "zero": true,
+      "lifts": {
+        "producerCaptureScale": 0.35,
+        "basalFoodPerCell": 0.01,
+        "grazeYieldScale": 1.0,
+        "nutrientRegen": 0.0002
+      },
+      "argvRest": [
+        "off",
+        "4",
+        "0.25",
+        "null",
+        "null",
+        "null",
+        "0.15",
+        "null",
+        "off",
+        "off",
+        "on",
+        "1.0",
+        "null",
+        "0.05",
+        "null"
+      ],
+      "hypothesis": "Step 3b proved the sat dial void: rate = nutrientRegen * raw/(raw+sat) with nutrientRegen = 0, so the cyclic term was 0 at every saturation and only the floor acted (prod 11/18). Rung 3 measured nutrientRegen:0.0002 alone restoring decomposers decisively. A nonzero base rate engages the coupling the last two arms only named.",
+      "prediction": "prod > 0 on at least 12/18 AND cons > 0 on at least 12/18 seeds at tick 6000 (both machine criteria). Must beat floor-alone (11/18 prod) or the concept adds nothing. Coexistence rate NOT predicted.",
+      "falsification": "FALSIFIED if prod = 0 on 7 or more of 18 seeds: engaged cyclic coupling does not feed producers — the coupling line is abandoned entirely (no further saturation/floor/base variations blind). The program steps back to analysis. If cons = 0 on >=7/18 while producers recover, the failure is consumer viability, a separate mechanism.",
+      "notPredicted": "Coexistence rates, capture shares, extinction counts (descriptive), decomposer endpoints, bloom sizes.",
+      "confoundsControlled": [
+        "Same 18-seed panel, horizon, engine, and argvRest as graze-nutcyc (cyc on, sat 1.0, floor 0.05); the ONLY difference is +nutrientRegen:0.0002 lift. Baselines against the void sat-2.0 run only through the shared sat-1.0 run",
+        "Matched comparison against the archived sat runs isolates the base-rate effect: floor-alone vs floor+engaged-cyclic",
+        "conservation enforced per seed at 0.5%; a seed above it fails the run rather than reporting"
+      ],
+      "knownLimits": "Last coupling test. A second falsification closes the line; the program returns to analysis rather than pushing dials.",
+      "criteria": [
+        {
+          "id": "producers-fed",
+          "metric": "prod",
+          "op": ">",
+          "value": 0,
+          "required": 12,
+          "statement": "producers > 0 at tick 6000 on at least 12/18 seeds"
+        },
+        {
+          "id": "consumers-persist",
+          "metric": "cons",
+          "op": ">",
+          "value": 0,
+          "required": 12,
+          "statement": "consumers > 0 at tick 6000 on at least 12/18 seeds"
+        }
+      ]
+    },
+    "graze-viability": {
+      "title": "VIABILITY: breeding reserve 90 -> 30 where food demonstrably pays?",
+      "preregistered": "2026-10-12",
+      "registrationKind": "KNOWN_SEED_DIAGNOSTIC_NOT_PROSPECTIVE",
+      "seeds": "41001:41018",
+      "ticks": 6000,
+      "zero": true,
+      "lifts": {
+        "producerCaptureScale": 0.35,
+        "basalFoodPerCell": 0.01,
+        "grazeYieldScale": 1.0,
+        "nutrientRegen": 0.0002
+      },
+      "argvRest": [
+        "off",
+        "4",
+        "0.25",
+        "null",
+        "null",
+        "null",
+        "0.15",
+        "null",
+        "off",
+        "off",
+        "on",
+        "1.0",
+        "null",
+        "0.05",
+        "30"
+      ],
+      "hypothesis": "Step-3c analysis showed grazing income does not separate persisting from failing consumers (failures carry equal or greater graze energy; disease negligible; B/D<1 from the first checkpoints). The mapped gates point at the 90-tick breeding reserve against small consumer incomes. Rung 6 falsified rsur-30 in a different ecology (0.25 subsidy, uncoupled, unpaid graze); this tests the same dial where food demonstrably pays.",
+      "prediction": "cons > 0 on at least 12/18 AND prod > 0 on at least 12/18 seeds at tick 6000 (both machine criteria). Coexistence rate NOT predicted.",
+      "falsification": "FALSIFIED if cons = 0 on 7 or more of 18 seeds: the reserve is not the binding constraint — viability needs engine-level upkeep/damage economics, and that decision goes to the Owner with this record attached. No further reserve descent (30 -> 0 would breed from nothing and break the closed budget); no compensating light or subsidy moves.",
+      "notPredicted": "Coexistence rates, capture shares, extinction counts (descriptive), decomposer endpoints, per-win sizes.",
+      "confoundsControlled": [
+        "Same 18-seed panel, horizon, engine, lifts, and 14/15 argvRest entries as graze-nutregen; the ONLY difference is positional rsur null -> 30 (argv slot 18)",
+        "Matched comparison against the archived nutregen run isolates the reserve effect",
+        "Null default (90) preserved in config; the arm exercises the sanctioned config path only",
+        "conservation enforced per seed at 0.5%; a seed above it fails the run rather than reporting"
+      ],
+      "knownLimits": "Viability test only. A pass does not establish coexistence or reliance; ablation and the majority-time evaluation remain ahead.",
+      "criteria": [
+        {
+          "id": "consumers-viable",
+          "metric": "cons",
+          "op": ">",
+          "value": 0,
+          "required": 12,
+          "statement": "consumers > 0 at tick 6000 on at least 12/18 seeds"
+        },
+        {
+          "id": "producers-fed",
+          "metric": "prod",
+          "op": ">",
+          "value": 0,
+          "required": 12,
+          "statement": "producers > 0 at tick 6000 on at least 12/18 seeds"
+        }
+      ]
+    },
+    "producer-alone": {
+      "title": "ABLATION: producers without seeded decomposers or heterotroph income must fail?",
+      "preregistered": "2026-10-12",
+      "registrationKind": "KNOWN_SEED_DIAGNOSTIC_NOT_PROSPECTIVE",
+      "seeds": "41001:41018,52001:52018",
+      "ticks": 6000,
+      "zero": true,
+      "lifts": {
+        "producerCaptureScale": 0.35,
+        "basalFoodPerCell": 0.01,
+        "grazeYieldScale": 0,
+        "nutrientRegen": 0.0002
+      },
+      "argvRest": [
+        "off",
+        "4",
+        "0.25",
+        "null",
+        "null",
+        "null",
+        "0.15",
+        "null",
+        "off",
+        "off",
+        "on",
+        "1.0",
+        "null",
+        "0.05",
+        "30"
+      ],
+      "argvExtra": [
+        "0"
+      ],
+      "hypothesis": "The viability config (prod 13/18, cons 11/18) couples producers to decomposer recycling. With no seeded decomposers (founders slot 0) and heterotroph income impossible (graze explicitly 0, meat preset 0), producers should fail: the abiotic floor alone must not carry them.",
+      "prediction": "prod == 0 on at least 30/36 seeds at tick 6000 (machine criterion). Coexistence NOT predicted; nothing about consumers or decomposers is predicted.",
+      "falsification": "FALSIFIED (reliance not obligate as configured) if prod > 0 on 7 or more of 36 seeds. Two honest sub-cases, both reported descriptively: (a) producers persist with NO decomposers ever present — the abiotic floor or initial stock carries them, and the reliance clause fails cleanly; (b) decomposer roles re-emerge via fluidity and producers persist with them — reliance on the FUNCTION holds but seeding-independence fails, and the clause needs restating, not re-running.",
+      "notPredicted": "Consumer transients (founded consumers starve on initial detritus; momentary presence is expected, not a finding), decomposer re-emergence counts (descriptive), B/D trajectories (descriptive), bloom sizes.",
+      "confoundsControlled": [
+        "Same horizon, engine, and 15-slot argvRest as graze-viability (rsur 30 kept); differences stated, not hidden: founders slot 0.25 -> 0 AND graze lift 1.0 -> 0 (heterotroph income impossible)",
+        "Abiotic floor 0.05 retained deliberately: it is not a guild, so keeping it tests guild reliance specifically — if the floor alone carries producers, that is sub-case (a), a clean falsification, not a confound",
+        "Dormancy/spore support retained (support is not seeding); disease, sat, cyc, regen identical to base",
+        "36 seeds span both established panels (41001-41018, 52001-52018); no new seeds, no prospective claim",
+        "conservation enforced per seed at 0.5%; a seed above it fails the run rather than reporting"
+      ],
+      "knownLimits": "Ablation of seeding + income, not of guild fluidity: roles derive from traits, so decomposers can re-evolve. That possibility is tracked (sub-case b), not excluded.",
+      "criteria": [
+        {
+          "id": "producers-fail-alone",
+          "metric": "prod",
+          "op": "==",
+          "value": 0,
+          "required": 30,
+          "statement": "producers = 0 at tick 6000 on at least 30/36 seeds"
+        }
+      ]
+    },
+    "producers-with-loop-floor0": {
+      "title": "LOOP WITHOUT FLOOR: recycling sustains producers with no abiotic floor?",
+      "preregistered": "2026-10-12",
+      "registrationKind": "KNOWN_SEED_DIAGNOSTIC_NOT_PROSPECTIVE",
+      "seeds": "41001:41018,52001:52018",
+      "ticks": 6000,
+      "zero": true,
+      "lifts": {
+        "producerCaptureScale": 0.35,
+        "basalFoodPerCell": 0.01,
+        "grazeYieldScale": 1.0,
+        "nutrientRegen": 0.0002
+      },
+      "argvRest": [
+        "off",
+        "4",
+        "0.25",
+        "null",
+        "null",
+        "null",
+        "0.15",
+        "null",
+        "off",
+        "off",
+        "on",
+        "1.0",
+        "null",
+        "0",
+        "30"
+      ],
+      "hypothesis": "Owner-ordered floor removal with construction-stock kickstart. If the recycling loop (engaged regen + cyclic) is real, producers persist on 0.01 rain with zero floor; if the floor was the true carrier, they collapse to initial-stock-only dynamics.",
+      "prediction": "prod > 0 on at least 24/36 seeds at tick 6000 (machine criterion). Coexistence NOT predicted.",
+      "falsification": "FALSIFIED if prod > 0 on fewer than 24/36: without the floor the loop does not carry producers — the floor was load-bearing, and any reliance claim must be restated around it, not around decomposers.",
+      "notPredicted": "Consumer/decomposer endpoints, coexistence rates, capture shares (descriptive).",
+      "confoundsControlled": [
+        "Same horizon, engine, lifts, and 14/15 argvRest entries as graze-viability; differences stated, not hidden: (1) nfloor 0.05 -> 0, (2) seeds 18 -> 36 (adds 52001:52018 to match the alone-floor0 panel for the joint reading; rate bar preserved at two-thirds, 24/36 vs 12/18)",
+        "Kickstart is the existing construction-laid nutrient stock (no new mechanism); a flatline at bootstrap would motivate an explicit pulse, not assume one",
+        "conservation enforced per seed at 0.5%; a seed above it fails the run rather than reporting"
+      ],
+      "knownLimits": "Loop-sustenance test only. Must be read jointly with producer-alone-floor0: floor-0 universal lethality proves nothing about reliance.",
+      "criteria": [
+        {
+          "id": "producers-sustained",
+          "metric": "prod",
+          "op": ">",
+          "value": 0,
+          "required": 24,
+          "statement": "producers > 0 at tick 6000 on at least 24/36 seeds"
+        }
+      ]
+    },
+    "producer-alone-floor0": {
+      "title": "STRICT ALONE WITHOUT FLOOR: producers fail with no guilds and no floor?",
+      "preregistered": "2026-10-12",
+      "registrationKind": "KNOWN_SEED_DIAGNOSTIC_NOT_PROSPECTIVE",
+      "seeds": "41001:41018,52001:52018",
+      "ticks": 6000,
+      "zero": true,
+      "lifts": {
+        "producerCaptureScale": 0.35,
+        "basalFoodPerCell": 0.01,
+        "grazeYieldScale": 0,
+        "nutrientRegen": 0.0002
+      },
+      "argvRest": [
+        "off",
+        "4",
+        "0.25",
+        "null",
+        "null",
+        "null",
+        "0.15",
+        "null",
+        "off",
+        "off",
+        "on",
+        "1.0",
+        "null",
+        "0",
+        "30"
+      ],
+      "argvExtra": [
+        "0"
+      ],
+      "hypothesis": "Owner-ordered strict alone test: the 0.05 floor carried producers alone on 33/36; without it, initial stock plus construction kickstart alone must not carry them. Heterotroph income impossible (graze explicit 0, meat preset 0), no seeded decomposers.",
+      "prediction": "prod == 0 on at least 30/36 seeds at tick 6000 (machine criterion). Nothing else predicted.",
+      "falsification": "FALSIFIED (reliance not obligate even floorless) if prod > 0 on 7 or more of 36 seeds. Sub-cases as before: (a) persist with no decomposers ever sampled — initial stock suffices, clause closed; (b) decomposer roles re-emerge and track recovery — function-dependence holds but seeding-independence fails, clause needs restating.",
+      "notPredicted": "Consumer transients, decomposer re-emergence counts (descriptive), B/D trajectories (descriptive).",
+      "confoundsControlled": [
+        "Same 36 seeds, horizon, engine as producer-alone; differences stated: nfloor 0.05 -> 0 only (founders slot 0 and graze explicit 0 retained)",
+        "Kickstart is the existing construction stock only; abiotic floor fully removed",
+        "Dormancy/spore support retained (support is not seeding); disease/sat/cyc/regen/rsur identical",
+        "conservation enforced per seed at 0.5%; a seed above it fails the run rather than reporting"
+      ],
+      "knownLimits": "Strict-alone test. Must be read jointly with producers-with-loop-floor0: if the loop arm also collapses, floor-0 may be universally lethal and neither arm isolates reliance.",
+      "criteria": [
+        {
+          "id": "producers-fail-alone-floorless",
+          "metric": "prod",
+          "op": "==",
+          "value": 0,
+          "required": 30,
+          "statement": "producers = 0 at tick 6000 on at least 30/36 seeds"
+        }
+      ]
+    },
+    "viability-061": {
+      "title": "0.6.1 RETEST: does fasting tolerance move consumer viability at identical config?",
+      "preregistered": "2026-10-12",
+      "registrationKind": "KNOWN_SEED_DIAGNOSTIC_NOT_PROSPECTIVE",
+      "seeds": "41001:41018",
+      "ticks": 6000,
+      "zero": true,
+      "lifts": {
+        "producerCaptureScale": 0.35,
+        "basalFoodPerCell": 0.01,
+        "grazeYieldScale": 1.0,
+        "nutrientRegen": 0.0002
+      },
+      "argvRest": [
+        "off",
+        "4",
+        "0.25",
+        "null",
+        "null",
+        "null",
+        "0.15",
+        "null",
+        "off",
+        "off",
+        "on",
+        "1.0",
+        "null",
+        "0.05",
+        "30"
+      ],
+      "hypothesis": "Engine-contrast test, not a config test: identical settings to graze-viability (which scored cons 11/18, prod 13/18 on 0.6.0), executed on 0.6.1 where starvation damage ramps over 6 deficit ticks. If consumer failure was variance-intolerance, replacement should rise with per-capita intake flat (conversion, not subsidy).",
+      "prediction": "cons > 0 on at least 12/18 AND prod > 0 on at least 12/18 seeds at tick 6000 (both machine criteria — consumer bar requires +1 over 0.6.0's 11/18; producer bar 12/18 admits one seed of slippage from 13/18). Human-read: consumer B/D distribution shifted up vs the 0.6.0 viability run with per-capita graze intake (grazeEnergy/pop) flat. Coexistence rate NOT predicted.",
+      "falsification": "FALSIFIED if cons > 0 on fewer than 12/18 (no improvement over 0.6.0's 11/18): fasting tolerance does not convert to viability. If consumers improve while per-capita intake rises, the mechanism is subsidy-like, not conversion — report as confounded, not supported.",
+      "notPredicted": "Coexistence rates, capture shares, extinction counts (descriptive), decomposer endpoints.",
+      "confoundsControlled": [
+        "Settings byte-identical to graze-viability (same lifts, same 15 slots incl. rsur 30, same 18 seeds, same horizon); the ONLY difference is the engine (0.6.0 -> 0.6.1)",
+        "Matched engine contrast: any rate/B-D/intake difference is attributable to fasting tolerance",
+        "conservation enforced per seed at 0.5%; a seed above it fails the run rather than reporting"
+      ],
+      "knownLimits": "Engine-contrast diagnostic. Says nothing about balance, reliance, or prospective rates.",
+      "criteria": [
+        {
+          "id": "consumers-viable-061",
+          "metric": "cons",
+          "op": ">",
+          "value": 0,
+          "required": 12,
+          "statement": "consumers > 0 at tick 6000 on at least 12/18 seeds"
+        },
+        {
+          "id": "producers-fed-061",
+          "metric": "prod",
+          "op": ">",
+          "value": 0,
+          "required": 12,
+          "statement": "producers > 0 at tick 6000 on at least 12/18 seeds"
+        }
+      ]
+    },
+    "cheap-upkeep": {
+      "title": "S2 PROMOTION: cheaper consumer upkeep (0.25 -> 0.1) converts to replacement?",
+      "preregistered": "2026-10-12",
+      "registrationKind": "KNOWN_SEED_DIAGNOSTIC_NOT_PROSPECTIVE",
+      "seeds": "41001:41018",
+      "ticks": 6000,
+      "zero": true,
+      "lifts": {
+        "producerCaptureScale": 0.35,
+        "basalFoodPerCell": 0.01,
+        "grazeYieldScale": 1.0,
+        "nutrientRegen": 0.0002
+      },
+      "argvRest": [
+        "off",
+        "4",
+        "0.1",
+        "null",
+        "null",
+        "null",
+        "0.15",
+        "null",
+        "off",
+        "off",
+        "on",
+        "1.0",
+        "null",
+        "0.05",
+        "30"
+      ],
+      "hypothesis": "S2 screen: basal 0.1 read C101 B/D 1.05 (41002) and C87 B/D 1.03 (41005) where base reads C0 — the shared-helper era may let upkeep discounts reach the gates they previously missed. Full-panel test.",
+      "prediction": "cons > 0 on at least 12/18 AND prod > 0 on at least 12/18 seeds at tick 6000 (both machine). Coexistence NOT predicted.",
+      "falsification": "FALSIFIED if cons = 0 on 7 or more of 18: cheaper upkeep does not convert at panel scale — the screen read was seed luck. No further upkeep descent in this line.",
+      "notPredicted": "Coexistence rates, capture shares, B/D distributions (descriptive).",
+      "confoundsControlled": [
+        "Same 18-seed panel, horizon, engine, lifts, and 14/15 argvRest entries as viability-061; the ONLY difference is basal 0.25 -> 0.1",
+        "Screen seeds are a subset of this panel; the panel result rules, not the screen",
+        "conservation enforced per seed at 0.5%; a seed above it fails the run rather than reporting"
+      ],
+      "knownLimits": "Single-dial promotion. A pass moves to combination tests; a fail closes the upkeep line.",
+      "criteria": [
+        {
+          "id": "consumers-viable",
+          "metric": "cons",
+          "op": ">",
+          "value": 0,
+          "required": 12,
+          "statement": "consumers > 0 at tick 6000 on at least 12/18 seeds"
+        },
+        {
+          "id": "producers-fed",
+          "metric": "prod",
+          "op": ">",
+          "value": 0,
+          "required": 12,
+          "statement": "producers > 0 at tick 6000 on at least 12/18 seeds"
+        }
+      ]
+    },
+    "excretion-return": {
+      "title": "S2 PROMOTION: biotic excretion return (0 -> 0.06) with regen converts?",
+      "preregistered": "2026-10-12",
+      "registrationKind": "KNOWN_SEED_DIAGNOSTIC_NOT_PROSPECTIVE",
+      "seeds": "41001:41018",
+      "ticks": 6000,
+      "zero": true,
+      "lifts": {
+        "producerCaptureScale": 0.35,
+        "basalFoodPerCell": 0.01,
+        "grazeYieldScale": 1.0,
+        "nutrientRegen": 0.0002,
+        "excretionRate": 0.06
+      },
+      "argvRest": [
+        "off",
+        "4",
+        "0.25",
+        "null",
+        "null",
+        "null",
+        "0.15",
+        "null",
+        "off",
+        "off",
+        "on",
+        "1.0",
+        "null",
+        "0.05",
+        "30"
+      ],
+      "hypothesis": "S2 screen: excretion 0.06 read C41 (41002) and C226 B/D 1.08 (41005) where base reads C0. Rung 3 tested excretion WITHOUT regen and failed; this is WITH regen (0.0002 lift) — different experiment, not a repeat.",
+      "prediction": "cons > 0 on at least 12/18 AND prod > 0 on at least 12/18 seeds at tick 6000 (both machine). Coexistence NOT predicted.",
+      "falsification": "FALSIFIED if cons = 0 on 7 or more of 18: biotic return does not convert at panel scale. No escalation (no 0.12, no pairing) inside this line.",
+      "notPredicted": "Coexistence rates, capture shares, B/D distributions (descriptive).",
+      "confoundsControlled": [
+        "Same 18-seed panel, horizon, engine, argvRest as viability-061; the ONLY difference is +excretionRate:0.06 lift",
+        "Matched against viability-061 (no excretion) to isolate the biotic return",
+        "conservation enforced per seed at 0.5%; a seed above it fails the run rather than reporting"
+      ],
+      "knownLimits": "Single-dial promotion. A pass moves to combination tests; a fail closes the excretion line in the regen context.",
+      "criteria": [
+        {
+          "id": "consumers-viable",
+          "metric": "cons",
+          "op": ">",
+          "value": 0,
+          "required": 12,
+          "statement": "consumers > 0 at tick 6000 on at least 12/18 seeds"
+        },
+        {
+          "id": "producers-fed",
+          "metric": "prod",
+          "op": ">",
+          "value": 0,
+          "required": 12,
+          "statement": "producers > 0 at tick 6000 on at least 12/18 seeds"
+        }
+      ]
+    },
+    "cheap-excretion-combo": {
+      "title": "COMBINATION: cheap upkeep + biotic return together — additive or redundant?",
+      "preregistered": "2026-10-12",
+      "registrationKind": "KNOWN_SEED_DIAGNOSTIC_NOT_PROSPECTIVE",
+      "seeds": "41001:41018",
+      "ticks": 6000,
+      "zero": true,
+      "lifts": {
+        "producerCaptureScale": 0.35,
+        "basalFoodPerCell": 0.01,
+        "grazeYieldScale": 1.0,
+        "nutrientRegen": 0.0002,
+        "excretionRate": 0.06
+      },
+      "argvRest": [
+        "off",
+        "4",
+        "0.1",
+        "null",
+        "null",
+        "null",
+        "0.15",
+        "null",
+        "off",
+        "off",
+        "on",
+        "1.0",
+        "null",
+        "0.05",
+        "30"
+      ],
+      "hypothesis": "Both singles converted (cons 13/18 each) via different paths (upkeep economics vs biotic nutrient return). If the mechanisms are independent, the combination should hold both bars with margin to spare; if they share one bottleneck, it reads like the better single.",
+      "prediction": "cons > 0 on at least 12/18 AND prod > 0 on at least 12/18 seeds at tick 6000 (both machine). Coexistence NOT predicted.",
+      "falsification": "FALSIFIED as additive if cons = 0 on 7 or more of 18: the combination adds nothing over the singles — mechanisms redundant or interfering. No triple-stacks, no escalation; the result sends the program to mechanism analysis, not to bigger combos.",
+      "notPredicted": "Coexistence rates (descriptive against excretion's 10/18 baseline), capture shares, B/D distributions.",
+      "confoundsControlled": [
+        "Same 18-seed panel, horizon, engine as both singles; the ONLY differences vs viability-061 are basal 0.25 -> 0.1 AND +excretionRate:0.06 (the two promoted singles, combined)",
+        "Read against both single-arm archives to separate additive from redundant",
+        "conservation enforced per seed at 0.5%; a seed above it fails the run rather than reporting"
+      ],
+      "knownLimits": "Two-dial combination by design (the plan's singles-first rule is satisfied: both singles converted). A pass does not establish coexistence or reliance.",
+      "criteria": [
+        {
+          "id": "consumers-viable",
+          "metric": "cons",
+          "op": ">",
+          "value": 0,
+          "required": 12,
+          "statement": "consumers > 0 at tick 6000 on at least 12/18 seeds"
+        },
+        {
+          "id": "producers-fed",
+          "metric": "prod",
+          "op": ">",
+          "value": 0,
+          "required": 12,
+          "statement": "producers > 0 at tick 6000 on at least 12/18 seeds"
+        }
+      ]
+    },
+    "balance-diagnostic-control": {
+      "title": "DIAGNOSTIC control: known balance-failure seeds without dormant-share brake",
+      "preregistered": "2026-10-12",
+      "registrationKind": "KNOWN_SEED_DIAGNOSTIC_NOT_PROSPECTIVE",
+      "seeds": "517,99991,42",
+      "ticks": 6000,
+      "zero": false,
+      "lifts": {},
+      "argvRest": [
+        "off",
+        "4",
+        "null",
+        "null",
+        "null",
+        "null",
+        "null",
+        "null",
+        "null",
+        "off",
+        "off",
+        "0.4",
+        "null",
+        "0",
+        "null"
+      ],
+      "hypothesis": "Measurement-control only: the no-brake arm anchors the current engine's trajectories for three known failure seeds; it makes no prospective ecological claim.",
+      "prediction": "All three runs complete at the declared horizon with headers matching the no-brake configuration; outputs are descriptive matched references, not a supported ecological prediction.",
+      "falsification": "An incomplete run or header/config mismatch invalidates that comparison. No ecological falsification criterion is claimed for this control.",
+      "question": "Descriptive control arm for comparing previously observed exclusion, fade, and runaway trajectories with the accepted dormant-share brake. This known-seed run is not prospective.",
+      "confoundsControlled": [
+        "Known seeds 517, 99991, 42; no new-seed or population-rate claim",
+        "6000-tick horizon and scenesprobe combined-winner configuration",
+        "Paired brake arm changes only the senescence setting from off to share:1"
+      ],
+      "knownLimits": "Diagnostic output only. Cohort integrity is measured; ecological effectiveness is not classified."
+    },
+    "balance-diagnostic-share1": {
+      "title": "DIAGNOSTIC treatment: known balance-failure seeds with accepted share:1 brake",
+      "preregistered": "2026-10-12",
+      "registrationKind": "KNOWN_SEED_DIAGNOSTIC_NOT_PROSPECTIVE",
+      "seeds": "517,99991,42",
+      "ticks": 6000,
+      "zero": false,
+      "lifts": {},
+      "argvRest": [
+        "share:1",
+        "4",
+        "null",
+        "null",
+        "null",
+        "null",
+        "null",
+        "null",
+        "null",
+        "off",
+        "off",
+        "0.4",
+        "null",
+        "0",
+        "null"
+      ],
+      "hypothesis": "Descriptive mechanism check: share-mode senescence acts through dormant-share pressure; this arm asks whether that pressure engages in three known failure trajectories, not whether it rescues them.",
+      "prediction": "Record dormant counts and senescence deaths by checkpoint. If no dormancy is observed, brake efficacy is not measured on this panel; no ecological success threshold is registered.",
+      "falsification": "No balance falsification criterion is claimed. An incomplete run or header/config mismatch invalidates the corresponding comparison; otherwise report trajectories without a supported/falsified ecological verdict.",
+      "question": "Compare the previously observed exclusion, fade, and runaway trajectories against the no-brake control using the accepted dormant-share senescence brake. This known-seed run is not prospective.",
+      "confoundsControlled": [
+        "Known seeds 517, 99991, 42; no new-seed or population-rate claim",
+        "6000-tick horizon and scenesprobe combined-winner configuration",
+        "Paired control arm changes only the senescence setting from off to share:1"
+      ],
+      "knownLimits": "Diagnostic output only. Cohort integrity is measured; ecological effectiveness is not classified."
     }
   }
 }

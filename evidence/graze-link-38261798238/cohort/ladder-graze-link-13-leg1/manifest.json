@@ -1,0 +1,195 @@
+{
+  "arm": "graze-link",
+  "title": "LINK TEST: does lifting grazeYieldScale to declared restore grazing flux?",
+  "preregistered": "2026-10-12",
+  "identity": {
+    "engine": "ts-evo-poc/0.6.0",
+    "gateSuite": "gates/0.4.0",
+    "engineError": null,
+    "commit": "6df61d14446396a226dd5cf26e9ef8f8db9e0a68",
+    "ref": "refs/heads/balance/share-brake-diagnostics-run",
+    "runtime": "v24.21.0",
+    "armSpecHash": "3c62c97ffe9b5bbb45c27740638dd93aff9812454bc5e944a8f458968f9c2e82",
+    "armSpecPath": "tools/ladder/arms.json",
+    "note": "The probe always ran from the current checkout. A historical arm spec applied here is a settings replay, not a reproduction of its original figure."
+  },
+  "capturePolicy": {
+    "zero": true,
+    "permitted": [
+      true,
+      false,
+      false
+    ]
+  },
+  "seedCount": 3,
+  "seeds": [
+    41002,
+    41008,
+    41014
+  ],
+  "declaredSeedCount": 18,
+  "shard": {
+    "index": 1,
+    "count": 6
+  },
+  "historicalSpec": false,
+  "historicalEngineReproduced": false,
+  "ticks": 6000,
+  "declaredTicks": 6000,
+  "ticksOverrideApplied": false,
+  "zero": true,
+  "lifts": {
+    "producerCaptureScale": 0.35,
+    "basalFoodPerCell": 0.25,
+    "grazeYieldScale": 1
+  },
+  "preregistration": {
+    "hypothesis": "Step-0 meter (2026-10-12) showed 66-73% of graze submits resolve with positive takes that the world multiplies by the preset grazeYieldScale=0, so world flux is exactly zero by configuration. Restoring the declared scale (1.0) on the otherwise identical config should restore paying graze wins. Meat stays zeroed by design: one path at a time.",
+    "prediction": "grazeEnergy > 0 on at least 12/18 seeds at tick 6000 (read from per-seed B/D lines; the cohort verifier has no graze metric, so this arm carries no machine criteria and classifies 'not measured' by design — the verdict is human-read from intact evidence, stated here before inspection). Ecological coexistence is explicitly NOT predicted by this arm: it tests the link, not balance.",
+    "falsification": "FALSIFIED as a link restoration if grazeEnergy = 0 on 7 or more of 18 seeds. A falsification here sends the program back to contest biology (defender losses were 27-34% at Step 0), not to a larger scale — do not push to 1.6+ blindly; rung 4 already showed enriched transfer without coexistence.",
+    "notPredicted": "Endpoint guild counts, coexistence rates, and per-win sizes are not predicted. Tissue basis (plantYieldPerMass) is a follow-up only if per-win size disappoints, not part of this arm.",
+    "confoundsControlled": [
+      "Same 18-seed panel, horizon, engine, and lifts as consumer-yield; the ONLY difference is +grazeYieldScale:1.0",
+      "Matched comparison against the archived consumer-yield run: any graze flux difference is attributable to the one dial",
+      "conservation enforced per seed at 0.5%; a seed above it fails the run rather than reporting"
+    ],
+    "criteria": null
+  },
+  "runs": [
+    {
+      "seed": 41002,
+      "argv": [
+        "41002",
+        "6000",
+        "off",
+        "4",
+        "0.25",
+        "null",
+        "null",
+        "null",
+        "0.15",
+        "null",
+        "off",
+        "off",
+        "off",
+        "0.4",
+        "null",
+        "0",
+        "null",
+        "--zero",
+        "--zero-lift=producerCaptureScale:0.35",
+        "--zero-lift=basalFoodPerCell:0.25",
+        "--zero-lift=grazeYieldScale:1"
+      ],
+      "header": "SENESCENCE seed=41002 ticks=6000 setting=off photox4 basalx0.25 grazexnull tissuexnull radxnull disx0.15 pioxnull dtboff mixooff cycoff sat0.4 pcapnull nfloor0 rsurnull ZERO-BASELINE (probe config)",
+      "prod": 0,
+      "cons": 0,
+      "dec": 3203,
+      "pop": 3203,
+      "finalTick": 6000,
+      "ledgerStatus": "ok",
+      "ledgerClass": "valid",
+      "totalInput": 5485467.7,
+      "residualPct": 0.01015,
+      "capture": 39099.4,
+      "captureByGuild": [
+        39099.4,
+        0,
+        0
+      ],
+      "residualOk": true,
+      "capturePolicyOk": true
+    },
+    {
+      "seed": 41008,
+      "argv": [
+        "41008",
+        "6000",
+        "off",
+        "4",
+        "0.25",
+        "null",
+        "null",
+        "null",
+        "0.15",
+        "null",
+        "off",
+        "off",
+        "off",
+        "0.4",
+        "null",
+        "0",
+        "null",
+        "--zero",
+        "--zero-lift=producerCaptureScale:0.35",
+        "--zero-lift=basalFoodPerCell:0.25",
+        "--zero-lift=grazeYieldScale:1"
+      ],
+      "header": "SENESCENCE seed=41008 ticks=6000 setting=off photox4 basalx0.25 grazexnull tissuexnull radxnull disx0.15 pioxnull dtboff mixooff cycoff sat0.4 pcapnull nfloor0 rsurnull ZERO-BASELINE (probe config)",
+      "prod": 328,
+      "cons": 11540,
+      "dec": 0,
+      "pop": 11868,
+      "finalTick": 6000,
+      "ledgerStatus": "ok",
+      "ledgerClass": "valid",
+      "totalInput": 5556000.9,
+      "residualPct": 0.03506,
+      "capture": 109471,
+      "captureByGuild": [
+        109471,
+        0,
+        0
+      ],
+      "residualOk": true,
+      "capturePolicyOk": true
+    },
+    {
+      "seed": 41014,
+      "argv": [
+        "41014",
+        "6000",
+        "off",
+        "4",
+        "0.25",
+        "null",
+        "null",
+        "null",
+        "0.15",
+        "null",
+        "off",
+        "off",
+        "off",
+        "0.4",
+        "null",
+        "0",
+        "null",
+        "--zero",
+        "--zero-lift=producerCaptureScale:0.35",
+        "--zero-lift=basalFoodPerCell:0.25",
+        "--zero-lift=grazeYieldScale:1"
+      ],
+      "header": "SENESCENCE seed=41014 ticks=6000 setting=off photox4 basalx0.25 grazexnull tissuexnull radxnull disx0.15 pioxnull dtboff mixooff cycoff sat0.4 pcapnull nfloor0 rsurnull ZERO-BASELINE (probe config)",
+      "prod": 3,
+      "cons": 3737,
+      "dec": 0,
+      "pop": 3740,
+      "finalTick": 6000,
+      "ledgerStatus": "ok",
+      "ledgerClass": "valid",
+      "totalInput": 5540644.6,
+      "residualPct": 0.01315,
+      "capture": 100146.8,
+      "captureByGuild": [
+        100146.8,
+        0,
+        0
+      ],
+      "residualOk": true,
+      "capturePolicyOk": true
+    }
+  ],
+  "headerMismatches": [],
+  "failures": [],
+  "warnings": []
+}

@@ -14,3 +14,7 @@ node_modules/
 
 # Built engine staged for the diagnostic kit; produced by npm run build:app.
 tools/diagnostics/evo-sim-poc.html
+
+# Stale compiler output beside sources. tsx resolves .js specifiers to .ts;
+# executing src/**/*.js directly would run a dead engine. See REPORT.
+src/**/*.js
