@@ -16,7 +16,7 @@ This file governs repository practice only.
 
 `ts-evolution-poc` — a disposable, evidence-driven experiment in whole-ecosystem
 evolutionary simulation. Single TypeScript tree. Engine version
-`ts-evo-poc/0.6.1`.
+`ts-evo-poc/0.6.3`.
 
 - **STATUS: EXPERIMENTAL. NOT PRODUCTION CODE.**
 - Judged on **reproducibility, honest accounting, emergence without forcing,
@@ -103,8 +103,15 @@ Required before a change is considered done:
 2. **Gates pass** (`src/gates.ts`).
 3. **Knobs-unset parity exact** against pinned values — currently seed 517 →
    `P882 C170 D65` and 24601 → `P563 C279 D90` at 500 ticks, engine
-   `ts-evo-poc/0.6.2`. A change that alters these with no knob set has changed
+   `ts-evo-poc/0.6.3` (same pair as 0.6.2; no re-pin). A change that alters these with no knob set has changed
    declared behaviour.
+
+   The per-pool return-cap fix landed in `e484b3f` while still labelled 0.6.2;
+   G30 was pinned in `d0fdd57`. Earlier flat-cap and later corrected 0.6.2
+   saturation logs must be distinguished by source snapshot, not version alone.
+   0.6.3 identifies the corrected cap plus repaired measurement contract.
+   Relative to `d0fdd57`, nutrient writes are unchanged; corrected saturation
+   evidence stays valid provenance. Do not re-run broad cohorts just to repin it.
 
    These values were re-pinned **four times**. The chain of retired values is
    recorded in `scripts/contract-checks.mjs` beside the live ones:
@@ -121,7 +128,7 @@ Required before a change is considered done:
 
    **Every 0.6.1 figure describes the fasting-tolerance engine.** All
    ladder verdicts recorded under it remain valid provenance for that engine
-   but must be re-run, not re-read, on 0.6.2.
+   but must be re-run, not re-read, on the current engine.
 
    **Every 0.6.0 figure describes the instantaneous-damage engine.** All
    ladder verdicts recorded under it remain valid provenance for that engine
@@ -294,4 +301,3 @@ tested the helper and not the world. Four more rules follow from that:
 - **Quote measured bytes, not derived ones.** This section published "80
   bytes/organism" for a buffer that is 256. The allocation is unconditional, so
   the cost is paid with the knob off.
-

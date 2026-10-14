@@ -3,10 +3,11 @@
  * Measures: photosynthesis uptake, excretion returns, biotic mineralization,
  * abiotic regeneration, abiotic mineralization — separated by guild, pool, and source.
  *
- * Engine: ts-evo-poc/0.6.2
+ * Engine: ts-evo-poc/0.6.3
  * Run: node build/trace/nutrientflux.js [ticks] [seed]
  */
-import { World } from '../world/world.js';
+import { World, type ReturnBooks } from '../world/world.js';
+import { WORLD_ENGINE_VERSION } from '../world/version.js';
 import { TROPHIC_COUNT } from '../bio/role.js';
 import { NUTRIENT_COUNT } from '../core/soa.js';
 import { TROPHIC } from '../bio/role.js';
@@ -37,6 +38,8 @@ function buildWorld(seed: number): World {
 }
 
 const w = buildWorld(SEED);
+console.log(`engine=${WORLD_ENGINE_VERSION} seed=${SEED} ticks=${TICKS}`);
+console.log(`resolvedConfig=${JSON.stringify(w.config)}`);
 const nCells = w.nutrients[0].data.length;
 const caps = w.config.nutrientCapacity;
 const guildNames = ['PRODUCER', 'CONSUMER', 'DECOMPOSER'];
@@ -104,21 +107,77 @@ for (let t = 1; t <= TICKS; t++) {
       console.log(`    ${guildNames[g]}: [${row}]`);
     }
     
-    // Excretion returns
-    console.log(`  Excretion returns (cumulative):`);
+    // Excretion returns — all four books, so a signed number can never be
+    // mistaken for a biological return again. See ReturnBooks in world.ts.
+    console.log(`  Excretion returns (cumulative) — accepted / attempted / capLoss / eviction:`);
     for (let g = 0; g < TROPHIC_COUNT; g++) {
-      const row = flux.excretionReturns[g].map(v => v.toFixed(2)).join(', ');
-      console.log(`    ${guildNames[g]}: [${row}]`);
+      const acc = flux.excretionReturns.accepted[g].map(v => v.toFixed(2)).join(', ');
+      const att = flux.excretionReturns.attempted[g].map(v => v.toFixed(2)).join(', ');
+      const los = flux.excretionReturns.capLoss[g].map(v => v.toFixed(2)).join(', ');
+      const evi = flux.excretionReturns.eviction[g].map(v => v.toFixed(2)).join(', ');
+      console.log(`    ${guildNames[g]}:`);
+      console.log(`      accepted  [${acc}]`);
+      console.log(`      attempted [${att}]`);
+      console.log(`      capLoss   [${los}]`);
+      console.log(`      eviction  [${evi}]`);
     }
     
     // Biotic mineralization
-    console.log(`  Biotic mineralization by source (cumulative):`);
+    console.log(`  Biotic mineralization by source (cumulative) — accepted / attempted / capLoss / eviction:`);
     for (let g = 0; g < TROPHIC_COUNT; g++) {
       for (let p = 0; p < NUTRIENT_COUNT; p++) {
-        const row = flux.bioticMineralization[g][p].map(v => v.toFixed(2)).join(', ');
-        console.log(`    ${guildNames[g]} ${poolNames[p]}: [${row}]  (${bioticSourceNames.join('/')})`);
+        const acc = flux.bioticMineralization.accepted[g][p].map(v => v.toFixed(2)).join(', ');
+        const att = flux.bioticMineralization.attempted[g][p].map(v => v.toFixed(2)).join(', ');
+        const los = flux.bioticMineralization.capLoss[g][p].map(v => v.toFixed(2)).join(', ');
+        const evi = flux.bioticMineralization.eviction[g][p].map(v => v.toFixed(2)).join(', ');
+        console.log(`    ${guildNames[g]} ${poolNames[p]}:  (${bioticSourceNames.join('/')})`);
+        console.log(`      accepted  [${acc}]`);
+        console.log(`      attempted [${att}]`);
+        console.log(`      capLoss   [${los}]`);
+        console.log(`      eviction  [${evi}]`);
       }
     }
+
+    // Book audit over BOTH return families.
+    //
+    // `partitionResidual` is `attempted - accepted - capLoss`, summed over
+    // every guild/pool/source. It must close to float summation error. That is
+    // the strong claim: the three books are ONE partition of the same quantity,
+    // not three independent measurements that merely look consistent. A
+    // completely unwired site could still satisfy this identity vacuously;
+    // independent comparison with field movement is required (G31).
+    //
+    // `evictionTotal` is the bounded over-cap event: nutrient the ceiling
+    // deleted rather than accepted. If it is zero the clamp never bit here and
+    // the partition was only exercised on its trivial branch; the next line
+    // says so, so the record cannot mistake silence for confirmation.
+    //
+    // This is a book-identity check, NOT a mass balance on the pools. A
+    // full-world mass balance would not close for reasons unrelated to these
+    // books: abiotic regeneration and the unclamped recycling broadcast also
+    // write the pools. The mass-balance case is covered where it can actually
+    // be isolated — G31 in src/gates.ts runs a writer-isolated world (no
+    // diffusion, regen, decay, broadcast or floor) and asserts the pool totals
+    // move by `accepted - eviction - photoUptake`, allowing float32 rounding.
+    const sumBooks = (b: ReturnBooks<unknown>): { att: number; acc: number; los: number; evi: number } => {
+      // Recursive flatten: excretion books are guild x pool, biotic books are
+      // guild x pool x source. One traversal keeps the audit identical for both.
+      const flat = (v: unknown): number[] =>
+        Array.isArray(v) ? (v as unknown[]).flatMap(flat) : [v as number];
+      const att = flat(b.attempted).reduce((a, c) => a + c, 0);
+      const acc = flat(b.accepted).reduce((a, c) => a + c, 0);
+      const los = flat(b.capLoss).reduce((a, c) => a + c, 0);
+      const evi = flat(b.eviction).reduce((a, c) => a + c, 0);
+      return { att, acc, los, evi };
+    };
+    const ex = sumBooks(flux.excretionReturns);
+    const bm = sumBooks(flux.bioticMineralization);
+    const att = ex.att + bm.att, acc = ex.acc + bm.acc, los = ex.los + bm.los, evi = ex.evi + bm.evi;
+    const residual = att - acc - los;
+    console.log(`  RETURN BOOK PARTITION AUDIT (not a field mass balance):`);
+    console.log(`    attempted ${att.toFixed(4)} == accepted ${acc.toFixed(4)} + capLoss ${los.toFixed(4)}  ->  residual ${residual.toExponential(3)}`);
+    console.log(`    eviction total ${evi.toFixed(4)} (${evi > 0 ? 'over-cap path EXERCISED' : 'over-cap path NOT reached this run'})`);
+    console.log('');
     
     // Abiotic regeneration
     console.log(`  Abiotic regeneration (cumulative):`);

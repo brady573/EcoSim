@@ -7423,7 +7423,26 @@ The following matrix provides, for each priority mechanism, the live read site, 
 | **Pioneer bonus** | `world.ts:1048-1060` (pioneerGrant), `world.ts:2105-2108` (pioneerFactor) | `pioneerBonus !== null`, newborn guild ≠ parent guild | Establishment subsidy in guild void; global not local | Grace period (200 ticks) too short; 96% local dispersal | Measured: global void used; fails to create local opportunity | **DEFICIENT** — redesign needed |
 | **Genome v2 (modular genome)** | `src/bio/modgenome.ts` (expressModules, inheritModules) | `genomeV2 === true` | Modular developmental genome; modules → traits with upkeep cost | Every module has cost; expresses into real traits (not just body genes) | G13-G25: 7 modules → 16 traits shifted; upkeep charged; structure develops | **ACCEPTED** — structural evolution |
 
-**Flux measurement gap closed (Owner handoff Task 1):** Per-pool, per-guild flux measurements delivered via `src/trace/nutrientflux.ts` and `World.getFluxSnapshot()`. All six core nutrient feedback paths now measured at mechanism level.
+**Matrix status correction (PR #13 review):** the historical “ACCEPTED” cells above are not evidence of Owner approval of scientific equivalence. Treat those classifications as agent proposals; **Owner decision needed** for disputed mechanisms and equivalence claims. The implementation observations survive, but the matrix is not a completed biological audit. Source symbols, rather than stale line numbers, identify the live read paths below.
+
+### Supplementary priority-control matrix (supersedes omitted controls)
+
+| Control | Live read path and reachable response | Biological/model comparison and limit | Evidence / status |
+|---|---|---|---|
+| `reproSurplusTicks` | `World.proposeReproduction` and `World.resolveContests`: reserve must exceed upkeep × ticks for both sexual parents and asexual eligibility | Reserve allocation is conceptually consistent with dynamic energy budgets [S1]; this fixed horizon is a diagnostic simplification, not a calibrated survival forecast | Corrected mating recorder counts the surplus gate separately. Owner decision needed on biological equivalence |
+| `mateSeeking` | `World.actPhase` mate targeting; `World.proposeReproduction` reduces asexual drive by `1 − 0.55 × mateSeeking`; mutual mating queues recombinant offspring | Mate search has real costs [S2]; the linear 0.55 penalty is a model assumption, not an empirical coefficient | G27–G29 cover fallback; recorder now distinguishes queued/placed pathways. Owner decision needed |
+| `asexualRate` | `World.proposeReproduction`: multiplies Bernoulli drive; successful roll queues a clutch | Facultative reproduction is biologically possible [S2]; this lottery/clutch parametrisation is not validated against a taxon | Corrected recorder measures 497 fired asexual clutches, not zero. Owner decision needed |
+| `mixotrophySaturation` | `World.substrateAvailability` (standing substrate) and `World.abioticPhase` (previous-tick throughput): respective inputs enter `raw/(raw+sat)` | A saturating response resembles Monod resource limitation [S3]; throughput coupling is not automatically equivalent to microbial physiology | G12 establishes active coupling, not biological calibration. Owner decision needed |
+| `nutrientFloor` | `World.abioticPhase`: raises a pool to floor × capacity before clamping | Explicit external recovery input; not demonstrated biotic recycling. No biological-equivalence claim | Default 0; nonzero supplies nutrient independently of mineralisers. Owner decision needed |
+| `nutrientCapacity`, `nutrientDiffusivity`, `nutrientDecay` | `World.nutrientCapAt`, `World.abioticPhase`, `ScalarField.step`: per-pool ceilings, spatial transport, decay | Spatial transport/loss are modelling constructs; fixed capacity multipliers are not a measured stoichiometric law | G30 tests cap regression; G31/G32 test accounting, not ecology. Owner decision needed |
+| `reproActCostScale`, `clutchSize`, `reproThreshold`, `maturityAge` | `World.proposeReproduction`, `World.queueBirth`, `World.birthPhase`: eligibility, offspring count, act charge and transfer | Allocation/life-history concepts [S1]; numerical gates and charges remain uncalibrated | Queued and placed offspring are separately reported; costs are not inferred from firing metadata. Owner decision needed |
+
+Scientific sources (conceptual comparisons, **not validation of coefficients or approval**):
+- [S1] Kooijman, *Dynamic Energy Budget Theory for Metabolic Organisation*, Cambridge University Press, [DOI](https://doi.org/10.1017/CBO9780511805400). Reserve/maintenance/reproduction allocation framework; no claim that this engine implements DEB equations.
+- [S2] Otto, *Sexual Reproduction and the Evolution of Sex*, Nature Education (2008), [author-hosted text](https://www.zoology.ubc.ca/~otto/Reprints/Otto2008.pdf). Mate-search and sexual reproduction costs; does not justify this engine's penalty magnitude.
+- [S3] Monod (1949), *The Growth of Bacterial Cultures*, Annual Review of Microbiology 3:371–394, [DOI](https://doi.org/10.1146/annurev.mi.03.100149.002103). Saturating resource response; does not establish guild coupling in this model.
+
+**Flux hooks delivered, causal interpretation bounded:** `src/trace/nutrientflux.ts` and `World.getFluxSnapshot()` observe per-pool/per-guild processes. The repaired four-book snapshot separates positive accepted return from cap refusal and pre-existing excess deletion. Hook presence and balanced books do not establish obligate ecological reliance.
 
 **Remaining open (not addressed in this review cycle):**
 - P2b excretion/returns cap bug (known, documented, fix pending)
@@ -7453,29 +7472,38 @@ pathways can compensate. No quotas, no forced extinction, no invented services.
 | **NO_EXCRETION_RETURNS** (excretionRate=0) | 46 | 21 | 1374 | none | Excretion important but not essential |
 | **NO_NUTRIENT_CYCLIC** (nutrientCyclic=false) | 10 | 6 | 1539 | none | Cyclic coupling regulates decomposer overgrowth |
 | **NO_ABIOTIC_REGEN** (nutrientRegen=0) | 29 | 3 | 885 | none | Abiotic regen is baseline, not driver |
-| **NO_BASAL_FOOD** (basalFoodPerCell=0) | 30 | 8 | 4 | none | Basal food critical for bootstrap; all guilds crash without it |
+| **NO_BASAL_FOOD** (basalFoodPerCell=0) | 30 | 8 | 4 | none | Basal food critical for bootstrap (species-bounded: producers survive at P=30 while consumers/decomposers thin out — "crash to <10" overstates the producer case; only decomposers truly collapse) |
 | **NO_DECOMPOSER_MIN_NO_CYCLIC** (both off) | 7 | **0** | 1218 | **C@2000** | Confirms consumer dependence on biotic mineralization |
 | **NO_CONSUMER_GRAZE** (grazeYieldScale=0) | 32 | 9 | 669 | none | Consumers survive on sediment scavenging alone |
-| **NO_PRODUCER_CAPTURE** (producerCaptureScale=0) | **0** | 10 | 903 | **P@2000** | Producers are foundational energy source |
+| **NO_PRODUCER_CAPTURE** (producerCaptureScale=0) | **0** | 10 | 903 | **P extinct by t=2000 (P_final=0)** | Producers are foundational; consumers persist at C=10 on sediment scavenging — C extinction NOT observed at this seed/horizon |
 | **CHEAP_CONSUMER_UPKEEP** (consumerBasalScale=0.1) | 95 | 4 | 766 | none | Low upkeep helps consumers but not fundamental |
 | **FULL_NUTRIENT_KNOCKOUT** (all biotic+abiotic off) | 7 | **0** | 68 | **C@2000** | No nutrient returns → consumer extinction, decomposer collapse |
 | **FULL_NUTRIENT_KNOCKOUT_RESCUE_REGEN** (nutrientRegen=0.01) | 7 | **0** | 253 | **C@1500** | High abiotic regen rescues producers/decomposers but **NOT consumers** |
 
 ### Causal Dependencies Inferred
 
-1. **Producers → Consumers**: Obligate. Zero producer capture = producer extinction → consumer extinction follows (via NO_PRODUCER_CAPTURE and FULL_NUTRIENT_KNOCKOUT).
+**Reclassification note (P1-3, review 5517625966, PR #13)** — supersedes the dependency claims below:
 
-2. **Decomposers → Consumers**: Obligate via nutrient cycling. NO_BIOTIC_MINERALIZATION and NO_DECOMPOSER_MIN_NO_CYCLIC both cause **consumer extinction** while producers persist. Consumers need decomposers to recycle nutrients for producers.
+These results are a bounded process-sensitivity pass (seed 517, 2000 ticks), not proof of guild-specific ecological reliance. The global interventions affect processes across guilds; they do not selectively remove one guild's service.
 
-3. **Decomposers → Producers**: Facilitative but not obligate. Producers persist without biotic mineralization (P=42) but at reduced abundance. Abiotic regen + excretion can sustain minimal producers.
+- Consumers persisted at C=10 under NO_PRODUCER_CAPTURE versus C=7 in control. Obligate producer reliance is not established; the feeding pathway was not measured by this run.
+- NO_BASAL_FOOD left P30/C8/D4. The claim that all guilds fell below 10 was false.
+- Biotic mineraliser is per-organism (`src/bio/role.ts`, `bioticMineraliser`), so disabling it globally does not isolate decomposer service.
+- NO_CONSUMER_GRAZE left C=9. Persistence was measured; a specific compensating feeding pathway was not.
 
-4. **Consumers → Decomposers**: Not obligate. Decomposers thrive without consumers (D=1255 in NO_BIOTIC_MINERALIZATION vs D=1087 control). Consumers compete with decomposers for sediment.
+No new seed threshold is established here. Guild-reliance claims require an Owner-approved experiment isolating the proposed service, appropriate controls and multi-seed evidence. Historical cohorts remain archived with their original source/configuration provenance.
+
+2. **Global mineralisation sensitivity**: consumers were absent at the terminal sample in two mineralisation-disabled arms. This does not isolate a decomposer service: the mineraliser capability is per-organism.
+
+3. **Producer response**: P=42 without biotic mineralisation versus P=7 in control. This is higher, not reduced abundance, and does not identify a guild dependency.
+
+4. **Decomposer response**: D=1255 in NO_BIOTIC_MINERALIZATION versus D=1087 control. This arm also changes mineralisation, so it cannot isolate consumer competition.
 
 5. **Abiotic regen → Consumers**: **Insufficient rescue**. FULL_NUTRIENT_KNOCKOUT_RESCUE_REGEN (nutrientRegen=0.01, 50x default) rescues producers (P=7) and decomposers (D=253) but **consumers still go extinct at t=1500**. Consumers need the biotic trophic chain, not just nutrient availability.
 
 6. **Excretion returns**: Important for producer abundance (P=46 vs 7) but not essential for coexistence.
 
-7. **Basal food**: Critical for bootstrap (all guilds crash to <10 without it) but not strictly essential if other pathways intact.
+7. **Basal food**: Bootstrap-critical for decomposers (D=4 without it); producers persist at P=30, consumers at C=8 — the "<=10 guild collapse" claim overstated producer dependence. Process-level, not guild-existential.
 
 8. **Consumer grazing**: Not obligate for consumer survival. Consumers persist on sediment scavenging (grazeYieldScale=0 → C=9). But grazing is needed for consumer abundance.
 
@@ -7483,14 +7511,14 @@ pathways can compensate. No quotas, no forced extinction, no invented services.
 
 | Guild Pair | Reliance Type | Evidence |
 |------------|---------------|----------|
-| Consumers ← Producers | **Obligate** | P extinction → C extinction (NO_PRODUCER_CAPTURE) |
-| Consumers ← Decomposers | **Obligate (indirect)** | Decomposer mineralization KO → C extinction (NO_BIOTIC_MINERALIZATION) |
+| Consumers ← Producers | **Obligate (SUPERSEDED)** | at this seed consumers persisted at C=10 on NO_PRODUCER_CAPTURE |
+| Consumers ← Decomposers | **Obligate (indirect) (SUPERSEDED)** | mineraliser is per-organism, guild attribution conservative |
 | Producers ← Decomposers | **Facultative** | Producers persist without biotic mineralization (P=42) |
-| Decomposers ← Producers | **Obligate (long-term)** | Producers provide organic input; NO_BASAL_FOOD crashes all guilds |
+| Decomposers ← Producers | **Not established** | NO_BASAL_FOOD removes external input, not producer service; P30/C8/D4 persist |
 | Decomposers ← Consumers | **None / Competitive** | Decomposers increase when consumers absent |
 | Consumers ← Abiotic Regen | **Insufficient** | High nutrientRegen rescues P/D but not C |
 
-**Conclusion**: The system exhibits **asymmetric obligate reliance**: Consumers obligately depend on BOTH producers (energy) and decomposers (nutrient cycling). Producers facultatively depend on decomposers. Decomposers obligately depend on producers for organic input but not on consumers. Abiotic pathways cannot substitute for biotic trophic coupling for consumers.
+**Conclusion (supersedes the original reliance classification)**: the measured terminal counts establish bounded process sensitivity only. They do not establish asymmetric obligate guild reliance or identify which guild supplied a missing service. In particular, NO_PRODUCER_CAPTURE leaves C=10 versus C=7 in control; NO_BASAL_FOOD leaves P=30, not fewer than 10. All guild-reliance classifications above are withdrawn as current verdicts.
 
 **Old strict cohort verdicts archived**: The 36-seed "producer-alone" cohort (FALSIFIED, producers persist 33/36) is recorded as historical under engine 0.6.1 config. It tested guild *presence* not functional *reliance*. This probe tests functional capability knockouts.
 
@@ -7506,6 +7534,8 @@ nutregen 0.0002, excretion 0.06; nutrientCyclic=true, mixotrophySaturation=1.0).
 
 ### Cumulative Mating Events (t=2000)
 
+**Withdrawn instrument-derived verdicts:** the original recorder did not count births and omitted deterministic blockers. The original H1–H4 verdicts, zero-birth tables and causal conclusions below are retained as historical text only, not measurements. Corrected source-labelled queued/placed results are recorded in the PR #13 corrections section below. H5 was not measured. Existing `ReproProbeLog` asexual-roll semantics are preserved.
+
 | Metric | PRODUCER | CONSUMER | DECOMPOSER | Total |
 |--------|----------|----------|------------|-------|
 | **reachedRoll** (hit stochastic roll) | 14,279 | 3,423 | 23,435 | 41,137 |
@@ -7520,7 +7550,7 @@ nutregen 0.0002, excretion 0.06; nutrientCyclic=true, mixotrophySaturation=1.0).
 | **H1: Mutual intent → mating bottleneck** | Most organisms blocked at surplus/energy gates | 41,137 reachedRoll; 0 blocked at surplus/energy | **FALSIFIED** — gates passed, bottleneck is at roll |
 | **H2: Surplus ticks blocks consumers** | Consumer reachedRoll > 0 but sexualSkipped > 0 | Consumer reachedRoll=3,423; sexualSkipped=1 | **FALSIFIED** — surplus not the blocker |
 | **H3: Sexual reproduction rare** | Sexual births < 10% of total | 0 births total (sexual + asexual) | **SUPPORTED** — more extreme than predicted |
-| **H4: Decomposers dominate sexual reproduction** | Decomposers highest sexualBirth | 0 sexual births for all guilds | **FALSIFIED** — no sexual reproduction occurs |
+| **H4: Decomposers dominate sexual reproduction** | Decomposers highest sexualBirth | 0 sexual births for all guilds | **FALSIFIED (un-measured by probe) — no sexual reproduction occurs** |
 | **H5: Consumer mating predicts persistence** | Consumer reachedRoll drops to 0 before extinction | N/A (control seed persists) | **NOT TESTED** — requires knockout run |
 
 ### Key Findings
@@ -7962,3 +7992,119 @@ mated=true sexualQueued=true noAsexReached=true sexualSkipped=true slots=(1500,1
 
 **Gate count:** 37/37 (G1–G25, G26 radiation coupling, G27 mating fallback,
 G28 array growth, G29 high-slot mating integration)
+
+-------------------------------------------------------------------------------
+PR #13 MEASUREMENT CORRECTIONS — review 5517625966
+-------------------------------------------------------------------------------
+
+This is a diagnostic/evidence repair, not completed acceptance of a biological
+audit. It adds no guild quotas, directed mutation or biological redesign.
+Corrected data: `evidence/pr13-measurement-corrections/`.
+
+### Version and affected record
+
+Engine `ts-evo-poc/0.6.3`, gates `gates/0.5.0`. The per-pool cap correction
+landed in `e484b3f` while still labelled 0.6.2, and G30 was pinned in `d0fdd57`.
+Thus **0.6.2 alone was ambiguous**: pre-`e484b3f` saturation runs describe flat
+return ceilings, whereas runs of `e484b3f`/`d0fdd57` describe per-pool ceilings.
+Do not compare them as samples of one engine semantics. The new version removes
+that ambiguity. Relative to reviewed `d0fdd57`, the nutrient writes are unchanged;
+this follow-up only rebases measurement. Existing corrected saturation data
+remains valid provenance, and no broad ecological cohort was rerun to repin it.
+Default parity remains 517→P882/C170/D65 and 24601→P563/C279/D90 at 500 ticks.
+
+### Corrected mating diagnostic (seed 517, 2000 ticks)
+
+The original `fired()` was empty. The old zero-birth and blocker conclusions,
+H1–H4 verdicts and reproductive-inviability interpretation are withdrawn, not
+retroactively certified. New callbacks distinguish fired clutches, source-labelled
+queued offspring by parent guild, and placed offspring by newborn guild.
+Guild transitions explain why these guild columns need not match. Successful
+sexual firings are not guaranteed placements. `REPRO_GATE.sexual` is asexual
+deferral following successful mating, **not failure at a sexual gate**.
+Only one sexual deferral is recorded despite 20 queued sexual offspring:
+`World.proposeReproduction` checks cooldown, fraction, maturity, damage and
+surplus before deferral. Mating costs are already charged at that point, so
+a successfully mated parent can be counted at an earlier blocker instead.
+The probe does not identify which earlier blocker accounted for each parent.
+Twenty sexual requests yielded 18 placements; the two-request gap is recorded,
+but its placement-rejection cause is not measured.
+
+| Cumulative count | P | C | D |
+|---|---:|---:|---:|
+| Asexual roll reached | 14279 | 3423 | 23435 |
+| First blocker: energy fraction | 343963 | 95131 | 38143 |
+| First blocker: surplus | 0 | 0 | 0 |
+| Fired asexual clutches | 117 | 46 | 334 |
+| Sexual queued offspring | 17 | 2 | 1 |
+| Asexual queued offspring | 428 | 240 | 1490 |
+| Sexual placed offspring | 17 | 0 | 1 |
+| Asexual placed offspring | 427 | 265 | 1466 |
+
+These are event counts across organism-ticks, not counts of unique organisms;
+first-blocker counts are sequential and cannot measure failures behind an earlier
+gate. All six blocker categories appear in the raw output.
+
+- **H1:** not measured as preregistered: the probe does not count all mate
+  attempts, mutual-intent rejections or the sexual surplus-rejection denominator.
+  Asexual first-blocker evidence cannot answer that sexual-pipeline comparison.
+- **H2:** the stated `sexualSkipped` proxy was invalid. In the measured asexual
+  eligibility path, consumer surplus blocks are 0 while fraction blocks are
+  95131; this does not support surplus as its primary blocker. Sexual-path
+  surplus rejection remains unmeasured.
+- **H3:** supported only for this configured seed/horizon: 18 sexual placements
+  out of 2176 total placements (0.827%) is below the original 10% prediction.
+  This is not the engine's unset-default configuration or a multi-seed verdict.
+- **H4:** falsified on the placed-offspring definition: P=17 sexual placements,
+  D=1. No claim of general evolutionary dominance follows.
+- **H5:** not measured; no extinction-knockout comparison was run.
+
+Existing `ReproProbeLog` consumers retain asexual-lottery `fired` semantics;
+sexual notifications are ignored there rather than widening eight old metrics.
+
+### Corrected opportunity observer (seeds 517 and 41001, 3000 ticks)
+
+Old future-fitness conclusions are withdrawn: they ranked the current census
+against the past interval and could join recycled slots to the wrong organisms.
+Samples now capture stable IDs; opportunity quartiles are formed at interval
+start and joined to the next census by ID. Energy change is survivor-only,
+with its own sample size; deaths are not assigned zero energy change. Newborns
+are reported separately and excluded from the starting cohort. Duplicate-ID
+and mismatched birth-identity assertions fail loudly.
+
+Example from the measured 517 interval 250→500: 258/404 survivors, 199 newborns,
+146 deaths. Consumer start cohort n=76; high/low prey quartiles each n=19;
+12/9 survive (63.158%/47.368%). Survivor energy samples are n=12/9, with mean
+changes −12.778/−12.699. This is a bounded association, not proof of opportunity
+causing fitness. Equal-resource quartiles (e.g. zero prey at later samples) do
+not constitute a resource contrast even when outcomes differ.
+
+This first-interval example is not representative of a stable sign: consumer
+high-minus-low survival is positive in only 1 of 7 reported intervals for seed
+517 and 3 of 11 for seed 41001 (including tied-resource intervals, which are
+not meaningful resource contrasts). Later signs reverse; no general positive
+opportunity/fitness relationship is established.
+
+### Flux accounting and test scope
+
+The old signed return mixed incoming nutrient and deletion of pre-existing
+excess. Each return now exposes attempted, accepted, capLoss and eviction;
+`attempted = accepted + capLoss` and computed delta = accepted − eviction,
+subject to floating arithmetic/storage rounding. G31 independently compares
+books to field movement in a writer-isolated world; G32 checks every
+guild/pool/source partition and requires a real over-cap event. G30 still pins
+the cap regression, but its arms also contain regeneration and an arm-specific
+recycling broadcast: they are not writer-free/returns-only, nor do their effects
+algebraically cancel. Normal flux runs need not reach over-cap; the raw output
+says when that branch was not reached. Self-consistent books alone cannot
+detect an entirely unwired site or establish ecological reliance.
+
+### D2 and delivery scope
+
+HEAD tracks **zero** `src/**/*.js` files. The cleanup landed in ancestor
+`eb3b6a4`, before the reviewed baseline `7b56c92`; `7b56c92..HEAD` contains
+zero such removals. Thus this PR's six-commit diff did not prove D2, while the
+current inventory and earlier cleanup do. No new deletion is claimed here.
+Scientific-equivalence classifications remain proposals with Owner decision
+needed; the supplementary priority-control matrix supplies missing live paths
+and conceptual sources without inventing Owner approvals.

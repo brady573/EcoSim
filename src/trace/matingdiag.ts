@@ -4,10 +4,11 @@
  * Uses ReproProbe to capture mating resolution DURING the tick (before next tick clears flags).
  * No blind seed-sweeps; single diagnostic with falsifiable predictions.
  *
- * Engine: ts-evo-poc/0.6.2
+ * Engine: ts-evo-poc/0.6.3
  * Run: node build/trace/matingdiag.js [ticks] [seed]
  */
 import { World } from '../world/world.js';
+import { WORLD_ENGINE_VERSION } from '../world/version.js';
 import { TROPHIC } from '../bio/role.js';
 import { REPRO_GATE, type ReproProbe } from '../trace/reproprobe.js';
 
@@ -30,25 +31,55 @@ function emptyCounts(): GuildCounts {
 
 // Probe that accumulates mating events across the run
 class MatingProbe implements ReproProbe {
+  // Per-gate "blocked" counts, accumulated per guild.
+  cooldownBlocked = emptyCounts();
+  fractionBlocked = emptyCounts();
+  maturityBlocked = emptyCounts();
+  damageBlocked = emptyCounts();
+  surplusBlocked = emptyCounts();
+  sexualDeferred = emptyCounts();
   reachedRollCount = emptyCounts();
-  sexualSkippedCount = emptyCounts();
   asexualBirthCount = emptyCounts();
   sexualBirthCount = emptyCounts();
-  byGuild = emptyCounts();
+  queuedAsexual = emptyCounts();
+  queuedSexual = emptyCounts();
+  placedAsexual = emptyCounts();
+  placedSexual = emptyCounts();
+  byGuild: GuildCounts = emptyCounts();
   totalOrganisms = 0;
 
-  blocked(_slot: number, _guild: number, gate: number): void {
-    if (gate === REPRO_GATE.sexual) {
-      const g = _guild as 0 | 1 | 2;
-      this.sexualSkippedCount[g]++;
+  // Single per-diagnostic-event logs too (cheap, helps re-evaluation).
+  mutating = true;
+  private gateCount(gate: number, _guild: number): GuildCounts {
+    switch (gate) {
+      case REPRO_GATE.cooldown: return this.cooldownBlocked;
+      case REPRO_GATE.fraction: return this.fractionBlocked;
+      case REPRO_GATE.maturity: return this.maturityBlocked;
+      case REPRO_GATE.damage: return this.damageBlocked;
+      case REPRO_GATE.surplus: return this.surplusBlocked;
+      case REPRO_GATE.sexual: return this.sexualDeferred;
+      default: return this.reachedRollCount;
     }
+  }
+
+  blocked(_slot: number, guild: number, gate: number): void {
+    const g = guild as 0 | 1 | 2;
+    this.gateCount(gate, g)[g]++;
   }
   reachedRoll(_slot: number, _guild: number, _drive: number, _m?: number, _a?: number, _s?: number): void {
     const g = _guild as 0 | 1 | 2;
     this.reachedRollCount[g]++;
   }
-  fired(_slot: number, _guild: number): void {
-    // Can't easily distinguish sexual vs asexual here; track births via birth queue
+  fired(_slot: number, _guild: number, sexual: boolean = false): void {
+    const g = _guild as 0 | 1 | 2;
+    if (sexual) this.sexualBirthCount[g]++;
+    else this.asexualBirthCount[g]++;
+  }
+  queued(guild: number, sexual: boolean, count: number): void {
+    (sexual ? this.queuedSexual : this.queuedAsexual)[guild as 0 | 1 | 2] += count;
+  }
+  placed(guild: number, sexual: boolean): void {
+    (sexual ? this.placedSexual : this.placedAsexual)[guild as 0 | 1 | 2]++;
   }
 }
 
@@ -86,16 +117,27 @@ function countGuilds(w: World): { P: number; C: number; D: number } {
 }
 
 function printProbe(label: string, probe: MatingProbe) {
+  const blocks = (c: GuildCounts) => `P=${c[0]} C=${c[1]} D=${c[2]}`;
   console.log(`  ${label}:`);
-  console.log(`    Total organisms sampled: ${probe.totalOrganisms} (P=${probe.byGuild[0]} C=${probe.byGuild[1]} D=${probe.byGuild[2]})`);
-  console.log(`    reachedRoll (hit stochastic roll): P=${probe.reachedRollCount[0]} C=${probe.reachedRollCount[1]} D=${probe.reachedRollCount[2]}`);
-  console.log(`    sexualSkipped (gate blocked): P=${probe.sexualSkippedCount[0]} C=${probe.sexualSkippedCount[1]} D=${probe.sexualSkippedCount[2]}`);
-  console.log(`    asexualBirth (fired asexual): P=${probe.asexualBirthCount[0]} C=${probe.asexualBirthCount[1]} D=${probe.asexualBirthCount[2]}`);
-  console.log(`    sexualBirth (fired sexual): P=${probe.sexualBirthCount[0]} C=${probe.sexualBirthCount[1]} D=${probe.sexualBirthCount[2]}`);
-  const totalBirths = probe.asexualBirthCount[0] + probe.asexualBirthCount[1] + probe.asexualBirthCount[2] + probe.sexualBirthCount[0] + probe.sexualBirthCount[1] + probe.sexualBirthCount[2];
-  const totalSex = probe.sexualBirthCount[0] + probe.sexualBirthCount[1] + probe.sexualBirthCount[2];
-  if (totalBirths > 0) {
-    console.log(`    Sexual fraction: ${(totalSex / totalBirths * 100).toFixed(1)}%`);
+  console.log(`    Population: P=${probe.byGuild[0]} C=${probe.byGuild[1]} D=${probe.byGuild[2]}`);
+  console.log(`    reachedRoll: P=${probe.reachedRollCount[0]} C=${probe.reachedRollCount[1]} D=${probe.reachedRollCount[2]}`);
+  console.log(`    blocked cooldown:   ${blocks(probe.cooldownBlocked)}`);
+  console.log(`    blocked fraction:   ${blocks(probe.fractionBlocked)}`);
+  console.log(`    blocked maturity:   ${blocks(probe.maturityBlocked)}`);
+  console.log(`    blocked damage:     ${blocks(probe.damageBlocked)}`);
+  console.log(`    blocked surplus:    ${blocks(probe.surplusBlocked)}`);
+  console.log(`    deferred sexual:    ${blocks(probe.sexualDeferred)}`);
+  console.log(`    asexual clutches (fired asexual pass): P=${probe.asexualBirthCount[0]} C=${probe.asexualBirthCount[1]} D=${probe.asexualBirthCount[2]}`);
+  console.log(`    sexual births (fired via MATE):      P=${probe.sexualBirthCount[0]} C=${probe.sexualBirthCount[1]} D=${probe.sexualBirthCount[2]}`);
+  console.log(`    queued offspring by parent guild: asexual ${blocks(probe.queuedAsexual)}; sexual ${blocks(probe.queuedSexual)}`);
+  console.log(`    placed offspring by newborn guild: asexual ${blocks(probe.placedAsexual)}; sexual ${blocks(probe.placedSexual)}`);
+  const totalAsex = probe.placedAsexual[0] + probe.placedAsexual[1] + probe.placedAsexual[2];
+  const totalSex = probe.placedSexual[0] + probe.placedSexual[1] + probe.placedSexual[2];
+  const queued = Object.values(probe.queuedAsexual).reduce((a, b) => a + b, 0)
+    + Object.values(probe.queuedSexual).reduce((a, b) => a + b, 0);
+  console.log(`    queued minus placed offspring: ${queued - totalAsex - totalSex} (placement cause not measured)`);
+  if (totalAsex + totalSex > 0) {
+    console.log(`    Sexual fraction of placed offspring: ${(totalSex / (totalAsex + totalSex) * 100).toFixed(1)}%`);
   }
   console.log('');
 }
@@ -131,6 +173,8 @@ console.log('');
 
 const probe = new MatingProbe();
 const w = buildWorld(SEED, probe);
+console.log(`engine=${WORLD_ENGINE_VERSION} seed=${SEED} ticks=${TICKS}`);
+console.log(`resolvedConfig=${JSON.stringify(w.config)}`);
 
 for (let t = 1; t <= TICKS; t++) {
   w.step();

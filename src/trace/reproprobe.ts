@@ -125,7 +125,12 @@ function newGuildStats(): GuildStats {
 export interface ReproProbe {
   blocked(slot: number, guild: number, gate: number): void;
   reachedRoll(slot: number, guild: number, drive: number, margin?: number, asexualRate?: number, mateSeeking?: number): void;
-  fired(slot: number, guild: number): void;
+  /** Sexual flag distinguishes births from the mutual-mating path vs the asexual pass. */
+  fired(slot: number, guild: number, sexual?: boolean): void;
+  /** Offspring requests, labelled by parent guild and actual queue source. */
+  queued?(guild: number, sexual: boolean, count: number): void;
+  /** Successfully placed offspring, labelled by newborn guild and queue source. */
+  placed?(guild: number, sexual: boolean): void;
 }
 
 /** Accumulating implementation. Not engine-internal: reads only its own args. */
@@ -177,11 +182,12 @@ export class ReproProbeLog implements ReproProbe {
     }
   }
 
-  fired(_slot: number, guild: number): void {
+  fired(_slot: number, guild: number, sexual?: boolean): void {
+    // Existing metrics describe asexual lottery successes, not sexual births.
+    if (sexual) return;
     const s = this.stats(guild);
     if (s) s.fired++;
   }
-
   /** Snapshot one guild's tallies, safe to read after the run. */
   read(guild: number): {
     blocked: number[];

@@ -30,7 +30,8 @@ import {
   MODULE_STRIDE_KIND, MODULE_STRIDE_MAG, MODULE_STRIDE_ONSET,
   expressModules, inheritModules, recombineModules, seedFounderModules,
 } from './bio/modgenome.js';
-import { OrganismStore } from './core/soa.js';
+import { OrganismStore, NUTRIENT_COUNT } from './core/soa.js';
+import { TROPHIC_COUNT } from './bio/role.js';
 import type { Phenotype } from './bio/phenotype.js';
 import { Rng } from './core/rng.js';
 import { INTENT } from './world/world.js';
@@ -1959,9 +1960,33 @@ function gate29(): void {
 // `ScalarField.step()` diffusion runs after the regeneration clamp, so a
 // low-fertility cell beside a rich one drifts above its own cap every tick
 // even with no writers at all. Asserting against zero would therefore fail
-// regardless of the correction. This gate runs TWO arms and asserts a RATIO:
-//   - baseline: every nutrient writer silenced, diffusion alone;
-//   - saturation: returns are the only writers, pools driven to their ceiling.
+// regardless of the correction. This gate runs TWO arms and asserts a RATIO.
+//
+// NEITHER ARM IS WRITER-FREE, AND NEITHER IS "RETURNS ONLY". An earlier
+// revision of this comment claimed both; it was wrong, and the wrong claim was
+// doing work — it implied an isolation this gate does not perform. What the
+// arms actually are:
+//
+//   SHARED configuration (not an algebraic cancellation):
+//     abiotic regeneration at `nutrientRegen = 0.5`, diffusion,
+//     `nutrientCyclic = false`, `nutrientFloor = 0`,
+//     `producerCaptureScale = 0`, seed and world size.
+//   baseline:
+//     the four biotic RETURN paths off (`excretionRate = 0`,
+//     `bioticMineralisation = 0`) and the recycling broadcast off
+//     (`recyclingRate = 0`, `basalFoodPerCell = 0`).
+//   saturation:
+//     those four return paths driven hard, plus the recycling broadcast at
+//     `recyclingRate = 0.02`.
+//
+// So `nutrientRegen` is a controlled confound: an abiotic writer present in
+// both arms. Its effects need not cancel in this nonlinear simulation.
+// `recyclingRate` is an ARM-SPECIFIC additional writer — it differs
+// (0 vs 0.02) and it is UNCLAMPED (the broadcast has no ceiling at all, see
+// the nutrientCapAt non-goals), so it raises saturation excess without the
+// correction directly touching it. This is a regression scenario, not an
+// isolated causal attribution or proof that the confounds cancel.
+//
 // Saturation excess must stay within 2x the measured baseline. If the
 // correction is reverted, B and C jump to ~8x and ~10x baseline under this
 // gate's own configuration (measured by reverting nutrientCapAt and
@@ -2006,13 +2031,16 @@ function gate30(): void {
     return best;
   };
 
-  // Baseline: every writer silenced. Only diffusion can move a pool now.
+  // Baseline: return paths and the recycling broadcast silenced. Abiotic
+  // regeneration (shared `nutrientRegen = 0.5`) and diffusion still write, so
+  // this is a low-writer arm, NOT a writer-free one.
   const base = peakExcess(capWorld({
     excretionRate: 0, bioticMineralisation: 0, basalFoodPerCell: 0,
     recyclingRate: 0,
   }));
-  // Saturation: returns are the only writers (no producer draw, detritus-only
-  // web feeding mineralisation). This is where the defect was reachable.
+  // Saturation: the four return paths driven hard, pools pushed at their
+  // ceiling. Abiotic regeneration and the recycling broadcast are additional
+  // writers here too — see the header. This is where the defect was reachable.
   const sat = peakExcess(capWorld({
     excretionRate: 0.06, bioticMineralisation: 1.0, basalFoodPerCell: 0.5,
     recyclingRate: 0.02,
@@ -2035,6 +2063,211 @@ function gate30(): void {
     `sit near baseline either way. Teeth verified by reverting ` +
     `nutrientCapAt to the flat cap: B -> x8.38, C -> x10.16, A unchanged ` +
     `at x1.00 (FAIL, as required).`);
+}
+
+// ============================================================================
+// G31 / G32 — the P2-6 flux books, tested INDEPENDENTLY of G30.
+//
+// G30 proves the per-pool cap correction behaves as declared, but it reads
+// only the nutrient FIELDS. It cannot detect a wrong flux book: the books are
+// not in its budget. These two gates test the books themselves, at the
+// per-(guild, pool[, source]) granularity the books are stored at. Aggregate
+// sums would not do: with four books per return, per-cell errors cancel in a
+// total and leave the aggregate looking right. Every check here is per cell.
+//
+// The four books live behind `getFluxSnapshot()`. The pre-0.6.3 snapshot
+// exposed ONE signed number under the name "returns", computed as
+// `min(cap, before + in) - before`, which goes NEGATIVE whenever a cell is
+// already above its own cap when a return arrives — and diffusion runs after
+// the regeneration clamp, so that is routine. Ceiling deletion was therefore
+// being reported to the reader as biological recycling.
+//
+// G31 (conservation, writer-isolated world)
+//   Diffusion and regeneration are switched off, leaving the nutrient budget
+//   with exactly one writer (a biotic return) and one draw (photosynthetic
+//   uptake):
+//     `nutrientRegen = 0`        no abiotic regeneration term
+//     `nutrientFloor = 0`        no floor write
+//     `nutrientDecay = 0`        no decay drain in the field step
+//     `recyclingRate = 0`        no unclamped broadcast
+//     `nutrientDiffusivity = 0`  the 5-point stencil degenerates to the
+//                                identity map, so `step()` copies scratch back
+//                                unchanged and moves nothing
+//   Eviction is bounded, NOT zero. Float32 storage can round a cell UP past
+//   its ceiling when a return drives it there, so a later return that arrives
+//   finds excess and reports it. The rounding envelope is 4*EPS32*accepted;
+//   field agreement is a separate check. G31 detects disagreement, not unclamped writes.
+//   It does not assert whether a return leaves a cell above cap — that is G30's
+//   job. The budget closes:
+//     final - initial  ==  accepted - eviction - photo uptake
+//   The left side is measured by the nutrient fields, the right side by the
+//   books. Two different instruments agreeing — to float32 write rounding,
+//   measured at ~1e-8 relative — is the evidence that `accepted` is the
+//   nutrient that actually entered, not a number that merely agrees with its
+//   own siblings.
+//
+// G32 (partition, saturation world with diffusion)
+//   The same books are then read in the arm where the ceiling actually bites,
+//   and the exact partition identity is asserted per (guild, pool, source):
+//     attempted == accepted + capLoss   (every unit offered is accounted for)
+//     all four books >= 0               (none is a signed blend)
+//   Non-negativity is held to double-precision cancellation (-1e-12 relative)
+//   rather than asserted exactly, because `capLoss = amount - acceptedAmt`
+//   cancels when the two nearly match and clamping it would break the exact
+//   identity above. And `eviction > 0` is REQUIRED, so the gate cannot pass by
+//   sitting on the trivial branch where the clamp never fires.
+// ============================================================================
+function gate31(): void {
+  type Snapshot = ReturnType<World['getFluxSnapshot']>;
+  // Detritus / sediment / litter — the three biotic mineralisation sources.
+  const BIOTIC_SOURCES = 3;
+
+  const sum2 = (a: number[][]): number => {
+    let s = 0;
+    for (const row of a) for (const v of row) s += v;
+    return s;
+  };
+  const sum3 = (a: number[][][]): number => {
+    let s = 0;
+    for (const g of a) s += sum2(g);
+    return s;
+  };
+
+  // ---- G31: writer-isolated conservation -------------------------------
+  const ISO_TICKS = 100;
+  const iso = new World({
+    config: {
+      founders: 300, worldW: 800, worldH: 800, seed: 4242, label: 'gates31',
+      nutrientRegen: 0, nutrientCyclic: false, nutrientFloor: 0,
+      nutrientDiffusivity: 0, nutrientDecay: 0, recyclingRate: 0,
+      excretionRate: 0.06, bioticMineralisation: 1.0, basalFoodPerCell: 0.5,
+    },
+  });
+  const poolTotal = (): number => {
+    let s = 0;
+    for (const f of iso.nutrients) s += f.total();
+    return s;
+  };
+  const initial = poolTotal();
+  for (let t = 0; t < ISO_TICKS; t++) iso.step();
+  const isoFlux = iso.getFluxSnapshot() as Snapshot;
+  const photo = sum2(isoFlux.photoUptake);
+  const accIso = sum2(isoFlux.excretionReturns.accepted)
+    + sum3(isoFlux.bioticMineralization.accepted);
+  const eviIso = sum2(isoFlux.excretionReturns.eviction)
+    + sum3(isoFlux.bioticMineralization.eviction);
+  const observedDelta = poolTotal() - initial;
+  const predictedDelta = accIso - eviIso - photo;
+  const scale = Math.abs(accIso) + Math.abs(photo);
+  // Residual tolerance is float32 field rounding, not a fitted margin: the
+  // pools are Float32Array, so every write rounds and the error accumulates
+  // over 100 ticks x 3 pools x every cell. 1e-4 relative is ~3 orders above
+  // single precision and still two orders below any real bookkeeping error.
+  const g31Residual = scale > 0 ? Math.abs(observedDelta - predictedDelta) / scale : Infinity;
+
+  // With diffusion off, excess is float32 storage rounding at the ceiling.
+  // Seeding is below cap (cap * jitter * 0.55 <= 0.7545 * cap).
+  // This checks book/field agreement, not whether the cap is enforced (G30).
+  const EPS32 = 2 ** -23;
+  const g31EvictionEnvelope = 4 * EPS32 * Math.abs(accIso) + 1e-12;
+  const g31EvictionBounded = eviIso <= g31EvictionEnvelope;
+
+  // Cap-loss is also tracked from the books (a return's refused amount).
+  const capLossIso = sum2(isoFlux.excretionReturns.capLoss)
+    + sum3(isoFlux.bioticMineralization.capLoss);
+
+  record('G31', 'flux books are a real measurement, not a self-consistent tally',
+    g31Residual <= 1e-4 && g31EvictionBounded && accIso > 0 && capLossIso > 0,
+    `writer-isolated world (no diffusion / regen / decay / broadcast / floor): ` +
+    `pool totals moved ${observedDelta.toFixed(6)}; the books predict ` +
+    `${predictedDelta.toFixed(6)} = accepted ${accIso.toFixed(6)} - photo ` +
+    `${photo.toFixed(6)} - eviction ${eviIso.toExponential(3)}. Relative ` +
+    `residual ${g31Residual.toExponential(2)}, limit 1e-4 (float32 field ` +
+    `rounding). Eviction ${eviIso.toExponential(3)} vs envelope ` +
+    `${g31EvictionEnvelope.toExponential(3)}; the current run's ceiling ` +
+    `exercise is tracked as capLoss=${capLossIso.toFixed(6)}. Accepted must ` +
+    `be > 0, else no return ran and this proves nothing.`);
+
+  // ---- G32: partition identity where the ceiling actually bites ---------
+  const SAT_TICKS = 120;
+  const sat = new World({
+    config: {
+      founders: 300, worldW: 800, worldH: 800, seed: 4242, label: 'gates32',
+      // G30's saturation arm verbatim: it is the arm where the ceiling bites.
+      nutrientRegen: 0.5, nutrientCyclic: false, nutrientFloor: 0,
+      producerCaptureScale: 0,
+      excretionRate: 0.06, bioticMineralisation: 1.0, basalFoodPerCell: 0.5,
+      recyclingRate: 0.02,
+    },
+  });
+  for (let t = 0; t < SAT_TICKS; t++) sat.step();
+  const s32 = sat.getFluxSnapshot();
+
+  let attempted = 0, accepted = 0, capLoss = 0, eviction = 0;
+  let worstResidual = 0;
+  // If a book cell goes negative — the exact defect the pre-0.6.3 snapshot
+  // shipped — report WHICH one. "3 negative cells" without an address is a
+  // failure a reader cannot act on. `label` is kept for that reason: it is
+  // dead weight in the pass path and the whole point in the fail path.
+  const negatives: { label: string; guild: number; pool: number; src: number; value: number }[] = [];
+  const note = (
+    label: string, g: number, p: number, src: number,
+    a: number, c: number, l: number, e: number,
+  ): void => {
+    attempted += a; accepted += c; capLoss += l; eviction += e;
+    const r = Math.abs(a - (c + l));
+    if (r > worstResidual) worstResidual = r;
+    for (const [book, v] of [['attempted', a], ['accepted', c], ['capLoss', l], ['eviction', e]] as const) {
+      if (v < 0) negatives.push({ label: `${label}.${book}`, guild: g, pool: p, src, value: v });
+    }
+  };
+  for (let g = 0; g < TROPHIC_COUNT; g++) {
+    for (let p = 0; p < NUTRIENT_COUNT; p++) {
+      note('excretion', g, p, -1,
+        s32.excretionReturns.attempted[g][p],
+        s32.excretionReturns.accepted[g][p],
+        s32.excretionReturns.capLoss[g][p],
+        s32.excretionReturns.eviction[g][p],
+      );
+      for (let src = 0; src < BIOTIC_SOURCES; src++) {
+        note('biotic', g, p, src,
+          s32.bioticMineralization.attempted[g][p][src],
+          s32.bioticMineralization.accepted[g][p][src],
+          s32.bioticMineralization.capLoss[g][p][src],
+          s32.bioticMineralization.eviction[g][p][src],
+        );
+      }
+    }
+  }
+  // Float summation over ~1e4 non-negative terms: 1e-6 x the total is generous
+  // and still two orders below any defect that would blend the books.
+  const partitionOk = worstResidual <= 1e-6 * Math.max(1, attempted);
+  // NON-NEGATIVITY, bounded rather than asserted exactly. `capLoss` is
+  // accumulated as `amount - acceptedAmt`, and when the two are nearly equal
+  // that subtraction cancels: a run of small excretion returns leaves cells
+  // around -1e-15. Clamping them to zero would break
+  // `attempted == accepted + capLoss`, which is the stronger claim, so the
+  // exact identity wins and non-negativity is held to double-precision
+  // cancellation instead. A genuine negative return — the pre-0.6.3 defect —
+  // is O(1), five orders above this bound.
+  const worstNeg = negatives.reduce<{ label: string; guild: number; pool: number; src: number; value: number } | null>(
+    (acc, n) => (acc === null || n.value < acc.value ? n : acc), null);
+  const negOk = worstNeg === null || worstNeg.value >= -1e-12 * Math.max(1, attempted);
+  const worstNegText = worstNeg === null
+    ? 'none'
+    : `${worstNeg.label}[guild ${worstNeg.guild}][pool ${worstNeg.pool}]` +
+      `[source ${worstNeg.src}] = ${worstNeg.value}`;
+
+  record('G32', 'return books partition exactly at every (guild, pool, source)',
+    negOk && partitionOk && eviction > 0 && attempted > 0,
+    `saturation arm with diffusion, ${SAT_TICKS} ticks: attempted ` +
+    `${attempted.toFixed(6)} == accepted ${accepted.toFixed(6)} + capLoss ` +
+    `${capLoss.toFixed(6)}; worst per-cell residual ` +
+    `${worstResidual.toExponential(2)}, limit 1e-6 x max(1, attempted). ` +
+    `${negatives.length} negative cells, limit -1e-12 x max(1, attempted); ` +
+    `worst: ${worstNegText}. Eviction total ${eviction.toFixed(6)} — the ` +
+    `bounded over-cap event; it must be > 0 or the ceiling never bit and the ` +
+    `identity was only tested on its trivial branch.`);
 }
 
 function main(): void {
@@ -2069,6 +2302,7 @@ function main(): void {
   gate28();
   gate29();
   gate30();
+  gate31();
 
   const failed = results.filter((r) => !r.pass);
   console.log(`\n${results.length - failed.length}/${results.length} checks passed`);

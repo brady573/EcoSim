@@ -4,8 +4,8 @@
  * READ-ONLY instrument: constructs a World, steps it, reads state, reports.
  * It draws no randomness beyond the World's own seeded stream, writes no
  * biological state, adds no knob, and changes no behaviour. Turning this probe
- * on or off must not move a single value of the simulation — that is the whole
- * claim, and it is asserted at the end of the run by the parity identity check.
+ * on or off must not move a single value of the simulation. See the structural
+ * nonperturbation argument and companion contract evidence below.
  *
  * What it measures, per living organism, at each sample tick:
  *   RESOURCES    local substrate pool (nutrient / detritus + sediment + litter)
@@ -28,11 +28,12 @@
  * companion evidence is contract check C1 (knobs-unset parity on both pinned
  * seeds), which passes unchanged with this probe present in the tree.
  *
- * Engine: ts-evo-poc/0.6.2
+ * Engine: ts-evo-poc/0.6.3
  * Run (compiled only): node build/trace/opportunityprobe.js [ticks] [seeds...]
  * Defaults: 3000 ticks; seeds 517,41001 (one coexistence, one failing arm).
  */
 import { World } from '../world/world.js';
+import { WORLD_ENGINE_VERSION } from '../world/version.js';
 import { TROPHIC } from '../bio/role.js';
 
 const TICKS = Number(process.argv[2] ?? 3000);
@@ -86,6 +87,7 @@ interface OpportunityInternals {
   readonly store: {
     count: number;
     id: Int32Array;
+    bornTick: Int32Array;
     x: Float32Array; y: Float32Array;
     energy: Float32Array; damage: Float32Array; age: Int32Array;
     senseRadius: Float32Array; maxStep: Float32Array;
@@ -103,6 +105,13 @@ const GUILD_OF = (g: number): 0 | 1 | 2 =>
 
 interface Organism {
   slot: number;
+  /** Stable identity for join across sample ticks. Captured at sample time,
+   *  because store.id[slot] gets reused once the slot is recycled. Reading
+   *  t stores.id[s.slot] at t+1 returns a different organism and silently
+   *  mismatches survival/dispersal joins.
+   */
+  id: number;
+  bornTick: number;
   guild: 0 | 1 | 2;
   x: number;
   y: number;
@@ -160,6 +169,7 @@ for (const seed of SEEDS) {
   const [pCols, pRows] = w.patchGridDims();
 
   console.log(`OPPORTUNITY/FITNESS OBSERVER seed=${seed} ticks=${TICKS}`);
+  console.log(`engine=${WORLD_ENGINE_VERSION} resolvedConfig=${JSON.stringify(w.config)}`);
   console.log(`  field=${fieldCols}x${fieldRows} patches=${pCols}x${pRows} (excretion effective config)`);
   console.log('  READ-ONLY: no knob set, no state written, no RNG drawn by the observer.');
   console.log('');
@@ -180,6 +190,8 @@ for (const seed of SEEDS) {
     for (let slot = 0; slot < w.store.count; slot++) {
       if (!w.aliveAt(slot)) continue;
       live.push({
+        id: w.store.id[slot],
+        bornTick: w.store.bornTick[slot],
         slot,
         guild: GUILD_OF(w.roleOf(slot).trophic),
         x: w.store.x[slot],
@@ -248,26 +260,51 @@ for (const seed of SEEDS) {
     }
 
     // --- link to the PREVIOUS sample: survival, energy change, dispersal -----
+    // Key by the id captured at sample time, NOT by slot: slot reuse across
+    // recycled slots is exactly the bug this change closes.
     const prevById = new Map<number, Sample>();
-    for (const s of prevSample) prevById.set(w.store.id[s.slot], s);
+    for (const s of prevSample) prevById.set(s.id, s);
     const nowById = new Map<number, Sample>();
-    for (const s of sample) nowById.set(w.store.id[s.slot], s);
+    for (const s of sample) nowById.set(s.id, s);
+    if (prevById.size !== prevSample.length || nowById.size !== sample.length) {
+      throw new Error('duplicate organism identity in opportunity sample');
+    }
 
-    const survivors: Sample[] = [];
+    // Survivors (same id in both samples), newborns (only this sample) and
+    // the dead (only previous sample) are reported explicitly so the join
+    // quality is visible, not only the surviving subset.
+    const survivors: number[] = [];
+    const newborns: number[] = [];
+    const dead: number[] = [];
+    const moved: number[] = [];
     const gains: number[] = [];
-    for (const [id, before] of prevById) {
+
+    for (const [id] of prevById) {
       const after = nowById.get(id);
-      if (!after) continue;              // died within the interval
-      survivors.push(after);
+      if (after) survivors.push(id); else dead.push(id);
+    }
+    for (const [id] of nowById) {
+      if (!prevById.has(id)) newborns.push(id);
+    }
+    // Same ID must refer to the same birth, not a recycled slot's new occupant.
+    for (const id of survivors) {
+      if (prevById.get(id)!.bornTick !== nowById.get(id)!.bornTick) {
+        throw new Error('opportunity survivor identity refers to different births');
+      }
+    }
+    for (const id of survivors) {
+      const before = prevById.get(id)!;
+      const after = nowById.get(id)!;
       gains.push(after.energy - (prevEnergy.get(id) ?? before.energy));
     }
-
-    const moved: number[] = [];
     for (const [id, now] of nowById) {
       const before = prevPos.get(id);
-      if (!before) continue;             // newborn this interval: no displacement
+      if (!before) continue;             // newborn: no displacement yet
       moved.push(Math.hypot(now.x - before.x, now.y - before.y));
     }
+
+    const survivorSet = new Set(survivors);
+    // moved samples by id below
 
     // --- report -------------------------------------------------------------
     console.log(`  t=${t} live=${live.length} ` +
@@ -290,12 +327,20 @@ for (const seed of SEEDS) {
     if (prevSample.length) {
       console.log(`    interval (${SAMPLE_EVERY}t): survived ${survivors.length}/${prevSample.length} ` +
         `(${num((survivors.length / Math.max(1, prevSample.length)) * 100)}%) ` +
+        `newborns=${newborns.length} dead=${dead.length} ` +
         `mean dE=${num(mean(gains))} mean |dispersal|=${num(mean(moved))} max=${num(Math.max(0, ...moved))}`);
     }
 
     // Per-guild opportunity -> fitness correlation (Spearman-style rank split).
+    const gainById = new Map<number, number>();
+    for (const id of survivors) {
+      const before = prevById.get(id);
+      const after = nowById.get(id)!;
+      gainById.set(id, after.energy - (prevEnergy.get(id) ?? before!.energy));
+    }
     for (let g = 0 as 0 | 1 | 2; g <= 2; g = (g + 1) as 0 | 1 | 2) {
-      const mine = sample.filter((s) => s.guild === g);
+      // Rank opportunity at the START of the interval, then observe its future.
+      const mine = prevSample.filter((s) => s.guild === g);
       if (mine.length < 8) continue;
       const resourceAxis = g === 0 ? 'nutrient' : g === 1 ? 'prey' : 'detritus';
       const sorted = [...mine].sort((a, b) =>
@@ -305,14 +350,12 @@ for (const seed of SEEDS) {
       const top = sorted.slice(0, q);
       const bottom = sorted.slice(sorted.length - q);
 
-      // Fitness of each quartile over the NEXT interval.
+      // Fitness between the previous sample and this sample; newborns excluded.
       const fit = (qs: Sample[]) => {
-        const alive = qs.filter((s) => survivors.some((v) => v.slot === s.slot)).length;
-        const dE = mean(qs.map((s) => {
-          const idx = prevSample.findIndex((p) => p.slot === s.slot);
-          return idx >= 0 ? gains[idx] ?? 0 : 0;
-        }));
-        return { alive: alive / qs.length, dE };
+        const surviving = qs.filter((s) => survivorSet.has(s.id));
+        const dE = surviving.length
+          ? mean(surviving.map((s) => gainById.get(s.id)!)) : NaN;
+        return { alive: surviving.length / qs.length, dE, n: qs.length, energyN: surviving.length };
       };
       const hi = fit(top);
       const lo = fit(bottom);
@@ -327,6 +370,7 @@ for (const seed of SEEDS) {
       console.log(`    ${GUILD_NAME[g]} n=${mine.length} ` +
         `${resourceAxis}: hi=${num(meanTop)} lo=${num(meanBot)} | ` +
         `survival hi=${num(hi.alive * 100)}% lo=${num(lo.alive * 100)}% | ` +
+        `quartileN hi=${hi.n} lo=${lo.n} energyN hi=${hi.energyN} lo=${lo.energyN} | ` +
         `dE hi=${num(hi.dE)} lo=${num(lo.dE)} | ` +
         `competitors=${num(meanComp)} threats=${num(meanThreat)} ` +
         `cellCrowd=${num(meanCrowd)} damage=${num(meanDmg)}`);
@@ -334,8 +378,8 @@ for (const seed of SEEDS) {
 
     // --- carry forward -------------------------------------------------------
     prevSample = sample;
-    prevPos = new Map(sample.map((s) => [w.store.id[s.slot], { x: s.x, y: s.y, guild: s.guild }]));
-    prevEnergy = new Map(sample.map((s) => [w.store.id[s.slot], s.energy]));
+    prevPos = new Map(sample.map((s) => [s.id, { x: s.x, y: s.y, guild: s.guild }]));
+    prevEnergy = new Map(sample.map((s) => [s.id, s.energy]));
   }
 
   console.log('');

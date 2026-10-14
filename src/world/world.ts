@@ -172,6 +172,51 @@ export interface PhaseTimings {
   total: number;
 }
 
+/**
+ * The four books kept for every biotic nutrient RETURN, per (guild, pool[,
+ * source]).
+ *
+ * They exist because the pre-0.6.3 measurement collapsed two unrelated events
+ * into one signed number. `ScalarField.step()` diffusion runs after the
+ * regeneration clamp, so a cell routinely sits above its own per-pool cap when
+ * a return arrives; the old `min(cap, before + in) - before` then goes negative
+ * and reports ceiling deletion as biological recycling.
+ *
+ *   attempted  what the process meant to deliver   (always >= 0)
+ *   accepted   what actually entered the pool      (always >= 0)
+ *   capLoss    attempted - accepted, refused by the cap (always >= 0)
+ *   eviction   pre-existing excess the clamp deleted (always >= 0)
+ *
+ * Two exact identities make the set auditable rather than merely plausible:
+ * `accepted - eviction` is the observed pool delta, and `accepted + capLoss` is
+ * `attempted`. Both hold per return and therefore in aggregate.
+ */
+export interface ReturnBooks<T> {
+  /** What the process meant to deliver. Always >= 0. */
+  attempted: T;
+  /** What actually entered the pool. Always >= 0. */
+  accepted: T;
+  /**
+   * attempted - accepted, refused by the per-pool ceiling.
+   *
+   * Accumulated as the subtraction itself, so it can land a few ulps below
+   * zero when the two nearly match (measured worst ~-1e-15 over a full run).
+   * It is NOT clamped, because clamping would break
+   * `attempted == accepted + capLoss`, and the exact identity is the stronger
+   * claim. G32 holds non-negativity to double-precision cancellation for the
+   * same reason.
+   */
+  capLoss: T;
+  /**
+   * Pre-existing excess the clamp deleted. Always >= 0, and never biology's
+   * doing. Non-zero means the cell was already over its ceiling when the
+   * return arrived: either because diffusion ran it there, or because float32 storage
+   * rounded a clamped cell a fraction of an ulp past the ceiling. (Seeding
+   * can never create over-cap: seed = cap * jitter * 0.55 with jitter <= 1.3719.)
+   */
+  eviction: T;
+}
+
 export interface WorldSnapshot {
   tick: number;
   population: number;
@@ -557,32 +602,79 @@ export class World {
    * Returns plain objects for external probe consumption.
    * Layouts:
    *   photoUptake[guild][pool]
-   *   excretionReturns[guild][pool]
-   *   bioticMineralization[guild][pool][source]  source: 0=sediment, 1=detritus, 2=litter
+   *   excretionReturns: ReturnBooks (guild x pool x {attempted, accepted,
+   *       capLoss, eviction})
+   *   bioticMineralization: ReturnBooks (guild x pool x source x {..})
    *   abioticRegen[pool]
    *   abioticMineralization[pool][source]  source: 0=detritus, 1=sediment, 2=litter
    */
+  /**
+   * The four books kept for every biotic nutrient RETURN, grouped so they can
+   * only be read together.
+   *
+   * The grouping is the point. The pre-0.6.3 snapshot exposed ONE signed number
+   * per (guild, pool[, source]) under the name "returns", which forced any
+   * reader to treat a quantity that can be negative as a biological return.
+   * Carrying all four side by side makes that misreading structurally harder
+   * and keeps the two exact identities visible:
+   *
+   *   observed delta == accepted - eviction
+   *   attempted      == accepted + capLoss
+   *
+   * `T` is `number[][]` for excretion (guild x pool) and `number[][][]` for
+   * biotic mineralisation (guild x pool x source).
+   */
   getFluxSnapshot(): {
     photoUptake: number[][];
-    excretionReturns: number[][];
-    bioticMineralization: number[][][];
+    excretionReturns: ReturnBooks<number[][]>;
+    bioticMineralization: ReturnBooks<number[][][]>;
     abioticRegen: number[];
     abioticMineralization: number[][];
   } {
     const photoUptake: number[][] = [];
-    const excretionReturns: number[][] = [];
-    const bioticMineralization: number[][][] = [];
+    const excretionReturns: ReturnBooks<number[][]> = {
+      attempted: [], accepted: [], capLoss: [], eviction: [],
+    };
+    const bioticMineralization: ReturnBooks<number[][][]> = {
+      attempted: [], accepted: [], capLoss: [], eviction: [],
+    };
     for (let g = 0; g < TROPHIC_COUNT; g++) {
       photoUptake[g] = [];
-      excretionReturns[g] = [];
-      bioticMineralization[g] = [];
+      excretionReturns.attempted[g] = [];
+      excretionReturns.accepted[g] = [];
+      excretionReturns.capLoss[g] = [];
+      excretionReturns.eviction[g] = [];
+      bioticMineralization.attempted[g] = [];
+      bioticMineralization.accepted[g] = [];
+      bioticMineralization.capLoss[g] = [];
+      bioticMineralization.eviction[g] = [];
       for (let p = 0; p < NUTRIENT_COUNT; p++) {
         photoUptake[g][p] = this.photoUptakeGuildPool[g * NUTRIENT_COUNT + p];
-        excretionReturns[g][p] = this.excretionReturnsGuildPool[g * NUTRIENT_COUNT + p];
-        bioticMineralization[g][p] = [
-          this.bioticMineralizationGuildPoolSource[g * NUTRIENT_COUNT * 3 + p * 3 + 0],
-          this.bioticMineralizationGuildPoolSource[g * NUTRIENT_COUNT * 3 + p * 3 + 1],
-          this.bioticMineralizationGuildPoolSource[g * NUTRIENT_COUNT * 3 + p * 3 + 2],
+        const eo = g * NUTRIENT_COUNT + p;
+        excretionReturns.attempted[g][p] = this.excretionAttemptedGuildPool[eo];
+        excretionReturns.accepted[g][p] = this.excretionReturnsGuildPool[eo];
+        excretionReturns.capLoss[g][p] = this.excretionCapLossGuildPool[eo];
+        excretionReturns.eviction[g][p] = this.excretionEvictionGuildPool[eo];
+        const bo = g * NUTRIENT_COUNT * 3 + p * 3;
+        bioticMineralization.attempted[g][p] = [
+          this.bioticAttemptedGuildPoolSource[bo + 0],
+          this.bioticAttemptedGuildPoolSource[bo + 1],
+          this.bioticAttemptedGuildPoolSource[bo + 2],
+        ];
+        bioticMineralization.accepted[g][p] = [
+          this.bioticMineralizationGuildPoolSource[bo + 0],
+          this.bioticMineralizationGuildPoolSource[bo + 1],
+          this.bioticMineralizationGuildPoolSource[bo + 2],
+        ];
+        bioticMineralization.capLoss[g][p] = [
+          this.bioticCapLossGuildPoolSource[bo + 0],
+          this.bioticCapLossGuildPoolSource[bo + 1],
+          this.bioticCapLossGuildPoolSource[bo + 2],
+        ];
+        bioticMineralization.eviction[g][p] = [
+          this.bioticEvictionGuildPoolSource[bo + 0],
+          this.bioticEvictionGuildPoolSource[bo + 1],
+          this.bioticEvictionGuildPoolSource[bo + 2],
         ];
       }
     }
@@ -718,18 +810,45 @@ export class World {
    */
   private mineralisedCell = new Float64Array(0);
 
-  // --- Per-pool, per-guild flux measurement (Owner handoff Task 1) ----------
-  // These accumulate across the run. Access via getFluxSnapshot().
-  // Layouts:
+  // Layouts (per-pool, per-guild flux measurement; access via getFluxSnapshot()):
   //   photoUptake[guild * NUTRIENT_COUNT + pool]
-  //   excretionReturns[guild * NUTRIENT_COUNT + pool]
-  //   bioticMineralization[guild * NUTRIENT_COUNT * 3 + pool * 3 + source]
+  //   excretion{Attempted,Returns,CapLoss,Eviction}[guild * NUTRIENT_COUNT + pool]
+  //   biotic{Attempted,Mineralization,CapLoss,Eviction}[guild * NUTRIENT_COUNT * 3 + pool * 3 + source]
   //     source: 0=sediment, 1=detritus, 2=litter
   //   abioticRegen[pool]
   //   abioticMineralization[pool * 3 + source]  source: 0=detritus, 1=sediment, 2=litter
   private photoUptakeGuildPool = new Float64Array(TROPHIC_COUNT * NUTRIENT_COUNT);
+  /**
+   * What a biotic RETURN actually delivered into the pool (>= 0 always).
+   *
+   * This array used to book `min(cap, before + in) - before`, a single number
+   * for two unrelated events. Diffusion runs after the regeneration clamp, so
+   * a cell beside a richer one routinely sits ABOVE its own per-pool cap when a
+   * return arrives; in that state the expression is NEGATIVE, because the clamp
+   * removes pre-existing excess and the incoming amount contributes nothing.
+   * Reporting that as "mineralised nutrient" credited biology with nutrient it
+   * never produced.
+   *
+   * `accepted` is the honest quantity: what entered the pool. The other three
+   * books below separate what the old tally had blended together, and give an
+   * exact conservation identity per return:
+   *
+   *   observed delta == accepted - eviction
+   *   attempted      == accepted + capLoss
+   */
   private excretionReturnsGuildPool = new Float64Array(TROPHIC_COUNT * NUTRIENT_COUNT);
   private bioticMineralizationGuildPoolSource = new Float64Array(TROPHIC_COUNT * NUTRIENT_COUNT * 3);
+  // Attempted / cap-loss / eviction for the same two families. `accepted` is
+  // the two arrays above.
+  //   excretion*   [guild * NUTRIENT_COUNT + pool]
+  //   biotic*      [guild * NUTRIENT_COUNT * 3 + pool * 3 + source]
+  //                source: 0=sediment, 1=detritus, 2=litter
+  private excretionAttemptedGuildPool = new Float64Array(TROPHIC_COUNT * NUTRIENT_COUNT);
+  private excretionCapLossGuildPool = new Float64Array(TROPHIC_COUNT * NUTRIENT_COUNT);
+  private excretionEvictionGuildPool = new Float64Array(TROPHIC_COUNT * NUTRIENT_COUNT);
+  private bioticAttemptedGuildPoolSource = new Float64Array(TROPHIC_COUNT * NUTRIENT_COUNT * 3);
+  private bioticCapLossGuildPoolSource = new Float64Array(TROPHIC_COUNT * NUTRIENT_COUNT * 3);
+  private bioticEvictionGuildPoolSource = new Float64Array(TROPHIC_COUNT * NUTRIENT_COUNT * 3);
   private abioticRegenPool = new Float64Array(NUTRIENT_COUNT);
   private abioticMineralizationPoolSource = new Float64Array(NUTRIENT_COUNT * 3);
 
@@ -1399,6 +1518,115 @@ export class World {
     return this.config.nutrientPerCell
       * this.habitat.fertility.data[ci]
       * (this.config.nutrientCapacity[nIdx] ?? 1);
+  }
+
+  /**
+   * Apply one biotic nutrient RETURN through the per-pool ceiling, booking the
+   * four quantities separately.
+   *
+   * WHY FOUR BOOKS. The return sites used to book `min(cap, before + in) -
+   * before` as "nutrient returned". That single number conflated two unrelated
+   * events, because `ScalarField.step()` diffusion runs AFTER the regeneration
+   * clamp and leaves low-fertility cells sitting ABOVE their own per-pool cap
+   * when a return arrives. In that state the expression is NEGATIVE: the clamp
+   * removes pre-existing excess and the incoming amount adds nothing. A reader
+   * could not tell "biology recycled this much" from "the ceiling deleted that
+   * much", and the aggregate could even net to a value no individual return
+   * ever produced.
+   *
+   * The books, per (guild, pool[, source]):
+   *   attempted  what the process meant to deliver          (always >= 0)
+   *   accepted   what actually entered the pool             (always >= 0)
+   *   capLoss    attempted - accepted, refused by the cap   (>= 0 up to
+   *              double-precision cancellation: the subtraction itself is
+   *              accumulated, and clamping it would break the identity below)
+   *   eviction   pre-existing excess the clamp removed      (always >= 0)
+   *
+   * Two identities hold EXACTLY in the float64 clamp arithmetic, per return
+   * and therefore per accumulated total, which is what makes the measurement
+   * auditable rather than merely plausible:
+   *   observed delta == accepted - eviction
+   *   attempted      == accepted + capLoss
+   *
+   * `observed delta` is the delta the clamp COMPUTED. The field is
+   * Float32Array, so what is actually stored rounds to single precision; a
+   * cell clamped exactly to the ceiling can therefore sit a fraction of an ulp
+   * above it and the next return will correctly report that fraction as
+   * eviction. G31 measures that effect end-to-end (~1e-8 relative against the
+   * pool budget) rather than asserting it away.
+   *
+   * `eviction` is the honest name for the quantity the old tally mixed in: it
+   * is nutrient the ceiling deleted, not nutrient biology produced. At declared
+   * settings no cell reaches its ceiling THROUGH A RETURN either, so accepted
+   * reproduces the pre-correction figure exactly for every return. A non-zero
+   * eviction elsewhere means the cell was already over its cap when the return
+   * arrived: either because diffusion put it there, or because float32 storage
+   * rounded a clamped cell a fraction of an ulp past the ceiling. See G31
+   * (writer-isolated world) which bounds the quantisation term.
+   *
+   * `data` is passed rather than re-read so the caller's local alias and the
+   * written array cannot diverge, and it is mutated in place.
+   */
+  private returnThroughCeiling(
+    data: Float32Array,
+    nIdx: number,
+    ci: number,
+    amount: number,
+    off: number,
+    accepted: Float64Array,
+    attempted: Float64Array,
+    capLoss: Float64Array,
+    eviction: Float64Array,
+  ): void {
+    const cap = this.nutrientCapAt(nIdx, ci);
+    const before = data[ci];
+    const after = Math.min(cap, before + amount);
+    data[ci] = after;
+    // Zero when the cell was already over its ceiling: the incoming amount is
+    // then refused in full and the clamp removes pre-existing excess instead.
+    const acceptedAmt = after > before ? after - before : 0;
+    attempted[off] += amount;
+    accepted[off] += acceptedAmt;
+    capLoss[off] += amount - acceptedAmt;
+    eviction[off] += before > after ? before - after : 0;
+  }
+
+  /**
+   * One biotic-mineralisation return: split `returned` across the three pools,
+   * push each share through the per-pool ceiling, and book all four flux
+   * quantities for the right (guild, pool, source).
+   *
+   * Factored because the sediment / detritus / litter sites were three copies
+   * of this arithmetic, differing only in `source`. Keeping one copy is what
+   * makes the per-source books trustworthy: a fix applied to two of the three
+   * copies is exactly the class of defect this method exists to prevent.
+   *
+   * `source`: 0=sediment, 1=detritus, 2=litter.
+   */
+  private mineraliseThroughCeiling(
+    slot: number,
+    ci: number,
+    nutA: Float32Array,
+    nutB: Float32Array,
+    nutC: Float32Array,
+    returned: number,
+    source: 0 | 1 | 2,
+  ): void {
+    const perPool = returned / NUTRIENT_COUNT;
+    const g = this.roleOf(slot).trophic;
+    const base = (g * NUTRIENT_COUNT * 3 + source);
+    // Offsets step by 3 because the source dimension is the innermost one.
+    this.returnThroughCeiling(nutA, 0, ci, perPool, base + 0 * 3,
+      this.bioticMineralizationGuildPoolSource, this.bioticAttemptedGuildPoolSource,
+      this.bioticCapLossGuildPoolSource, this.bioticEvictionGuildPoolSource);
+    this.returnThroughCeiling(nutB, 1, ci, perPool, base + 1 * 3,
+      this.bioticMineralizationGuildPoolSource, this.bioticAttemptedGuildPoolSource,
+      this.bioticCapLossGuildPoolSource, this.bioticEvictionGuildPoolSource);
+    this.returnThroughCeiling(nutC, 2, ci, perPool, base + 2 * 3,
+      this.bioticMineralizationGuildPoolSource, this.bioticAttemptedGuildPoolSource,
+      this.bioticCapLossGuildPoolSource, this.bioticEvictionGuildPoolSource);
+    this.bioticMineralised += returned;
+    this.mineralisedCell[ci] += returned;
   }
 
   private writeRole(slot: number, r: RoleReadout): void {
@@ -2238,21 +2466,18 @@ export class World {
         const excreted = (basal * cfg.excretionRate * 6) / NUTRIENT_COUNT;
         // Per-pool ceilings, NOT one flat cap: pools B and C have multipliers
         // below 1.0, so a shared flat cap would let a return fill them above
-        // their declared capacity. See nutrientCapAt for the measurement.
-        const capA = this.nutrientCapAt(0, ci);
-        const capB = this.nutrientCapAt(1, ci);
-        const capC = this.nutrientCapAt(2, ci);
-        const beforeA = nutA[ci];
-        const beforeB = nutB[ci];
-        const beforeC = nutC[ci];
-        nutA[ci] = Math.min(capA, nutA[ci] + excreted);
-        nutB[ci] = Math.min(capB, nutB[ci] + excreted);
-        nutC[ci] = Math.min(capC, nutC[ci] + excreted);
-        // Flux measurement: excretion returns per guild per pool
+        // their declared capacity. See nutrientCapAt / returnThroughCeiling.
         const g = this.roleOf(slot).trophic;
-        this.excretionReturnsGuildPool[g * NUTRIENT_COUNT + 0] += nutA[ci] - beforeA;
-        this.excretionReturnsGuildPool[g * NUTRIENT_COUNT + 1] += nutB[ci] - beforeB;
-        this.excretionReturnsGuildPool[g * NUTRIENT_COUNT + 2] += nutC[ci] - beforeC;
+        const off = g * NUTRIENT_COUNT;
+        this.returnThroughCeiling(nutA, 0, ci, excreted, off + 0,
+          this.excretionReturnsGuildPool, this.excretionAttemptedGuildPool,
+          this.excretionCapLossGuildPool, this.excretionEvictionGuildPool);
+        this.returnThroughCeiling(nutB, 1, ci, excreted, off + 1,
+          this.excretionReturnsGuildPool, this.excretionAttemptedGuildPool,
+          this.excretionCapLossGuildPool, this.excretionEvictionGuildPool);
+        this.returnThroughCeiling(nutC, 2, ci, excreted, off + 2,
+          this.excretionReturnsGuildPool, this.excretionAttemptedGuildPool,
+          this.excretionCapLossGuildPool, this.excretionEvictionGuildPool);
       }
 
       // Crowding penalty: local density costs energy via interference.
@@ -2408,22 +2633,9 @@ export class World {
             if (this.bioticMineraliser[slot]) {
               const returned = taken * cfg.bioticMineralisation;
               // Returned across all pools so recycling is not pool-specific.
-              // Per-pool ceilings, not one flat cap: see nutrientCapAt.
-              const perPool = returned / NUTRIENT_COUNT;
-              const beforeA = nutA[ci];
-              const beforeB = nutB[ci];
-              const beforeC = nutC[ci];
-              nutA[ci] = Math.min(this.nutrientCapAt(0, ci), nutA[ci] + perPool);
-              nutB[ci] = Math.min(this.nutrientCapAt(1, ci), nutB[ci] + perPool);
-              nutC[ci] = Math.min(this.nutrientCapAt(2, ci), nutC[ci] + perPool);
-              this.bioticMineralised += returned;
-              this.mineralisedCell[ci] += returned;
-              // Flux measurement: biotic mineralization per guild per pool per source (0=sediment)
-              const g = this.roleOf(slot).trophic;
-              const base = g * NUTRIENT_COUNT * 3;
-              this.bioticMineralizationGuildPoolSource[base + 0 * 3 + 0] += nutA[ci] - beforeA;
-              this.bioticMineralizationGuildPoolSource[base + 1 * 3 + 0] += nutB[ci] - beforeB;
-              this.bioticMineralizationGuildPoolSource[base + 2 * 3 + 0] += nutC[ci] - beforeC;
+              // Per-pool ceilings, not one flat cap: see returnThroughCeiling,
+              // which also books attempted / accepted / cap-loss / eviction.
+              this.mineraliseThroughCeiling(slot, ci, nutA, nutB, nutC, returned, 0);
             }
           }
         }
@@ -2475,22 +2687,8 @@ export class World {
             if (this.bioticMineraliser[slot]) {
               const returned = taken * cfg.bioticMineralisation;
               // Returned across all pools so recycling is not pool-specific.
-              // Per-pool ceilings, not one flat cap: see nutrientCapAt.
-              const perPool = returned / NUTRIENT_COUNT;
-              const beforeA = nutA[ci];
-              const beforeB = nutB[ci];
-              const beforeC = nutC[ci];
-              nutA[ci] = Math.min(this.nutrientCapAt(0, ci), nutA[ci] + perPool);
-              nutB[ci] = Math.min(this.nutrientCapAt(1, ci), nutB[ci] + perPool);
-              nutC[ci] = Math.min(this.nutrientCapAt(2, ci), nutC[ci] + perPool);
-              this.bioticMineralised += returned;
-              this.mineralisedCell[ci] += returned;
-              // Flux measurement: biotic mineralization per guild per pool per source (1=detritus)
-              const g = this.roleOf(slot).trophic;
-              const base = g * NUTRIENT_COUNT * 3;
-              this.bioticMineralizationGuildPoolSource[base + 0 * 3 + 1] += nutA[ci] - beforeA;
-              this.bioticMineralizationGuildPoolSource[base + 1 * 3 + 1] += nutB[ci] - beforeB;
-              this.bioticMineralizationGuildPoolSource[base + 2 * 3 + 1] += nutC[ci] - beforeC;
+              // Per-pool ceilings, not one flat cap: see returnThroughCeiling.
+              this.mineraliseThroughCeiling(slot, ci, nutA, nutB, nutC, returned, 1);
             }
           }
         }
@@ -2558,21 +2756,8 @@ export class World {
           if (this.bioticMineraliser[slot]) {
             const returned = taken * cfg.bioticMineralisation;
             // Per-pool ceilings, not one flat cap: see nutrientCapAt.
-            const perPool = returned / NUTRIENT_COUNT;
-            const beforeA = nutA[ci];
-            const beforeB = nutB[ci];
-            const beforeC = nutC[ci];
-            nutA[ci] = Math.min(this.nutrientCapAt(0, ci), nutA[ci] + perPool);
-            nutB[ci] = Math.min(this.nutrientCapAt(1, ci), nutB[ci] + perPool);
-            nutC[ci] = Math.min(this.nutrientCapAt(2, ci), nutC[ci] + perPool);
-            this.bioticMineralised += returned;
-            this.mineralisedCell[ci] += returned;
-            // Flux measurement: biotic mineralization per guild per pool per source (2=litter)
-            const g = this.roleOf(slot).trophic;
-            const base = g * NUTRIENT_COUNT * 3;
-            this.bioticMineralizationGuildPoolSource[base + 0 * 3 + 2] += nutA[ci] - beforeA;
-            this.bioticMineralizationGuildPoolSource[base + 1 * 3 + 2] += nutB[ci] - beforeB;
-            this.bioticMineralizationGuildPoolSource[base + 2 * 3 + 2] += nutC[ci] - beforeC;
+            // Per-pool ceilings, not one flat cap: see returnThroughCeiling.
+            this.mineraliseThroughCeiling(slot, ci, nutA, nutB, nutC, returned, 2);
           }
         }
       } else {
@@ -2898,6 +3083,11 @@ export class World {
         // single parent, so mating never mixed genes.
         this.queueBirth(a, 1, laNew, b);
         this.queueBirth(b, 1, lbNew, a);
+        const probe = this.repro;
+        if (probe !== null) {
+          probe.fired(a, this.roleOf(a).trophic, true);
+          probe.fired(b, this.roleOf(b).trophic, true);
+        }
       },
       (as, ds) => {
         // Contact cost for a scavenge-contest winner. The energy transfer itself
@@ -3217,6 +3407,7 @@ export class World {
       this.birthDrops++;
     }
     const parentId = this.store.id[parentSlot];
+    this.repro?.queued?.(this.roleOf(parentSlot).trophic, mateSlot >= 0, count);
     for (let i = 0; i < count; i++) {
       this.birthParentSlot[this.pendingBirths] = parentSlot;
       this.birthCount[this.pendingBirths] = count;
@@ -3540,6 +3731,7 @@ export class World {
       // (recombinant) birth. Cannot affect simulation flow.
       {
         const newbornGuild = store.role[slot * ROLE_STRIDE];
+        this.repro?.placed?.(newbornGuild, this.birthMateSlot[q] >= 0);
         if (newbornGuild >= 0 && newbornGuild < 3) {
           const pathway = override >= 0 ? 1 : 0;
           this.birthsByGuildPath[newbornGuild * 2 + pathway]++;

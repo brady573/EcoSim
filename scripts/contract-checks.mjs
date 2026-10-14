@@ -110,15 +110,21 @@ function probeArgs(over = {}) {
 }
 
 /**
- * Knobs-unset parity, live pin for engine ts-evo-poc/0.6.2.
+ * Knobs-unset parity, live pin for engine ts-evo-poc/0.6.3.
  *
- * 0.6.2 re-pin (radiationMultiplier + mating logic fixes): 517 -> 882/170/65,
- * 24601 -> 563/279/90, each measured twice byte-identical on Node v24.21.0.
- * Fixes: (1) radiationMultiplier dormant coupling inverted intent at 0 dormancy;
- * (2) mating logic now only skips asexual for confirmed successful matings,
- * restoring asexual fallback. Direction: consumers and decomposers higher at
- * knobs-unset defaults (asexual fallback increases recruitment); producers
- * slightly higher.
+ * Under 0.6.3 the live pair is UNCHANGED and was NOT re-pinned. Relative to
+ * the reviewed head, nutrient-write arithmetic is unchanged; the four-book
+ * instrumentation does not change biology. The earlier per-pool cap fix was
+ * made on source snapshots still labelled 0.6.2; 0.6.3 identifies the corrected
+ * source and repaired measurement contract, with no new retirement pair.
+ *
+ * The live pair itself was re-pinned under 0.6.2 (radiationMultiplier + mating
+ * logic fixes): 517 -> 882/170/65, 24601 -> 563/279/90, each measured twice
+ * byte-identical on Node v24.21.0. Fixes: (1) radiationMultiplier dormant
+ * coupling inverted intent at 0 dormancy; (2) mating logic now only skips
+ * asexual for confirmed successful matings, restoring asexual fallback.
+ * Direction: consumers and decomposers higher at knobs-unset defaults (asexual
+ * fallback increases recruitment); producers slightly higher.
  *
  * Retired pairs live beside the live ones in PINNED below (never overwritten):
  *   - 813/135/81, 542/234/109 @ 0.6.1 — fasting tolerance changes declared
@@ -145,7 +151,8 @@ function probeArgs(over = {}) {
  * AGENTS.md for the per-version status (0.5.0 figures describe a LEAKY
  * engine; 0.6.0 figures describe the instantaneous-damage engine; 0.6.1
  * figures describe the fasting-tolerance engine; 0.6.2 figures describe the
- * radiationMultiplier+mating-fix engine).
+ * radiationMultiplier+mating-fix engine; 0.6.3 figures describe the
+ * per-pool-cap-corrected returns engine).
  */
 const PINNED = [
   { seed: 517, want: [882, 170, 65], retired: '813/135/81 @ 0.6.1; 808/159/58 @ 0.6.0; 881/187/73 @ 0.4.1; 778/169/63 @ 0.5.0 pre-P0-1' },
@@ -160,8 +167,8 @@ if (!hasBuild) {
     const got = lastRow(runProbe(probeArgs({ seed: p.seed, ticks: 500 })));
     const ok = got !== null && got.prod === p.want[0] && got.cons === p.want[1] && got.dec === p.want[2];
     check('C1', `parity seed ${p.seed} (knobs unset)`, ok,
-      ok ? `P${got.prod}/C${got.cons}/D${got.dec} matches pinned (0.6.2; retired ${p.retired})`
-         : `expected P${p.want.join('/C')}/D${p.want[2]} (0.6.2), got ${fmt(got)}`);
+      ok ? `P${got.prod}/C${got.cons}/D${got.dec} matches pinned (0.6.3: same pair as 0.6.2 — cap fix unreachable at declared defaults; retired ${p.retired})`
+         : `expected P${p.want.join('/C')}/D${p.want[2]} (0.6.3), got ${fmt(got)}`);
   }
 }
 
