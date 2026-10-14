@@ -1357,6 +1357,38 @@ export class World {
     return resolveCapacity(this.store.phen[slot], this.store.trait(slot, TRAIT.STORAGE_CAPACITY));
   }
 
+  /**
+   * Per-pool nutrient ceiling for a cell: the SAME quantity seeding
+   * (world.ts seeding loop) and abiotic regeneration clamp to, namely
+   * `nutrientPerCell * fertility * nutrientCapacity[nIdx]`.
+   *
+   * The nutrient RETURN paths (excretion and the three biotic-mineralisation
+   * sites) used to clamp to a FLAT `nutrientPerCell * fertility` with the
+   * per-pool multiplier omitted. Pool A's multiplier is 1.0 so it was
+   * unaffected, but pools B (0.78) and C (0.62) could be filled above their
+   * declared capacity by a return — a silent un-cap of exactly the two pools
+   * the per-pool multipliers exist to keep co-limiting.
+   *
+   * Measured reachability (src/trace/capsreach.ts): under the declared
+   * excretion-return config the pools never approach any ceiling, so the
+   * defect is NOT reached there (0 excess in 3000 ticks). Under a saturation
+   * arm it IS reached, with B and C exceeding their per-pool caps by 150x and
+   * 240x the diffusion baseline. Routing every writer through this one helper
+   * is the smallest correction that makes the cap semantics uniform.
+   *
+   * NOTE on scope: this makes the return clamp agree with the declared
+   * per-pool semantics. It does NOT make the per-pool cap a hard invariant —
+   * `ScalarField.step()` diffusion runs after the regeneration clamp, so a
+   * low-fertility cell beside a rich one still drifts above its own cap every
+   * tick. That residual is a pre-existing property of the diffusion pass, is
+   * an order of magnitude smaller, and is left alone here.
+   */
+  private nutrientCapAt(nIdx: number, ci: number): number {
+    return this.config.nutrientPerCell
+      * this.habitat.fertility.data[ci]
+      * (this.config.nutrientCapacity[nIdx] ?? 1);
+  }
+
   private writeRole(slot: number, r: RoleReadout): void {
     const rb = slot * ROLE_STRIDE;
     const role = this.store.role;
@@ -2192,13 +2224,18 @@ export class World {
       // SOURCE locally and not only a sink.
       if (cfg.excretionRate > 0) {
         const excreted = (basal * cfg.excretionRate * 6) / NUTRIENT_COUNT;
-        const cellCap = cfg.nutrientPerCell * this.habitat.fertility.data[ci];
+        // Per-pool ceilings, NOT one flat cap: pools B and C have multipliers
+        // below 1.0, so a shared flat cap would let a return fill them above
+        // their declared capacity. See nutrientCapAt for the measurement.
+        const capA = this.nutrientCapAt(0, ci);
+        const capB = this.nutrientCapAt(1, ci);
+        const capC = this.nutrientCapAt(2, ci);
         const beforeA = nutA[ci];
         const beforeB = nutB[ci];
         const beforeC = nutC[ci];
-        nutA[ci] = Math.min(cellCap, nutA[ci] + excreted);
-        nutB[ci] = Math.min(cellCap, nutB[ci] + excreted);
-        nutC[ci] = Math.min(cellCap, nutC[ci] + excreted);
+        nutA[ci] = Math.min(capA, nutA[ci] + excreted);
+        nutB[ci] = Math.min(capB, nutB[ci] + excreted);
+        nutC[ci] = Math.min(capC, nutC[ci] + excreted);
         // Flux measurement: excretion returns per guild per pool
         const g = this.roleOf(slot).trophic;
         this.excretionReturnsGuildPool[g * NUTRIENT_COUNT + 0] += nutA[ci] - beforeA;
@@ -2359,14 +2396,14 @@ export class World {
             if (this.bioticMineraliser[slot]) {
               const returned = taken * cfg.bioticMineralisation;
               // Returned across all pools so recycling is not pool-specific.
-              const cap = cfg.nutrientPerCell * this.habitat.fertility.data[ci];
+              // Per-pool ceilings, not one flat cap: see nutrientCapAt.
               const perPool = returned / NUTRIENT_COUNT;
               const beforeA = nutA[ci];
               const beforeB = nutB[ci];
               const beforeC = nutC[ci];
-              nutA[ci] = Math.min(cap, nutA[ci] + perPool);
-              nutB[ci] = Math.min(cap, nutB[ci] + perPool);
-              nutC[ci] = Math.min(cap, nutC[ci] + perPool);
+              nutA[ci] = Math.min(this.nutrientCapAt(0, ci), nutA[ci] + perPool);
+              nutB[ci] = Math.min(this.nutrientCapAt(1, ci), nutB[ci] + perPool);
+              nutC[ci] = Math.min(this.nutrientCapAt(2, ci), nutC[ci] + perPool);
               this.bioticMineralised += returned;
               this.mineralisedCell[ci] += returned;
               // Flux measurement: biotic mineralization per guild per pool per source (0=sediment)
@@ -2426,14 +2463,14 @@ export class World {
             if (this.bioticMineraliser[slot]) {
               const returned = taken * cfg.bioticMineralisation;
               // Returned across all pools so recycling is not pool-specific.
-              const cap = cfg.nutrientPerCell * this.habitat.fertility.data[ci];
+              // Per-pool ceilings, not one flat cap: see nutrientCapAt.
               const perPool = returned / NUTRIENT_COUNT;
               const beforeA = nutA[ci];
               const beforeB = nutB[ci];
               const beforeC = nutC[ci];
-              nutA[ci] = Math.min(cap, nutA[ci] + perPool);
-              nutB[ci] = Math.min(cap, nutB[ci] + perPool);
-              nutC[ci] = Math.min(cap, nutC[ci] + perPool);
+              nutA[ci] = Math.min(this.nutrientCapAt(0, ci), nutA[ci] + perPool);
+              nutB[ci] = Math.min(this.nutrientCapAt(1, ci), nutB[ci] + perPool);
+              nutC[ci] = Math.min(this.nutrientCapAt(2, ci), nutC[ci] + perPool);
               this.bioticMineralised += returned;
               this.mineralisedCell[ci] += returned;
               // Flux measurement: biotic mineralization per guild per pool per source (1=detritus)
@@ -2508,14 +2545,14 @@ export class World {
           }
           if (this.bioticMineraliser[slot]) {
             const returned = taken * cfg.bioticMineralisation;
-            const capN = cfg.nutrientPerCell * this.habitat.fertility.data[ci];
+            // Per-pool ceilings, not one flat cap: see nutrientCapAt.
             const perPool = returned / NUTRIENT_COUNT;
             const beforeA = nutA[ci];
             const beforeB = nutB[ci];
             const beforeC = nutC[ci];
-            nutA[ci] = Math.min(capN, nutA[ci] + perPool);
-            nutB[ci] = Math.min(capN, nutB[ci] + perPool);
-            nutC[ci] = Math.min(capN, nutC[ci] + perPool);
+            nutA[ci] = Math.min(this.nutrientCapAt(0, ci), nutA[ci] + perPool);
+            nutB[ci] = Math.min(this.nutrientCapAt(1, ci), nutB[ci] + perPool);
+            nutC[ci] = Math.min(this.nutrientCapAt(2, ci), nutC[ci] + perPool);
             this.bioticMineralised += returned;
             this.mineralisedCell[ci] += returned;
             // Flux measurement: biotic mineralization per guild per pool per source (2=litter)

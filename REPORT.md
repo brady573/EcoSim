@@ -7667,6 +7667,130 @@ proposes a knob.
 Both designs are diagnostic-only and remain unstarted pending Owner acceptance.
 
 --------------------------------------------------------------------------------
+NUTRIENT CAPS: FLAT RETURN CAP vs PER-POOL CAPACITY (Owner handoff Task 6)
+--------------------------------------------------------------------------------
+
+Probe: `src/trace/capsreach.ts` (compiled, read-only). Engine 0.6.2. Seed 517.
+No knob set, no state written, no RNG drawn by the probe.
+
+### The reported mismatch, confirmed by read path
+
+`nutrientCapacity` is declared in config.ts as *per-pool capacity multipliers,
+one per limiting nutrient*, default `[1.0, 0.78, 0.62]`. Two writer families
+honoured it; four did not:
+
+| Writer | Site | Cap expression | Per-pool `mod` |
+|--------|------|----------------|----------------|
+| Initial seeding | seeding loop | `capacityAt(i, perCell) * mod` | yes |
+| Abiotic regeneration clamp | regen loop | `perCell * fert[i] * mod` | yes |
+| **Excretion return** | excretion site | `perCell * fertility[ci]` | **no** |
+| **Biotic mineralisation (sediment)** | mineralisation 0 | `perCell * fertility[ci]` | **no** |
+| **Biotic mineralisation (detritus)** | mineralisation 1 | `perCell * fertility[ci]` | **no** |
+| **Biotic mineralisation (litter)** | mineralisation 2 | `perCell * fertility[ci]` | **no** |
+
+`habitat.capacityAt(i, perCell)` returns exactly `perCell * fertility[i]`, so
+the flat expression is the per-pool ceiling with the multiplier dropped. Pool
+A (mod 1.0) is unaffected; pools B (0.78) and C (0.62) could be filled **above
+their declared capacity** by a return. That contradicts the accepted per-pool
+semantics stated in the config's own doc comment.
+
+### Reachability: NOT reached under declared config
+
+The pinned excretion-return config never brings any pool near a ceiling, so the
+defect does not fire there. Sweeping every tick (not just the endpoint):
+
+| Arm | Ticks with per-pool excess |
+|-----|----------------------------|
+| excretion ON (0.06, declared) | **0 / 1500** |
+| excretion OFF (0.0) | **0 / 1500** |
+
+This is why parity was never disturbed and why the bug survived review: it is
+latent at declared settings.
+
+### Reachability: REACHED under a saturation arm
+
+To test it in principle, a saturation arm drives every pool to its ceiling
+(fast abiotic regen, cyclic off, no producer draw, detritus-only web), making
+the return paths the only nutrient writers.
+
+### The confound, and the control that exposed it
+
+The first saturation run showed pool A — whose per-pool cap EQUALS the flat
+cap — exceeding its ceiling. A cap difference cannot explain that, so the
+measurement was suspect. The cause is `ScalarField.step()`: diffusion runs
+AFTER the regeneration clamp, pushing a low-fertility cell beside a rich one
+past its own per-pool cap every tick.
+
+The consequence matters beyond this task: **the per-pool cap is a soft target,
+not a maintained invariant.** Any excess must be read against that baseline,
+not against zero. A NEGATIVE CONTROL with every nutrient writer silenced
+(broadcast, all four returns, producer draw, floor) still reports the baseline:
+
+| Pool | mod | NEGATIVE CONTROL (baseline) |
+|------|-----|------------------------------|
+| A | 1.00 | 0.077724 |
+| B | 0.78 | 0.060625 |
+| C | 0.62 | 0.048188 |
+
+Two further discriminators separate the causes: silencing only the unclamped
+abiotic broadcast (recyclingRate=0) and silencing all return paths. The
+broadcast alone reproduces the baseline, confirming it is not the driver.
+
+### Before / after, against the baseline
+
+Saturation arm, peak excess per cell (cumulative excess mass in brackets):
+
+| Pool | mod | BEFORE fix | AFTER fix | Baseline |
+|------|-----|------------|-----------|----------|
+| A | 1.00 | 0.078090 [15404] | 0.078090 [15346] | 0.077724 |
+| B | 0.78 | **9.430746 [212415]** | **0.060909 [11973]** | 0.060625 |
+| C | 0.62 | **11.427262 [211157]** | **0.048417 [9519]** | 0.048188 |
+
+B and C fell from ~150x and ~240x the baseline to the baseline itself. Pool A
+is unchanged — correct, since its multiplier is 1.0 and the correction cannot
+affect it. A is the built-in control for the fix.
+
+### The correction (smallest)
+
+One shared helper `nutrientCapAt(nIdx, ci)` returns the per-pool ceiling, and
+all four return sites clamp through it. This is the knob-discipline rule
+applied literally: every gate that reads the same quantity reads the scaled
+value, through one helper, so the flat cap cannot reappear at one site while
+the others are corrected.
+
+### Validation
+
+- Parity **byte-identical** on both pinned seeds at engine 0.6.2
+  (517 -> P882/C170/D65; 24601 -> P563/C279/D90). The correction changes
+  nothing under declared config, which the reachability sweep predicted.
+- 37/37 gates, 11/11 contracts, 153/153 workflow checks pass.
+- Determinism: repeat runs byte-identical (C7).
+- Ledger/conservation: G3 accounting residual unchanged; nutrient is not
+  covered by the energy ledger, so the correction is outside that identity and
+  cannot perturb it.
+
+### What this correction does NOT do (disclosed scope)
+
+1. It does not make the per-pool cap a hard invariant. Diffusion still runs
+   after the regeneration clamp and still drifts low-fertility cells past their
+   own ceiling by the baseline amount above. Fixing that would mean reordering
+   or re-clamping the diffusion pass — a materially different change to
+   declared behaviour, not authorised by Task 6, and not attempted.
+2. The unclamped abiotic mineralisation broadcast (`nData[i] += share`) has no
+   cap at all. It is a separate, pre-existing property: at declared recycling
+   rates it is far below any ceiling, and the broadcast-only arm shows it does
+   not move the pools. Flagged, not changed.
+3. Excretion stoichiometry and selection-model redesign remain out of scope,
+   per the Owner's explicit exclusion.
+
+### Version note
+
+Engine remains `ts-evo-poc/0.6.2`: parity pins are unchanged, so no re-pinning
+and no retirement chain entry is warranted. Evidence recorded under 0.6.2
+before this commit remains valid — the correction is unreachable at declared
+config, which the 0/1500 sweep demonstrates directly.
+
+--------------------------------------------------------------------------------
 REVIEW RESPONSE CORRECTIONS V2 (2026-10-13, reviewer Acrius-max on head 87cefa7)
 --------------------------------------------------------------------------------
 
