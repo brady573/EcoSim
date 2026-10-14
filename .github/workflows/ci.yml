@@ -86,6 +86,9 @@ jobs:
       - name: Behavioural gates
         run: npm run gates:compiled
 
+      - name: Primary viewer advanced-path checks
+        run: node scripts/viewer-checks.mjs
+
       # App bundle input. Deliberately a SEPARATE tsconfig from the CLI build:
       # tsconfig.app.json -> build/app/, tsconfig.build.json -> build/. Building
       # only one leaves the other stale and silently ships an old engine. That

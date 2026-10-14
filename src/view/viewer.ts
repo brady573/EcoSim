@@ -26,7 +26,7 @@
 
 import { Application, Container, Graphics, Sprite, Text, type Texture } from 'pixi.js';
 import { World } from '../world/world.js';
-import { WORLD_ENGINE_VERSION } from '../world/version.js';
+import { chemistryMeasurements, createViewerWorld, organismChemistry, viewerProvenance } from './experiment.js';
 import { TROPHIC, TROPHIC_NAME, MOTILITY_NAME, LIFE_STAGE_NAME } from '../bio/role.js';
 import { resolveCapacity } from '../bio/phenotype.js';
 import { TRAITS, TRAIT, TRAIT_COUNT } from '../bio/genome.js';
@@ -216,27 +216,20 @@ const cam = { x: 0, y: 0, zoom: 1 };
  * so what you see untoggled is the parity baseline, not a third state.
  */
 let genomeV2: boolean | null = null;
+let chemistry = false;
+let tickTotalMs = 0;
+let tickTotalCount = 0;
 
 function makeWorld(founders: number, seed: number): void {
   const size = 4000;
-  world = new World({
-    config: {
-      founders,
-      seed,
-      worldW: size,
-      worldH: size,
-      label: 'viewer',
-      // Field and spatial cells scale with the population so the substrate
-      // grid does not itself become the bottleneck at high counts.
-      fieldCell: 40,
-      spatialCell: 44,
-      genomeV2,
-    },
-  });
+  world = createViewerWorld(founders, seed, chemistry, genomeV2 === true);
   cam.x = size / 2;
   cam.y = size / 2;
   cam.zoom = 1;
   selected = -1;
+  selectedId = -1;
+  tickTotalMs = 0;
+  tickTotalCount = 0;
 }
 
 // --- Rendering ------------------------------------------------------------
@@ -659,6 +652,7 @@ function renderInspector(): void {
     `<tr><td class="k">mineraliser</td><td>${r.bioticMineraliser ? 'yes' : 'no'}</td></tr>` +
     `</table><h1 style="margin-top:6px">Most expressed traits</h1><table>${traitRows}</table>` +
     moduleSection +
+    (world.chemStores ? `<h1>Chemistry — measured state</h1><div class="tiny">${organismChemistry(world, slot)}</div>` : '') +
     `<div class="tiny" style="margin-top:6px">Role and stage are readouts derived from the genome, not assigned.</div>`;
 }
 
@@ -740,7 +734,7 @@ function drawStats(
   const pop = store.population;
   const mod = moduleStats();
   const rows =
-    `<tr><td class="k">engine</td><td>${WORLD_ENGINE_VERSION}</td></tr>` +
+    `<tr><td class="k">run</td><td>${viewerProvenance(world)}</td></tr>` +
     `<tr><td class="k">tick</td><td>${world.tick}</td></tr>` +
     `<tr><td class="k">population</td><td>${pop}</td></tr>` +
     `<tr><td class="k">births / deaths</td><td>${world.totalBirths} / ${world.totalDeaths}</td></tr>` +
@@ -749,7 +743,8 @@ function drawStats(
     `<tr><td class="k">disturbances</td><td>${world.abiotic.activeCount} active / ${world.disturbancesFired}</td></tr>` +
     `<tr><td class="k">residual</td><td>${(world.accountingResidualFraction() * 100).toFixed(4)}%</td></tr>` +
     `<tr><td class="k">zoom</td><td>${cam.zoom.toFixed(2)}&times;</td></tr>` +
-    mod.rows;
+    mod.rows + chemistryMeasurements(world)
+      .map(([label, value]) => `<tr><td class="k">${label}</td><td>${value}</td></tr>`).join('');
   document.getElementById('stats-table')!.innerHTML = rows;
   // FRAME cost, TICK cost and JS-UPDATE cost are reported separately and
   // labelled for what they actually measure:
@@ -827,9 +822,21 @@ document.getElementById('btn-disturb')!.addEventListener('click', () => {
   (document.getElementById('btn-disturb') as HTMLButtonElement).setAttribute('aria-pressed', String(showDisturbances));
 });
 document.getElementById('btn-restart')!.addEventListener('click', () => {
-  makeWorld(parseInt(popInput.value, 10), parseInt(seedInput.value, 10) || 1);
-  renderInspector();
+  restartFromControls();
 });
+
+function restartFromControls(): boolean {
+  const error = document.getElementById('run-error')!;
+  try {
+    makeWorld(Number(popInput.value), Number(seedInput.value));
+    error.textContent = '';
+    renderInspector();
+    return true;
+  } catch (e) {
+    error.textContent = e instanceof Error ? e.message : String(e);
+    return false;
+  }
+}
 
 // --- Modular genome v2 toggle ----------------------------------------------
 // Rebuilds the world because genomeV2 is a construction-time config knob, not
@@ -843,12 +850,26 @@ function applyGenomeToggle(): void {
   genomeNote.textContent = genomeV2 === true
     ? 'on \u2014 diagnostic, restarts'
     : 'off \u2014 declared behaviour';
-  makeWorld(parseInt(popInput.value, 10), parseInt(seedInput.value, 10) || 1);
-  renderInspector();
 }
 genomeBtn.addEventListener('click', () => {
+  if (!Number.isSafeInteger(Number(seedInput.value)) || Number(seedInput.value) < 1 || Number(seedInput.value) > 0xffffffff) {
+    restartFromControls();
+    return;
+  }
+  const previous = genomeV2;
   genomeV2 = genomeV2 === true ? null : true;
+  if (!restartFromControls()) genomeV2 = previous;
   applyGenomeToggle();
+});
+
+const experimentSelect = document.getElementById('experiment-mode') as HTMLSelectElement;
+experimentSelect.addEventListener('change', () => {
+  const previous = chemistry;
+  chemistry = experimentSelect.value === 'chemistry';
+  if (!restartFromControls()) {
+    chemistry = previous;
+    experimentSelect.value = previous ? 'chemistry' : 'legacy';
+  }
 });
 
 // --- Collapsible panels ----------------------------------------------------
@@ -1015,7 +1036,15 @@ if (vv) {
 layoutFit();
 
 // --- Main loop -------------------------------------------------------------
-makeWorld(parseInt(popInput.value, 10), parseInt(seedInput.value, 10) || 1);
+if (!restartFromControls()) {
+  // Recover visibly to valid defaults rather than leaving a blank viewer or
+  // silently displaying a different seed from the input box.
+  popInput.value = '1200';
+  popVal.textContent = popInput.value;
+  seedInput.value = '7';
+  makeWorld(1200, 7);
+  document.getElementById('run-error')!.textContent += ' — restored displayed defaults.';
+}
 setSpeed(0);
 (document.getElementById('btn-disturb') as HTMLButtonElement).setAttribute('aria-pressed', 'true');
 
@@ -1035,8 +1064,6 @@ let fpsFrames = 0;
 let fps = 0;
 let lastFrame = performance.now();
 let uiTick = 0;
-let tickTotalMs = 0;
-let tickTotalCount = 0;
 
 app.ticker.add(() => {
   // --- Advance the simulation. This is the ONLY place the viewer calls
@@ -1106,7 +1133,7 @@ app.ticker.add(() => {
 });
 
 console.log(
-  `%c DE evolution POC viewer %c ${WORLD_ENGINE_VERSION} — EXPERIMENTAL`,
+  '%c DE evolution POC viewer %c EXPERIMENTAL — live run identity is shown in the statistics panel',
   'background:#6ee7a8;color:#0b0f14;font-weight:bold',
   'color:#8698ad',
 );

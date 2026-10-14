@@ -8313,3 +8313,20 @@ were corrected and confirmed. Final checks: typecheck clean, 55/55 gates,
 11/11 contracts, 157/157 workflow fixtures. Final logs are
 `evidence/reconciliation-080-{gates,contracts,workflow}-20261014.txt`.
 Primary-viewer chemistry/Genome V2 reachability remains pending separately.
+## Primary viewer advanced-mode implementation — 2026-10-14
+
+The primary PixiJS interface now selects legacy/chemistry independently of
+Genome V2, restarts at validated displayed seed/founders, and reports dynamic
+run identity, chemical measurements and per-organism tissue/stores. The portable
+Canvas page remains legacy-only and now discloses its mode scope. Both use the
+authoritative World engine; no presentation biology writes were introduced.
+CI runs `scripts/viewer-checks.mjs` after CLI compilation, exercising all four
+combinations through the same constructor imported by the UI. Readout
+non-mutation, matched engine replay, restart, invalid inputs and served control
+presence are checked. Typecheck/builds, 55 gates, 11 contracts and 157 workflow
+fixtures passed; independent review findings were corrected and confirmed.
+
+Raw evidence: `evidence/primary-viewer-headless-20261014.txt`.
+Actual browser smoke remains NOT VERIFIED: no local browser executable,
+automation library or browser tool is available. See `VIEWER-HANDOFF-STATUS.md`
+for the remaining acceptance checklist. This is not full viewer-handoff closure.
