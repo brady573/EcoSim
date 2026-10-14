@@ -1,0 +1,10 @@
+VIABILITY GATE ATTRIBUTION (viability-061 config, surplus=30, consumer upkeep x0.25)
+Each post-maturity consumer tick attributed to the FIRST gate that blocks it.
+
+seed      postMatTicks   immature  cooldown  damageCeil  surplus  fraction  ELIGIBLE   elig%
+ 41002           92668    0.0    1.2   30.7    8.1   54.3    5.6
+         final P0/C0/D672
+ 41004         1407524    0.0    1.8   33.4   10.9   45.6    8.4
+         final P11/C432/D441
+ 41012           74827    0.0    1.2   52.7    8.6   30.8    6.7
+         final P3100/C142/D2170

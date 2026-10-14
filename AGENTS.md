@@ -16,7 +16,7 @@ This file governs repository practice only.
 
 `ts-evolution-poc` — a disposable, evidence-driven experiment in whole-ecosystem
 evolutionary simulation. Single TypeScript tree. Engine version
-`ts-evo-poc/0.7.0`.
+`ts-evo-poc/0.8.0` (main 0.6.3 reconciled with the canopy and chemistry branch).
 
 - **STATUS: EXPERIMENTAL. NOT PRODUCTION CODE.**
 - Judged on **reproducibility, honest accounting, emergence without forcing,
@@ -102,8 +102,10 @@ Required before a change is considered done:
 1. **Typecheck clean.**
 2. **Gates pass** (`src/gates.ts`).
 3. **Knobs-unset parity exact** against pinned values — currently seed 517 →
-   `P492 C136 D74` and 24601 → `P296 C171 D74` at 500 ticks, engine
-   `ts-evo-poc/0.7.0`. A change that alters these with no knob set has changed
+   `P503 C126 D69` and 24601 → `P337 C119 D95` at 500 ticks, engine
+   `ts-evo-poc/0.8.0`. The retired 0.7.0 pair was 492/136/74 and 296/171/74;
+   main's retired 0.6.3 pair was 882/170/65 and 563/279/90. Both describe
+   different semantics from this reconciliation. A change that alters these with no knob set has changed
    declared behaviour.
 
    **`scripts/contract-checks.mjs` is the single source of truth for the live
@@ -112,6 +114,12 @@ Required before a change is considered done:
 
    These values were re-pinned **twice**. The chain of retired values is
    recorded in `scripts/contract-checks.mjs` beside the live ones:
+   - `813/135/81`, `542/234/109` @ 0.6.1 — fasting tolerance (starvation damage
+     ramps over consecutive-deficit ticks); producers/decomposers hold better,
+     consumers lower at unset defaults;
+   - `808/159/58`, `558/290/96` @ 0.6.0 — fasting tolerance (starvation damage
+     ramps over 6 consecutive-deficit ticks); producers/decomposers hold
+     better, consumers lower at unset defaults;
    - `881/187/73`, `658/280/98` @ 0.4.1 — three behavioural defects corrected;
    - `808/159/58`, `558/290/96` @ 0.6.0 — **the Owner-authorised canopy
      correction of 2026-10-13.** The legacy photosynthesis path indexed the
@@ -123,7 +131,15 @@ Required before a change is considered done:
      `EVIDENCE-INVENTORY.md`;
    - `778/169/63`, `597/246/103` @ 0.5.0 — the mineralisation broadcast was
      inflating substrate by the cell count, which changed producer growth and
-     therefore everything downstream.
+     therefore everything downstream;
+
+   **Every 0.6.1 figure describes the fasting-tolerance engine.** All
+   ladder verdicts recorded under it remain valid provenance for that engine
+   but must be re-run, not re-read, on the current engine.
+
+   **Every 0.6.0 figure describes the instantaneous-damage engine.** All
+   ladder verdicts recorded under it remain valid provenance for that engine
+   but must be re-run, not re-read, on 0.6.1.
 
    **Every 0.5.0 figure describes a LEAKY engine.** Decomposer photosynthesis
    was never actually gated under `--zero` (issue #2 P0-2), so the flatline and
@@ -365,7 +381,7 @@ the identity).
   photosynthesis, and reservoir top-up/sink are booked as boundary fluxes. G39
   asserts both a discriminating 1:1 uptake control and the live H/O books. No
   claim is made about molecular water identity or speciation.
-- **Energy is reconciled through the legacy causal ledger when chemistry is on.** Chemical reaction income and chemical growth expenditure are now booked as `chemicalIncome` and `chemicalSpent` against the same identity G3 enforces (G36), so a chemistry-enabled run no longer settles or mints energy silently. G3 itself still runs chemistry unset and therefore says nothing about chemistry. Chemical income is **8.388%** of legacy+chemical income by G33's measure (income only: flux versus `ledger.capture`) in `evidence/ledger-reconciliation-20261013.txt`; growth cost is treated as dissipation. The remaining separation is the mass book: chemical growth biomass is tracked as matter and is not counted by `Ledger.biomass()`, which sums `store.energy`.
+- **Energy is reconciled through the legacy causal ledger when chemistry is on.** Chemical reaction income and chemical growth expenditure are booked as `chemicalIncome` and `chemicalSpent` against the identity G3 enforces (G36). G3 itself still runs chemistry unset. Chemical income is **9.646%** by G33's income-only measure (flux versus `ledger.capture`) under the reconciled 0.8.0 engine, recorded in `evidence/reconciliation-080-gates-20261014.txt`. The old 8.388% figure is historical. Growth cost is treated as dissipation. Chemical growth biomass remains matter, not `Ledger.biomass()` (which sums `store.energy`); this is not full trophic integration.
 - **Predation transfers energy but not matter.** The legacy predator/grazer
   interaction moves `store.energy` from prey to consumer with **no parallel
   elemental transfer** from prey tissue or stores. A chemical mass ledger that

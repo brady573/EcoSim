@@ -1,0 +1,220 @@
+{
+  "arm": "excretion-return",
+  "title": "S2 PROMOTION: biotic excretion return (0 -> 0.06) with regen converts?",
+  "preregistered": "2026-10-12",
+  "identity": {
+    "engine": "ts-evo-poc/0.6.1",
+    "gateSuite": "gates/0.4.0",
+    "engineError": null,
+    "commit": "4b4d14296ec19ab4b57132b8dafe420544a59ae5",
+    "ref": "refs/heads/balance/share-brake-diagnostics-run",
+    "runtime": "v24.21.0",
+    "armSpecHash": "f67bdf21d8bcc7a25b6c548c6c4388b85402202fcea16baeb69a8ffe7336e747",
+    "armSpecPath": "tools/ladder/arms.json",
+    "note": "The probe always ran from the current checkout. A historical arm spec applied here is a settings replay, not a reproduction of its original figure."
+  },
+  "capturePolicy": {
+    "zero": true,
+    "permitted": [
+      true,
+      false,
+      false
+    ]
+  },
+  "seedCount": 3,
+  "seeds": [
+    41004,
+    41010,
+    41016
+  ],
+  "declaredSeedCount": 18,
+  "shard": {
+    "index": 3,
+    "count": 6
+  },
+  "historicalSpec": false,
+  "historicalEngineReproduced": false,
+  "ticks": 6000,
+  "declaredTicks": 6000,
+  "ticksOverrideApplied": false,
+  "zero": true,
+  "lifts": {
+    "producerCaptureScale": 0.35,
+    "basalFoodPerCell": 0.01,
+    "grazeYieldScale": 1,
+    "nutrientRegen": 0.0002,
+    "excretionRate": 0.06
+  },
+  "preregistration": {
+    "hypothesis": "S2 screen: excretion 0.06 read C41 (41002) and C226 B/D 1.08 (41005) where base reads C0. Rung 3 tested excretion WITHOUT regen and failed; this is WITH regen (0.0002 lift) — different experiment, not a repeat.",
+    "prediction": "cons > 0 on at least 12/18 AND prod > 0 on at least 12/18 seeds at tick 6000 (both machine). Coexistence NOT predicted.",
+    "falsification": "FALSIFIED if cons = 0 on 7 or more of 18: biotic return does not convert at panel scale. No escalation (no 0.12, no pairing) inside this line.",
+    "notPredicted": "Coexistence rates, capture shares, B/D distributions (descriptive).",
+    "confoundsControlled": [
+      "Same 18-seed panel, horizon, engine, argvRest as viability-061; the ONLY difference is +excretionRate:0.06 lift",
+      "Matched against viability-061 (no excretion) to isolate the biotic return",
+      "conservation enforced per seed at 0.5%; a seed above it fails the run rather than reporting"
+    ],
+    "criteria": [
+      {
+        "id": "consumers-viable",
+        "metric": "cons",
+        "op": ">",
+        "value": 0,
+        "required": 12,
+        "statement": "consumers > 0 at tick 6000 on at least 12/18 seeds"
+      },
+      {
+        "id": "producers-fed",
+        "metric": "prod",
+        "op": ">",
+        "value": 0,
+        "required": 12,
+        "statement": "producers > 0 at tick 6000 on at least 12/18 seeds"
+      }
+    ]
+  },
+  "runs": [
+    {
+      "seed": 41004,
+      "argv": [
+        "41004",
+        "6000",
+        "off",
+        "4",
+        "0.25",
+        "null",
+        "null",
+        "null",
+        "0.15",
+        "null",
+        "off",
+        "off",
+        "on",
+        "1.0",
+        "null",
+        "0.05",
+        "30",
+        "--zero",
+        "--zero-lift=producerCaptureScale:0.35",
+        "--zero-lift=basalFoodPerCell:0.01",
+        "--zero-lift=grazeYieldScale:1",
+        "--zero-lift=nutrientRegen:0.0002",
+        "--zero-lift=excretionRate:0.06"
+      ],
+      "header": "SENESCENCE seed=41004 ticks=6000 setting=off photox4 basalx0.25 grazexnull tissuexnull radxnull disx0.15 pioxnull dtboff mixooff cycon sat1 pcapnull nfloor0.05 rsur30 dfound=0.25 ZERO-BASELINE (probe config)",
+      "prod": 0,
+      "cons": 553,
+      "dec": 306,
+      "pop": 859,
+      "finalTick": 6000,
+      "ledgerStatus": "ok",
+      "ledgerClass": "valid",
+      "totalInput": 291077.3,
+      "residualPct": 0.0161,
+      "capture": 28451.8,
+      "captureByGuild": [
+        28451.8,
+        0,
+        0
+      ],
+      "residualOk": true,
+      "capturePolicyOk": true
+    },
+    {
+      "seed": 41010,
+      "argv": [
+        "41010",
+        "6000",
+        "off",
+        "4",
+        "0.25",
+        "null",
+        "null",
+        "null",
+        "0.15",
+        "null",
+        "off",
+        "off",
+        "on",
+        "1.0",
+        "null",
+        "0.05",
+        "30",
+        "--zero",
+        "--zero-lift=producerCaptureScale:0.35",
+        "--zero-lift=basalFoodPerCell:0.01",
+        "--zero-lift=grazeYieldScale:1",
+        "--zero-lift=nutrientRegen:0.0002",
+        "--zero-lift=excretionRate:0.06"
+      ],
+      "header": "SENESCENCE seed=41010 ticks=6000 setting=off photox4 basalx0.25 grazexnull tissuexnull radxnull disx0.15 pioxnull dtboff mixooff cycon sat1 pcapnull nfloor0.05 rsur30 dfound=0.25 ZERO-BASELINE (probe config)",
+      "prod": 0,
+      "cons": 0,
+      "dec": 1008,
+      "pop": 1008,
+      "finalTick": 6000,
+      "ledgerStatus": "ok",
+      "ledgerClass": "valid",
+      "totalInput": 284341.3,
+      "residualPct": 0.0252,
+      "capture": 21844.1,
+      "captureByGuild": [
+        21844.1,
+        0,
+        0
+      ],
+      "residualOk": true,
+      "capturePolicyOk": true
+    },
+    {
+      "seed": 41016,
+      "argv": [
+        "41016",
+        "6000",
+        "off",
+        "4",
+        "0.25",
+        "null",
+        "null",
+        "null",
+        "0.15",
+        "null",
+        "off",
+        "off",
+        "on",
+        "1.0",
+        "null",
+        "0.05",
+        "30",
+        "--zero",
+        "--zero-lift=producerCaptureScale:0.35",
+        "--zero-lift=basalFoodPerCell:0.01",
+        "--zero-lift=grazeYieldScale:1",
+        "--zero-lift=nutrientRegen:0.0002",
+        "--zero-lift=excretionRate:0.06"
+      ],
+      "header": "SENESCENCE seed=41016 ticks=6000 setting=off photox4 basalx0.25 grazexnull tissuexnull radxnull disx0.15 pioxnull dtboff mixooff cycon sat1 pcapnull nfloor0.05 rsur30 dfound=0.25 ZERO-BASELINE (probe config)",
+      "prod": 1342,
+      "cons": 0,
+      "dec": 0,
+      "pop": 1342,
+      "finalTick": 6000,
+      "ledgerStatus": "ok",
+      "ledgerClass": "valid",
+      "totalInput": 472653.5,
+      "residualPct": 0.01144,
+      "capture": 210692.5,
+      "captureByGuild": [
+        210692.5,
+        0,
+        0
+      ],
+      "residualOk": true,
+      "capturePolicyOk": true
+    }
+  ],
+  "headerMismatches": [],
+  "failures": [],
+  "warnings": []
+}

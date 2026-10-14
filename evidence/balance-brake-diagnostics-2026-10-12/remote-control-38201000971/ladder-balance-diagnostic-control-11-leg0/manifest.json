@@ -1,0 +1,97 @@
+{
+  "arm": "balance-diagnostic-control",
+  "title": "DIAGNOSTIC control: known balance-failure seeds without dormant-share brake",
+  "preregistered": "2026-10-12",
+  "identity": {
+    "engine": "ts-evo-poc/0.6.0",
+    "gateSuite": "gates/0.4.0",
+    "engineError": null,
+    "commit": "88ec318e1d423cf1a89a51045ee00df6f837d7be",
+    "ref": "refs/heads/balance/share-brake-diagnostics-run",
+    "runtime": "v24.21.0",
+    "armSpecHash": "f4a7c6ff76e652305b0e7dc7652f3e12e62462f6fb4e0179f944d1e255e592c5",
+    "armSpecPath": "tools/ladder/arms.json",
+    "note": "The probe always ran from the current checkout. A historical arm spec applied here is a settings replay, not a reproduction of its original figure."
+  },
+  "capturePolicy": {
+    "zero": false,
+    "permitted": [
+      false,
+      false,
+      false
+    ]
+  },
+  "seedCount": 1,
+  "seeds": [
+    517
+  ],
+  "declaredSeedCount": 3,
+  "shard": {
+    "index": 0,
+    "count": 3
+  },
+  "historicalSpec": false,
+  "historicalEngineReproduced": false,
+  "ticks": 6000,
+  "declaredTicks": 6000,
+  "ticksOverrideApplied": false,
+  "zero": false,
+  "lifts": {},
+  "preregistration": {
+    "hypothesis": "Measurement-control only: the no-brake arm anchors the current engine's trajectories for three known failure seeds; it makes no prospective ecological claim.",
+    "prediction": "All three runs complete at the declared horizon with headers matching the no-brake configuration; outputs are descriptive matched references, not a supported ecological prediction.",
+    "falsification": "An incomplete run or header/config mismatch invalidates that comparison. No ecological falsification criterion is claimed for this control.",
+    "notPredicted": null,
+    "confoundsControlled": [
+      "Known seeds 517, 99991, 42; no new-seed or population-rate claim",
+      "6000-tick horizon and scenesprobe combined-winner configuration",
+      "Paired brake arm changes only the senescence setting from off to share:1"
+    ],
+    "criteria": null
+  },
+  "runs": [
+    {
+      "seed": 517,
+      "argv": [
+        "517",
+        "6000",
+        "off",
+        "4",
+        "null",
+        "null",
+        "null",
+        "null",
+        "null",
+        "null",
+        "null",
+        "off",
+        "off",
+        "0.4",
+        "null",
+        "0",
+        "null"
+      ],
+      "header": "SENESCENCE seed=517 ticks=6000 setting=off photox4 basalxnull grazexnull tissuexnull radxnull disxnull pioxnull dtbnull mixooff cycoff sat0.4 pcapnull nfloor0 rsurnull (probe config)",
+      "prod": 14,
+      "cons": 294,
+      "dec": 1819,
+      "pop": 2127,
+      "finalTick": 6000,
+      "ledgerStatus": "ok",
+      "ledgerClass": "valid",
+      "totalInput": 657306.6,
+      "residualPct": 0.0246,
+      "capture": 612061.8,
+      "captureByGuild": [
+        167451.1,
+        413832.5,
+        30778.2
+      ],
+      "residualOk": true,
+      "capturePolicyOk": true
+    }
+  ],
+  "headerMismatches": [],
+  "failures": [],
+  "warnings": []
+}

@@ -1,5 +1,8 @@
 # H9/H10/H11 results under `ts-evo-poc/0.7.0+chem/0.7.7`
 
+> HISTORICAL after main reconciliation. See `RECONCILIATION-080-RESULTS.md`
+> for current 0.8.0 measurements; this panel is retained unchanged.
+
 **Run:** 2026-10-13, after the Owner-authorized canopy correction.
 **Model identity:** `ts-evo-poc/0.7.0+chem/0.7.7`
 **Seeds:** 517, 1013, 24601, 7, 99 (same panel as original).

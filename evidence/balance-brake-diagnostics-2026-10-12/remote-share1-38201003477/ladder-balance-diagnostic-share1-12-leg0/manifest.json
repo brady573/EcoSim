@@ -1,0 +1,97 @@
+{
+  "arm": "balance-diagnostic-share1",
+  "title": "DIAGNOSTIC treatment: known balance-failure seeds with accepted share:1 brake",
+  "preregistered": "2026-10-12",
+  "identity": {
+    "engine": "ts-evo-poc/0.6.0",
+    "gateSuite": "gates/0.4.0",
+    "engineError": null,
+    "commit": "88ec318e1d423cf1a89a51045ee00df6f837d7be",
+    "ref": "refs/heads/balance/share-brake-diagnostics-run",
+    "runtime": "v24.21.0",
+    "armSpecHash": "f4a7c6ff76e652305b0e7dc7652f3e12e62462f6fb4e0179f944d1e255e592c5",
+    "armSpecPath": "tools/ladder/arms.json",
+    "note": "The probe always ran from the current checkout. A historical arm spec applied here is a settings replay, not a reproduction of its original figure."
+  },
+  "capturePolicy": {
+    "zero": false,
+    "permitted": [
+      false,
+      false,
+      false
+    ]
+  },
+  "seedCount": 1,
+  "seeds": [
+    517
+  ],
+  "declaredSeedCount": 3,
+  "shard": {
+    "index": 0,
+    "count": 3
+  },
+  "historicalSpec": false,
+  "historicalEngineReproduced": false,
+  "ticks": 6000,
+  "declaredTicks": 6000,
+  "ticksOverrideApplied": false,
+  "zero": false,
+  "lifts": {},
+  "preregistration": {
+    "hypothesis": "Descriptive mechanism check: share-mode senescence acts through dormant-share pressure; this arm asks whether that pressure engages in three known failure trajectories, not whether it rescues them.",
+    "prediction": "Record dormant counts and senescence deaths by checkpoint. If no dormancy is observed, brake efficacy is not measured on this panel; no ecological success threshold is registered.",
+    "falsification": "No balance falsification criterion is claimed. An incomplete run or header/config mismatch invalidates the corresponding comparison; otherwise report trajectories without a supported/falsified ecological verdict.",
+    "notPredicted": null,
+    "confoundsControlled": [
+      "Known seeds 517, 99991, 42; no new-seed or population-rate claim",
+      "6000-tick horizon and scenesprobe combined-winner configuration",
+      "Paired control arm changes only the senescence setting from off to share:1"
+    ],
+    "criteria": null
+  },
+  "runs": [
+    {
+      "seed": 517,
+      "argv": [
+        "517",
+        "6000",
+        "share:1",
+        "4",
+        "null",
+        "null",
+        "null",
+        "null",
+        "null",
+        "null",
+        "null",
+        "off",
+        "off",
+        "0.4",
+        "null",
+        "0",
+        "null"
+      ],
+      "header": "SENESCENCE seed=517 ticks=6000 setting=share:1 photox4 basalxnull grazexnull tissuexnull radxnull disxnull pioxnull dtbnull mixooff cycoff sat0.4 pcapnull nfloor0 rsurnull (probe config)",
+      "prod": 11,
+      "cons": 1502,
+      "dec": 835,
+      "pop": 2348,
+      "finalTick": 6000,
+      "ledgerStatus": "ok",
+      "ledgerClass": "valid",
+      "totalInput": 713022.9,
+      "residualPct": 0.02835,
+      "capture": 667778,
+      "captureByGuild": [
+        163790.7,
+        444457.5,
+        59529.8
+      ],
+      "residualOk": true,
+      "capturePolicyOk": true
+    }
+  ],
+  "headerMismatches": [],
+  "failures": [],
+  "warnings": []
+}

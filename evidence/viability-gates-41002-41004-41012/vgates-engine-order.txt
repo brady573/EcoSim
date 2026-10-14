@@ -1,0 +1,9 @@
+VIABILITY GATE ATTRIBUTION (engine order, observed at the decision point)
+consumer guild blocked[] in REPRO_GATE order + reached-roll/fired.
+
+seed 41002: nonperturbing (digest match). consumer { cooldown=1082 fraction=145605 maturity=8424 damage=1821 surplus=0 sexual=829 } reachedRoll=4445 fired=52 final P0/C0/D672
+seed 41004: nonperturbing (digest match). consumer { cooldown=23721 fraction=1855967 maturity=61810 damage=29991 surplus=0 sexual=13571 } reachedRoll=105752 fired=1183 final P11/C432/D441
+seed 41012: nonperturbing (digest match). consumer { cooldown=820 fraction=207209 maturity=8059 damage=1302 surplus=0 sexual=572 } reachedRoll=4501 fired=41 final P3100/C142/D2170
+
+Gate order is the engine’s (cooldown, fraction, maturity, damage, surplus, sexual).
+Final census must match the archived viability-061 endpoints or the run is void (see REPORT).

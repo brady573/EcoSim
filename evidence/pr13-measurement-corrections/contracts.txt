@@ -1,0 +1,25 @@
+[PASS] C1 parity seed 517 (knobs unset)
+         P882/C170/D65 matches pinned (0.6.3: same pair as 0.6.2 — cap fix unreachable at declared defaults; retired 813/135/81 @ 0.6.1; 808/159/58 @ 0.6.0; 881/187/73 @ 0.4.1; 778/169/63 @ 0.5.0 pre-P0-1)
+[PASS] C1 parity seed 24601 (knobs unset)
+         P563/C279/D90 matches pinned (0.6.3: same pair as 0.6.2 — cap fix unreachable at declared defaults; retired 542/234/109 @ 0.6.1; 558/290/96 @ 0.6.0; 658/280/98 @ 0.4.1; 597/246/103 @ 0.5.0 pre-P0-1)
+[PASS] C2 knob round-trip returns to declared
+         unknobbed=P664/C125/D65 knobSet=P1301/C143/D61 unknobbedAgain=P664/C125/D65 (round-trip clean)
+[PASS] C3 rejects invalid reproSurplusTicks
+         threw as required
+[PASS] C3 rejects invalid pioneerBonus
+         threw as required
+[PASS] C3 rejects invalid dormantThreatBlind
+         threw as required
+[PASS] C3 rejects invalid mixotrophySaturation
+         threw as required
+[PASS] C4 bundle matches CLI probe
+         bundle and CLI agree on both pinned seeds
+[PASS] C5 built engine contains new config keys
+         all 7 keys present
+[PASS] C6 viewer is self-contained
+         externalRefs=0 bundleMarkerLeft=false rAF=true
+[PASS] C7 repeat runs are byte-identical
+         identical across repeats
+
+probe invocations: 5 distinct worlds
+11/11 contract checks passed

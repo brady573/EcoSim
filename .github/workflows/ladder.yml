@@ -37,6 +37,22 @@ on:
           - flatline
           - consumer-yield
           - prospective-guilds
+          - balance-diagnostic-control
+          - balance-diagnostic-share1
+          - graze-link
+          - graze-subsidy05
+          - graze-subsidy01
+          - graze-nutcyc
+          - graze-nutcyc-sat2
+          - graze-nutregen
+          - producer-alone
+          - producers-with-loop-floor0
+          - producer-alone-floor0
+          - graze-viability
+          - viability-061
+          - cheap-upkeep
+          - excretion-return
+          - cheap-excretion-combo
           # `horizon` is deliberately NOT offered. It is retained in arms.json as
           # provenance with status HISTORICAL: its registered hypothesis was for
           # the 0.5.0 LEAKY engine, whose four seeds are not 0.6.0 survivors, so a

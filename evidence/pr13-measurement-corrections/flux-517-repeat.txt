@@ -1,0 +1,340 @@
+engine=ts-evo-poc/0.6.3 seed=517 ticks=2000
+resolvedConfig={"worldW":2400,"worldH":2400,"fieldCell":40,"spatialCell":42,"founders":400,"abioticPeriod":1,"baseLight":1.05,"lightAmplitude":0.22,"abioticCycle":900,"baseTemp":18,"tempAmplitude":9,"nutrientDiffusivity":0.11,"nutrientDecay":0.0001,"nutrientPerCell":26,"shadeExtinction":0.034,"shadeGrain":4,"nutrientCapacity":[1,0.78,0.62],"sedimentPerCell":5.5,"sedimentDecay":0.0000016,"detritusDiffusivity":0.09,"detritusDecay":0.000007,"recyclingRate":0.02,"energyPerFood":5.2,"basalFoodPerCell":0.01,"locomotionCostScale":1,"stressMutagenesis":1,"radiation":null,"pioneerBonus":null,"foodDisease":0.15,"meatYieldPerMass":0,"plantYieldPerMass":0,"metapopulationPatches":4,"immigrationWeight":1,"litterPerCell":2,"litterDecay":0.0000024,"litterFraction":0.1,"litterRainShare":0.06,"energyPerCarrion":3.1,"reproThresholdInit":null,"asexualRateInit":null,"clutchSizeInit":null,"reproActCostScale":null,"birthTransferScale":null,"predationYieldScale":null,"grazeYieldScale":1,"consumerPhotoScale":0,"decomposerPhotoScale":0,"consumerBasalScale":0.25,"producerCaptureScale":0.35,"decomposerFounders":0.25,"decomposerDormancy":0.05,"dormantThreatBlind":null,"reproSurplusTicks":30,"mixotrophyCarbon":null,"mixotrophySaturation":1,"nutrientCyclic":true,"genomeV2":null,"nutrientFloor":0.05,"sporeDispersal":1,"dormantSenescence":null,"birthCostFactor":0.42,"disturbanceInterval":260,"disturbanceChance":0.55,"maxPopulation":60000,"nutrientRegen":0.0002,"bioticMineralisation":0.45,"excretionRate":0.06,"label":"default","seed":517}
+NUTRIENT FLUX AUDIT seed=517 ticks=2000 cells=3600
+Config: nutrientPerCell=26 capacity=[1,0.78,0.62]
+
+t500: P267/C102/D88 | energy P3733/C948/D1826
+  nutrients: [59089.5, 46307.2, 37082.9] | capUtil: [0.52, 0.53, 0.53] | overCapCells: [0,0,0] | overCapValue: [0.0, 0.0, 0.0]
+  organic: det=11490.7 sed=10782.9 lit=6668.6 | mineralised=1556.6
+  ingested (cumulative survivors): P19710.9/C5962.0/D5322.4
+
+  === FLUX SNAPSHOT at t500 ===
+  Photosynthesis uptake (cumulative):
+    PRODUCER: [3230.56, 3083.36, 2906.45]
+    CONSUMER: [0.00, 0.00, 0.00]
+    DECOMPOSER: [0.00, 0.00, 0.00]
+  Excretion returns (cumulative) — accepted / attempted / capLoss / eviction:
+    PRODUCER:
+      accepted  [2717.54, 2717.54, 2717.54]
+      attempted [2717.54, 2717.54, 2717.54]
+      capLoss   [-0.00, -0.00, -0.00]
+      eviction  [0.00, 0.00, 0.00]
+    CONSUMER:
+      accepted  [192.59, 192.59, 192.59]
+      attempted [192.59, 192.59, 192.59]
+      capLoss   [0.00, 0.00, -0.00]
+      eviction  [0.00, 0.00, 0.00]
+    DECOMPOSER:
+      accepted  [159.57, 159.57, 159.57]
+      attempted [159.57, 159.57, 159.57]
+      capLoss   [0.00, -0.00, 0.00]
+      eviction  [0.00, 0.00, 0.00]
+  Biotic mineralization by source (cumulative) — accepted / attempted / capLoss / eviction:
+    PRODUCER POOL_A:  (SEDIMENT/DETRITUS/LITTER)
+      accepted  [0.00, 0.00, 0.00]
+      attempted [0.00, 0.00, 0.00]
+      capLoss   [0.00, 0.00, 0.00]
+      eviction  [0.00, 0.00, 0.00]
+    PRODUCER POOL_B:  (SEDIMENT/DETRITUS/LITTER)
+      accepted  [0.00, 0.00, 0.00]
+      attempted [0.00, 0.00, 0.00]
+      capLoss   [0.00, 0.00, 0.00]
+      eviction  [0.00, 0.00, 0.00]
+    PRODUCER POOL_C:  (SEDIMENT/DETRITUS/LITTER)
+      accepted  [0.00, 0.00, 0.00]
+      attempted [0.00, 0.00, 0.00]
+      capLoss   [0.00, 0.00, 0.00]
+      eviction  [0.00, 0.00, 0.00]
+    CONSUMER POOL_A:  (SEDIMENT/DETRITUS/LITTER)
+      accepted  [131.41, 60.64, 28.61]
+      attempted [131.41, 60.64, 28.61]
+      capLoss   [0.00, 0.00, 0.00]
+      eviction  [0.00, 0.00, 0.00]
+    CONSUMER POOL_B:  (SEDIMENT/DETRITUS/LITTER)
+      accepted  [131.41, 60.64, 28.61]
+      attempted [131.41, 60.64, 28.61]
+      capLoss   [-0.00, 0.00, 0.00]
+      eviction  [0.00, 0.00, 0.00]
+    CONSUMER POOL_C:  (SEDIMENT/DETRITUS/LITTER)
+      accepted  [131.41, 60.64, 28.61]
+      attempted [131.41, 60.64, 28.61]
+      capLoss   [-0.00, 0.00, -0.00]
+      eviction  [0.00, 0.00, 0.00]
+    DECOMPOSER POOL_A:  (SEDIMENT/DETRITUS/LITTER)
+      accepted  [165.01, 102.34, 30.85]
+      attempted [165.01, 102.34, 30.85]
+      capLoss   [0.00, -0.00, 0.00]
+      eviction  [0.00, 0.00, 0.00]
+    DECOMPOSER POOL_B:  (SEDIMENT/DETRITUS/LITTER)
+      accepted  [165.01, 102.34, 30.85]
+      attempted [165.01, 102.34, 30.85]
+      capLoss   [0.00, -0.00, 0.00]
+      eviction  [0.00, 0.00, 0.00]
+    DECOMPOSER POOL_C:  (SEDIMENT/DETRITUS/LITTER)
+      accepted  [165.01, 102.34, 30.85]
+      attempted [165.01, 102.34, 30.85]
+      capLoss   [-0.00, 0.00, -0.00]
+      eviction  [0.00, 0.00, 0.00]
+  RETURN BOOK PARTITION AUDIT (not a field mass balance):
+    attempted 10765.6355 == accepted 10765.6355 + capLoss -0.0000  ->  residual 4.025e-12
+    eviction total 0.0000 (over-cap path NOT reached this run)
+
+  Abiotic regeneration (cumulative):
+    [2.99, 2.30, 1.80]  (POOL_A/POOL_B/POOL_C)
+  Abiotic mineralization from organic pools (cumulative):
+    POOL_A: [0.08, 0.04, 0.03]  (DETRITUS/SEDIMENT/LITTER)
+    POOL_B: [0.08, 0.04, 0.03]  (DETRITUS/SEDIMENT/LITTER)
+    POOL_C: [0.08, 0.04, 0.03]  (DETRITUS/SEDIMENT/LITTER)
+
+t1000: P211/C43/D239 | energy P1232/C623/D4504
+  nutrients: [55669.1, 43551.5, 35602.3] | capUtil: [0.49, 0.50, 0.51] | overCapCells: [0,0,0] | overCapValue: [0.0, 0.0, 0.0]
+  organic: det=14818.3 sed=4957.1 lit=3999.1 | mineralised=5263.5
+  ingested (cumulative survivors): P22051.2/C4733.2/D26823.4
+
+  === FLUX SNAPSHOT at t1000 ===
+  Photosynthesis uptake (cumulative):
+    PRODUCER: [6496.52, 6305.87, 5282.02]
+    CONSUMER: [0.00, 0.00, 0.00]
+    DECOMPOSER: [0.00, 0.00, 0.00]
+  Excretion returns (cumulative) — accepted / attempted / capLoss / eviction:
+    PRODUCER:
+      accepted  [3808.05, 3808.05, 3808.05]
+      attempted [3808.05, 3808.05, 3808.05]
+      capLoss   [-0.00, -0.00, -0.00]
+      eviction  [0.00, 0.00, 0.00]
+    CONSUMER:
+      accepted  [311.95, 311.95, 311.95]
+      attempted [311.95, 311.95, 311.95]
+      capLoss   [-0.00, -0.00, -0.00]
+      eviction  [0.00, 0.00, 0.00]
+    DECOMPOSER:
+      accepted  [406.19, 406.19, 406.19]
+      attempted [406.19, 406.19, 406.19]
+      capLoss   [-0.00, -0.00, 0.00]
+      eviction  [0.00, 0.00, 0.00]
+  Biotic mineralization by source (cumulative) — accepted / attempted / capLoss / eviction:
+    PRODUCER POOL_A:  (SEDIMENT/DETRITUS/LITTER)
+      accepted  [0.00, 0.00, 0.00]
+      attempted [0.00, 0.00, 0.00]
+      capLoss   [0.00, 0.00, 0.00]
+      eviction  [0.00, 0.00, 0.00]
+    PRODUCER POOL_B:  (SEDIMENT/DETRITUS/LITTER)
+      accepted  [0.00, 0.00, 0.00]
+      attempted [0.00, 0.00, 0.00]
+      capLoss   [0.00, 0.00, 0.00]
+      eviction  [0.00, 0.00, 0.00]
+    PRODUCER POOL_C:  (SEDIMENT/DETRITUS/LITTER)
+      accepted  [0.00, 0.00, 0.00]
+      attempted [0.00, 0.00, 0.00]
+      capLoss   [0.00, 0.00, 0.00]
+      eviction  [0.00, 0.00, 0.00]
+    CONSUMER POOL_A:  (SEDIMENT/DETRITUS/LITTER)
+      accepted  [189.43, 174.72, 48.31]
+      attempted [189.43, 174.72, 48.31]
+      capLoss   [0.00, 0.00, 0.00]
+      eviction  [0.00, 0.00, 0.00]
+    CONSUMER POOL_B:  (SEDIMENT/DETRITUS/LITTER)
+      accepted  [189.43, 174.72, 48.31]
+      attempted [189.43, 174.72, 48.31]
+      capLoss   [-0.00, 0.00, 0.00]
+      eviction  [0.00, 0.00, 0.00]
+    CONSUMER POOL_C:  (SEDIMENT/DETRITUS/LITTER)
+      accepted  [189.43, 174.72, 48.31]
+      attempted [189.43, 174.72, 48.31]
+      capLoss   [-0.00, -0.00, -0.00]
+      eviction  [0.00, 0.00, 0.00]
+    DECOMPOSER POOL_A:  (SEDIMENT/DETRITUS/LITTER)
+      accepted  [464.88, 765.16, 112.00]
+      attempted [464.88, 765.16, 112.00]
+      capLoss   [-0.00, -0.00, 0.00]
+      eviction  [0.00, 0.00, 0.00]
+    DECOMPOSER POOL_B:  (SEDIMENT/DETRITUS/LITTER)
+      accepted  [464.88, 765.16, 112.00]
+      attempted [464.88, 765.16, 112.00]
+      capLoss   [0.00, 0.00, 0.00]
+      eviction  [0.00, 0.00, 0.00]
+    DECOMPOSER POOL_C:  (SEDIMENT/DETRITUS/LITTER)
+      accepted  [464.88, 765.16, 112.00]
+      attempted [464.88, 765.16, 112.00]
+      capLoss   [-0.00, 0.00, -0.00]
+      eviction  [0.00, 0.00, 0.00]
+  RETURN BOOK PARTITION AUDIT (not a field mass balance):
+    attempted 18842.1055 == accepted 18842.1055 + capLoss -0.0000  ->  residual 1.519e-11
+    eviction total 0.0000 (over-cap path NOT reached this run)
+
+  Abiotic regeneration (cumulative):
+    [10.04, 7.71, 6.01]  (POOL_A/POOL_B/POOL_C)
+  Abiotic mineralization from organic pools (cumulative):
+    POOL_A: [0.24, 0.06, 0.05]  (DETRITUS/SEDIMENT/LITTER)
+    POOL_B: [0.24, 0.06, 0.05]  (DETRITUS/SEDIMENT/LITTER)
+    POOL_C: [0.24, 0.06, 0.05]  (DETRITUS/SEDIMENT/LITTER)
+
+t1500: P121/C50/D814 | energy P1054/C356/D8540
+  nutrients: [54412.3, 42548.3, 35767.7] | capUtil: [0.48, 0.48, 0.51] | overCapCells: [0,0,0] | overCapValue: [0.0, 0.0, 0.0]
+  organic: det=5850.9 sed=518.4 lit=956.9 | mineralised=12740.3
+  ingested (cumulative survivors): P11199.7/C2865.9/D67906.0
+
+  === FLUX SNAPSHOT at t1500 ===
+  Photosynthesis uptake (cumulative):
+    PRODUCER: [8480.20, 8627.58, 6798.95]
+    CONSUMER: [0.00, 0.00, 0.00]
+    DECOMPOSER: [0.00, 0.00, 0.00]
+  Excretion returns (cumulative) — accepted / attempted / capLoss / eviction:
+    PRODUCER:
+      accepted  [4237.51, 4237.51, 4237.51]
+      attempted [4237.51, 4237.51, 4237.51]
+      capLoss   [0.00, -0.00, -0.00]
+      eviction  [0.00, 0.00, 0.00]
+    CONSUMER:
+      accepted  [339.40, 339.40, 339.40]
+      attempted [339.40, 339.40, 339.40]
+      capLoss   [0.00, -0.00, -0.00]
+      eviction  [0.00, 0.00, 0.00]
+    DECOMPOSER:
+      accepted  [916.34, 916.34, 916.34]
+      attempted [916.34, 916.34, 916.34]
+      capLoss   [-0.00, -0.00, -0.00]
+      eviction  [0.00, 0.00, 0.00]
+  Biotic mineralization by source (cumulative) — accepted / attempted / capLoss / eviction:
+    PRODUCER POOL_A:  (SEDIMENT/DETRITUS/LITTER)
+      accepted  [0.00, 0.00, 0.00]
+      attempted [0.00, 0.00, 0.00]
+      capLoss   [0.00, 0.00, 0.00]
+      eviction  [0.00, 0.00, 0.00]
+    PRODUCER POOL_B:  (SEDIMENT/DETRITUS/LITTER)
+      accepted  [0.00, 0.00, 0.00]
+      attempted [0.00, 0.00, 0.00]
+      capLoss   [0.00, 0.00, 0.00]
+      eviction  [0.00, 0.00, 0.00]
+    PRODUCER POOL_C:  (SEDIMENT/DETRITUS/LITTER)
+      accepted  [0.00, 0.00, 0.00]
+      attempted [0.00, 0.00, 0.00]
+      capLoss   [0.00, 0.00, 0.00]
+      eviction  [0.00, 0.00, 0.00]
+    CONSUMER POOL_A:  (SEDIMENT/DETRITUS/LITTER)
+      accepted  [206.96, 274.59, 56.49]
+      attempted [206.96, 274.59, 56.49]
+      capLoss   [0.00, 0.00, 0.00]
+      eviction  [0.00, 0.00, 0.00]
+    CONSUMER POOL_B:  (SEDIMENT/DETRITUS/LITTER)
+      accepted  [206.96, 274.59, 56.49]
+      attempted [206.96, 274.59, 56.49]
+      capLoss   [-0.00, 0.00, 0.00]
+      eviction  [0.00, 0.00, 0.00]
+    CONSUMER POOL_C:  (SEDIMENT/DETRITUS/LITTER)
+      accepted  [206.96, 274.59, 56.49]
+      attempted [206.96, 274.59, 56.49]
+      capLoss   [-0.00, 0.00, -0.00]
+      eviction  [0.00, 0.00, 0.00]
+    DECOMPOSER POOL_A:  (SEDIMENT/DETRITUS/LITTER)
+      accepted  [823.75, 2655.35, 229.64]
+      attempted [823.75, 2655.35, 229.64]
+      capLoss   [0.00, 0.00, 0.00]
+      eviction  [0.00, 0.00, 0.00]
+    DECOMPOSER POOL_B:  (SEDIMENT/DETRITUS/LITTER)
+      accepted  [823.75, 2655.35, 229.64]
+      attempted [823.75, 2655.35, 229.64]
+      capLoss   [0.00, 0.00, 0.00]
+      eviction  [0.00, 0.00, 0.00]
+    DECOMPOSER POOL_C:  (SEDIMENT/DETRITUS/LITTER)
+      accepted  [823.75, 2655.35, 229.64]
+      attempted [823.75, 2655.35, 229.64]
+      capLoss   [0.00, 0.00, -0.00]
+      eviction  [0.00, 0.00, 0.00]
+  RETURN BOOK PARTITION AUDIT (not a field mass balance):
+    attempted 29220.1141 == accepted 29220.1141 + capLoss 0.0000  ->  residual -2.187e-11
+    eviction total 0.0000 (over-cap path NOT reached this run)
+
+  Abiotic regeneration (cumulative):
+    [25.43, 19.50, 14.90]  (POOL_A/POOL_B/POOL_C)
+  Abiotic mineralization from organic pools (cumulative):
+    POOL_A: [0.36, 0.07, 0.06]  (DETRITUS/SEDIMENT/LITTER)
+    POOL_B: [0.36, 0.07, 0.06]  (DETRITUS/SEDIMENT/LITTER)
+    POOL_C: [0.36, 0.07, 0.06]  (DETRITUS/SEDIMENT/LITTER)
+
+t2000: P7/C7/D1087 | energy P29/C89/D4815
+  nutrients: [54030.0, 42409.8, 36174.2] | capUtil: [0.48, 0.48, 0.52] | overCapCells: [0,0,0] | overCapValue: [0.0, 0.0, 0.0]
+  organic: det=4397.8 sed=270.0 lit=605.7 | mineralised=18232.9
+  ingested (cumulative survivors): P867.6/C993.6/D91053.4
+
+  === FLUX SNAPSHOT at t2000 ===
+  Photosynthesis uptake (cumulative):
+    PRODUCER: [8901.36, 9391.95, 7337.73]
+    CONSUMER: [0.00, 0.00, 0.00]
+    DECOMPOSER: [0.00, 0.00, 0.00]
+  Excretion returns (cumulative) — accepted / attempted / capLoss / eviction:
+    PRODUCER:
+      accepted  [4470.57, 4470.57, 4470.57]
+      attempted [4470.57, 4470.57, 4470.57]
+      capLoss   [0.00, -0.00, -0.00]
+      eviction  [0.00, 0.00, 0.00]
+    CONSUMER:
+      accepted  [369.53, 369.53, 369.53]
+      attempted [369.53, 369.53, 369.53]
+      capLoss   [0.00, -0.00, -0.00]
+      eviction  [0.00, 0.00, 0.00]
+    DECOMPOSER:
+      accepted  [1557.13, 1557.13, 1557.13]
+      attempted [1557.13, 1557.13, 1557.13]
+      capLoss   [-0.00, -0.00, -0.00]
+      eviction  [0.00, 0.00, 0.00]
+  Biotic mineralization by source (cumulative) — accepted / attempted / capLoss / eviction:
+    PRODUCER POOL_A:  (SEDIMENT/DETRITUS/LITTER)
+      accepted  [0.00, 0.00, 0.00]
+      attempted [0.00, 0.00, 0.00]
+      capLoss   [0.00, 0.00, 0.00]
+      eviction  [0.00, 0.00, 0.00]
+    PRODUCER POOL_B:  (SEDIMENT/DETRITUS/LITTER)
+      accepted  [0.00, 0.00, 0.00]
+      attempted [0.00, 0.00, 0.00]
+      capLoss   [0.00, 0.00, 0.00]
+      eviction  [0.00, 0.00, 0.00]
+    PRODUCER POOL_C:  (SEDIMENT/DETRITUS/LITTER)
+      accepted  [0.00, 0.00, 0.00]
+      attempted [0.00, 0.00, 0.00]
+      capLoss   [0.00, 0.00, 0.00]
+      eviction  [0.00, 0.00, 0.00]
+    CONSUMER POOL_A:  (SEDIMENT/DETRITUS/LITTER)
+      accepted  [210.38, 332.27, 58.24]
+      attempted [210.38, 332.27, 58.24]
+      capLoss   [0.00, 0.00, 0.00]
+      eviction  [0.00, 0.00, 0.00]
+    CONSUMER POOL_B:  (SEDIMENT/DETRITUS/LITTER)
+      accepted  [210.38, 332.27, 58.24]
+      attempted [210.38, 332.27, 58.24]
+      capLoss   [-0.00, 0.00, 0.00]
+      eviction  [0.00, 0.00, 0.00]
+    CONSUMER POOL_C:  (SEDIMENT/DETRITUS/LITTER)
+      accepted  [210.38, 332.27, 58.24]
+      attempted [210.38, 332.27, 58.24]
+      capLoss   [-0.00, 0.00, -0.00]
+      eviction  [0.00, 0.00, 0.00]
+    DECOMPOSER POOL_A:  (SEDIMENT/DETRITUS/LITTER)
+      accepted  [937.45, 4257.72, 281.56]
+      attempted [937.45, 4257.72, 281.56]
+      capLoss   [-0.00, 0.00, 0.00]
+      eviction  [0.00, 0.00, 0.00]
+    DECOMPOSER POOL_B:  (SEDIMENT/DETRITUS/LITTER)
+      accepted  [937.45, 4257.72, 281.56]
+      attempted [937.45, 4257.72, 281.56]
+      capLoss   [0.00, 0.00, 0.00]
+      eviction  [0.00, 0.00, 0.00]
+    DECOMPOSER POOL_C:  (SEDIMENT/DETRITUS/LITTER)
+      accepted  [937.45, 4257.72, 281.56]
+      attempted [937.45, 4257.72, 281.56]
+      capLoss   [0.00, 0.00, 0.00]
+      eviction  [0.00, 0.00, 0.00]
+  RETURN BOOK PARTITION AUDIT (not a field mass balance):
+    attempted 37424.5585 == accepted 37424.5585 + capLoss -0.0000  ->  residual -2.174e-11
+    eviction total 0.0000 (over-cap path NOT reached this run)
+
+  Abiotic regeneration (cumulative):
+    [39.78, 30.59, 23.11]  (POOL_A/POOL_B/POOL_C)
+  Abiotic mineralization from organic pools (cumulative):
+    POOL_A: [0.41, 0.07, 0.06]  (DETRITUS/SEDIMENT/LITTER)
+    POOL_B: [0.41, 0.07, 0.06]  (DETRITUS/SEDIMENT/LITTER)
+    POOL_C: [0.41, 0.07, 0.06]  (DETRITUS/SEDIMENT/LITTER)
+
+PER-POOL, PER-GUILD, PER-PROCESS FLUX AUDIT complete.
+This probe uses engine-internal flux accumulators (getFluxSnapshot)
+to measure instantaneous trophic flow, not just standing stocks.

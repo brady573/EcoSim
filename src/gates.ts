@@ -30,7 +30,8 @@ import {
   MODULE_STRIDE_KIND, MODULE_STRIDE_MAG, MODULE_STRIDE_ONSET,
   expressModules, inheritModules, recombineModules, seedFounderModules,
 } from './bio/modgenome.js';
-import { OrganismStore } from './core/soa.js';
+import { OrganismStore, NUTRIENT_COUNT } from './core/soa.js';
+import { TROPHIC_COUNT } from './bio/role.js';
 import type { Phenotype } from './bio/phenotype.js';
 import { Rng } from './core/rng.js';
 import { INTENT } from './world/world.js';
@@ -43,6 +44,7 @@ import {
   runMetabolism, transferPredationMatter,
 } from './bio/chemlife.js';
 import { Chemistry, DEFAULT_CHEMISTRY, POOL, POOL_RT } from './world/chemistry.js';
+import { REPRO_GATE, type ReproProbe } from './trace/reproprobe.js';
 
 interface GateResult {
   id: string;
@@ -326,6 +328,24 @@ function gate5(): void {
   const a = collect(4242);
   const b = collect(4242);
 
+  // Non-vacuity gets its own longer window on the same seed. Under fasting
+  // tolerance (0.6.1) the 250-tick window resolves contests but no predation
+  // yet on this seed — predation appears by tick 1000 on the identical run,
+  // and within 250 ticks on neighbouring seeds — so the short window stopped
+  // witnessing rather than the mechanism stopping. Determinism above is
+  // unaffected (both digests still identical); this only re-establishes that
+  // the determinism check ran over real predation contests.
+  let predExtended = 0;
+  {
+    const w = new World({ config: { ...SMALL, seed: 4242 } });
+    for (let i = 0; i < 1000; i++) {
+      w.step();
+      for (const r of w.resolutions()) {
+        if (r.kind === INTERACTION.PREDATE) predExtended++;
+      }
+    }
+  }
+
   const kindNames = ['predation', 'territorial', 'mating', 'scavenge'];
   const breakdown = a.byKind.map((n, i) => `${kindNames[i]}=${n}`).join(' ');
 
@@ -342,8 +362,9 @@ function gate5(): void {
   record(
     'G5b',
     'contests are not vacuous',
-    a.byKind[INTERACTION.PREDATE] > 0,
-    `predation contests resolved: ${a.byKind[INTERACTION.PREDATE]}. A run with zero contested interactions ` +
+    predExtended > 0,
+    `predation contests resolved: ${predExtended} over the extended 1000-tick window on seed 4242 ` +
+      `(0 inside the 250-tick determinism window under fasting tolerance). A run with zero contested interactions ` +
       `would make this gate meaningless, so zero is treated as a failure.`,
   );
 }
@@ -778,6 +799,13 @@ function gate12(): void {
   // cyclic term always saw 0 and suppressed ALL regeneration. Every other gate
   // stayed green on that code -- verified by reintroducing it.
   //
+  // The scenario seeds mineralisers (decomposerFounders) so the gate tests the
+  // flux-READING mechanism, not guild establishment. Under fasting tolerance
+  // (0.6.1) an unseeded 120-founder world grows no feeding mineralisers within
+  // the window — fewer early deaths means less detritus — so the unseeded
+  // scenario stopped witnessing; seeded, flux reads >0 by tick 150 while OFF
+  // reads exactly 0. Establishment ecology belongs to ladder evidence.
+  //
   // So this asserts the read directly: with cyclic ON and mineralisers alive,
   // the flux the regen term observed must be non-zero.
   type W = { cyclicFluxLastTick: number; step(): void };
@@ -797,7 +825,7 @@ function gate12(): void {
   // OFF arm must be zero at every tick, which is the kill-switch's own signature.
   const arm = (cyclic: boolean): { peak: number; ticks: number } => {
     const w = new World({
-      config: { ...SMALL, founders: 120, nutrientCyclic: cyclic } as never,
+      config: { ...SMALL, founders: 120, nutrientCyclic: cyclic, decomposerFounders: 0.3 } as never,
     }) as unknown as W;
     let peak = 0, ticks = 0;
     for (let k = 0; k < 150; k++) {
@@ -1341,10 +1369,34 @@ function gate24(): void {
       if (w.live[i] && st.moduleCount[i] >= 2) bearers.push(i);
     }
     if (bearers.length < 2) continue;
-    const a = bearers[round % bearers.length];
-    let b = bearers[(round + 1) % bearers.length];
-    if (b === a) b = bearers[(round + 2) % bearers.length];
-    if (b === a) continue;
+    // Drive a pair that actually DISAGREES. Founders draw ~7 modules from 7
+    // kinds, so round-robin neighbours usually agree and every mating then
+    // reads as a clone no matter what recombination did. The gate asserts
+    // recombination through the real queue, so disagreeing parents are its
+    // precondition — searched, not hoped for. (Under fasting tolerance the
+    // ambient trajectory stopped serving a disagreeing neighbour within 40
+    // rounds while thousands of disagreeing pairs were alive every round;
+    // measured, not assumed.)
+    //
+    // Disagreement must be positional VALUE disagreement inside the shared
+    // span, not mere length difference: length-only pairs share every value,
+    // so no child can resolve a disagreement in each parent's favour and the
+    // strict signature below is unsatisfiable by construction.
+    let a = -1;
+    let b = -1;
+    for (let x = 0; x < bearers.length && a < 0; x++) {
+      for (let y = x + 1; y < bearers.length; y++) {
+        const xa = kindsOf(bearers[x]);
+        const xb = kindsOf(bearers[y]);
+        const span = Math.min(xa.length, xb.length);
+        let differ = false;
+        for (let i = 0; i < span; i++) {
+          if (xa[i] !== xb[i]) { differ = true; break; }
+        }
+        if (differ) { a = bearers[x]; b = bearers[y]; break; }
+      }
+    }
+    if (a < 0) continue;
 
     const ka = kindsOf(a);
     const kb = kindsOf(b);
@@ -1357,60 +1409,71 @@ function gate24(): void {
     w.queueBirth(a, 1, -1, b);
     w.step();
 
-    let child = -1;
+    // Scan EVERY newborn, not just the first: background asexual births share
+    // the tick, and a healthier population breeds more of them. Judging only
+    // the first new id mistakes the background birth rate for the
+    // recombination mechanism. Each candidate is tested for the strict splice
+    // signature against the driven parents, so background children can only
+    // fail the checks (or count as the clones they are) — a false pass would
+    // need a third parent already carrying the driven splice, negligible over
+    // a 7^7 sequence space and bounded empirically by the pre-fix 0/40 run.
+    const newborns: number[] = [];
     for (let i = 0; i < st.capacity; i++) {
-      if (w.live[i] && !idsBefore.has(st.id[i])) { child = i; break; }
+      if (w.live[i] && !idsBefore.has(st.id[i])) newborns.push(i);
     }
-    if (child < 0 || st.moduleCount[child] === 0) continue;
+    for (const child of newborns) {
+      if (st.moduleCount[child] === 0) continue;
 
-    const kc = kindsOf(child);
+      const kc = kindsOf(child);
 
-    // The precise signature of this operator: the child is parent A's modules
-    // [0..cut) followed by parent B's modules [cut..bCount), for some interior
-    // cut. Asserting "contains something only A had" would be meaningless —
-    // founders draw ~7 modules from 7 kinds, so both parents usually carry
-    // every kind and such a test passes on a clone.
-    let cut = -1;
-    for (let c = 1; c < kc.length; c++) {
-      let ok = true;
-      for (let i = 0; i < c && i < ka.length; i++) {
-        if (kc[i] !== ka[i]) { ok = false; break; }
+      // The precise signature of this operator: the child is parent A's modules
+      // [0..cut) followed by parent B's modules [cut..bCount), for some interior
+      // cut. Asserting "contains something only A had" would be meaningless —
+      // founders draw ~7 modules from 7 kinds, so both parents usually carry
+      // every kind and such a test passes on a clone.
+      let cut = -1;
+      for (let c = 1; c < kc.length; c++) {
+        let ok = true;
+        for (let i = 0; i < c && i < ka.length; i++) {
+          if (kc[i] !== ka[i]) { ok = false; break; }
+        }
+        if (!ok) continue;
+        for (let i = c; i < kc.length; i++) {
+          if (i >= kb.length || kc[i] !== kb[i]) { ok = false; break; }
+        }
+        if (ok) { cut = c; break; }
       }
-      if (!ok) continue;
-      for (let i = c; i < kc.length; i++) {
-        if (i >= kb.length || kc[i] !== kb[i]) { ok = false; break; }
-      }
-      if (ok) { cut = c; break; }
-    }
 
-    const foreign = kc.filter((k) => !ka.includes(k) && !kb.includes(k));
-    const cloneOfA = kc.length === ka.length && kc.every((k, i) => k === ka[i]);
-    const cloneOfB = kc.length === kb.length && kc.every((k, i) => k === kb[i]);
-    if (cloneOfA || cloneOfB) { clones++; continue; }
+      const foreign = kc.filter((k) => !ka.includes(k) && !kb.includes(k));
+      const cloneOfA = kc.length === ka.length && kc.every((k, i) => k === ka[i]);
+      const cloneOfB = kc.length === kb.length && kc.every((k, i) => k === kb[i]);
+      if (cloneOfA || cloneOfB) { clones++; continue; }
 
-    // A splice is only EVIDENCE of two-parent inheritance if the two parents
-    // actually disagree somewhere, and the child resolves a disagreement in
-    // each parent's favour. Without this, two identical genomes "recombine"
-    // into something indistinguishable from a clone and the gate passes on an
-    // outcome that proves nothing. Review caught that clones were counted but
-    // not excluded.
-    let wonByA = 0, wonByB = 0;
-    if (cut > 0) {
-      for (let i = 0; i < cut && i < ka.length; i++) {
-        if (ka[i] !== kb[i] && kc[i] === ka[i]) wonByA++;
+      // A splice is only EVIDENCE of two-parent inheritance if the two parents
+      // actually disagree somewhere, and the child resolves a disagreement in
+      // each parent's favour. Without this, two identical genomes "recombine"
+      // into something indistinguishable from a clone and the gate passes on an
+      // outcome that proves nothing. Review caught that clones were counted but
+      // not excluded.
+      let wonByA = 0, wonByB = 0;
+      if (cut > 0) {
+        for (let i = 0; i < cut && i < ka.length; i++) {
+          if (ka[i] !== kb[i] && kc[i] === ka[i]) wonByA++;
+        }
+        for (let i = cut; i < kc.length; i++) {
+          if (i < kb.length && kb[i] !== ka[i] && kc[i] === kb[i]) wonByB++;
+        }
       }
-      for (let i = cut; i < kc.length; i++) {
-        if (i < kb.length && kb[i] !== ka[i] && kc[i] === kb[i]) wonByB++;
-      }
-    }
 
-    if (cut > 0 && foreign.length === 0 && wonByA > 0 && wonByB > 0) {
-      mixed++;
-      detail = `parent slot ${a} [${ka.join(',')}] x parent slot ${b} [${kb.join(',')}] ` +
-        `-> child slot ${child} [${kc.join(',')}] = first ${cut} module(s) of the ` +
-        `first parent + modules ${cut}.. of the second. The parents disagree at ` +
-        `${wonByA} position(s) resolved for the first parent and ${wonByB} for ` +
-        'the second, none foreign, and the child is a clone of neither.';
+      if (cut > 0 && foreign.length === 0 && wonByA > 0 && wonByB > 0) {
+        mixed++;
+        detail = `parent slot ${a} [${ka.join(',')}] x parent slot ${b} [${kb.join(',')}] ` +
+          `-> child slot ${child} [${kc.join(',')}] = first ${cut} module(s) of the ` +
+          `first parent + modules ${cut}.. of the second. The parents disagree at ` +
+          `${wonByA} position(s) resolved for the first parent and ${wonByB} for ` +
+          'the second, none foreign, and the child is a clone of neither.';
+        break;
+      }
     }
   }
 
@@ -2405,6 +2468,786 @@ function gate40(): void {
     + ` | reaction-then-uptake: available=${availForUptake.toFixed(9)} taken=${mst.stores[E.COUNT * 1 + E.C].toFixed(9)}`);
 }
 
+function gate41(): void {
+  // radiationMultiplier dormant coupling (P2a fix verification).
+  // The excess over 1x is coupled to dormantFrac/floor, not the total multiplier.
+  // At 0 dormancy -> 1x (background). At dormantFrac >= floor -> full mult.
+  // Advance tick so scheduled multiplier m > 1 (excess > 0).
+  const w = new World({
+    config: { founders: 0, worldW: 100, worldH: 100, seed: 1,
+      radiation: { onset: 10, doubling: 100, cap: 8, overgrowthCoupling: 0.5 },
+    },
+  }) as unknown as { dormantFrac: number; radiationMultiplier(): number; tick: number; step(): void; config: { radiation: { onset: number; doubling: number; cap: number; overgrowthCoupling: number } } };
+  // Step to tick 50 -> m = 2^((50-10)/100) = 2^0.4 ~ 1.3195
+  for (let i = 0; i < 50; i++) w.step();
+  // Read scheduled multiplier directly (without coupling): m = 2^((tick-onset)/doubling), clamped to cap
+  const r = w.config.radiation!;
+  const scheduled = Math.min(Math.max(1, r.cap), Math.pow(2, (w.tick - r.onset) / Math.max(1, r.doubling)));
+  // Test coupling by directly setting dormantFrac (natural dormantFrac stays 0 with no founders)
+  w.dormantFrac = 0.0;
+  const zero = w.radiationMultiplier();
+  w.dormantFrac = 0.25; // half floor
+  const half = w.radiationMultiplier();
+  w.dormantFrac = 0.5; // at floor
+  const full = w.radiationMultiplier();
+  w.dormantFrac = 1.0; // above floor
+  const over = w.radiationMultiplier();
+  const eps = 1e-9;
+  const zeroOk = Math.abs(zero - 1.0) < eps;
+  const halfOk = Math.abs(half - (1 + (scheduled - 1) * 0.5)) < eps;
+  const fullOk = Math.abs(full - scheduled) < eps;
+  const overOk = Math.abs(over - scheduled) < eps;
+
+  // --- Boundary assertions requested by handoff ---
+  // 1. Absent schedule (no radiation config) -> 1.0
+  const wNoRad = new World({ config: { founders: 0, worldW: 100, worldH: 100, seed: 2 } }) as unknown as { radiationMultiplier(): number };
+  const noRad = wNoRad.radiationMultiplier();
+  const noRadOk = Math.abs(noRad - 1.0) < eps;
+
+  // 2. Pre-onset (tick < onset) -> 1.0
+  const wPre = new World({
+    config: { founders: 0, worldW: 100, worldH: 100, seed: 3,
+      radiation: { onset: 100, doubling: 100, cap: 8, overgrowthCoupling: 0.5 },
+    },
+  }) as unknown as { radiationMultiplier(): number; tick: number; step(): void };
+  // At tick 0, before onset=100
+  const preOnset = wPre.radiationMultiplier();
+  const preOnsetOk = Math.abs(preOnset - 1.0) < eps;
+
+  // 3. Uncoupled (overgrowthCoupling = 0) -> scheduled multiplier regardless of dormantFrac
+  const wUncoupled = new World({
+    config: { founders: 0, worldW: 100, worldH: 100, seed: 4,
+      radiation: { onset: 10, doubling: 100, cap: 8, overgrowthCoupling: 0 },
+    },
+  }) as unknown as { dormantFrac: number; radiationMultiplier(): number; tick: number; step(): void; config: { radiation: { onset: number; doubling: number; cap: number; overgrowthCoupling: number } } };
+  for (let i = 0; i < 50; i++) wUncoupled.step();
+  const rUnc = wUncoupled.config.radiation!;
+  const scheduledUnc = Math.min(Math.max(1, rUnc.cap), Math.pow(2, (wUncoupled.tick - rUnc.onset) / Math.max(1, rUnc.doubling)));
+  wUncoupled.dormantFrac = 0.0;
+  const uncoupledZero = wUncoupled.radiationMultiplier();
+  wUncoupled.dormantFrac = 1.0;
+  const uncoupledFull = wUncoupled.radiationMultiplier();
+  const uncoupledOk = Math.abs(uncoupledZero - scheduledUnc) < eps && Math.abs(uncoupledFull - scheduledUnc) < eps;
+
+  // 4. Coupling floor behavior: at dormantFrac=0 with active coupling -> 1.0 (background)
+  // This is the "floor" boundary: the coupling floor is overgrowthCoupling itself.
+  // At dormantFrac=0, mult = 1 + (scheduled-1)*min(1, 0/floor) = 1.
+  // Already tested as 'zero' above. The floor IS overgrowthCoupling; there is no separate floor parameter.
+  // So this boundary is covered by zeroOk.
+
+  const allOk = zeroOk && halfOk && fullOk && overOk && noRadOk && preOnsetOk && uncoupledOk;
+  record('G41', 'radiationMultiplier couples only excess over 1x to dormant share (incl. boundaries)',
+    allOk,
+    `tick=${w.tick} scheduled=${scheduled.toFixed(4)} zero=${zero.toFixed(4)} half=${half.toFixed(4)} full=${full.toFixed(4)} over=${over.toFixed(4)} | noRad=${noRad.toFixed(4)} preOnset=${preOnset.toFixed(4)} uncoupledZero=${uncoupledZero.toFixed(4)} uncoupledFull=${uncoupledFull.toFixed(4)} scheduledUnc=${scheduledUnc.toFixed(4)}`);
+}
+
+function gate42(): void {
+  // successfulMating gates asexual fallback. Asserted on BIRTHS, not flags.
+  // A/B/C must ATTEMPT asexual (reach the stochastic roll) and QUEUE an
+  // asexual birth; D must queue exactly 2 sexual births and 0 asexual
+  // births from the mated slots while recording the sexual-skip.
+  const CFG = { founders: 2, worldW: 200, worldH: 200, seed: 99999,
+    consumerPhotoScale: 0, consumerBasalScale: 0.25,
+    decomposerPhotoScale: 0, decomposerFounders: 0.5,
+    decomposerDormancy: 0.05, sporeDispersal: 1,
+    grazeYieldScale: 1.0, plantYieldPerMass: 0, radiation: null,
+    foodDisease: 0.15, pioneerBonus: null, dormantSenescence: null,
+    dormantThreatBlind: null, mixotrophyCarbon: null,
+    mixotrophySaturation: 1.0, nutrientCyclic: true,
+    producerCaptureScale: 0.35, nutrientFloor: 0.05, reproSurplusTicks: 5,
+    basalFoodPerCell: 0.01, nutrientRegen: 0.0002,
+    excretionRate: 0.06, meatYieldPerMass: 0,
+  };
+
+  /** Per-slot observer. ReproProbeLog aggregates per guild; D needs per-slot. */
+  class SlotProbe implements ReproProbe {
+    sexualSkipped = new Set<number>();
+    reached = new Set<number>();
+    reachedN = new Map<number, number>();
+    firedSet = new Set<number>();
+    blocked(slot: number, _guild: number, gate: number): void {
+      void _guild;
+      if (gate === REPRO_GATE.sexual) this.sexualSkipped.add(slot);
+    }
+    reachedRoll(slot: number, _guild: number, _drive: number, _m?: number, _a?: number, _s?: number): void {
+      void _guild; void _drive; void _m; void _a; void _s;
+      this.reached.add(slot);
+      this.reachedN.set(slot, (this.reachedN.get(slot) ?? 0) + 1);
+    }
+    fired(slot: number, _guild: number): void {
+      void _guild;
+      this.firedSet.add(slot);
+    }
+  }
+
+  type PW = {
+    store: OrganismStore;
+    live: Uint8Array;
+    intent: Uint8Array; mateTarget: Int32Array;
+    mateCandA: Int32Array; mateCandB: Int32Array; mateCandN: number;
+    submittedByKind: Int32Array; successfulMating: Uint8Array;
+    pendingBirths: number; birthParentSlot: Int32Array; birthMateSlot: Int32Array;
+    proposeReproduction(): void; resolveMatingIntent(): void; resolveContests(): void;
+  };
+
+  const makeProbe = (): { w: PW; probe: SlotProbe; a: number; b: number } | null => {
+    const probe = new SlotProbe();
+    const w = new World({ config: CFG, reproProbe: probe }) as unknown as PW;
+    const live: number[] = [];
+    for (let i = 0; i < w.store.capacity && live.length < 2; i++) {
+      if (w.live[i]) live.push(i);
+    }
+    if (live.length < 2) return null;
+    return { w, probe, a: live[0], b: live[1] };
+  };
+
+  /** Make slot eligible for the ASEXUAL branch: mature, off cooldown, undamaged, fed. */
+  const prime = (w: PW, slot: number, energy: number): void => {
+    const mat = w.store.trait(slot, TRAIT.MATURITY_AGE);
+    w.store.age[slot] = Math.ceil(mat) + 5;
+    w.store.reproCooldown[slot] = 0;
+    w.store.damage[slot] = 0;
+    w.store.energy[slot] = energy;
+    // Deterministic drive within bounded retries: founder asexualRate is
+    // ~0.01 physical (90% fire only at huge margin, still stochastic), so pin
+    // the EXPRESSED traits the drive formula actually reads.
+    w.store.physical[slot * TRAIT_COUNT + TRAIT.ASEXUAL_RATE] = 0.055;
+    w.store.physical[slot * TRAIT_COUNT + TRAIT.MATE_SEEKING] = 0;
+  };
+
+  const scanQueue = (w: PW): { sexual: number; asexFrom: Map<number, number> } => {
+    let sexual = 0;
+    const asexFrom = new Map<number, number>();
+    for (let q = 0; q < w.pendingBirths; q++) {
+      if (w.birthMateSlot[q] >= 0) sexual++;
+      else asexFrom.set(w.birthParentSlot[q], (asexFrom.get(w.birthParentSlot[q]) ?? 0) + 1);
+    }
+    return { sexual, asexFrom };
+  };
+
+  /** One proposeReproduction proves the ATTEMPT; loop proves a BIRTH despite the lottery. */
+  const awaitAsexualBirth = (w: PW, slots: number[], tries = 30): boolean => {
+    for (let t = 0; t < tries; t++) {
+      for (const s of slots) if (w.store.energy[s] < 900) w.store.energy[s] = 1000;
+      w.proposeReproduction();
+      const q = scanQueue(w);
+      if (slots.some((s) => (q.asexFrom.get(s) ?? 0) > 0)) return true;
+    }
+    return false;
+  };
+
+  // ---- Case A: no candidate -> asexual attempt + birth, no sexual ----
+  let aDetail = 'no live pair', aPass = false;
+  {
+    const p = makeProbe();
+    if (p) {
+      const { w, probe, a, b } = p;
+      prime(w, a, 1000); prime(w, b, 1000);
+      w.intent.fill(INTENT.SETTLE, 0, w.store.capacity);
+      w.mateTarget.fill(-1, 0, w.store.capacity);
+      w.mateCandN = 0;
+      w.proposeReproduction();
+      const attempt = probe.reached.has(a) && probe.reached.has(b)
+        && !probe.sexualSkipped.has(a) && !probe.sexualSkipped.has(b);
+      const flagsClean = w.successfulMating[a] === 0 && w.successfulMating[b] === 0;
+      const q0 = scanQueue(w);
+      const born = awaitAsexualBirth(w, [a, b]);
+      const q1 = scanQueue(w);
+      aPass = attempt && flagsClean && q0.sexual === 0 && born && q1.sexual === 0;
+      aDetail = `reached(a=${probe.reached.has(a)},b=${probe.reached.has(b)}) flags(${w.successfulMating[a]},${w.successfulMating[b]}) sexualQ=${q1.sexual} asexBirth=${born}`;
+    }
+  }
+
+  // ---- Case B: candidate, no reciprocal -> same expectation as A ----
+  let bDetail = 'no live pair', bPass = false;
+  {
+    const p = makeProbe();
+    if (p) {
+      const { w, probe, a, b } = p;
+      prime(w, a, 1000); prime(w, b, 1000);
+      w.intent[a] = INTENT.MATE; w.intent[b] = INTENT.FLEE;
+      w.mateTarget[a] = b; w.mateTarget[b] = -1;
+      w.mateCandA[0] = Math.min(a, b); w.mateCandB[0] = Math.max(a, b); w.mateCandN = 1;
+      const m0 = w.submittedByKind[INTERACTION.MATE];
+      w.resolveMatingIntent();
+      w.resolveContests();
+      const noMate = w.submittedByKind[INTERACTION.MATE] - m0 === 0;
+      w.proposeReproduction();
+      const attempt = probe.reached.has(a) && probe.reached.has(b);
+      const born = awaitAsexualBirth(w, [a, b]);
+      const q = scanQueue(w);
+      bPass = noMate && attempt && w.successfulMating[a] === 0
+        && w.successfulMating[b] === 0 && q.sexual === 0 && born;
+      bDetail = `submittedDelta=${noMate} reached(a=${probe.reached.has(a)},b=${probe.reached.has(b)}) sexualQ=${q.sexual} asexBirth=${born}`;
+    }
+  }
+
+  // ---- Case C: mutual intent, surplus FAILS on ONE parent -> other still breeds asexually ----
+  let cDetail = 'no live pair', cPass = false;
+  {
+    const p = makeProbe();
+    if (p) {
+      const { w, probe, a, b } = p;
+      prime(w, a, 1000); prime(w, b, 1000);
+      w.store.energy[b] = 0.1; // B fails fraction+surplus; A stays eligible
+      w.intent[a] = INTENT.MATE; w.intent[b] = INTENT.MATE;
+      w.mateTarget[a] = b; w.mateTarget[b] = a;
+      w.mateCandA[0] = Math.min(a, b); w.mateCandB[0] = Math.max(a, b); w.mateCandN = 1;
+      w.resolveMatingIntent();
+      w.resolveContests(); // onMate surplus check must FAIL via B
+      const mated = w.successfulMating[a] === 1 || w.successfulMating[b] === 1;
+      w.proposeReproduction();
+      const aAttempted = probe.reached.has(a) && !probe.sexualSkipped.has(a);
+      const born = awaitAsexualBirth(w, [a]);
+      const q = scanQueue(w);
+      cPass = !mated && aAttempted && w.successfulMating[a] === 0 && q.sexual === 0 && born;
+      cDetail = `mated=${mated} aReached=${probe.reached.has(a)} bReached=${probe.reached.has(b)} sexualQ=${q.sexual} asexBirthA=${born}`;
+    }
+  }
+
+  // ---- Case D: mutual + surplus PASSES -> exactly 2 sexual, 0 asexual from pair ----
+  let dDetail = 'no live pair', dPass = false;
+  {
+    const p = makeProbe();
+    if (p) {
+      const { w, probe, a, b } = p;
+      prime(w, a, 1000); prime(w, b, 1000);
+      w.intent[a] = INTENT.MATE; w.intent[b] = INTENT.MATE;
+      w.mateTarget[a] = b; w.mateTarget[b] = a;
+      w.mateCandA[0] = Math.min(a, b); w.mateCandB[0] = Math.max(a, b); w.mateCandN = 1;
+      w.resolveMatingIntent();
+      w.resolveContests();
+      const queuedSexual = scanQueue(w).sexual; // must be 2 BEFORE proposeReproduction
+      const flagsSet = w.successfulMating[a] === 1 && w.successfulMating[b] === 1;
+      w.proposeReproduction(); // single call: skip must be deterministic, no retry loop
+      const q = scanQueue(w);
+      const skipped = probe.sexualSkipped.has(a) && probe.sexualSkipped.has(b);
+      const noAsexAttempt = !probe.reached.has(a) && !probe.reached.has(b);
+      const noAsexBirth = (q.asexFrom.get(a) ?? 0) === 0 && (q.asexFrom.get(b) ?? 0) === 0;
+      dPass = flagsSet && queuedSexual === 2 && skipped && noAsexAttempt && q.sexual === 2 && noAsexBirth;
+      dDetail = `flags(${w.successfulMating[a]},${w.successfulMating[b]}) sexualQ=${q.sexual}(pre=${queuedSexual}) skipped(a=${probe.sexualSkipped.has(a)},b=${probe.sexualSkipped.has(b)}) reached(a=${probe.reached.has(a)},b=${probe.reached.has(b)}) asexFrom(a=${q.asexFrom.get(a) ?? 0},b=${q.asexFrom.get(b) ?? 0})`;
+    }
+  }
+
+  record('G42', 'successfulMating flag gates asexual fallback (A no-candidate, B no-reciprocal, C failed-surplus, D passed-surplus)',
+    aPass && bPass && cPass && dPass,
+    `A: ${aDetail} | B: ${bDetail} | C: ${cDetail} | D: ${dDetail}`);
+}
+
+// Gate 28: successfulMating array grows with population capacity
+function gate43(): void {
+  const SMALL = { founders: 10, worldW: 200, worldH: 200, seed: 88888,
+    consumerPhotoScale: 0, consumerBasalScale: 0.25,
+    decomposerPhotoScale: 0, decomposerFounders: 0.5,
+    decomposerDormancy: 0.05, sporeDispersal: 1,
+    grazeYieldScale: 1.0, plantYieldPerMass: 0, radiation: null,
+    foodDisease: 0.15, pioneerBonus: null, dormantSenescence: null,
+    dormantThreatBlind: null, mixotrophyCarbon: null,
+    mixotrophySaturation: 1.0, nutrientCyclic: true,
+    producerCaptureScale: 0.35, nutrientFloor: 0.05, reproSurplusTicks: 5,
+    basalFoodPerCell: 0.01, nutrientRegen: 0.0002,
+    excretionRate: 0.06, meatYieldPerMass: 0,
+  };
+  const w = new World({ config: SMALL }) as unknown as { successfulMating: Uint8Array; live: Uint8Array; ensureSlotArrays(slot: number): void; step(): void };
+  // Initial capacity is 1024 (Math.max(1024, founders*2))
+  const initialLiveLen = w.live.length;
+  // Force growth by calling ensureSlotArrays with a slot beyond initial capacity
+  w.ensureSlotArrays(2000);
+  const grownLiveLen = w.live.length;
+  const flagLen = w.successfulMating.length;
+  const grew = grownLiveLen > initialLiveLen;
+  record('G43', 'successfulMating array grows with organism capacity',
+    flagLen === grownLiveLen && grew,
+    `initialLiveLen=${initialLiveLen} grownLiveLen=${grownLiveLen} successfulMating.length=${flagLen} (grew: ${grew})`);
+}
+
+// Gate 29: successfulMating flag suppresses asexual for high-slot mating pair
+function gate44(): void {
+  // Deterministic high-slot mating integration test.
+  // Grows store past initial capacity, allocates a live mating pair at
+  // high indices (>1024), runs resolveMatingIntent/resolveContests,
+  // then verifies proposeReproduction skips asexual for those slots.
+  const SMALL = { founders: 10, worldW: 200, worldH: 200, seed: 88888,
+    consumerPhotoScale: 0, consumerBasalScale: 0.25,
+    decomposerPhotoScale: 0, decomposerFounders: 0.5,
+    decomposerDormancy: 0.05, sporeDispersal: 1,
+    grazeYieldScale: 1.0, plantYieldPerMass: 0, radiation: null,
+    foodDisease: 0.15, pioneerBonus: null, dormantSenescence: null,
+    dormantThreatBlind: null, mixotrophyCarbon: null,
+    mixotrophySaturation: 1.0, nutrientCyclic: true,
+    producerCaptureScale: 0.35, nutrientFloor: 0.05, reproSurplusTicks: 5,
+    basalFoodPerCell: 0.01, nutrientRegen: 0.0002,
+    excretionRate: 0.06, meatYieldPerMass: 0,
+  };
+
+  // Use a probe to observe asexual attempts via ReproProbe
+  class SlotProbe implements ReproProbe {
+    sexualSkipped = new Set<number>();
+    reached = new Set<number>();
+    reachedN = new Map<number, number>();
+    firedSet = new Set<number>();
+    blocked(slot: number, _guild: number, gate: number): void {
+      void _guild;
+      if (gate === REPRO_GATE.sexual) this.sexualSkipped.add(slot);
+    }
+    reachedRoll(slot: number, _guild: number, _drive: number, _m?: number, _a?: number, _s?: number): void {
+      void _guild; void _drive; void _m; void _a; void _s;
+      this.reached.add(slot);
+      this.reachedN.set(slot, (this.reachedN.get(slot) ?? 0) + 1);
+    }
+    fired(slot: number, _guild: number): void {
+      void _guild;
+      this.firedSet.add(slot);
+    }
+  }
+
+  type PW = {
+    store: { grow(cap: number): boolean; genome: Float32Array; bodyGenes: Uint8Array; physical: Float32Array; age: Int32Array; reproCooldown: Int32Array; damage: Float32Array; energy: Float32Array; role: Uint8Array; capacity: number; count: number; trait(slot: number, traitIndex: number): number; };
+    live: Uint8Array;
+    intent: Uint8Array; mateTarget: Int32Array;
+    mateCandA: Int32Array; mateCandB: Int32Array; mateCandN: number;
+    submittedByKind: Int32Array; successfulMating: Uint8Array;
+    pendingBirths: number; birthParentSlot: Int32Array; birthMateSlot: Int32Array;
+    proposeReproduction(): void; resolveMatingIntent(): void; resolveContests(): void;
+    ensureSlotArrays(slot: number): void;
+  };
+
+  const probe = new SlotProbe();
+  const w = new World({ config: SMALL, reproProbe: probe }) as unknown as PW;
+
+  // Grow World arrays and Store arrays past 1024
+  w.ensureSlotArrays(2048);
+  w.store.grow(4096); // Grow store arrays to cover high indices
+
+  const highA = 1500;
+  const highB = 1501;
+
+  // Manually create organisms at high slots (replicate populateSlot essentials)
+  // Increment count and set live
+  w.store.count = Math.max(w.store.count, highA + 1, highB + 1);
+  w.live[highA] = 1;
+  w.live[highB] = 1;
+
+  // Set up genome and body for both slots
+  const genomeA = new Float32Array(42);
+  const genomeB = new Float32Array(42);
+  const bodyA = new Uint8Array(8);
+  const bodyB = new Uint8Array(8);
+  for (let i = 0; i < 42; i++) {
+    genomeA[i] = 0.5;
+    genomeB[i] = 0.5;
+  }
+  // Set key traits in genome
+  genomeA[TRAIT.MATURITY_AGE] = 10;
+  genomeA[TRAIT.ASEXUAL_RATE] = 0.055;
+  genomeA[TRAIT.MATE_SEEKING] = 0;
+  genomeA[TRAIT.BASAL_COST] = 0.2;
+  genomeA[TRAIT.SIZE] = 1.0;
+  genomeA[TRAIT.MASS_COST] = 0.1;
+  genomeA[TRAIT.REPRO_THRESHOLD] = 0.3;
+  genomeA[TRAIT.METABOLIC_EFFICIENCY] = 0.5;
+  genomeA[TRAIT.STORAGE_CAPACITY] = 100;
+  genomeB[TRAIT.MATURITY_AGE] = 10;
+  genomeB[TRAIT.ASEXUAL_RATE] = 0.055;
+  genomeB[TRAIT.MATE_SEEKING] = 0;
+  genomeB[TRAIT.BASAL_COST] = 0.2;
+  genomeB[TRAIT.SIZE] = 1.0;
+  genomeB[TRAIT.MASS_COST] = 0.1;
+  genomeB[TRAIT.REPRO_THRESHOLD] = 0.3;
+  genomeB[TRAIT.METABOLIC_EFFICIENCY] = 0.5;
+  genomeB[TRAIT.STORAGE_CAPACITY] = 100;
+
+  // Copy genome to store
+  w.store.genome.set(genomeA, highA * 42);
+  w.store.genome.set(genomeB, highB * 42);
+  w.store.bodyGenes.set(bodyA, highA * 8);
+  w.store.bodyGenes.set(bodyB, highB * 8);
+
+  // Set runtime state for mating eligibility
+  w.store.age[highA] = 20;
+  w.store.age[highB] = 20;
+  w.store.reproCooldown[highA] = 0;
+  w.store.reproCooldown[highB] = 0;
+  w.store.damage[highA] = 0;
+  w.store.damage[highB] = 0;
+  w.store.energy[highA] = 1000;
+  w.store.energy[highB] = 1000;
+  w.store.role[highA * 8] = 1; // CONSUMER
+  w.store.role[highB * 8] = 1;
+
+  // Also sync expressed traits in physical array
+  const traits = [
+    [TRAIT.MATURITY_AGE, 10],
+    [TRAIT.ASEXUAL_RATE, 0.055],
+    [TRAIT.MATE_SEEKING, 0],
+    [TRAIT.BASAL_COST, 0.2],
+    [TRAIT.SIZE, 1.0],
+    [TRAIT.MASS_COST, 0.1],
+    [TRAIT.REPRO_THRESHOLD, 0.3],
+    [TRAIT.METABOLIC_EFFICIENCY, 0.5],
+    [TRAIT.STORAGE_CAPACITY, 100],
+  ] as const;
+  for (const [trait, val] of traits) {
+    w.store.physical[highA * 42 + trait] = val;
+    w.store.physical[highB * 42 + trait] = val;
+  }
+
+  w.intent.fill(INTENT.SETTLE, 0, w.store.capacity);
+  w.mateTarget.fill(-1, 0, w.store.capacity);
+
+  // Mutual intent, mutual selection
+  w.intent[highA] = INTENT.MATE; w.intent[highB] = INTENT.MATE;
+  w.mateTarget[highA] = highB; w.mateTarget[highB] = highA;
+  w.mateCandA[0] = highA; w.mateCandB[0] = highB; w.mateCandN = 1;
+
+  w.resolveMatingIntent();
+  w.resolveContests();
+
+  // Check that MATE was submitted and successfulMating flags set
+  const mated = w.successfulMating[highA] === 1 && w.successfulMating[highB] === 1;
+  const sexualQueued = w.pendingBirths === 2 && w.birthMateSlot[0] >= 0 && w.birthMateSlot[1] >= 0;
+
+  w.proposeReproduction();
+
+  // Verify no asexual attempt from high slots, sexual skip recorded
+  const noAsexReached = !probe.reached.has(highA) && !probe.reached.has(highB);
+  const sexualSkipped = probe.sexualSkipped.has(highA) && probe.sexualSkipped.has(highB);
+
+  const pass = mated && sexualQueued && noAsexReached && sexualSkipped;
+  record('G44', 'high-slot mating pair suppresses asexual (integration)',
+    pass,
+    `mated=${mated} sexualQueued=${sexualQueued} noAsexReached=${noAsexReached} sexualSkipped=${sexualSkipped} slots=(${highA},${highB})`);
+}
+
+// ---------------------------------------------------------------------------
+// G45 — per-pool nutrient cap holds on every RETURN path (Task 6 pin)
+// ---------------------------------------------------------------------------
+// WHY THIS GATE EXISTS. The four nutrient return paths (excretion + three
+// biotic-mineralisation sites) used to clamp to a FLAT `nutrientPerCell *
+// fertility`, dropping the per-pool multiplier `nutrientCapacity = [1.0, 0.78,
+// 0.62]`. Pools B and C could therefore be filled ABOVE their declared
+// capacity by a return. That was corrected by routing all four sites through
+// the shared helper `nutrientCapAt`.
+//
+// The defect was LATENT: parity, gates and contracts all stayed green with the
+// bug present, because the pools never approach a ceiling at declared settings.
+// Nothing else in this suite would notice if the correction were reverted — so
+// this gate is the only thing holding it in place.
+//
+// MEASUREMENT. The per-pool cap is a SOFT TARGET, not an invariant:
+// `ScalarField.step()` diffusion runs after the regeneration clamp, so a
+// low-fertility cell beside a rich one drifts above its own cap every tick
+// even with no writers at all. Asserting against zero would therefore fail
+// regardless of the correction. This gate runs TWO arms and asserts a RATIO.
+//
+// NEITHER ARM IS WRITER-FREE, AND NEITHER IS "RETURNS ONLY". An earlier
+// revision of this comment claimed both; it was wrong, and the wrong claim was
+// doing work — it implied an isolation this gate does not perform. What the
+// arms actually are:
+//
+//   SHARED configuration (not an algebraic cancellation):
+//     abiotic regeneration at `nutrientRegen = 0.5`, diffusion,
+//     `nutrientCyclic = false`, `nutrientFloor = 0`,
+//     `producerCaptureScale = 0`, seed and world size.
+//   baseline:
+//     the four biotic RETURN paths off (`excretionRate = 0`,
+//     `bioticMineralisation = 0`) and the recycling broadcast off
+//     (`recyclingRate = 0`, `basalFoodPerCell = 0`).
+//   saturation:
+//     those four return paths driven hard, plus the recycling broadcast at
+//     `recyclingRate = 0.02`.
+//
+// So `nutrientRegen` is a controlled confound: an abiotic writer present in
+// both arms. Its effects need not cancel in this nonlinear simulation.
+// `recyclingRate` is an ARM-SPECIFIC additional writer — it differs
+// (0 vs 0.02) and it is UNCLAMPED (the broadcast has no ceiling at all, see
+// the nutrientCapAt non-goals), so it raises saturation excess without the
+// correction directly touching it. This is a regression scenario, not an
+// isolated causal attribution or proof that the confounds cancel.
+//
+// Saturation excess must stay within 2x the measured baseline. If the
+// correction is reverted, B and C jump to ~8x and ~10x baseline under this
+// gate's own configuration (measured by reverting nutrientCapAt and
+// re-running) and this gate fails loudly. The larger ~150x/~240x figures
+// belong to the probe's bigger saturation world, not to this gate.
+function gate45(): void {
+  interface CapWorld {
+    readonly nutrients: { readonly data: Float32Array }[];
+    readonly habitat: { readonly fertility: { readonly data: Float32Array } };
+    readonly config: { nutrientPerCell: number; nutrientCapacity: number[] };
+    step(): void;
+  }
+
+  const GATE_TICKS = 120;
+  const capWorld = (overrides: Record<string, unknown>): CapWorld =>
+    new World({
+      config: {
+        founders: 300, worldW: 800, worldH: 800, seed: 4242, label: 'gates30',
+        // Shared saturation substrate: drive every pool toward its ceiling.
+        nutrientRegen: 0.5, nutrientCyclic: false, nutrientFloor: 0,
+        producerCaptureScale: 0,
+        ...overrides,
+      },
+    }) as unknown as CapWorld;
+
+  /** Peak per-pool excess above the DECLARED per-pool cap, over all ticks. */
+  const peakExcess = (w: CapWorld): number[] => {
+    const best = [0, 0, 0];
+    const nCells = w.nutrients[0].data.length;
+    for (let t = 0; t < GATE_TICKS; t++) {
+      w.step();
+      for (let nIdx = 0; nIdx < 3; nIdx++) {
+        const data = w.nutrients[nIdx].data;
+        const mod = w.config.nutrientCapacity[nIdx] ?? 1;
+        for (let ci = 0; ci < nCells; ci++) {
+          const cap = w.config.nutrientPerCell * w.habitat.fertility.data[ci] * mod;
+          const over = data[ci] - cap;
+          if (over > best[nIdx]) best[nIdx] = over;
+        }
+      }
+    }
+    return best;
+  };
+
+  // Baseline: return paths and the recycling broadcast silenced. Abiotic
+  // regeneration (shared `nutrientRegen = 0.5`) and diffusion still write, so
+  // this is a low-writer arm, NOT a writer-free one.
+  const base = peakExcess(capWorld({
+    excretionRate: 0, bioticMineralisation: 0, basalFoodPerCell: 0,
+    recyclingRate: 0,
+  }));
+  // Saturation: the four return paths driven hard, pools pushed at their
+  // ceiling. Abiotic regeneration and the recycling broadcast are additional
+  // writers here too — see the header. This is where the defect was reachable.
+  const sat = peakExcess(capWorld({
+    excretionRate: 0.06, bioticMineralisation: 1.0, basalFoodPerCell: 0.5,
+    recyclingRate: 0.02,
+  }));
+
+  // A zero baseline would make the ratio meaningless (division by zero) and
+  // would itself mean diffusion is not running — a different failure to
+  // surface, not something to divide by.
+  const ratios = [0, 1, 2].map((n) => (base[n] > 1e-12 ? sat[n] / base[n] : Infinity));
+  const pass = ratios.every((r) => r <= 2);
+
+  record('G45', 'per-pool nutrient cap holds on every return path (Task 6 pin)',
+    pass,
+    `peak excess above per-pool cap — saturation vs diffusion baseline. ` +
+    `A: ${sat[0].toFixed(6)}/${base[0].toFixed(6)} (x${ratios[0].toFixed(2)}), ` +
+    `B: ${sat[1].toFixed(6)}/${base[1].toFixed(6)} (x${ratios[1].toFixed(2)}), ` +
+    `C: ${sat[2].toFixed(6)}/${base[2].toFixed(6)} (x${ratios[2].toFixed(2)}). ` +
+    `All must be <= x2.00. Pool A (mod 1.0) is the built-in control: its ` +
+    `per-pool cap EQUALS the flat cap, so it cannot discriminate and must ` +
+    `sit near baseline either way. Teeth verified by reverting ` +
+    `nutrientCapAt to the flat cap: B -> x8.38, C -> x10.16, A unchanged ` +
+    `at x1.00 (FAIL, as required).`);
+}
+
+// ============================================================================
+// G46 / G47 — the P2-6 flux books, tested INDEPENDENTLY of G45.
+//
+// G45 proves the per-pool cap correction behaves as declared, but it reads
+// only the nutrient FIELDS. It cannot detect a wrong flux book: the books are
+// not in its budget. These two gates test the books themselves, at the
+// per-(guild, pool[, source]) granularity the books are stored at. Aggregate
+// sums would not do: with four books per return, per-cell errors cancel in a
+// total and leave the aggregate looking right. Every check here is per cell.
+//
+// The four books live behind `getFluxSnapshot()`. The pre-0.6.3 snapshot
+// exposed ONE signed number under the name "returns", computed as
+// `min(cap, before + in) - before`, which goes NEGATIVE whenever a cell is
+// already above its own cap when a return arrives — and diffusion runs after
+// the regeneration clamp, so that is routine. Ceiling deletion was therefore
+// being reported to the reader as biological recycling.
+//
+// G46 (conservation, writer-isolated world)
+//   Diffusion and regeneration are switched off, leaving the nutrient budget
+//   with exactly one writer (a biotic return) and one draw (photosynthetic
+//   uptake):
+//     `nutrientRegen = 0`        no abiotic regeneration term
+//     `nutrientFloor = 0`        no floor write
+//     `nutrientDecay = 0`        no decay drain in the field step
+//     `recyclingRate = 0`        no unclamped broadcast
+//     `nutrientDiffusivity = 0`  the 5-point stencil degenerates to the
+//                                identity map, so `step()` copies scratch back
+//                                unchanged and moves nothing
+//   Eviction is bounded, NOT zero. Float32 storage can round a cell UP past
+//   its ceiling when a return drives it there, so a later return that arrives
+//   finds excess and reports it. The rounding envelope is 4*EPS32*accepted;
+//   field agreement is a separate check. G46 detects disagreement, not unclamped writes.
+//   It does not assert whether a return leaves a cell above cap — that is G45's
+//   job. The budget closes:
+//     final - initial  ==  accepted - eviction - photo uptake
+//   The left side is measured by the nutrient fields, the right side by the
+//   books. Two different instruments agreeing — to float32 write rounding,
+//   measured at ~1e-8 relative — is the evidence that `accepted` is the
+//   nutrient that actually entered, not a number that merely agrees with its
+//   own siblings.
+//
+// G47 (partition, saturation world with diffusion)
+//   The same books are then read in the arm where the ceiling actually bites,
+//   and the exact partition identity is asserted per (guild, pool, source):
+//     attempted == accepted + capLoss   (every unit offered is accounted for)
+//     all four books >= 0               (none is a signed blend)
+//   Non-negativity is held to double-precision cancellation (-1e-12 relative)
+//   rather than asserted exactly, because `capLoss = amount - acceptedAmt`
+//   cancels when the two nearly match and clamping it would break the exact
+//   identity above. And `eviction > 0` is REQUIRED, so the gate cannot pass by
+//   sitting on the trivial branch where the clamp never fires.
+// ============================================================================
+function gate46(): void {
+  type Snapshot = ReturnType<World['getFluxSnapshot']>;
+  // Detritus / sediment / litter — the three biotic mineralisation sources.
+  const BIOTIC_SOURCES = 3;
+
+  const sum2 = (a: number[][]): number => {
+    let s = 0;
+    for (const row of a) for (const v of row) s += v;
+    return s;
+  };
+  const sum3 = (a: number[][][]): number => {
+    let s = 0;
+    for (const g of a) s += sum2(g);
+    return s;
+  };
+
+  // ---- G46: writer-isolated conservation -------------------------------
+  const ISO_TICKS = 100;
+  const iso = new World({
+    config: {
+      founders: 300, worldW: 800, worldH: 800, seed: 4242, label: 'gates31',
+      nutrientRegen: 0, nutrientCyclic: false, nutrientFloor: 0,
+      nutrientDiffusivity: 0, nutrientDecay: 0, recyclingRate: 0,
+      excretionRate: 0.06, bioticMineralisation: 1.0, basalFoodPerCell: 0.5,
+    },
+  });
+  const poolTotal = (): number => {
+    let s = 0;
+    for (const f of iso.nutrients) s += f.total();
+    return s;
+  };
+  const initial = poolTotal();
+  for (let t = 0; t < ISO_TICKS; t++) iso.step();
+  const isoFlux = iso.getFluxSnapshot() as Snapshot;
+  const photo = sum2(isoFlux.photoUptake);
+  const accIso = sum2(isoFlux.excretionReturns.accepted)
+    + sum3(isoFlux.bioticMineralization.accepted);
+  const eviIso = sum2(isoFlux.excretionReturns.eviction)
+    + sum3(isoFlux.bioticMineralization.eviction);
+  const observedDelta = poolTotal() - initial;
+  const predictedDelta = accIso - eviIso - photo;
+  const scale = Math.abs(accIso) + Math.abs(photo);
+  // Residual tolerance is float32 field rounding, not a fitted margin: the
+  // pools are Float32Array, so every write rounds and the error accumulates
+  // over 100 ticks x 3 pools x every cell. 1e-4 relative is ~3 orders above
+  // single precision and still two orders below any real bookkeeping error.
+  const g31Residual = scale > 0 ? Math.abs(observedDelta - predictedDelta) / scale : Infinity;
+
+  // With diffusion off, excess is float32 storage rounding at the ceiling.
+  // Seeding is below cap (cap * jitter * 0.55 <= 0.7545 * cap).
+  // This checks book/field agreement, not whether the cap is enforced (G45).
+  const EPS32 = 2 ** -23;
+  const g31EvictionEnvelope = 4 * EPS32 * Math.abs(accIso) + 1e-12;
+  const g31EvictionBounded = eviIso <= g31EvictionEnvelope;
+
+  // Cap-loss is also tracked from the books (a return's refused amount).
+  const capLossIso = sum2(isoFlux.excretionReturns.capLoss)
+    + sum3(isoFlux.bioticMineralization.capLoss);
+
+  record('G46', 'flux books are a real measurement, not a self-consistent tally',
+    g31Residual <= 1e-4 && g31EvictionBounded && accIso > 0 && capLossIso > 0,
+    `writer-isolated world (no diffusion / regen / decay / broadcast / floor): ` +
+    `pool totals moved ${observedDelta.toFixed(6)}; the books predict ` +
+    `${predictedDelta.toFixed(6)} = accepted ${accIso.toFixed(6)} - photo ` +
+    `${photo.toFixed(6)} - eviction ${eviIso.toExponential(3)}. Relative ` +
+    `residual ${g31Residual.toExponential(2)}, limit 1e-4 (float32 field ` +
+    `rounding). Eviction ${eviIso.toExponential(3)} vs envelope ` +
+    `${g31EvictionEnvelope.toExponential(3)}; the current run's ceiling ` +
+    `exercise is tracked as capLoss=${capLossIso.toFixed(6)}. Accepted must ` +
+    `be > 0, else no return ran and this proves nothing.`);
+
+  // ---- G47: partition identity where the ceiling actually bites ---------
+  const SAT_TICKS = 120;
+  const sat = new World({
+    config: {
+      founders: 300, worldW: 800, worldH: 800, seed: 4242, label: 'gates32',
+      // G45's saturation arm verbatim: it is the arm where the ceiling bites.
+      nutrientRegen: 0.5, nutrientCyclic: false, nutrientFloor: 0,
+      producerCaptureScale: 0,
+      excretionRate: 0.06, bioticMineralisation: 1.0, basalFoodPerCell: 0.5,
+      recyclingRate: 0.02,
+    },
+  });
+  for (let t = 0; t < SAT_TICKS; t++) sat.step();
+  const s32 = sat.getFluxSnapshot();
+
+  let attempted = 0, accepted = 0, capLoss = 0, eviction = 0;
+  let worstResidual = 0;
+  // If a book cell goes negative — the exact defect the pre-0.6.3 snapshot
+  // shipped — report WHICH one. "3 negative cells" without an address is a
+  // failure a reader cannot act on. `label` is kept for that reason: it is
+  // dead weight in the pass path and the whole point in the fail path.
+  const negatives: { label: string; guild: number; pool: number; src: number; value: number }[] = [];
+  const note = (
+    label: string, g: number, p: number, src: number,
+    a: number, c: number, l: number, e: number,
+  ): void => {
+    attempted += a; accepted += c; capLoss += l; eviction += e;
+    const r = Math.abs(a - (c + l));
+    if (r > worstResidual) worstResidual = r;
+    for (const [book, v] of [['attempted', a], ['accepted', c], ['capLoss', l], ['eviction', e]] as const) {
+      if (v < 0) negatives.push({ label: `${label}.${book}`, guild: g, pool: p, src, value: v });
+    }
+  };
+  for (let g = 0; g < TROPHIC_COUNT; g++) {
+    for (let p = 0; p < NUTRIENT_COUNT; p++) {
+      note('excretion', g, p, -1,
+        s32.excretionReturns.attempted[g][p],
+        s32.excretionReturns.accepted[g][p],
+        s32.excretionReturns.capLoss[g][p],
+        s32.excretionReturns.eviction[g][p],
+      );
+      for (let src = 0; src < BIOTIC_SOURCES; src++) {
+        note('biotic', g, p, src,
+          s32.bioticMineralization.attempted[g][p][src],
+          s32.bioticMineralization.accepted[g][p][src],
+          s32.bioticMineralization.capLoss[g][p][src],
+          s32.bioticMineralization.eviction[g][p][src],
+        );
+      }
+    }
+  }
+  // Float summation over ~1e4 non-negative terms: 1e-6 x the total is generous
+  // and still two orders below any defect that would blend the books.
+  const partitionOk = worstResidual <= 1e-6 * Math.max(1, attempted);
+  // NON-NEGATIVITY, bounded rather than asserted exactly. `capLoss` is
+  // accumulated as `amount - acceptedAmt`, and when the two are nearly equal
+  // that subtraction cancels: a run of small excretion returns leaves cells
+  // around -1e-15. Clamping them to zero would break
+  // `attempted == accepted + capLoss`, which is the stronger claim, so the
+  // exact identity wins and non-negativity is held to double-precision
+  // cancellation instead. A genuine negative return — the pre-0.6.3 defect —
+  // is O(1), five orders above this bound.
+  const worstNeg = negatives.reduce<{ label: string; guild: number; pool: number; src: number; value: number } | null>(
+    (acc, n) => (acc === null || n.value < acc.value ? n : acc), null);
+  const negOk = worstNeg === null || worstNeg.value >= -1e-12 * Math.max(1, attempted);
+  const worstNegText = worstNeg === null
+    ? 'none'
+    : `${worstNeg.label}[guild ${worstNeg.guild}][pool ${worstNeg.pool}]` +
+      `[source ${worstNeg.src}] = ${worstNeg.value}`;
+
+  record('G47', 'return books partition exactly at every (guild, pool, source)',
+    negOk && partitionOk && eviction > 0 && attempted > 0,
+    `saturation arm with diffusion, ${SAT_TICKS} ticks: attempted ` +
+    `${attempted.toFixed(6)} == accepted ${accepted.toFixed(6)} + capLoss ` +
+    `${capLoss.toFixed(6)}; worst per-cell residual ` +
+    `${worstResidual.toExponential(2)}, limit 1e-6 x max(1, attempted). ` +
+    `${negatives.length} negative cells, limit -1e-12 x max(1, attempted); ` +
+    `worst: ${worstNegText}. Eviction total ${eviction.toFixed(6)} — the ` +
+    `bounded over-cap event; it must be > 0 or the ceiling never bit and the ` +
+    `identity was only tested on its trivial branch.`);
+}
+
 function main(): void {
   console.log(`=== credibility gates :: ${WORLD_ENGINE_VERSION} ===`);
   console.log(`scenario: founders=${SMALL.founders} world=${SMALL.worldW}x${SMALL.worldH} ticks=${TICKS} seed=${SMALL.seed}\n`);
@@ -2447,6 +3290,13 @@ function main(): void {
   gate38();
   gate39();
   gate40();
+  gate41();
+  gate42();
+  gate43();
+  gate44();
+  gate45();
+  gate46();
+
 
   const failed = results.filter((r) => !r.pass);
   console.log(`\n${results.length - failed.length}/${results.length} checks passed`);

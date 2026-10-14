@@ -1,0 +1,12 @@
+GRAZEMETER seed=41001 ticks=2000 (pinned evaluated-arm config)
+  t1000 P106/C1564/D828 submits=1295 meanProducerEnergy=6.69
+  t2000 P5/C2847/D31 submits=1440 meanProducerEnergy=1.61
+GRAZE-SPLIT seed=41001 submits=1440 abandoned=0(0.0) defenderWins=388(26.9) attackerWinsDelta0=2(0.1) attackerWinsDeltaPos=1050(72.9) worldGrazeWins=0 worldGrazeEnergy=0
+GRAZEMETER seed=41008 ticks=2000 (pinned evaluated-arm config)
+  t1000 P414/C1354/D740 submits=2163 meanProducerEnergy=14.42
+  t2000 P1786/C1892/D18 submits=7777 meanProducerEnergy=13.70
+GRAZE-SPLIT seed=41008 submits=7777 abandoned=0(0.0) defenderWins=2441(31.4) attackerWinsDelta0=2(0.0) attackerWinsDeltaPos=5334(68.6) worldGrazeWins=0 worldGrazeEnergy=0
+GRAZEMETER seed=52002 ticks=2000 (pinned evaluated-arm config)
+  t1000 P1366/C272/D826 submits=1811 meanProducerEnergy=26.27
+  t2000 P2117/C146/D365 submits=5481 meanProducerEnergy=20.54
+GRAZE-SPLIT seed=52002 submits=5481 abandoned=0(0.0) defenderWins=1874(34.2) attackerWinsDelta0=3(0.1) attackerWinsDeltaPos=3604(65.8) worldGrazeWins=0 worldGrazeEnergy=0

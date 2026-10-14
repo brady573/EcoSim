@@ -57,7 +57,10 @@
  * Neither weakening is cosmetic — both prior assertions were ecological claims
  * the gates never made.
  */
-export const WORLD_ENGINE_VERSION = 'ts-evo-poc/0.7.0';
+// Reconciliation with main's 0.6.3: fasting tolerance, mating/radiation fixes,
+// per-pool nutrient caps and observers combined with the canopy correction.
+// Earlier 0.7.0 and 0.6.3 panels are provenance, not this engine's live pins.
+export const WORLD_ENGINE_VERSION = 'ts-evo-poc/0.8.0';
 
 /**
  * Semantics version for the chemistry-enabled model.
@@ -122,4 +125,5 @@ export function runIdentity(chemistryEnabled: boolean): string {
  * tolerances, a discriminating 1:1 H/O uptake control, and the three-arm
  * cross-organism shared-budget control.
  */
-export const GATE_SUITE_VERSION = 'gates/0.7.6';
+// Combined chemistry and main validation suite, including G41-G47.
+export const GATE_SUITE_VERSION = 'gates/0.8.0';

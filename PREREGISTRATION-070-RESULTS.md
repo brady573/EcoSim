@@ -1,5 +1,8 @@
 # Pre-registration results under `ts-evo-poc/0.7.0` — H1–H7
 
+> HISTORICAL after main reconciliation. Current 0.8.0 results:
+> `RECONCILIATION-080-RESULTS.md`. Original measurements below are retained.
+
 **Run:** 2026-10-13, after the Owner-authorized legacy canopy correction.
 **Model identity:** `ts-evo-poc/0.7.0+chem/0.7.7`
 **Seeds:** 517, 1013, 24601, 7, 99, 31337, 4242, 8080, 555, 12345 (10)

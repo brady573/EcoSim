@@ -1,5 +1,8 @@
 # Diagnostics — `chemistryPredationMatter` ride-along (post-hoc)
 
+> HISTORICAL after main reconciliation. Current 0.8.0 diagnostics are recorded
+> in `RECONCILIATION-080-RESULTS.md`; original measurements below are retained.
+
 **Date:** 2026-10-13
 **Engine:** `ts-evo-poc/0.7.0+chem/0.7.7`
 **Runner:** `scripts/chem-predation-knob.mjs`

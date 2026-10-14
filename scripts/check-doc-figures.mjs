@@ -25,6 +25,9 @@ const versionSrc = read(join(root, 'src', 'world', 'version.ts'));
 const worldV = /WORLD_ENGINE_VERSION = '([^']+)'/.exec(versionSrc)?.[1] ?? '';
 const chemV = /CHEMISTRY_ENGINE_VERSION = '([^']+)'/.exec(versionSrc)?.[1] ?? '';
 const expectedIdentity = `${worldV}+${chemV}`;
+// These cases intentionally protect the retained historical 0.7.0 panel.
+// Current 0.8.0 measurements are checked separately below, never relabelled.
+const historicalIdentity = 'ts-evo-poc/0.7.0+chem/0.7.7';
 const RAW_FILES = [
   'evidence/chem-cohort-1000-077-20261013.txt',
   'evidence/chem-matrix-91011-077-20261013.txt',
@@ -32,8 +35,8 @@ const RAW_FILES = [
 ];
 for (const rel of RAW_FILES) {
   const head = read(join(root, rel)).split('\n')[0];
-  if (!head.includes(expectedIdentity)) {
-    console.error(`[FAIL] raw identity: ${rel} does not carry ${expectedIdentity}`);
+  if (!head.includes(historicalIdentity)) {
+    console.error(`[FAIL] historical raw identity: ${rel} does not carry ${historicalIdentity}`);
     console.error(`       first line: ${head}`);
     process.exitCode = 1;
   }
@@ -44,6 +47,65 @@ const docs = {
   inventory: read(join(root, 'EVIDENCE-INVENTORY.md')),
   predation: read(join(root, 'CHEM-PREDATION-KNOB-DIAGNOSTICS.md')),
 };
+const currentDoc = read(join(root, 'RECONCILIATION-080-RESULTS.md'));
+if (!currentDoc.includes(expectedIdentity)) throw new Error('current results identity mismatch');
+const currentPredation = read(join(root, 'evidence/chem-predation-knob-10seed-080-20261014.txt'));
+const sexualTotals = ['base', 'predationMatter'].map((arm) => {
+  const block = currentPredation.split(`--- ${arm} ---`)[1].split(`${arm}:`)[0];
+  const values = [...block.matchAll(/\(sex (\d+)\)/g)].map((m) => Number(m[1]));
+  if (values.length !== 10) throw new Error('incomplete sexual-birth panel');
+  return values.reduce((a, b) => a + b, 0);
+});
+if (!currentDoc.includes(`Sexual births total ${sexualTotals.join('→')}`)) {
+  throw new Error('current sexual-birth totals mismatch');
+}
+for (const [rel, rawFigure, docFigure] of [
+  ['evidence/chem-cohort-1000-080-20261014.txt', 'ratio med 1705.0', 'ratio median 1705.0'],
+  ['evidence/chem-cohort-1000-080-20261014.txt', 'segregates on 5/10 seeds', 'segregation 5/10'],
+  ['evidence/chem-cohort-1000-080-20261014.txt', 'median terminal population 9', 'terminal population median 9'],
+  ['evidence/chem-matrix-91011-080-20261014.txt', 'legacyDetritus med     585', '297→585'],
+  ['evidence/chem-predation-knob-10seed-080-20261014.txt', 'matterC med 8.2015', 'median carbon transferred 8.2015'],
+  ['evidence/chem-cohort-1000-080-20261014.txt', 'nutrients present : births min 3 med 9.5 max 42', 'reproduction nonzero 10/10 with nutrients'],
+  ['evidence/chem-cohort-1000-080-20261014.txt', 'nutrients removed : births min 0 med 0 max 0', 'zero 10/10 without'],
+  ['evidence/chem-cohort-1000-080-20261014.txt', 'hypoxic fraction  nonzero on 0/10 seeds', 'hypoxic fraction all zero'],
+  ['evidence/chem-cohort-1000-080-20261014.txt', 'iron oxidation       nonzero on 10/10 seeds  median 49.11', 'median 49.11'],
+  ['evidence/chem-cohort-1000-080-20261014.txt', 'chemOff        pop med   598  [326..1337]', '598 (326–1337)'],
+  ['evidence/chem-cohort-1000-080-20261014.txt', 'base           pop med     9  [3..35]', '9 (3–35)'],
+  ['evidence/chem-cohort-1000-080-20261014.txt', 'base     producer births on 9/10 | consumer 4/10 | DECOMPOSER 0/10', '| chemistry on | 9/10 | 4/10 | 0/10 |'],
+  ['evidence/chem-cohort-1000-080-20261014.txt', 'asexual births total 147 | sexual births total 6 | max gd 1 | mean gd 0.029', '| 147 | 6 | 1 | 0.029 |'],
+  ['evidence/chem-cohort-1000-080-20261014.txt', 'chemOff  producer births on 10/10 | consumer 10/10 | DECOMPOSER 1/10', '| chemistry off | 10/10 | 10/10 | 1/10 |'],
+  ['evidence/chem-cohort-1000-080-20261014.txt', 'asexual births total 2997 | sexual births total 70 | max gd 1 | mean gd 0.047', '| 2997 | 70 | 1 | 0.047 |'],
+  ['evidence/chem-matrix-91011-080-20261014.txt', 'base               pop med     7 [3..35]  births med     9  OC med    1587  DIC med     23152', 'DIC 23152→661131, OC 1587→1592'],
+  ['evidence/chem-matrix-91011-080-20261014.txt', 'OC med    1592  DIC med    661131', 'organic-carbon supply did not vary'],
+  ['evidence/chem-matrix-91011-080-20261014.txt', 'H10 bridge         pop med     7', 'population median unchanged at 7'],
+  ['evidence/chem-matrix-91011-080-20261014.txt', 'H11 both           pop med     6', 'combined population 6, versus single arms 6 and 7'],
+  ['evidence/chem-matrix-91011-080-20261014.txt', 'ref freeNutrients  pop med    25 [17..178]  births med    56', 'median 25 (17–178)'],
+  ['evidence/chem-matrix-91011-080-20261014.txt', 'births med    56', 'births median 56'],
+  ['evidence/chem-predation-knob-10seed-080-20261014.txt', 'predationMatter: pop med 8 [3..33] | births med 10', 'population median 9→8'],
+  ['evidence/chem-predation-knob-10seed-080-20261014.txt', 'C residual med 0.0002%', 'Carbon residual median 0.0002%'],
+  ['evidence/reconciliation-080-gates-20261014.txt', '= 9.646%', 'Current G33 chemical-income share is 9.646%'],
+  ['evidence/reconciliation-080-gates-20261014.txt', 'income 2478.74', 'income 2478.74'],
+  ['evidence/reconciliation-080-gates-20261014.txt', 'spend 147.60', 'spend 147.60'],
+  ['evidence/reconciliation-080-gates-20261014.txt', 'base residual 0.00011%', 'energy residual 0.00011%'],
+]) {
+  if (!read(join(root, rel)).includes(rawFigure) || !currentDoc.includes(docFigure)) {
+    throw new Error(`current figure mismatch: ${docFigure}`);
+  }
+}
+for (const rel of [
+  'evidence/chem-cohort-1000-080-20261014.txt',
+  'evidence/chem-matrix-91011-080-20261014.txt',
+  'evidence/chem-predation-knob-10seed-080-20261014.txt',
+]) {
+  if (!read(join(root, rel)).split('\n')[0].includes(expectedIdentity)) {
+    throw new Error(`current raw identity mismatch: ${rel}`);
+  }
+}
+for (const doc of [docs.prereg, docs.matrixDoc, docs.predation]) {
+  if (!doc.includes('HISTORICAL after main reconciliation')) {
+    throw new Error('retained panel is not explicitly historical');
+  }
+}
 
 // [docKey, rawKey, label, exactStringInRaw, exactStringInDoc]
 const CASES = [
@@ -91,7 +153,7 @@ for (const [docKey, rawKey, label, inRaw, inDoc] of CASES) {
 }
 
 console.log(`\n${CASES.length - failed}/${CASES.length} doc figures match their current raw evidence`);
-console.log(`raw identity ${expectedIdentity} present in all ${RAW_FILES.length} current panels`);
+console.log(`historical figures preserved; current raw identity ${expectedIdentity} checked separately`);
 process.exit(failed > 0 || process.exitCode ? 1 : 0);
 
 function read(p) {

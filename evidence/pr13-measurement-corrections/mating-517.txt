@@ -1,0 +1,349 @@
+
+PREREGISTERED HYPOTHESES (Mating Success Diagnostic via ReproProbe):
+
+H1: MUTUAL INTENT → SUCCESSFUL MATING BOTTLENECK
+  Prediction: Most organisms reaching the mating phase get blocked at surplus/energy gates, not at mutual intent.
+  Falsification: If reachedRoll > 0 but sexualSkipped = 0 for a guild, surplus/energy gates are not the blocker.
+
+H2: SURPLUS TICKS IS PRIMARY BLOCKER FOR CONSUMERS
+  Prediction: Consumer reachedRoll > 0 but sexualSkipped > 0 (surplus ticks=30 too high for consumer income).
+  Falsification: If consumer reachedRoll = 0, consumers never reach the roll (eligibility issue).
+
+H3: SEXUAL REPRODUCTION IS RARE IN DEFAULT CONFIG
+  Prediction: Sexual births < 10% of total births across all guilds.
+  Falsification: If sexual births > 10%, mating is more effective than measured.
+
+H4: DECOMPOSER MATING DOMINATES SEXUAL REPRODUCTION
+  Prediction: Decomposers have highest sexualBirth count (more energy, longer lives).
+  Falsification: If producers or consumers have more sexual births.
+
+H5: CONSUMER MATING SUCCESS PREDICTS CONSUMER PERSISTENCE
+  Prediction: In knockouts where consumers go extinct, consumer reachedRoll drops to 0 before extinction.
+  Falsification: If consumer reachedRoll > 0 at extinction tick, mating is not the proximate cause.
+
+================================================================================
+
+engine=ts-evo-poc/0.6.3 seed=517 ticks=2000
+resolvedConfig={"worldW":2400,"worldH":2400,"fieldCell":40,"spatialCell":42,"founders":400,"abioticPeriod":1,"baseLight":1.05,"lightAmplitude":0.22,"abioticCycle":900,"baseTemp":18,"tempAmplitude":9,"nutrientDiffusivity":0.11,"nutrientDecay":0.0001,"nutrientPerCell":26,"shadeExtinction":0.034,"shadeGrain":4,"nutrientCapacity":[1,0.78,0.62],"sedimentPerCell":5.5,"sedimentDecay":0.0000016,"detritusDiffusivity":0.09,"detritusDecay":0.000007,"recyclingRate":0.02,"energyPerFood":5.2,"basalFoodPerCell":0.01,"locomotionCostScale":1,"stressMutagenesis":1,"radiation":null,"pioneerBonus":null,"foodDisease":0.15,"meatYieldPerMass":0,"plantYieldPerMass":0,"metapopulationPatches":4,"immigrationWeight":1,"litterPerCell":2,"litterDecay":0.0000024,"litterFraction":0.1,"litterRainShare":0.06,"energyPerCarrion":3.1,"reproThresholdInit":null,"asexualRateInit":null,"clutchSizeInit":null,"reproActCostScale":null,"birthTransferScale":null,"predationYieldScale":null,"grazeYieldScale":1,"consumerPhotoScale":0,"decomposerPhotoScale":0,"consumerBasalScale":0.25,"producerCaptureScale":0.35,"decomposerFounders":0.25,"decomposerDormancy":0.05,"dormantThreatBlind":null,"reproSurplusTicks":30,"mixotrophyCarbon":null,"mixotrophySaturation":1,"nutrientCyclic":true,"genomeV2":null,"nutrientFloor":0.05,"sporeDispersal":1,"dormantSenescence":null,"birthCostFactor":0.42,"disturbanceInterval":260,"disturbanceChance":0.55,"maxPopulation":60000,"nutrientRegen":0.0002,"bioticMineralisation":0.45,"excretionRate":0.06,"label":"default","seed":517}
+  t=100:
+    Population: P=300 C=50 D=50
+    reachedRoll: P=11 C=0 D=0
+    blocked cooldown:   P=0 C=0 D=0
+    blocked fraction:   P=25273 C=2949 D=657
+    blocked maturity:   P=4716 C=2051 D=563
+    blocked damage:     P=0 C=0 D=0
+    blocked surplus:    P=0 C=0 D=0
+    deferred sexual:    P=0 C=0 D=0
+    asexual clutches (fired asexual pass): P=0 C=0 D=0
+    sexual births (fired via MATE):      P=0 C=0 D=0
+    queued offspring by parent guild: asexual P=0 C=0 D=0; sexual P=0 C=0 D=0
+    placed offspring by newborn guild: asexual P=0 C=0 D=0; sexual P=0 C=0 D=0
+    queued minus placed offspring: 0 (placement cause not measured)
+
+  t=200:
+    Population: P=273 C=63 D=50
+    reachedRoll: P=524 C=120 D=35
+    blocked cooldown:   P=47 C=54 D=0
+    blocked fraction:   P=50023 C=5578 D=1110
+    blocked maturity:   P=8020 C=4435 D=1200
+    blocked damage:     P=0 C=0 D=0
+    blocked surplus:    P=0 C=0 D=0
+    deferred sexual:    P=0 C=0 D=0
+    asexual clutches (fired asexual pass): P=5 C=4 D=0
+    sexual births (fired via MATE):      P=0 C=0 D=0
+    queued offspring by parent guild: asexual P=26 C=13 D=0; sexual P=0 C=0 D=0
+    placed offspring by newborn guild: asexual P=26 C=13 D=0; sexual P=0 C=0 D=0
+    queued minus placed offspring: 0 (placement cause not measured)
+    Sexual fraction of placed offspring: 0.0%
+
+  t=300:
+    Population: P=263 C=92 D=62
+    reachedRoll: P=1776 C=617 D=336
+    blocked cooldown:   P=392 C=232 D=5
+    blocked fraction:   P=73501 C=10945 D=1603
+    blocked maturity:   P=9670 C=5860 D=1504
+    blocked damage:     P=48 C=0 D=0
+    blocked surplus:    P=0 C=0 D=0
+    deferred sexual:    P=0 C=0 D=0
+    asexual clutches (fired asexual pass): P=19 C=11 D=2
+    sexual births (fired via MATE):      P=0 C=0 D=0
+    queued offspring by parent guild: asexual P=73 C=42 D=13; sexual P=0 C=0 D=0
+    placed offspring by newborn guild: asexual P=69 C=46 D=13; sexual P=0 C=0 D=0
+    queued minus placed offspring: 0 (placement cause not measured)
+    Sexual fraction of placed offspring: 0.0%
+
+  t=400:
+    Population: P=274 C=135 D=69
+    reachedRoll: P=3880 C=1473 D=624
+    blocked cooldown:   P=554 C=497 D=5
+    blocked fraction:   P=96364 C=21408 D=2046
+    blocked maturity:   P=10004 C=6483 D=1615
+    blocked damage:     P=156 C=0 D=0
+    blocked surplus:    P=0 C=0 D=0
+    deferred sexual:    P=0 C=0 D=0
+    asexual clutches (fired asexual pass): P=31 C=24 D=4
+    sexual births (fired via MATE):      P=0 C=0 D=0
+    queued offspring by parent guild: asexual P=128 C=102 D=22; sexual P=0 C=0 D=0
+    placed offspring by newborn guild: asexual P=124 C=106 D=22; sexual P=0 C=0 D=0
+    queued minus placed offspring: 0 (placement cause not measured)
+    Sexual fraction of placed offspring: 0.0%
+
+  t=500:
+    Population: P=267 C=102 D=88
+    reachedRoll: P=5886 C=1885 D=992
+    blocked cooldown:   P=788 C=589 D=6
+    blocked fraction:   P=120458 C=32830 D=2502
+    blocked maturity:   P=10205 C=7463 D=1955
+    blocked damage:     P=306 C=62 D=0
+    blocked surplus:    P=0 C=0 D=0
+    deferred sexual:    P=0 C=0 D=0
+    asexual clutches (fired asexual pass): P=39 C=28 D=8
+    sexual births (fired via MATE):      P=0 C=0 D=0
+    queued offspring by parent guild: asexual P=165 C=119 D=42; sexual P=0 C=0 D=0
+    placed offspring by newborn guild: asexual P=161 C=123 D=42; sexual P=0 C=0 D=0
+    queued minus placed offspring: 0 (placement cause not measured)
+    Sexual fraction of placed offspring: 0.0%
+
+  t=600:
+    Population: P=286 C=95 D=103
+    reachedRoll: P=7155 C=2149 D=1277
+    blocked cooldown:   P=1153 C=654 D=15
+    blocked fraction:   P=146481 C=41721 D=3118
+    blocked maturity:   P=10594 C=8158 D=2394
+    blocked damage:     P=518 C=289 D=37
+    blocked surplus:    P=0 C=0 D=0
+    deferred sexual:    P=0 C=0 D=0
+    asexual clutches (fired asexual pass): P=56 C=31 D=13
+    sexual births (fired via MATE):      P=2 C=0 D=0
+    queued offspring by parent guild: asexual P=221 C=143 D=64; sexual P=2 C=0 D=0
+    placed offspring by newborn guild: asexual P=217 C=148 D=63; sexual P=2 C=0 D=0
+    queued minus placed offspring: 0 (placement cause not measured)
+    Sexual fraction of placed offspring: 0.5%
+
+  t=700:
+    Population: P=267 C=60 D=120
+    reachedRoll: P=8065 C=2327 D=1554
+    blocked cooldown:   P=1254 C=716 D=16
+    blocked fraction:   P=172466 C=48591 D=3785
+    blocked maturity:   P=11115 C=8631 D=3274
+    blocked damage:     P=948 C=502 D=90
+    blocked surplus:    P=0 C=0 D=0
+    deferred sexual:    P=0 C=1 D=0
+    asexual clutches (fired asexual pass): P=60 C=32 D=17
+    sexual births (fired via MATE):      P=3 C=2 D=1
+    queued offspring by parent guild: asexual P=239 C=148 D=85; sexual P=3 C=2 D=1
+    placed offspring by newborn guild: asexual P=235 C=154 D=83; sexual P=5 C=0 D=1
+    queued minus placed offspring: 0 (placement cause not measured)
+    Sexual fraction of placed offspring: 1.3%
+
+  t=800:
+    Population: P=280 C=61 D=148
+    reachedRoll: P=9011 C=2410 D=2150
+    blocked cooldown:   P=1625 C=722 D=69
+    blocked fraction:   P=197811 C=53211 D=4532
+    blocked maturity:   P=11244 C=9136 D=4269
+    blocked damage:     P=1402 C=816 D=100
+    blocked surplus:    P=0 C=0 D=0
+    deferred sexual:    P=0 C=1 D=0
+    asexual clutches (fired asexual pass): P=75 C=33 D=27
+    sexual births (fired via MATE):      P=7 C=2 D=1
+    queued offspring by parent guild: asexual P=291 C=159 D=122; sexual P=7 C=2 D=1
+    placed offspring by newborn guild: asexual P=287 C=165 D=120; sexual P=9 C=0 D=1
+    queued minus placed offspring: 0 (placement cause not measured)
+    Sexual fraction of placed offspring: 1.7%
+
+  t=900:
+    Population: P=236 C=63 D=183
+    reachedRoll: P=9456 C=2575 D=3043
+    blocked cooldown:   P=1815 C=794 D=129
+    blocked fraction:   P=222311 C=59160 D=5750
+    blocked maturity:   P=11496 C=9323 D=6146
+    blocked damage:     P=1566 C=1130 D=108
+    blocked surplus:    P=0 C=0 D=0
+    deferred sexual:    P=0 C=1 D=0
+    asexual clutches (fired asexual pass): P=81 C=37 D=38
+    sexual births (fired via MATE):      P=9 C=2 D=1
+    queued offspring by parent guild: asexual P=311 C=182 D=165; sexual P=9 C=2 D=1
+    placed offspring by newborn guild: asexual P=307 C=187 D=164; sexual P=11 C=0 D=1
+    queued minus placed offspring: 0 (placement cause not measured)
+    Sexual fraction of placed offspring: 1.8%
+
+  t=1000:
+    Population: P=211 C=43 D=239
+    reachedRoll: P=9812 C=2621 D=4568
+    blocked cooldown:   P=1996 C=827 D=198
+    blocked fraction:   P=243262 C=64289 D=7007
+    blocked maturity:   P=12314 C=9545 D=9004
+    blocked damage:     P=1666 C=1512 D=162
+    blocked surplus:    P=0 C=0 D=0
+    deferred sexual:    P=0 C=1 D=0
+    asexual clutches (fired asexual pass): P=87 C=39 D=57
+    sexual births (fired via MATE):      P=13 C=2 D=1
+    queued offspring by parent guild: asexual P=329 C=191 D=234; sexual P=13 C=2 D=1
+    placed offspring by newborn guild: asexual P=327 C=195 D=232; sexual P=15 C=0 D=1
+    queued minus placed offspring: 0 (placement cause not measured)
+    Sexual fraction of placed offspring: 2.1%
+
+  t=1100:
+    Population: P=168 C=30 D=347
+    reachedRoll: P=10545 C=2657 D=5754
+    blocked cooldown:   P=2045 C=827 D=306
+    blocked fraction:   P=260126 C=66922 D=8907
+    blocked maturity:   P=13357 C=9930 D=13017
+    blocked damage:     P=1926 C=1946 D=281
+    blocked surplus:    P=0 C=0 D=0
+    deferred sexual:    P=0 C=1 D=0
+    asexual clutches (fired asexual pass): P=89 C=39 D=85
+    sexual births (fired via MATE):      P=13 C=2 D=1
+    queued offspring by parent guild: asexual P=335 C=191 D=359; sexual P=13 C=2 D=1
+    placed offspring by newborn guild: asexual P=333 C=196 D=356; sexual P=15 C=0 D=1
+    queued minus placed offspring: 0 (placement cause not measured)
+    Sexual fraction of placed offspring: 1.8%
+
+  t=1200:
+    Population: P=163 C=40 D=444
+    reachedRoll: P=11520 C=2777 D=7055
+    blocked cooldown:   P=2258 C=842 D=412
+    blocked fraction:   P=274726 C=69594 D=11161
+    blocked maturity:   P=13676 C=10037 D=17561
+    blocked damage:     P=2571 C=2543 D=365
+    blocked surplus:    P=0 C=0 D=0
+    deferred sexual:    P=0 C=1 D=0
+    asexual clutches (fired asexual pass): P=99 C=40 D=109
+    sexual births (fired via MATE):      P=13 C=2 D=1
+    queued offspring by parent guild: asexual P=370 C=197 D=463; sexual P=13 C=2 D=1
+    placed offspring by newborn guild: asexual P=365 C=210 D=455; sexual P=15 C=0 D=1
+    queued minus placed offspring: 0 (placement cause not measured)
+    Sexual fraction of placed offspring: 1.5%
+
+  t=1300:
+    Population: P=157 C=40 D=582
+    reachedRoll: P=12410 C=2846 D=9307
+    blocked cooldown:   P=2369 C=880 D=616
+    blocked fraction:   P=288978 C=73045 D=13755
+    blocked maturity:   P=13944 C=10291 D=22363
+    blocked damage:     P=3270 C=2972 D=576
+    blocked surplus:    P=0 C=0 D=0
+    deferred sexual:    P=0 C=1 D=0
+    asexual clutches (fired asexual pass): P=104 C=41 D=145
+    sexual births (fired via MATE):      P=15 C=2 D=1
+    queued offspring by parent guild: asexual P=383 C=203 D=613; sexual P=15 C=2 D=1
+    placed offspring by newborn guild: asexual P=380 C=219 D=600; sexual P=15 C=0 D=1
+    queued minus placed offspring: 2 (placement cause not measured)
+    Sexual fraction of placed offspring: 1.3%
+
+  t=1400:
+    Population: P=142 C=41 D=743
+    reachedRoll: P=13625 C=3005 D=11972
+    blocked cooldown:   P=2542 C=880 D=852
+    blocked fraction:   P=301861 C=76010 D=17015
+    blocked maturity:   P=14065 C=10680 D=26245
+    blocked damage:     P=3851 C=3368 D=876
+    blocked surplus:    P=0 C=0 D=0
+    deferred sexual:    P=0 C=1 D=0
+    asexual clutches (fired asexual pass): P=113 C=42 D=191
+    sexual births (fired via MATE):      P=15 C=2 D=1
+    queued offspring by parent guild: asexual P=415 C=205 D=802; sexual P=15 C=2 D=1
+    placed offspring by newborn guild: asexual P=407 C=230 D=785; sexual P=15 C=0 D=1
+    queued minus placed offspring: 2 (placement cause not measured)
+    Sexual fraction of placed offspring: 1.1%
+
+  t=1500:
+    Population: P=121 C=50 D=814
+    reachedRoll: P=14041 C=3307 D=13956
+    blocked cooldown:   P=2622 C=941 D=979
+    blocked fraction:   P=314010 C=79794 D=20183
+    blocked maturity:   P=14090 C=10755 D=31150
+    blocked damage:     P=4811 C=3504 D=1044
+    blocked surplus:    P=0 C=0 D=0
+    deferred sexual:    P=0 C=1 D=0
+    asexual clutches (fired asexual pass): P=115 C=44 D=215
+    sexual births (fired via MATE):      P=17 C=2 D=1
+    queued offspring by parent guild: asexual P=423 C=227 D=899; sexual P=17 C=2 D=1
+    placed offspring by newborn guild: asexual P=422 C=248 D=879; sexual P=17 C=0 D=1
+    queued minus placed offspring: 2 (placement cause not measured)
+    Sexual fraction of placed offspring: 1.1%
+
+  t=1600:
+    Population: P=104 C=56 D=915
+    reachedRoll: P=14195 C=3423 D=16084
+    blocked cooldown:   P=2648 C=984 D=1079
+    blocked fraction:   P=324691 C=84657 D=23601
+    blocked maturity:   P=14130 C=10755 D=34730
+    blocked damage:     P=5052 C=3504 D=1380
+    blocked surplus:    P=0 C=0 D=0
+    deferred sexual:    P=0 C=1 D=0
+    asexual clutches (fired asexual pass): P=117 C=46 D=242
+    sexual births (fired via MATE):      P=17 C=2 D=1
+    queued offspring by parent guild: asexual P=428 C=240 D=1038; sexual P=17 C=2 D=1
+    placed offspring by newborn guild: asexual P=427 C=263 D=1016; sexual P=17 C=0 D=1
+    queued minus placed offspring: 2 (placement cause not measured)
+    Sexual fraction of placed offspring: 1.0%
+
+  t=1700:
+    Population: P=79 C=40 D=1013
+    reachedRoll: P=14279 C=3423 D=18031
+    blocked cooldown:   P=2648 C=984 D=1144
+    blocked fraction:   P=333844 C=89389 D=26954
+    blocked maturity:   P=14130 C=10755 D=37377
+    blocked damage:     P=5109 C=3504 D=1622
+    blocked surplus:    P=0 C=0 D=0
+    deferred sexual:    P=0 C=1 D=0
+    asexual clutches (fired asexual pass): P=117 C=46 D=269
+    sexual births (fired via MATE):      P=17 C=2 D=1
+    queued offspring by parent guild: asexual P=428 C=240 D=1165; sexual P=17 C=2 D=1
+    placed offspring by newborn guild: asexual P=427 C=265 D=1141; sexual P=17 C=0 D=1
+    queued minus placed offspring: 2 (placement cause not measured)
+    Sexual fraction of placed offspring: 1.0%
+
+  t=1800:
+    Population: P=45 C=22 D=1069
+    reachedRoll: P=14279 C=3423 D=19800
+    blocked cooldown:   P=2648 C=984 D=1180
+    blocked fraction:   P=339692 C=92261 D=30619
+    blocked maturity:   P=14130 C=10755 D=38704
+    blocked damage:     P=5133 C=3504 D=1854
+    blocked surplus:    P=0 C=0 D=0
+    deferred sexual:    P=0 C=1 D=0
+    asexual clutches (fired asexual pass): P=117 C=46 D=288
+    sexual births (fired via MATE):      P=17 C=2 D=1
+    queued offspring by parent guild: asexual P=428 C=240 D=1269; sexual P=17 C=2 D=1
+    placed offspring by newborn guild: asexual P=427 C=265 D=1245; sexual P=17 C=0 D=1
+    queued minus placed offspring: 2 (placement cause not measured)
+    Sexual fraction of placed offspring: 0.9%
+
+  t=1900:
+    Population: P=19 C=15 D=1035
+    reachedRoll: P=14279 C=3423 D=21404
+    blocked cooldown:   P=2648 C=984 D=1242
+    blocked fraction:   P=342694 C=93994 D=34104
+    blocked maturity:   P=14130 C=10755 D=39828
+    blocked damage:     P=5133 C=3504 D=2225
+    blocked surplus:    P=0 C=0 D=0
+    deferred sexual:    P=0 C=1 D=0
+    asexual clutches (fired asexual pass): P=117 C=46 D=305
+    sexual births (fired via MATE):      P=17 C=2 D=1
+    queued offspring by parent guild: asexual P=428 C=240 D=1348; sexual P=17 C=2 D=1
+    placed offspring by newborn guild: asexual P=427 C=265 D=1324; sexual P=17 C=0 D=1
+    queued minus placed offspring: 2 (placement cause not measured)
+    Sexual fraction of placed offspring: 0.9%
+
+  t=2000:
+    Population: P=7 C=7 D=1087
+    reachedRoll: P=14279 C=3423 D=23435
+    blocked cooldown:   P=2648 C=984 D=1317
+    blocked fraction:   P=343963 C=95131 D=38143
+    blocked maturity:   P=14130 C=10755 D=40695
+    blocked damage:     P=5133 C=3504 D=2331
+    blocked surplus:    P=0 C=0 D=0
+    deferred sexual:    P=0 C=1 D=0
+    asexual clutches (fired asexual pass): P=117 C=46 D=334
+    sexual births (fired via MATE):      P=17 C=2 D=1
+    queued offspring by parent guild: asexual P=428 C=240 D=1490; sexual P=17 C=2 D=1
+    placed offspring by newborn guild: asexual P=427 C=265 D=1466; sexual P=17 C=0 D=1
+    queued minus placed offspring: 2 (placement cause not measured)
+    Sexual fraction of placed offspring: 0.8%
+
+================================================================================
+DIAGNOSTIC COMPLETE
+Compare mating metrics against guild persistence from reliance probe.

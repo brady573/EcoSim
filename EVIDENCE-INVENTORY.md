@@ -1,5 +1,13 @@
 # Evidence inventory — supersession under the Owner-authorised canopy correction
 
+> **CURRENT reconciliation:** `ts-evo-poc/0.8.0+chem/0.7.7` combines main's
+> 0.6.3 fixes with the experimental branch. All 0.7.0 cohort results below are
+> historical; completed 0.8.0 measurements are in `RECONCILIATION-080-RESULTS.md`.
+> This supersession applies to all "current" labels in the historical sections
+> below. The old raw files
+> retain their original identities; they must not be relabelled. Current base
+> parity is 517 → 503/126/69 and 24601 → 337/119/95 at 500 ticks.
+
 **Decision:** Owner authorised the legacy coarse-canopy correction and the
 resulting parity re-pin on **2026-10-13**. Applied at `b4614cd` decision point
 `824dcc0`.
@@ -29,7 +37,9 @@ Every figure produced under `ts-evo-poc/0.6.0` was measured through that defect.
 | Identity | Status | Note |
 |---|---|---|
 | `ts-evo-poc/0.6.0` | **HISTORICAL** | Pins measured through the canopy defect. |
-| `ts-evo-poc/0.7.0` | **CURRENT** | Canopy corrected. |
+| `ts-evo-poc/0.7.0` | **HISTORICAL** | Canopy-corrected parent before main reconciliation. |
+| `ts-evo-poc/0.8.0` | **CURRENT** | Main reconciliation; chemistry-off pins 503/126/69 and 337/119/95. |
+| `ts-evo-poc/0.8.0+chem/0.7.7` | **CURRENT** | Re-measured in `RECONCILIATION-080-RESULTS.md`. |
 | `ts-evo-poc/0.6.0+chem/0.7.0` | **HISTORICAL** | Base component superseded. |
 | `ts-evo-poc/0.7.0+chem/0.7.0` | **HISTORICAL (identity-only supersession)** | Chemistry semantics calculation unchanged, but accounting composition changed. No ecological rerun is implied except residual/G36 accounting. |
 | `ts-evo-poc/0.7.0+chem/0.7.1` | **HISTORICAL (identity superseded)** | Causal energy reconciliation, H/O death release, and bridge bookkeeping identity. |
@@ -38,7 +48,7 @@ Every figure produced under `ts-evo-poc/0.6.0` was measured through that defect.
 | `ts-evo-poc/0.7.0+chem/0.7.4` | **HISTORICAL (identity superseded)** | H2O uptake credits H and O at 1:1. |
 | `ts-evo-poc/0.7.0+chem/0.7.5` | **HISTORICAL (identity superseded)** | Aerobic respiration returns 0.9 H2O per extent. |
 | `ts-evo-poc/0.7.0+chem/0.7.6` | **HISTORICAL (identity superseded)** | Gross reaction budget moved into Chemistry and shared across organisms. |
-| `ts-evo-poc/0.7.0+chem/0.7.7` | **CURRENT** | `claimGross()` books into the SAME `claimed` array assimilation uses, so reactions and uptake share ONE per-cell snapshot budget, and the reaction's net delta is no longer claimed a second time. Base chemistry-off behaviour is unchanged. |
+| `ts-evo-poc/0.7.0+chem/0.7.7` | **HISTORICAL** | Shared reaction/uptake reservation budget before main reconciliation. |
 
 ## 2. Parity pins (knobs unset, 500 ticks, contract probe)
 
