@@ -2426,16 +2426,16 @@ __def("world/chemistry.js", function(require, exports, module){/**
  * and sediment. C, N, P, S and Fe are cycled; H and O are tracked as biomass
  * components and as dissolved O2.
  *
- * WHAT IS NOT, AND IS NOT CLAIMED. There is no molecular chemistry here — no
- * speciation equilibria, no pH-dependent solubility, no enzyme kinetics, no
- * atmospheric column. Water is an EXTERNAL BUFFERED RESERVOOL: hydrogen and the
- * oxygen bound in water are not conserved in this model, because the water pool
- * is not simulated. Atmospheric CO2, geological weathering, gas exchange at the
- * water surface and export to sediment sinks are declared as explicit fluxes
- * and measured in the ledger. Conservation claims in this repository are
- * therefore for C, N, P, S and Fe across the modelled compartments plus those
- * declared boundaries — NOT for atomic balance of the whole system. Hydrogen and
- * oxygen-as-water are deliberately outside the claim.
+ * WHAT IS NOT CLAIMED. There is no molecular chemistry here — no speciation
+ * equilibria, no pH-dependent solubility, no enzyme kinetics, no atmospheric
+ * column. Water is an EXTERNAL BUFFERED RESERVOIR: the water pool is not a
+ * chemical species network, so no molecular water identity is claimed. H and O
+ * ARE tracked at pool level: reservoir top-up (`waterInput`), reservoir sink
+ * (`reservoirSink`) and 1:1 water uptake into organism stores are declared
+ * boundary fluxes, and the H/O books are asserted to close at that declared
+ * level (G39). C, N, P, S and Fe additionally close across the modelled
+ * compartments with weathering, gas export and sediment export as explicit
+ * boundaries (G27).
  *
  * DETERMINISM. Transport is a pull-based 5-point stencil (see
  * ScalarField.step), which is order-independent by construction: every cell
@@ -2641,6 +2641,7 @@ function newBoundaryFluxes() {
         sedimentOut: 0, exportOut: 0,
         founderMatter: new Float64Array(7), gasExport: new Float64Array(7),
         chemEnergyIncome: 0, chemEnergySpent: 0, chemCarbonBuilt: 0,
+        freeNutrientSubsidy: new Float64Array(7),
         reservoirSink: new Float64Array(7), waterInput: 0,
         reservoirSource: new Float64Array(7), waterO2: new Float64Array(7),
     };
@@ -3058,10 +3059,10 @@ const REACTIONS = [
         + 'community therefore still makes its own oxygenated habitat, while the '
         + 'chemistry stays closed. Requires inorganic N and P.'),
     // --- Family 2: aerobic organic metabolism --------------------------------
-    // The reverse of photosynthesis, in the same stoichiometry: 1 OC + 0.2 O2 +
-    // 0.9 H2O -> 1 DIC. Returning water matters — respiration is what closes the
-    // water loop, and without it the reservoir drains monotonically.
-    rx('aerobic respiration', CAP.AEROBIC, 'aerobic', [s(POOL.OC, 1), s(POOL.O2, 0.2), s(POOL.H2O, 0.9)], [s(POOL.DIC, 1)], 0.82, 0.085, [POOL.OC], 0.02, 1e9, 'Oxidative breakdown. O2 is consumed, carbon returned as DIC and water '
+    // The reverse of photosynthesis, in the same stoichiometry:
+    // 1 OC + 0.2 O2 -> 1 DIC + 0.9 H2O. Returning water matters — respiration is
+    // what closes the water loop, and without it the reservoir drains monotonically.
+    rx('aerobic respiration', CAP.AEROBIC, 'aerobic', [s(POOL.OC, 1), s(POOL.O2, 0.2)], [s(POOL.DIC, 1), s(POOL.H2O, 0.9)], 0.82, 0.085, [POOL.OC], 0.02, 1e9, 'Oxidative breakdown. O2 is consumed, carbon returned as DIC and water '
         + 'returned to the reservoir: the exact inverse of photosynthesis, which is '
         + 'why the two are stoichiometrically coupled rather than merely similar.'),
     // --- Family 3: O2-independent metabolism ---------------------------------
@@ -3748,9 +3749,12 @@ function assimilate(chem, st, slot, cell, cfg, demand) {
         if (takeH > 0) {
             chem.claim(POOL.H2O, cell, takeH);
             st.stores[base + E.H] += takeH;
-            // H2O carries its oxygen with it; the tissue takes it at the same ratio
-            // biomass uses, so O is drawn from the same molecule.
-            st.stores[base + E.O] += takeH * 0.5;
+            // H2O carries ONE OXYGEN with that hydrogen. Crediting only the tissue's
+            // 0.5 O:H ratio destroyed the other half of every mole claimed from the
+            // reservoir, which is why the oxygen book leaked while H balanced. Both
+            // atoms now enter the organism store; excess O is returned to the declared
+            // reservoir sink at death rather than silently destroyed.
+            st.stores[base + E.O] += takeH;
         }
     }
     // P and trace elements are taken by any living cell that carries tissue.
@@ -3775,6 +3779,21 @@ function assimilate(chem, st, slot, cell, cfg, demand) {
             st.stores[base + E.S] += takeS;
         }
     }
+    // EXPLICIT freeNutrients subsidy. This is an EXOGENOUS, BOOKED input, not
+    // an invisible relaxation of the growth ceiling or offspring gate. Carbon is
+    // deliberately excluded: free nutrients relieve mineral/tissue-water supply,
+    // while carbon still has to be physically assimilated from OC. The amount is
+    // recorded in the chemistry boundary flux so the elemental audit can balance.
+    if (cfg.freeNutrients) {
+        for (const e of [E.H, E.O, E.N, E.P, E.S, E.FE]) {
+            const need = demand[e] * ASSIMILATION_FRACTION;
+            const add = Math.max(0, need - st.stores[base + e]);
+            if (add <= 0)
+                continue;
+            st.stores[base + e] += add;
+            chem.flux.freeNutrientSubsidy[e] += add;
+        }
+    }
 }
 /**
  * Build new tissue.
@@ -3785,7 +3804,7 @@ function assimilate(chem, st, slot, cell, cfg, demand) {
  * phosphate and no energy grows nothing. Which constraint bit is reported so a
  * probe can distinguish the two, rather than both showing up as "slow".
  */
-function grow(st, slot, requestedCarbon, energyAvailable, cfg, result, scratch) {
+function grow(st, slot, requestedCarbon, energyAvailable, _cfg, result, scratch) {
     result.carbon = 0;
     result.nutrientLimited = false;
     result.energyLimited = false;
@@ -3808,8 +3827,6 @@ function grow(st, slot, requestedCarbon, energyAvailable, cfg, result, scratch) 
         if (possible < matterCarbon)
             matterCarbon = possible;
     }
-    if (cfg.freeNutrients)
-        matterCarbon = requestedCarbon;
     // Energy-limited ceiling: constructing tissue costs energy per unit carbon.
     const energyCarbon = energyAvailable / ENERGY_PER_CARBON;
     const carbon = Math.max(0, Math.min(matterCarbon, energyCarbon, requestedCarbon));
@@ -3942,8 +3959,6 @@ function transferPredationMatter(st, predatorSlot, preySlot, energyGained) {
  * itself even though nothing about its energy budget is wrong.
  */
 function canAffordOffspring(st, slot, cfg) {
-    if (cfg.freeNutrients)
-        return { ok: true, lacking: 'none' };
     const demand = cfg.reproNutrientDemand;
     const v = biomassDemand(demand, newElemVec());
     const base = slot * E.COUNT;
@@ -6455,7 +6470,7 @@ const WORLD_ENGINE_VERSION = 'ts-evo-poc/0.7.0';
  * and the diagnostic bridge ledger booking. These are accounting-identity changes
  * while preserving chemistry-off runs, so it is a chemistry-component bump.
  */
-const CHEMISTRY_ENGINE_VERSION = 'chem/0.7.2';
+const CHEMISTRY_ENGINE_VERSION = 'chem/0.7.5';
 /**
  * Whether the chemistry semantics themselves changed in the 0.7.0 correction.
  *
@@ -6486,10 +6501,10 @@ function runIdentity(chemistryEnabled) {
  * Owner-authorised canopy correction. The suite's semantics changed, so a
  * result recorded under gates/0.4.0 is not comparable without re-running.
  *
- * gates/0.7.0 covers the current suite through G37, including live-world
- * verification of per-organism gross substrate budgets.
+ * gates/0.7.4 covers the current suite through G39 with split conservation
+ * tolerances and a discriminating 1:1 H/O uptake control.
  */
-const GATE_SUITE_VERSION = 'gates/0.7.0';
+const GATE_SUITE_VERSION = 'gates/0.7.4';
 
 exports.WORLD_ENGINE_VERSION = WORLD_ENGINE_VERSION;
 exports.CHEMISTRY_ENGINE_VERSION = CHEMISTRY_ENGINE_VERSION;
@@ -10979,6 +10994,8 @@ class World {
         a.inputs[E.N] += chem.flux.weatherN;
         a.inputs[E.S] += chem.flux.weatherS;
         a.inputs[E.FE] += chem.flux.weatherFe;
+        for (let e = 0; e < E.COUNT; e++)
+            a.inputs[e] += chem.flux.freeNutrientSubsidy[e];
         // Founder tissue is deliberately NOT an input. It is part of the opening
         // inventory — captureOpeningInventory() runs after the founding cohort
         // exists and counts tissue directly from chemStores — so booking it as an

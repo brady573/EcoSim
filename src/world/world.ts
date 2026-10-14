@@ -4723,6 +4723,7 @@ export class World {
     a.inputs[E.N] += chem.flux.weatherN;
     a.inputs[E.S] += chem.flux.weatherS;
     a.inputs[E.FE] += chem.flux.weatherFe;
+    for (let e = 0; e < E.COUNT; e++) a.inputs[e] += chem.flux.freeNutrientSubsidy[e];
     // Founder tissue is deliberately NOT an input. It is part of the opening
     // inventory — captureOpeningInventory() runs after the founding cohort
     // exists and counts tissue directly from chemStores — so booking it as an

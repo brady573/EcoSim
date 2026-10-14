@@ -437,9 +437,12 @@ export function assimilate(
     if (takeH > 0) {
       chem.claim(POOL.H2O, cell, takeH);
       st.stores[base + E.H] += takeH;
-      // H2O carries its oxygen with it; the tissue takes it at the same ratio
-      // biomass uses, so O is drawn from the same molecule.
-      st.stores[base + E.O] += takeH * 0.5;
+      // H2O carries ONE OXYGEN with that hydrogen. Crediting only the tissue's
+      // 0.5 O:H ratio destroyed the other half of every mole claimed from the
+      // reservoir, which is why the oxygen book leaked while H balanced. Both
+      // atoms now enter the organism store; excess O is returned to the declared
+      // reservoir sink at death rather than silently destroyed.
+      st.stores[base + E.O] += takeH;
     }
   }
 
@@ -469,6 +472,21 @@ export function assimilate(
       st.stores[base + E.S] += takeS;
     }
   }
+
+  // EXPLICIT freeNutrients subsidy. This is an EXOGENOUS, BOOKED input, not
+  // an invisible relaxation of the growth ceiling or offspring gate. Carbon is
+  // deliberately excluded: free nutrients relieve mineral/tissue-water supply,
+  // while carbon still has to be physically assimilated from OC. The amount is
+  // recorded in the chemistry boundary flux so the elemental audit can balance.
+  if (cfg.freeNutrients) {
+    for (const e of [E.H, E.O, E.N, E.P, E.S, E.FE]) {
+      const need = demand[e] * ASSIMILATION_FRACTION;
+      const add = Math.max(0, need - st.stores[base + e]);
+      if (add <= 0) continue;
+      st.stores[base + e] += add;
+      chem.flux.freeNutrientSubsidy[e] += add;
+    }
+  }
 }
 
 export interface GrowthResult {
@@ -491,7 +509,7 @@ export interface GrowthResult {
  */
 export function grow(
   st: ChemStores, slot: number, requestedCarbon: number, energyAvailable: number,
-  cfg: ChemConfig, result: GrowthResult, scratch: Float64Array,
+  _cfg: ChemConfig, result: GrowthResult, scratch: Float64Array,
 ): void {
   result.carbon = 0;
   result.nutrientLimited = false;
@@ -514,8 +532,6 @@ export function grow(
     const possible = have / need;
     if (possible < matterCarbon) matterCarbon = possible;
   }
-  if (cfg.freeNutrients) matterCarbon = requestedCarbon;
-
   // Energy-limited ceiling: constructing tissue costs energy per unit carbon.
   const energyCarbon = energyAvailable / ENERGY_PER_CARBON;
 
@@ -649,7 +665,6 @@ export function transferPredationMatter(
 export function canAffordOffspring(
   st: ChemStores, slot: number, cfg: ChemConfig,
 ): { ok: boolean; lacking: 'nutrient' | 'carbon' | 'none' } {
-  if (cfg.freeNutrients) return { ok: true, lacking: 'none' };
   const demand = cfg.reproNutrientDemand;
   const v = biomassDemand(demand, newElemVec());
   const base = slot * E.COUNT;

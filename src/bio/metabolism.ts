@@ -148,12 +148,12 @@ export const REACTIONS: readonly Reaction[] = [
     + 'chemistry stays closed. Requires inorganic N and P.'),
 
   // --- Family 2: aerobic organic metabolism --------------------------------
-  // The reverse of photosynthesis, in the same stoichiometry: 1 OC + 0.2 O2 +
-  // 0.9 H2O -> 1 DIC. Returning water matters — respiration is what closes the
-  // water loop, and without it the reservoir drains monotonically.
+  // The reverse of photosynthesis, in the same stoichiometry:
+  // 1 OC + 0.2 O2 -> 1 DIC + 0.9 H2O. Returning water matters — respiration is
+  // what closes the water loop, and without it the reservoir drains monotonically.
   rx('aerobic respiration', CAP.AEROBIC, 'aerobic',
-    [s(POOL.OC, 1), s(POOL.O2, 0.2), s(POOL.H2O, 0.9)],
-    [s(POOL.DIC, 1)],
+    [s(POOL.OC, 1), s(POOL.O2, 0.2)],
+    [s(POOL.DIC, 1), s(POOL.H2O, 0.9)],
     0.82, 0.085, [POOL.OC],
     0.02, 1e9,
     'Oxidative breakdown. O2 is consumed, carbon returned as DIC and water '

@@ -33,7 +33,10 @@ Every figure produced under `ts-evo-poc/0.6.0` was measured through that defect.
 | `ts-evo-poc/0.6.0+chem/0.7.0` | **HISTORICAL** | Base component superseded. |
 | `ts-evo-poc/0.7.0+chem/0.7.0` | **HISTORICAL (identity-only supersession)** | Chemistry semantics calculation unchanged, but accounting composition changed. No ecological rerun is implied except residual/G36 accounting. |
 | `ts-evo-poc/0.7.0+chem/0.7.1` | **HISTORICAL (identity superseded)** | Causal energy reconciliation, H/O death release, and bridge bookkeeping identity. |
-| `ts-evo-poc/0.7.0+chem/0.7.2` | **CURRENT** | Per-organism gross substrate budgets prevent same-organism reaction contention from reusing an already-spent pool through a net delta. Base chemistry-off behaviour is unchanged. |
+| `ts-evo-poc/0.7.0+chem/0.7.2` | **HISTORICAL (identity superseded)** | Per-organism gross substrate budgets. |
+| `ts-evo-poc/0.7.0+chem/0.7.3` | **HISTORICAL (identity superseded)** | `freeNutrients` is an explicit booked exogenous subsidy; carbon uptake, growth ceilings and offspring gates stay physical. |
+| `ts-evo-poc/0.7.0+chem/0.7.4` | **HISTORICAL (identity superseded)** | H2O uptake credits H and O at 1:1. |
+| `ts-evo-poc/0.7.0+chem/0.7.5` | **CURRENT** | Aerobic respiration returns 0.9 H2O per extent (stoichiometric inverse of photosynthesis) instead of consuming it. Base chemistry-off behaviour is unchanged. |
 
 ## 2. Parity pins (knobs unset, 500 ticks, contract probe)
 
@@ -56,14 +59,14 @@ Repeat runs of the new pins are byte-identical on this runtime.
 `evidence/chem-matrix-91011-070-20261013.txt`,
 `evidence/chem-predation-knob-070-20261013.txt`,
 `evidence/chem-predation-knob-10seed-20261013.txt`, and
-`evidence/chem-predation-knob-gd3-10seed-20261013.txt` are `chem/0.7.0`
-provenance only. Current panels end in `-072-` and run under `chem/0.7.2`.
+`evidence/chem-predation-knob-gd3-10seed-20261013.txt`, the `-072-`
+and `-073-` panels are intermediate `chem/0.7.0`–`chem/0.7.3` provenance only. Current panels end in `-075-` and run under `chem/0.7.5`.
 
 ## 3. Pre-registered results — `PREREGISTRATION.md`
 
-| Hypothesis | 0.6.0 result | Status | Current status (`chem/0.7.2`) |
+| Hypothesis | 0.6.0 result | Status | Current status (`chem/0.7.5`) |
 |---|---|---|---|
-| H1 nutrient vs energy limitation | SUPPORTED, 3235:1, 10/10 seeds | **HISTORICAL** | **CURRENT** — SUPPORTED, median 1735:1, 10/10 seeds (`PREREGISTRATION-070-RESULTS.md`) |
+| H1 nutrient vs energy limitation | SUPPORTED, 3235:1, 10/10 seeds | **HISTORICAL** | **CURRENT** — SUPPORTED, median 1549.7:1, 10/10 seeds (`PREREGISTRATION-070-RESULTS.md`) |
 | H2 nutrients gate reproduction | SUPPORTED, 10/10 vs 0/10 | **HISTORICAL** | **CURRENT** — SUPPORTED, births nonzero 10/10 with nutrients, exactly 0 on 10/10 without |
 | H3 anaerobic opportunity | FALSIFIED, 0/10 | **HISTORICAL** | **CURRENT** — FALSIFIED again, all three reactions zero 10/10, hypoxia identically 0 |
 | H4 chemosynthesis | PARTIAL | **HISTORICAL** | **CURRENT** — PARTIAL again, iron oxidation nonzero 10/10, sulfur oxidation zero 10/10 |
@@ -71,20 +74,20 @@ provenance only. Current panels end in `-072-` and run under `chem/0.7.2`.
 | H6 performance floors | SUPPORTED | **HISTORICAL** | **HISTORICAL** — the 207/404 ticks/s figures were measured under chem/0.7.0 and are not current under chem/0.7.2 |
 | H7 does not self-sustain | SUPPORTED, 10/10 declining | **HISTORICAL** | **CURRENT** (still 10/10 declining, median terminal pop 6) |
 
-H1–H5 were re-measured under `ts-evo-poc/0.7.0+chem/0.7.2` on 2026-10-13; see
+H1–H5 were re-measured under `ts-evo-poc/0.7.0+chem/0.7.5` on 2026-10-13; see
 `PREREGISTRATION-070-RESULTS.md` for thresholds and raw data. The historical
 `0.6.0` verdicts above are retained as provenance and are not comparable to the
 current figures digit-for-digit.
 
 ## 4. H9/H10/H11 — `PREDECLARATION-H9H10.md`
 
-| Hypothesis | 0.6.0 result | Status | Current status (`chem/0.7.2`) |
+| Hypothesis | 0.6.0 result | Status | Current status (`chem/0.7.5`) |
 |---|---|---|---|
-| H9 organic-carbon supply | UNTESTED (lever wrong) | **HISTORICAL** | **CURRENT — UNTESTED again** (lever moved DIC 29×, OC flat; see `PREDECLARATION-H9H10-072-RESULTS.md`) |
+| H9 organic-carbon supply | UNTESTED (lever wrong) | **HISTORICAL** | **CURRENT — UNTESTED again** (lever moved DIC 29×, OC flat; see `PREDECLARATION-H9H10-075-RESULTS.md`) |
 | H10 legacy food-web bridge | FALSIFIED | **HISTORICAL** | **CURRENT — FALSIFIED again** (detritus 266→546, pop 6→6) |
 | H11 additive | FALSIFIED | **HISTORICAL** | **CURRENT — FALSIFIED again** (7 vs 8 and 6) |
 
-H9–H11 were re-run under `ts-evo-poc/0.7.0+chem/0.7.2` on 2026-10-13 using the same seed panel and horizon; see `PREDECLARATION-H9H10-070.md` (pre-declaration) and `PREDECLARATION-H9H10-072-RESULTS.md`. The `chem/0.7.0` results file is historical. The `0.6.0` verdicts are
+H9–H11 were re-run under `ts-evo-poc/0.7.0+chem/0.7.5` on 2026-10-13 using the same seed panel and horizon; see `PREDECLARATION-H9H10-070.md` (pre-declaration) and `PREDECLARATION-H9H10-075-RESULTS.md`. The `chem/0.7.0` results file is historical. The `0.6.0` verdicts are
 retained as provenance.
 
 **The two inert-intervention bugs found there** (world coordinates passed to a
@@ -101,9 +104,9 @@ canopy correction does not touch. Its **population figures** are **HISTORICAL**.
 The conclusion "chemistry is not neutral" survives in direction but not in
 magnitude — see §6.
 
-## 6. Cohort comparison — current panel under `chem/0.7.2`
+## 6. Cohort comparison — current panel under `chem/0.7.5`
 
-The detailed demographic table below was measured under the now-historical `chem/0.7.0` panel and is retained as provenance. The current `chem/0.7.2` run measured base population median 6 (3–39), births median 6, chemistry-off population median 668 (391–1520), and H5 segregation 5/10. See `evidence/chem-cohort-1000-072-20261013.txt`.
+The detailed demographic table below was measured under the now-historical `chem/0.7.0` panel and is retained as provenance. The current `chem/0.7.5` run measured base population median 6 (3–39), births median 6, chemistry-off population median 640 (391–1520), and H5 segregation 5/10. See `evidence/chem-cohort-1000-075-20261013.txt`. Under the corrected explicit-subsidy semantics, the `freeNutrients` reference arm now measures population median 5 (4–15) with births median 16, replacing the earlier gate-bypass figure as current.
 
 ### Historical detailed table under `chem/0.7.0`
 
@@ -197,7 +200,7 @@ Unchanged by this correction and **not** addressed by it:
   deposit and the lookup shared the SAME wrong convention (swapped axes, say)
   both would agree and the test would pass. The capture half is what closes that
   hole, because it exercises deposit → lookup → ledger.
-- H1–H5 and H9–H11 verdicts were re-measured under `chem/0.7.2`; older
+- H1–H5 and H9–H11 verdicts were re-measured under `chem/0.7.5`; older
   0.7.0/0.7.1 figures remain historical provenance.
 
 ## 10. Defect found during the correction review
@@ -216,7 +219,7 @@ the sources. `src/**/*.js` is now in `.gitignore` and those files are removed
 from the index. They were left **on disk**, so nothing is destroyed and they can
 be regenerated by the build.
 
-## 10. Chemistry accounting extension (current identity `chem/0.7.2`) (G36 — current semantics)
+## 10. Chemistry accounting extension (current identity `chem/0.7.5`) (G36 — current semantics)
 
 Before this extension, chemistry-on `residualPct` values printed in any
 chemistry-on diagnostic/ladder log were computed without the ledger-level
@@ -228,4 +231,4 @@ runs already fell within tolerance, and the corrected base arm is now 0.00011%).
 - Old residual percentages must not be quoted as current without noting the
   new identity.
 - `G33` remains an income-share measurement only, unchanged in definition;
-  its figure is **8.388%** under `0.7.0+chem/0.7.2` (see same evidence file).
+  its figure is **8.388%** under `0.7.0+chem/0.7.5` (see same evidence file).

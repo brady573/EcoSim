@@ -37,8 +37,10 @@ import { INTENT } from './world/world.js';
 import { REACTIONS, CAP } from './bio/metabolism.js';
 import { runIdentity, CHEMISTRY_ENGINE_VERSION } from './world/version.js';
 import { E_RUNTIME_COUNT, E } from './bio/elements.js';
-import { newChemStores, transferPredationMatter } from './bio/chemlife.js';
-import { POOL_RT } from './world/chemistry.js';
+import {
+  DEFAULT_CHEM_CONFIG, assimilate, canAffordOffspring, grow, newChemStores, transferPredationMatter,
+} from './bio/chemlife.js';
+import { Chemistry, DEFAULT_CHEMISTRY, POOL, POOL_RT } from './world/chemistry.js';
 
 interface GateResult {
   id: string;
@@ -2240,6 +2242,62 @@ function gate37(): void {
     `budget-limited reactions=${hits} | cumulative settle clamp=${clamp.toFixed(6)} (limit 0.10)`);
 }
 
+/**
+ * G38 — freeNutrients is a booked exogenous subsidy, not a gate bypass.
+ */
+function gate38(): void {
+  const w = new World({ config: { seed: 517, founders: 400, genomeV2: true, chemistry: true,
+    chemistryFreeNutrients: true } as never });
+  for (let i = 0; i < 300; i++) w.step();
+  const chem = w.chemistry!;
+  const subsidy = Array.from(chem.flux.freeNutrientSubsidy).reduce((a, b) => a + b, 0);
+  const built = chem.flux.chemCarbonBuilt;
+  const core = new Set(['C', 'N', 'P', 'S', 'Fe']);
+  const conservation = w.chemAudit!.residual
+    .every((x) => Math.abs(x.residualFraction) < (core.has(x.element) ? 0.001 : 0.005));
+  const ceilingStillBinds = w.chemNutrientLimited > 0;
+  // Negative control on the helpers themselves: an EMPTY store must remain
+  // nutrient-limited and must not pass the offspring gate, even with the knob
+  // set. A subsidy booked into a live world cannot silently re-open the bypass.
+  const st = newChemStores(1);
+  const cfg = { ...DEFAULT_CHEM_CONFIG, freeNutrients: true };
+  const gr = { carbon: 0, nutrientLimited: false, energyLimited: false };
+  grow(st, 0, 1, 100, cfg, gr, new Float64Array(E.COUNT));
+  const offspring = canAffordOffspring(st, 0, cfg);
+  const bypassAbsent = gr.carbon === 0 && gr.nutrientLimited && !offspring.ok;
+  const pass = subsidy > 0 && built > 0 && conservation && ceilingStillBinds && bypassAbsent;
+  record('G38', 'freeNutrients is a booked subsidy without gate bypasses', pass,
+    `subsidy=${subsidy.toFixed(4)} mol | carbonBuilt=${built.toFixed(4)} mol`
+    + ` | all-7 conservation=${conservation} | nutrientLimited=${w.chemNutrientLimited}`
+    + ` | empty-store negative control carbon=${gr.carbon} lacking=${offspring.lacking}`);
+}
+
+/**
+ * G39 — water uptake debits H and O at 1:1 in a live chemistry world.
+ */
+function gate39(): void {
+  const w = new World({ config: { seed: 517, founders: 400, genomeV2: true, chemistry: true } as never });
+  for (let i = 0; i < 300; i++) w.step();
+  const ho = new Map(w.chemAudit!.residual.map((x) => [x.element, Math.abs(x.residualFraction)]));
+  const h = ho.get('H') ?? 1, o = ho.get('O') ?? 1;
+  // Discriminating synthetic control: one H2O mole claimed must credit exactly
+  // one H and one O into stores. A world-scale percentage alone can hide a
+  // half-oxygen regression behind the reservoir denominator.
+  const sc = new Chemistry(1, 1, 1, DEFAULT_CHEMISTRY);
+  sc.fields[POOL.H2O].data[0] = 100;
+  const st = newChemStores(1);
+  const demand = new Float64Array(E.COUNT); demand[E.H] = 1;
+  const before = sc.remaining(POOL.H2O, 0);
+  assimilate(sc, st, 0, 0, DEFAULT_CHEM_CONFIG, demand);
+  const claimed = before - sc.remaining(POOL.H2O, 0);
+  const uptakeBalanced = claimed > 0 && Math.abs(st.stores[E.H] - claimed) < 1e-12
+    && Math.abs(st.stores[E.O] - claimed) < 1e-12;
+  const pass = h < 0.005 && o < 0.005 && uptakeBalanced;
+  record('G39', 'H2O uptake credits H and O 1:1 and the live book closes', pass,
+    `H |residual|=${(h * 100).toFixed(5)}% O |residual|=${(o * 100).toFixed(5)}% (limit 0.5%)`
+    + ` | claimed=${claimed} storeH=${st.stores[E.H]} storeO=${st.stores[E.O]}`);
+}
+
 function main(): void {
   console.log(`=== credibility gates :: ${WORLD_ENGINE_VERSION} ===`);
   console.log(`scenario: founders=${SMALL.founders} world=${SMALL.worldW}x${SMALL.worldH} ticks=${TICKS} seed=${SMALL.seed}\n`);
@@ -2279,6 +2337,8 @@ function main(): void {
   gate35();
   gate36();
   gate37();
+  gate38();
+  gate39();
 
   const failed = results.filter((r) => !r.pass);
   console.log(`\n${results.length - failed.length}/${results.length} checks passed`);

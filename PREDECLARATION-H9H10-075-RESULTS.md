@@ -1,11 +1,11 @@
-# H9/H10/H11 results under `ts-evo-poc/0.7.0`
+# H9/H10/H11 results under `ts-evo-poc/0.7.0+chem/0.7.5`
 
 **Run:** 2026-10-13, after the Owner-authorized canopy correction.
-**Model identity:** `ts-evo-poc/0.7.0+chem/0.7.2`
+**Model identity:** `ts-evo-poc/0.7.0+chem/0.7.5`
 **Seeds:** 517, 1013, 24601, 7, 99 (same panel as original).
 **Horizon:** 1000 ticks, 400 founders.
 **Command:** `node scripts/chem-matrix-91011.mjs 1000`
-**Raw output:** `evidence/chem-matrix-91011-072-20261013.txt`
+**Raw output:** `evidence/chem-matrix-91011-075-20261013.txt`
 **Pre-declaration:** `PREDECLARATION-H9H10-070.md` (committed before execution).
 
 ## Verdicts (median population across 5 seeds)
@@ -18,7 +18,7 @@
 | H9 scale 30 | 8 | 3–51 | 6 | 1919 | 660695 | 268 |
 | H10 bridge | 6 | 3–10 | 6 | 1960 | 22689 | **546** |
 | H11 both | 7 | 4–77 | 6 | 1903 | 660696 | 540 |
-| ref freeNutrients | 74 | 41–286 | 241 | 1661 | 22841 | 231 |
+| ref freeNutrients | 5 | 4–15 | 16 | 1916 | 22708 | 253 |
 | chemOff | 788 | 409–1011 | 0 | 0 | 0 | 0 |
 
 ## H9 — UNTESTED again (lever wrong), not falsified
@@ -43,11 +43,7 @@ The combination (7) is no better than either single arm (8 and 6).
 
 ## What survives all three
 
-`chemistryFreeNutrients` gives 74 against base 6 — ~12×, the only intervention
-in the matrix that moves the outcome, and it is not one of the two hypothesized
-mechanisms. The binding constraint remains the nutrient gate itself. OC is
-abundant and unaffected by every arm; the reproduction gate fails on carbon
-**throughput**, not supply.
+With `freeNutrients` now an explicit booked subsidy rather than a gate bypass, it no longer produces the earlier population surge: median 5 against base 6, births median 16. No intervention in the matrix materially rescues the system. OC is abundant and unaffected by every arm; the reproduction constraint is not relieved by exogenous mineral nutrients alone.
 
 ## Caveats
 

@@ -34,7 +34,7 @@ function countCap(w) {
   return { y, n };
 }
 const stats = a => { const s = [...a].sort((x, y) => x - y); const m = s.reduce((x, y) => x + y, 0) / s.length;
-  return { min: s[0], max: s[s.length - 1], mean: m, med: s[(s.length / 2) | 0] }; };
+  return { min: s[0], max: s[s.length - 1], mean: m, med: s.length % 2 ? s[s.length >> 1] : (s[(s.length / 2) - 1] + s[s.length / 2]) / 2 }; };
 const f = (n, d = 2) => Number(n).toFixed(d);
 
 console.log('IDENTITY:', runIdentity(true), '| seeds:', SEEDS.length, '| ticks:', TICKS, '\n');

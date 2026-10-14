@@ -311,6 +311,12 @@ guarded by G36, which enforces it two-sidedly (non-zero income/spend above the
 tolerance, matching flux, bridge arm fires and closes, unbooked energy breaks
 the identity).
 
+- **`freeNutrients` is an explicit exogenous subsidy.** H/O/N/P/S/Fe stores are
+  topped up to the physical assimilation target and the amount is booked in
+  `chemistry.flux.freeNutrientSubsidy`, so the elemental audit can balance it.
+  Carbon is NOT subsidised: it must still be assimilated from organic carbon.
+  The growth ceiling and offspring nutrient gate are no longer bypassed. G38
+  proves the subsidy is non-zero, produces real tissue, and conserves C/N/P/S/Fe.
 - **`freeEnergy` relaxes the growth DECISION, not the spend.** With the knob set,
   the growth budget is exactly what the requested tissue costs, so growth depends
   on matter alone as its contract states — but the cost is still charged against
@@ -323,6 +329,11 @@ the identity).
   within the same organism tick. Fixed `REACTIONS` order is the declared
   deterministic priority rule. G37 proves the budget binds in a live world and
   settlement clamping remains within its limit.
+- **H/O are tracked at the declared reservoir boundary, not molecularly.** Water
+  uptake credits H and O 1:1, aerobic respiration returns H2O as the inverse of
+  photosynthesis, and reservoir top-up/sink are booked as boundary fluxes. G39
+  asserts both a discriminating 1:1 uptake control and the live H/O books. No
+  claim is made about molecular water identity or speciation.
 - **Energy is reconciled through the legacy causal ledger when chemistry is on.** Chemical reaction income and chemical growth expenditure are now booked as `chemicalIncome` and `chemicalSpent` against the same identity G3 enforces (G36), so a chemistry-enabled run no longer settles or mints energy silently. G3 itself still runs chemistry unset and therefore says nothing about chemistry. Chemical income is **8.388%** of legacy+chemical income by G33's measure (income only: flux versus `ledger.capture`) in `evidence/ledger-reconciliation-20261013.txt`; growth cost is treated as dissipation. The remaining separation is the mass book: chemical growth biomass is tracked as matter and is not counted by `Ledger.biomass()`, which sums `store.energy`.
 - **Predation transfers energy but not matter.** The legacy predator/grazer
   interaction moves `store.energy` from prey to consumer with **no parallel

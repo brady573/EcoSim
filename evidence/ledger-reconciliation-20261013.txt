@@ -84,7 +84,7 @@ scenario: founders=300 world=2000x2000 ticks=250 seed=4242
 [PASS] G31 death recycles tissue to the correct pools
          tissue 1.8604 mol -> labile +0.2920, litter +0.0060 (burial 0.001), total returned +0.2979
 [PASS] G32 chemistry runs under a distinct experimental identity
-         knob off "ts-evo-poc/0.7.0" | knob on "ts-evo-poc/0.7.0+chem/0.7.2" | state digests 9100d5dd vs 5c45881b
+         knob off "ts-evo-poc/0.7.0" | knob on "ts-evo-poc/0.7.0+chem/0.7.5" | state digests 9100d5dd vs 1ec028b9
 [PASS] G33 chemical energy share is measured from a single-record ledger
          chemical income 2118.1 / (legacy 23134 + chemical) = 8.388% | charged 150.0 (declared scope: G33 is an income-share measurement; G36 runs chemistry through the causal ledger. Chemical biomass remains a separate mass book; ceiling 10%)
 [PASS] G34 canopy lookup is spatially correct and reaches capture
@@ -95,6 +95,10 @@ scenario: founders=300 world=2000x2000 ticks=250 seed=4242
          base residual 0.00011% | income 2118.11 (1.642% of input) vs flux 2118.11 (match true) | spend 150.02 vs flux 150.02 (match true) | material=true | control residual 4.26975% (breaks=true) | bridge residual 0.00011% | bridge fires=true closes=true
 [PASS] G37 per-organism gross substrate budgets bind in a live chemistry world
          budget-limited reactions=267525 | cumulative settle clamp=0.034994 (limit 0.10)
+[PASS] G38 freeNutrients is a booked subsidy without gate bypasses
+         subsidy=459.3061 mol | carbonBuilt=1378.0444 mol | all-7 conservation=true | nutrientLimited=17544 | empty-store negative control carbon=0 lacking=nutrient
+[PASS] G39 H2O uptake credits H and O 1:1 and the live book closes
+         H |residual|=0.00298% O |residual|=0.01253% (limit 0.5%) | claimed=0.20000000000000284 storeH=0.2 storeO=0.2
 
-45/45 checks passed
+47/47 checks passed
 ALL GATES PASS

@@ -1,9 +1,9 @@
 # Diagnostics — `chemistryPredationMatter` ride-along (post-hoc)
 
 **Date:** 2026-10-13
-**Engine:** `ts-evo-poc/0.7.0+chem/0.7.2`
+**Engine:** `ts-evo-poc/0.7.0+chem/0.7.5`
 **Runner:** `scripts/chem-predation-knob.mjs`
-**Raw output:** `evidence/chem-predation-knob-10seed-072-20261013.txt`
+**Raw output:** `evidence/chem-predation-knob-10seed-075-20261013.txt`
 
 This is a **post-hoc diagnostic result**, not a pre-registered hypothesis run. A 5-seed first pass was superseded by this 10-seed panel.
 The comparison is base chemistry versus the same config with the null-default
@@ -25,10 +25,10 @@ Seeds: 517, 1013, 24601, 7, 99, 31337, 4242, 8080, 555, 12345. Horizon 1000 tick
 | arm | pop median | pop range | births median | carbon transferred median | C residual median | settle clamp max |
 |---|---:|---:|---:|---:|---:|---:|
 | base | 6 | 3–39 | 6 | 0.0000 | 0.0002% | 0.077 |
-| predationMatter | 10 | 1–46 | 10 | 7.7126 mol | 0.0002% | 0.076 |
+| predationMatter | 8 | 1–46 | 9 | 7.0149 mol | 0.0002% | 0.076 |
 
 Population increases on 5/10 seeds, decreases on 2/10, and is unchanged on 3/10.
-Median population is 6→10 and median births 6→10. The effect remains mixed.
+Median population is 6→8 and median births 6→9. The effect remains mixed.
 
 ## Per seed
 
@@ -48,12 +48,12 @@ Median population is 6→10 and median births 6→10. The effect remains mixed.
 ## Immediate reading
 
 - **The mechanism is active and finite.** Base arm moves exactly 0 carbon; the
-  ride-along arm transfers 7.71 mol median. Arms differ.
+  ride-along arm transfers 7.01 mol median. Arms differ.
 - **Conservation is preserved.** The C residual remains within the normal
   sub-0.01% range; the ride-along does not mint matter. G35 additionally checks
   stoichiometric proportionality directly on synthetic slots.
 - **The effect is mixed.** Median population is
-  6→10; median births 6→10. The strongest single change is seed 517
+  6→8; median births 6→9. The strongest single change is seed 517
   (39→46, births 46→57). Six seeds show equal or fewer births with the knob on.
 
 ## Sexual reproduction and generation depth

@@ -15,7 +15,7 @@
  * Run: node scripts/workflow-checks.mjs
  * Exits non-zero on any failure. No test framework, no dependencies.
  */
-import { readFileSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -1337,6 +1337,30 @@ for (const [wfPath, label] of [
     queues && cancels
       ? 'INVALID COMBINATION — GitHub rejects this workflow at parse time'
       : `queue:max=${queues}, cancel-in-progress:true=${cancels}`);
+}
+
+// ---------------------------------------------------------------------------
+// W9 — evidence identity/provenance consistency.
+//
+// A version bump that is not reflected in the inventory, or a CURRENT identity
+// that appears twice with conflicting status, is a record defect, not a taste
+// issue: it lets a changed simulation inherit the wrong provenance.
+// ---------------------------------------------------------------------------
+{
+  const vtext = readFileSync(join(root, 'src/world/version.ts'), 'utf8');
+  const chem = /CHEMISTRY_ENGINE_VERSION = '([^']+)'/.exec(vtext)?.[1] ?? '';
+  const base = /WORLD_ENGINE_VERSION = '([^']+)'/.exec(vtext)?.[1] ?? '';
+  const current = `${base}+${chem}`;
+  const inv = readFileSync(join(root, 'EVIDENCE-INVENTORY.md'), 'utf8');
+  const rows = inv.split('\n').filter((l) => l.includes('`ts-evo-poc/') && l.includes('chem/'));
+  const currentRows = rows.filter((l) => l.includes('**CURRENT**'));
+  const identityOk = currentRows.length === 1 && currentRows[0].includes(`\`${current}\``);
+  const paths = [...inv.matchAll(/`(evidence\/[^`]+\.(?:txt|md|html))`/g)].map((m) => m[1]);
+  const missing = [...new Set(paths)].filter((rel) => !existsSync(join(root, rel)));
+  check('W9-identity', 'inventory has exactly one CURRENT chemistry identity matching version.ts', identityOk,
+    `current=${current} currentRows=${currentRows.length} ${identityOk ? '' : 'MISMATCH'}`);
+  check('W9-evidence-paths', 'every evidence path cited by the inventory exists', missing.length === 0,
+    missing.length === 0 ? `${new Set(paths).size} referenced paths exist` : `MISSING: ${missing.join(', ')}`);
 }
 
 // ===========================================================================

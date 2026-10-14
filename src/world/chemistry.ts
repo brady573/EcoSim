@@ -11,16 +11,16 @@
  * and sediment. C, N, P, S and Fe are cycled; H and O are tracked as biomass
  * components and as dissolved O2.
  *
- * WHAT IS NOT, AND IS NOT CLAIMED. There is no molecular chemistry here — no
- * speciation equilibria, no pH-dependent solubility, no enzyme kinetics, no
- * atmospheric column. Water is an EXTERNAL BUFFERED RESERVOOL: hydrogen and the
- * oxygen bound in water are not conserved in this model, because the water pool
- * is not simulated. Atmospheric CO2, geological weathering, gas exchange at the
- * water surface and export to sediment sinks are declared as explicit fluxes
- * and measured in the ledger. Conservation claims in this repository are
- * therefore for C, N, P, S and Fe across the modelled compartments plus those
- * declared boundaries — NOT for atomic balance of the whole system. Hydrogen and
- * oxygen-as-water are deliberately outside the claim.
+ * WHAT IS NOT CLAIMED. There is no molecular chemistry here — no speciation
+ * equilibria, no pH-dependent solubility, no enzyme kinetics, no atmospheric
+ * column. Water is an EXTERNAL BUFFERED RESERVOIR: the water pool is not a
+ * chemical species network, so no molecular water identity is claimed. H and O
+ * ARE tracked at pool level: reservoir top-up (`waterInput`), reservoir sink
+ * (`reservoirSink`) and 1:1 water uptake into organism stores are declared
+ * boundary fluxes, and the H/O books are asserted to close at that declared
+ * level (G39). C, N, P, S and Fe additionally close across the modelled
+ * compartments with weathering, gas export and sediment export as explicit
+ * boundaries (G27).
  *
  * DETERMINISM. Transport is a pull-based 5-point stencil (see
  * ScalarField.step), which is order-independent by construction: every cell
@@ -291,6 +291,8 @@ export interface BoundaryFluxes {
   chemEnergySpent: number;
   /** Cumulative moles of tissue carbon actually built under chemistry. */
   chemCarbonBuilt: number;
+  /** Explicit exogenous nutrient subsidy used only by the freeNutrients ablation. */
+  freeNutrientSubsidy: Float64Array;
   founderMatter: Float64Array;
   /**
    * Matter that left the modelled system as gas, per element.
@@ -323,6 +325,7 @@ export function newBoundaryFluxes(): BoundaryFluxes {
     sedimentOut: 0, exportOut: 0,
     founderMatter: new Float64Array(7), gasExport: new Float64Array(7),
     chemEnergyIncome: 0, chemEnergySpent: 0, chemCarbonBuilt: 0,
+    freeNutrientSubsidy: new Float64Array(7),
     reservoirSink: new Float64Array(7), waterInput: 0,
     reservoirSource: new Float64Array(7), waterO2: new Float64Array(7),
   };

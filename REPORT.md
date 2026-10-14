@@ -5764,12 +5764,12 @@ Invariants added:
   new chemistry slots out of bounds.
 
 Current diagnostic cohort: 10 seeds, 1000 ticks, 400 founders, post-hoc, under
-`ts-evo-poc/0.7.0+chem/0.7.2`. Raw output:
-`evidence/chem-predation-knob-10seed-072-20261013.txt`; details:
+`ts-evo-poc/0.7.0+chem/0.7.5`. Raw output:
+`evidence/chem-predation-knob-10seed-075-20261013.txt`; details:
 `CHEM-PREDATION-KNOB-DIAGNOSTICS.md`.
 
   base              pop med 6    births med 6    matter carbon 0.0000
-  predationMatter   pop med 10   births med 10   matter carbon 7.7126 mol
+  predationMatter   pop med 8    births med 9    matter carbon 7.0149 mol
 
 Sexual births and generation depth: base 0 sexual births, mean generation depth
 0.000; predationMatter 4 sexual births, mean generation depth 0.028. The
@@ -5792,3 +5792,31 @@ G37 proves the budget binds in a running chemistry world (budget-limited
 reactions > 0) while cumulative settlement clamping stays below its limit.
 Chemistry-off parity is unchanged. Chemistry-on cohort and intervention evidence
 was re-run under this identity; older chemistry panels remain historical.
+
+## Explicit `freeNutrients` subsidy — `chem/0.7.5`
+
+`freeNutrients` no longer forces the growth ceiling or bypasses the offspring
+nutrient gate. H/O/N/P/S/Fe stores are topped up to the physical assimilation
+target and the amount is booked in `chemistry.flux.freeNutrientSubsidy`, which
+the elemental audit counts as an exogenous input. Carbon is NOT subsidised: an
+organism still has to assimilate organic carbon from its cell.
+
+G38 proves the subsidy is non-zero, produces real tissue, and keeps C/N/P/S/Fe
+within the declared conservation tolerance. Chemistry-off parity is unchanged.
+
+## Water oxygen correction — `chem/0.7.5`
+
+H2O uptake previously debited the water reservoir for both hydrogen and oxygen
+but credited only the tissue's 0.5 O:H ratio, destroying half the oxygen claimed.
+Every mole of H2O now credits one H and one O into the organism store; excess
+oxygen returns through the declared reservoir sink at death. G39 measures live
+H and O residuals at 0.00298% and 0.01253%, both inside the 0.5% declared limit,
+and a synthetic control proves one claimed H2O mole credits exactly one H and one O.
+
+## Aerobic respiration water balance — `chem/0.7.5`
+
+Aerobic respiration is now the stoichiometric inverse of photosynthesis: it
+consumes OC + 0.2 O2 and RETURNS 1 DIC + 0.9 H2O. It previously listed 0.9
+H2O as a substrate while its own comment claimed the inverse, destroying water
+every time organic matter was respired. Live H/O residuals fall to 0.00298% and
+0.01253% respectively under G39.

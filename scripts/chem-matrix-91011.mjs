@@ -39,7 +39,7 @@ function run(seed, extra = {}) {
 function stats(a) {
   const s = [...a].sort((x, y) => x - y);
   const m = s.reduce((x, y) => x + y, 0) / s.length;
-  return { min: s[0], max: s[s.length - 1], med: s[(s.length / 2) | 0] };
+  return { min: s[0], max: s[s.length - 1], med: s.length % 2 ? s[s.length >> 1] : (s[(s.length / 2) - 1] + s[s.length / 2]) / 2 };
 }
 const f = (n, d = 1) => Number(n).toFixed(d);
 
