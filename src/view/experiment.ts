@@ -21,6 +21,16 @@ export function viewerProvenance(world: World): string {
     + ` | Genome V2 ${cfg.genomeV2 === true ? 'on' : 'off'} | tick ${world.tick} (open-ended)`;
 }
 
+/** Exact resolved configuration, not a preset description. No mutable refs. */
+export function viewerReplayConfig(world: World): string {
+  return JSON.stringify({
+    identity: runIdentity(world.config.chemistry === true),
+    seed: world.config.seed, tick: world.tick,
+    resolvedConfig: world.config,
+    replay: 'Construct World with resolvedConfig and step it tick times; exact state is same-runtime only.',
+  }, null, 2);
+}
+
 export function chemistryMeasurements(world: World): ReadonlyArray<readonly [string, string]> {
   if (!world.chemistry || !world.chemAudit) return [];
   const flux = world.chemistry.flux;

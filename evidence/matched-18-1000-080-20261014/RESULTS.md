@@ -40,3 +40,19 @@ are recorded but are not controlled benchmark evidence.
 
 Raw results were copied only after execution completed and the 36-row,
 18-seed-per-arm, unique-pair and 1000-tick completeness checks passed.
+
+## Portable replay
+
+From the repository root at the matching engine revision, compile the engine
+with `npm run view:build`, then run:
+
+```
+node scripts/replay-matched18.mjs --out ./build/replay-matched18
+```
+
+Use a new output directory. The replay consumes the original exact resolved
+configurations and compares all recorded deterministic measurements and state
+digests; timings are intentionally excluded. Wrong engine identity, existing
+output, truncated records or a mismatch fail loudly. A completion marker is
+written only after all 36 comparisons pass. Exact replay is same-runtime only.
+The original absolute-path runner/protocol and raw outputs remain unchanged.

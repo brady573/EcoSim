@@ -26,7 +26,7 @@
 
 import { Application, Container, Graphics, Sprite, Text, type Texture } from 'pixi.js';
 import { World } from '../world/world.js';
-import { chemistryMeasurements, createViewerWorld, organismChemistry, viewerProvenance } from './experiment.js';
+import { chemistryMeasurements, createViewerWorld, organismChemistry, viewerProvenance, viewerReplayConfig } from './experiment.js';
 import { TROPHIC, TROPHIC_NAME, MOTILITY_NAME, LIFE_STAGE_NAME } from '../bio/role.js';
 import { resolveCapacity } from '../bio/phenotype.js';
 import { TRAITS, TRAIT, TRAIT_COUNT } from '../bio/genome.js';
@@ -284,6 +284,7 @@ function drawDisturbances(): void {
   }
 }
 
+let lastDrawn = 0;
 function drawOrganisms(): void {
   const store = world.store;
   const view = app.screen;
@@ -325,6 +326,7 @@ function drawOrganisms(): void {
   // pool this bounds worldLayer.children permanently; the pool grows to the
   // most organisms ever visible at once and then stops.
   for (let i = poolUsed; i < spritePool.length; i++) spritePool[i].visible = false;
+  lastDrawn = drawn;
 }
 
 function drawMorphology(): void {
@@ -829,6 +831,7 @@ function restartFromControls(): boolean {
   const error = document.getElementById('run-error')!;
   try {
     makeWorld(Number(popInput.value), Number(seedInput.value));
+    refreshConfigExport();
     error.textContent = '';
     renderInspector();
     return true;
@@ -851,6 +854,33 @@ function applyGenomeToggle(): void {
     ? 'on \u2014 diagnostic, restarts'
     : 'off \u2014 declared behaviour';
 }
+
+function refreshConfigExport(): void {
+  const output = document.getElementById('resolved-config') as HTMLTextAreaElement;
+  if (!output.hidden) output.value = viewerReplayConfig(world);
+}
+document.getElementById('btn-config')!.addEventListener('click', () => {
+  const output = document.getElementById('resolved-config') as HTMLTextAreaElement;
+  output.hidden = !output.hidden;
+  document.getElementById('btn-config')!.setAttribute('aria-expanded', String(!output.hidden));
+  refreshConfigExport();
+  if (!output.hidden) { output.focus(); output.select(); }
+  layoutFit();
+});
+document.getElementById('btn-copy-config')!.addEventListener('click', async () => {
+  const output = document.getElementById('resolved-config') as HTMLTextAreaElement;
+  output.hidden = false;
+  document.getElementById('btn-config')!.setAttribute('aria-expanded', 'true');
+  refreshConfigExport();
+  output.focus(); output.select();
+  try {
+    await navigator.clipboard.writeText(output.value);
+    document.getElementById('config-status')!.textContent = 'Copied resolved configuration.';
+  } catch {
+    document.getElementById('config-status')!.textContent = 'Clipboard unavailable — selected JSON can be copied manually.';
+  }
+  layoutFit();
+});
 genomeBtn.addEventListener('click', () => {
   if (!Number.isSafeInteger(Number(seedInput.value)) || Number(seedInput.value) < 1 || Number(seedInput.value) > 0xffffffff) {
     restartFromControls();
@@ -1138,3 +1168,25 @@ console.log(
   'color:#8698ad',
 );
 console.log('The viewer reads simulation state only; it never writes it.');
+
+/** Read-only browser acceptance witness. Copies only; no World/camera refs. */
+export function viewerBrowserSnapshot() {
+  const bounds = app.canvas.getBoundingClientRect();
+  const picks: Array<{ id: number; x: number; y: number }> = [];
+  for (let slot = 0; slot < world.store.count; slot++) {
+    if (!world.aliveAt(slot)) continue;
+    const p = worldToScreen(world.store.x[slot], world.store.y[slot]);
+    if (p.x > 15 && p.y > 15 && p.x < app.screen.width - 15 && p.y < app.screen.height - 15) {
+      picks.push({ id: world.store.id[slot], x: bounds.left + p.x, y: bounds.top + p.y });
+    }
+  }
+  return {
+    tick: world.tick, hash: world.hashState(), paused, drawn: lastDrawn,
+    camera: { x: cam.x, y: cam.y, zoom: cam.zoom },
+    selected: selectedId, provenance: viewerProvenance(world),
+    config: JSON.parse(viewerReplayConfig(world)),
+    chemicalIncome: world.chemistry?.flux.chemEnergyIncome ?? null,
+    chemicalCarbonBuilt: world.chemistry?.flux.chemCarbonBuilt ?? null,
+    picks,
+  };
+}

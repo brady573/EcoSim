@@ -332,6 +332,13 @@
         chemical tissue/accounting runs without module-enabled reactions.
         Readouts are measurements, not hypothesis verdicts.</div>
       <div id="run-error" role="alert" class="tiny"></div>
+      <div class="row">
+        <button id="btn-config" aria-expanded="false" aria-controls="resolved-config">Exact config</button>
+        <button id="btn-copy-config">Copy config</button>
+      </div>
+      <textarea id="resolved-config" readonly hidden rows="6" aria-label="Exact resolved run configuration"
+        style="width:100%;box-sizing:border-box;background:var(--bg);color:var(--text)"></textarea>
+      <div id="config-status" role="status" class="tiny"></div>
       <div class="row tiny" id="hint">
         <span id="hint-pointer">drag to pan &middot; pinch or wheel to zoom &middot; tap an organism to inspect</span>
       </div>

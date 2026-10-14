@@ -1,7 +1,7 @@
 // Exercises the actual constructor/readouts imported by the primary viewer.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { createViewerWorld, viewerProvenance, chemistryMeasurements, organismChemistry } from '../build/view/experiment.js';
+import { createViewerWorld, viewerProvenance, chemistryMeasurements, organismChemistry, viewerReplayConfig } from '../build/view/experiment.js';
 import { World } from '../build/world/world.js';
 import { runIdentity } from '../build/world/version.js';
 
@@ -13,6 +13,13 @@ for (const chemistry of [false, true]) for (const genome of [false, true]) {
   const before = w.hashState();
   const provenance = viewerProvenance(w);
   const rows = chemistryMeasurements(w);
+  const exported = JSON.parse(viewerReplayConfig(w));
+  assert.deepEqual(exported.resolvedConfig, JSON.parse(JSON.stringify(w.config)));
+  assert.equal(exported.identity, runIdentity(chemistry));
+  assert.equal(exported.tick, 120);
+  const replayed = new World({ config: exported.resolvedConfig });
+  for (let i = 0; i < exported.tick; i++) replayed.step();
+  assert.equal(replayed.hashState(), before, 'exported config/tick reproduces the original world');
   const live = Array.from({ length: w.store.capacity }, (_, i) => i).find((i) => w.aliveAt(i));
   assert.notEqual(live, undefined, 'inspector witness is alive');
   const inspected = organismChemistry(w, live);
@@ -44,7 +51,7 @@ assert.throws(() => createViewerWorld(0, 517, false, false), /Founders/);
 assert.throws(() => createViewerWorld(NaN, 517, false, false), /Founders/);
 const html = readFileSync(new URL('../src/view/index.html', import.meta.url), 'utf8');
 const viewer = readFileSync(new URL('../build/view/viewer.js', import.meta.url), 'utf8');
-for (const id of ['experiment-mode', 'run-error', 'btn-genome']) {
+for (const id of ['experiment-mode', 'run-error', 'btn-genome', 'btn-config', 'btn-copy-config', 'resolved-config']) {
   assert.ok(html.includes(`id="${id}"`), `served HTML includes ${id}`);
   assert.ok(viewer.includes(`'${id}'`), `compiled primary viewer wires ${id}`);
 }
