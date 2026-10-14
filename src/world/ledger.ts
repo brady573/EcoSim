@@ -111,6 +111,18 @@ export class Ledger {
   scavenged = 0;
   /** Cumulative energy moved between organisms by predation. */
   predated = 0;
+  /**
+   * Chemical energy income and expenditure, booked through THIS ledger.
+   *
+   * These are the same quantities `chemistry.flux.chemEnergyIncome/Spent`
+   * record, cast into the causal energy identity the legacy ledger already
+   * enforces. They are not a second book: recording them here is what lets
+   * the chemistry-enabled run satisfy `capture + organic + founding +
+   * chemicalIncome == biomass + detritus + dissipated + chemicalSpent`
+   * without pretending the two books were always the same.
+   */
+  chemicalIncome = 0;
+  chemicalSpent = 0;
 
   reset(): void {
     this.foundingBiomass = 0;
@@ -135,6 +147,8 @@ export class Ledger {
     this.unassimilated = 0;
     this.scavenged = 0;
     this.predated = 0;
+    this.chemicalIncome = 0;
+    this.chemicalSpent = 0;
   }
 
   /** Photosynthesis: nutrient is consumed, energy appears. */
@@ -281,6 +295,16 @@ export class Ledger {
     this.predated += amount;
   }
 
+  /** Chemical metabolism income: energy added to `store.energy` directly. */
+  recordChemicalIncome(amount: number): void {
+    this.chemicalIncome += amount;
+  }
+
+  /** Chemical growth expenditure: energy deducted directly from `store.energy`. */
+  recordChemicalExpenditure(amount: number): void {
+    this.chemicalSpent += amount;
+  }
+
   /** Total energy dissipated through every pathway. */
   totalDissipated(): number {
     return (
@@ -291,16 +315,22 @@ export class Ledger {
       this.reproductionSpent +
       this.mineralised +
       this.spoiled +
-      this.unassimilated
+      this.unassimilated +
+      this.chemicalSpent
     );
   }
 
   /**
    * Total energy ever present in the biological loop: exogenous founding
    * biomass plus every flux that entered since.
+   *
+   * Chemical income is an input like photosynthesis capture: it lands in
+   * `store.energy`, so excluding it would make a chemistry-enabled run look
+   * like it invented energy. With chemistry off the term is exactly zero and
+   * the legacy identity is unchanged.
    */
   totalInput(): number {
-    return this.foundingBiomass + this.capture + this.injectOrganic;
+    return this.foundingBiomass + this.capture + this.injectOrganic + this.chemicalIncome;
   }
 
   /**

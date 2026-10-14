@@ -223,11 +223,14 @@ function gate3(): void {
   const det = w.detritus.total();
   const dis = L.totalDissipated();
 
+  const pass3 = worst < TOLERANCE
+    && L.chemicalIncome === 0
+    && L.chemicalSpent === 0; // chemistry off: its ledger terms are inert
   record(
     'G3',
     'causal resource accounting',
-    worst < TOLERANCE,
-    `identity capture+organic+founding == biomass+detritus+dissipated. ` +
+    pass3,
+    `identity capture+organic+founding+chemicalIncome == biomass+detritus+dissipated+chemicalSpent. ` +
       `Worst |residual| = ${(worst * 100).toFixed(5)}% at tick ${worstTick} (tolerance ${TOLERANCE * 100}%). ` +
       `Final: capture=${L.capture.toFixed(1)} organicInput=${L.injectOrganic.toFixed(1)} ` +
       `founding=${L.foundingBiomass.toFixed(1)} => totalInput=${L.totalInput().toFixed(1)}; ` +
@@ -1864,11 +1867,11 @@ function gate32(): void {
 /**
  * G33 — the chemical/legacy energy boundary is MEASURED and DECLARED.
  *
- * The chemical subsystem credits reaction energy straight into `store.energy`
- * and charges growth cost straight out of it, without passing through the
- * legacy ledger's capture/spend books. That is a real integration gap and the
- * reviewer is right to name it: two energy books exist and only one of them is
- * the ledger.
+ * Chemical income and growth expenditure are now booked through the causal
+ * ledger (G36), so the energy identity closes for chemistry-enabled runs. This
+ * gate remains the canonical measurement of chemical income as a share of
+ * legacy photosynthetic capture; it makes no settled claim about the
+ * remaining mass-book distinction, which is stated in the declared limits.
  *
  * Rather than assert integration that does not exist, this gate states the
  * boundary as a MEASURED quantity. If chemical energy income ever becomes a
@@ -1902,8 +1905,8 @@ function gate33(): void {
   record('G33', 'chemical energy share is measured from a single-record ledger', pass,
     `chemical income ${chem.toFixed(1)} / (legacy ${legacy.toFixed(0)} + chemical) `
     + `= ${(share * 100).toFixed(3)}% | charged ${charged.toFixed(1)} `
-    + `(declared scope: chemical energy is NOT reconciled through the legacy `
-    + `ledger; ceiling 10%)`);
+    + `(declared scope: G33 is an income-share measurement; G36 runs chemistry through `
+    + `the causal ledger. Chemical biomass remains a separate mass book; ceiling 10%)`);
 }
 
 /**
@@ -2155,6 +2158,71 @@ function gate35(): void {
     + `${stoichOk ? 'proportional' : 'BREACH'}`);
 }
 
+/**
+ * G36 — chemical energy is reconciled through the legacy causal ledger.
+ *
+ * G3 proves the legacy identity with chemistry off. G33 measures chemical
+ * income as a share but leaves the two books separate, so a chemistry-on run
+ * can mint or lose chemical energy without the causal identity seeing it.
+ * This gate runs the SAME identity with chemistry enabled and, in addition,
+ * checks that the ledger's chemical terms equal the chemistry flux exactly —
+ * a separate book that only agrees because it is never compared fails here.
+ */
+function gate36(): void {
+  const TOLERANCE = 0.005; // same scale-free tolerance as G3
+  const w = new World({ config: { seed: 517, founders: 400, genomeV2: true, chemistry: true } as never });
+  let worst = 0;
+  for (let i = 0; i < 600; i++) {
+    w.step();
+    const r = Math.abs(w.accountingResidualFraction());
+    if (r > worst) worst = r;
+  }
+  // Bridge arm is now booked through the same identity. It must close, and it
+  // must also emit a ledger term that actually differs from the base arm.
+  const bw = new World({ config: { seed: 517, founders: 400, genomeV2: true, chemistry: true,
+    chemistryToLegacyDetritus: true } as never });
+  let worstBridge = 0;
+  for (let i = 0; i < 600; i++) {
+    bw.step();
+    const r = Math.abs(bw.accountingResidualFraction());
+    if (r > worstBridge) worstBridge = r;
+  }
+  // Negative control on the REAL detector: inject unbooked energy into a
+  // settled chemistry world. Readouts are reported for w vs bad (break).
+  const badWorld = new World({ config: { seed: 517, founders: 400, genomeV2: true, chemistry: true } as never });
+  for (let i = 0; i < 300; i++) badWorld.step();
+  let injectedSlot = -1;
+  const bstore = badWorld.store;
+  for (let sl = 0; sl < bstore.capacity; sl++) { if (badWorld.aliveAt(sl)) { injectedSlot = sl; break; } }
+  if (injectedSlot >= 0) bstore.energy[injectedSlot] += 5000;
+  let worstInjected = 0;
+  for (let i = 300; i < 600; i++) {
+    badWorld.step();
+    const r = Math.abs(badWorld.accountingResidualFraction());
+    if (r > worstInjected) worstInjected = r;
+  }
+  const L = w.ledger;
+  const chem = w.chemistry!;
+  const incomeMatches = Math.abs(L.chemicalIncome - chem.flux.chemEnergyIncome) <= 1e-9;
+  const spendMatches = Math.abs(L.chemicalSpent - chem.flux.chemEnergySpent) <= 1e-9;
+  const chemShare = L.chemicalIncome / Math.max(1e-9, L.totalInput());
+  const material = L.chemicalIncome > 0 && L.chemicalSpent > 0 && chemShare > TOLERANCE;
+  const bridgeFires = w.ledger.injectOrganic === 0 && bw.ledger.injectOrganic > 0;
+  const bridgeCloses = worstBridge < TOLERANCE;
+  const negativeControlPass = worstInjected > TOLERANCE;
+  const pass = worst < TOLERANCE && incomeMatches && spendMatches && material
+    && bridgeCloses && bridgeFires && negativeControlPass;
+  record('G36', 'chemical energy is reconciled through the legacy causal ledger', pass,
+    `base residual ${(worst * 100).toFixed(5)}%` +
+    ` | income ${L.chemicalIncome.toFixed(2)} (${(chemShare * 100).toFixed(3)}% of input)` +
+    ` vs flux ${chem.flux.chemEnergyIncome.toFixed(2)}` +
+    ` (match ${incomeMatches}) | spend ${L.chemicalSpent.toFixed(2)}` +
+    ` vs flux ${chem.flux.chemEnergySpent.toFixed(2)} (match ${spendMatches})` +
+    ` | material=${material} | control residual ${(worstInjected * 100).toFixed(5)}%` +
+    ` (breaks=${negativeControlPass}) | bridge residual ${(worstBridge * 100).toFixed(5)}%` +
+    ` | bridge fires=${bridgeFires} closes=${bridgeCloses}`);
+}
+
 function main(): void {
   console.log(`=== credibility gates :: ${WORLD_ENGINE_VERSION} ===`);
   console.log(`scenario: founders=${SMALL.founders} world=${SMALL.worldW}x${SMALL.worldH} ticks=${TICKS} seed=${SMALL.seed}\n`);
@@ -2192,6 +2260,7 @@ function main(): void {
   gate33();
   gate34();
   gate35();
+  gate36();
 
   const failed = results.filter((r) => !r.pass);
   console.log(`\n${results.length - failed.length}/${results.length} checks passed`);

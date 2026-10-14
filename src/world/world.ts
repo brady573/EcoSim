@@ -3322,6 +3322,10 @@ export class World {
             const bcx = Math.min(this.detritus.cols - 1, Math.max(0, (store.x[slot] / fieldW) | 0));
             const bcy = Math.min(this.detritus.rows - 1, Math.max(0, (store.y[slot] / fieldH) | 0));
             this.detritus.data[bcy * this.detritus.cols + bcx] += (labile[e] + litter[e]) * CHEM_TO_LEGACY_PER_CARBON;
+            // Book the same converted energy into the causal ledger: the mass that
+            // crossed into legacy detritus has left the chemical economy. Leaving
+            // this unbooked was the bridge hole named in declared limits.
+            this.ledger.recordOrganicInput((labile[e] + litter[e]) * CHEM_TO_LEGACY_PER_CARBON);
           }
         }
       }
@@ -4588,6 +4592,10 @@ export class World {
       if (gained > 0) {
         store.energy[slot] += gained;
         chem.flux.chemEnergyIncome += gained;
+        // Booked into the CAUSAL energy ledger, not only the chemistry
+        // separate accumulator: the identity above cannot see this income
+        // otherwise and a chemistry-on run looks like it minted energy.
+        this.ledger.recordChemicalIncome(gained);
       }
 
 
@@ -4614,6 +4622,9 @@ export class World {
         const cost = r.carbon * ENERGY_PER_CARBON;
         store.energy[slot] -= cost;
         chem.flux.chemEnergySpent += cost;
+        // The expenditure half of the chemical income above, booked the same
+        // way so the causal ledger can close on a chemistry-enabled run.
+        this.ledger.recordChemicalExpenditure(cost);
         chem.flux.chemCarbonBuilt += r.carbon;
       }
     }

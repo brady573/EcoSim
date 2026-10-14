@@ -306,8 +306,10 @@ tested the helper and not the world. Four more rules follow from that:
 ### Declared integration limits (chemistry ↔ legacy)
 
 These are **limits, not claims**. Each is stated so a reader does not have to
-infer integration that does not exist, and G33 measures one of them so the
-declaration cannot silently become false.
+infer integration that does not exist.  The energy-integration line below is
+guarded by G36, which enforces it two-sidedly (non-zero income/spend above the
+tolerance, matching flux, bridge arm fires and closes, unbooked energy breaks
+the identity).
 
 - **`freeEnergy` relaxes the growth DECISION, not the spend.** With the knob set,
   the growth budget is exactly what the requested tissue costs, so growth depends
@@ -316,11 +318,7 @@ declaration cannot silently become false.
   into legacy starvation. The contract is satisfied for the decision and not for
   the organism; stated here because the original defect exploited exactly that
   ambiguity.
-- **Energy has two books.** Chemical reaction income is credited directly to
-  `store.energy` and chemical growth cost is charged directly out of it.
-  Neither passes through the legacy ledger's capture/spend accounting. G3 runs
-  with chemistry unset and therefore says nothing about this. Measured chemical
-  share of organism energy income: **0.73%** (G33).
+- **Energy is reconciled through the legacy causal ledger when chemistry is on.** Chemical reaction income and chemical growth expenditure are now booked as `chemicalIncome` and `chemicalSpent` against the same identity G3 enforces (G36), so a chemistry-enabled run no longer settles or mints energy silently. G3 itself still runs chemistry unset and therefore says nothing about chemistry. Chemical income is **8.246%** of legacy+chemical income by G33's measure (income only: flux versus `ledger.capture`) in `evidence/ledger-reconciliation-20261013.txt`; growth cost is treated as dissipation. The remaining separation is the mass book: chemical growth biomass is tracked as matter and is not counted by `Ledger.biomass()`, which sums `store.energy`.
 - **Predation transfers energy but not matter.** The legacy predator/grazer
   interaction moves `store.energy` from prey to consumer with **no parallel
   elemental transfer** from prey tissue or stores. A chemical mass ledger that
@@ -334,7 +332,11 @@ declaration cannot silently become false.
   The two are coupled only through the organism, not through a shared pool, so
   mass that recycles through chemistry does not automatically become food for
   the legacy web. The `chemistryToLegacyDetritus` diagnostic bridges them and is
-  how that separation was measured.
+  how that separation was measured.  Enabling it now converts the chemical
+  labile/litter pool into legacy detritus and books the same amount as
+  `recordOrganicInput`, i.e. as exogenous organic input to the legacy loop (not
+  as reuse of already-accounted energy).  Arms now differ on `injectOrganic`,
+  which G36 confirms.
 - **The same coarse-canopy defect survives in the LEGACY light path**, at
   `src/world/world.ts` in the photosynthesis block: `shadeMass` is coarse
   (`shadeCols × shadeRows`, grain 4) but is indexed with a full-resolution

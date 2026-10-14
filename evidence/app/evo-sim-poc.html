@@ -3545,6 +3545,7 @@ const DEFAULT_CHEM_CONFIG = {
     noNutrients: false,
     co2WeatheringScale: 1,
     toLegacyDetritus: false,
+    predationMatter: false,
     freeEnergy: false,
     freeNutrients: false,
 };
@@ -3886,9 +3887,51 @@ function releaseOnDeath(chem, st, slot, cell, burialFraction, labile, litter) {
                 chem.react(POOL.SO4, cell, s);
             else if (e === E.FE)
                 chem.react(POOL.FE2, cell, s);
+            // H and O stores previously fell through here and were voided by
+            // `clearSlot`, so any water/oxygen an organism held (including what the
+            // predation ride-along moved from prey biomass) silently vanished at
+            // death instead of returning to the external reservoir. They are routed
+            // through `labile` because world.ts already converts labile H/O into a
+            // reservoirSink debit — the same path their biomass half already took.
+            else if (e === E.H || e === E.O)
+                labile[e] += s;
         }
     }
     clearSlot(st, slot);
+}
+/**
+ * Move eaten tissue from prey to predator along with the energy transfer.
+ *
+ * MATTER, NOT A MIRROR OF ENERGY. The legacy contest path moves energy only;
+ * this function moves the matching tissue carbon (`energyGained /
+ * ENERGY_PER_CARBON`, capped by what the prey actually holds) and every other
+ * tracked element in the same stoichiometric proportion. The prey loses exactly
+ * what the predator gains, so the conservation ledger sees a transfer rather
+ * than a mint. Hydrogen and oxygen ride along as tissue water; the reservoir
+ * accounting picks them up when the predator eventually dies.
+ *
+ * Returns the carbon actually moved (0 if the prey had no tissue or no energy
+ * was gained).
+ */
+function transferPredationMatter(st, predatorSlot, preySlot, energyGained) {
+    const preyBase = preySlot * E.COUNT;
+    const predBase = predatorSlot * E.COUNT;
+    const preyC = st.biomass[preyBase + E.C];
+    if (!(preyC > 0) || !(energyGained > 0))
+        return 0;
+    const carbonEquiv = energyGained / ENERGY_PER_CARBON;
+    const takeC = Math.min(preyC, carbonEquiv);
+    if (!Number.isFinite(takeC) || takeC <= 0)
+        return 0;
+    const frac = takeC / preyC;
+    for (let e = 0; e < E.COUNT; e++) {
+        const moved = st.biomass[preyBase + e] * frac;
+        if (!(moved > 0))
+            continue; // identical to <= for finite values; also skips NaN
+        st.biomass[preyBase + e] -= moved;
+        st.stores[predBase + e] += moved;
+    }
+    return takeC;
 }
 /**
  * Can this organism afford one offspring?
@@ -4029,6 +4072,7 @@ exports.runMetabolism = runMetabolism;
 exports.assimilate = assimilate;
 exports.grow = grow;
 exports.releaseOnDeath = releaseOnDeath;
+exports.transferPredationMatter = transferPredationMatter;
 exports.canAffordOffspring = canAffordOffspring;
 exports.transferToOffspring = transferToOffspring;
 exports.totalCarbon = totalCarbon;
@@ -5397,6 +5441,7 @@ const DEFAULT_CONFIG = {
     chemistryNoNutrients: null,
     chemistryCo2WeatheringScale: null,
     chemistryToLegacyDetritus: null,
+    chemistryPredationMatter: null,
     chemistryFreeEnergy: null,
     chemistryFreeNutrients: null,
     nutrientFloor: 0,
@@ -5558,6 +5603,18 @@ class Ledger {
     scavenged = 0;
     /** Cumulative energy moved between organisms by predation. */
     predated = 0;
+    /**
+     * Chemical energy income and expenditure, booked through THIS ledger.
+     *
+     * These are the same quantities `chemistry.flux.chemEnergyIncome/Spent`
+     * record, cast into the causal energy identity the legacy ledger already
+     * enforces. They are not a second book: recording them here is what lets
+     * the chemistry-enabled run satisfy `capture + organic + founding +
+     * chemicalIncome == biomass + detritus + dissipated + chemicalSpent`
+     * without pretending the two books were always the same.
+     */
+    chemicalIncome = 0;
+    chemicalSpent = 0;
     reset() {
         this.foundingBiomass = 0;
         this.capture = 0;
@@ -5581,6 +5638,8 @@ class Ledger {
         this.unassimilated = 0;
         this.scavenged = 0;
         this.predated = 0;
+        this.chemicalIncome = 0;
+        this.chemicalSpent = 0;
     }
     /** Photosynthesis: nutrient is consumed, energy appears. */
     recordCapture(amount) {
@@ -5716,6 +5775,14 @@ class Ledger {
     recordPredated(amount) {
         this.predated += amount;
     }
+    /** Chemical metabolism income: energy added to `store.energy` directly. */
+    recordChemicalIncome(amount) {
+        this.chemicalIncome += amount;
+    }
+    /** Chemical growth expenditure: energy deducted directly from `store.energy`. */
+    recordChemicalExpenditure(amount) {
+        this.chemicalSpent += amount;
+    }
     /** Total energy dissipated through every pathway. */
     totalDissipated() {
         return (this.basalSpent +
@@ -5725,14 +5792,20 @@ class Ledger {
             this.reproductionSpent +
             this.mineralised +
             this.spoiled +
-            this.unassimilated);
+            this.unassimilated +
+            this.chemicalSpent);
     }
     /**
      * Total energy ever present in the biological loop: exogenous founding
      * biomass plus every flux that entered since.
+     *
+     * Chemical income is an input like photosynthesis capture: it lands in
+     * `store.energy`, so excluding it would make a chemistry-enabled run look
+     * like it invented energy. With chemistry off the term is exactly zero and
+     * the legacy identity is unchanged.
      */
     totalInput() {
-        return this.foundingBiomass + this.capture + this.injectOrganic;
+        return this.foundingBiomass + this.capture + this.injectOrganic + this.chemicalIncome;
     }
     /**
      * Sum energy currently held by LIVING organisms.
@@ -6459,7 +6532,7 @@ const { Phenotype, resolveCapacity } = require("../bio/phenotype.js");
 const { Chemistry, DEFAULT_CHEMISTRY, POOL, POOL_COUNT, POOL_ELEMENT_RT, conservationReport } = require("./chemistry.js");
 const { E, newElemVec, biomassDemand } = require("../bio/elements.js");
 const { CAP_COUNT, MODULE_CAPABILITY, maskFromStrength, REACTIONS, RX_COUNT, newMetabolicEvidence } = require("../bio/metabolism.js");
-const { DEFAULT_CHEM_CONFIG, ENERGY_PER_CARBON, assimilate, canAffordOffspring, grow, newChemStores, releaseOnDeath, runMetabolism, seedBiomass, transferToOffspring } = require("../bio/chemlife.js");
+const { DEFAULT_CHEM_CONFIG, ENERGY_PER_CARBON, assimilate, canAffordOffspring, grow, growChemStores, newChemStores, releaseOnDeath, runMetabolism, seedBiomass, transferToOffspring, transferPredationMatter } = require("../bio/chemlife.js");
 const { HabitatMap } = require("../bio/habitat.js");
 /**
  * Moles of chemistry tissue carbon per unit of legacy detritus.
@@ -6978,6 +7051,9 @@ class World {
         this.threatTarget = growI(this.threatTarget, -1);
         this.mateTarget = growI(this.mateTarget, -1);
         this.intent = growU8(this.intent);
+        if (this.chemStores && this.chemCfg.enabled) {
+            this.chemStores = growChemStores(this.chemStores, cap);
+        }
         // `idToSlot` is deliberately NOT grown here. It is indexed by stable id,
         // which grows monotonically and far faster than slot count (one id per
         // organism ever born, including the dead). Sizing it from `slot` could
@@ -7040,6 +7116,11 @@ class World {
     grazeEnergy = 0;
     /** Sum of scaled graze requests (pre-cap). granted/requested measures cap binding. */
     grazeRequested = 0;
+    /**
+     * Cumulative tissue carbon moved from prey to predators by the
+     * `chemistryPredationMatter` ride-along. Always 0 when the knob is unset.
+     */
+    predationMatterCarbon = 0;
     /**
      * Cumulative dormant-senescence deaths. Exact attribution for the senescence
      * mechanism (deaths whose largest damage share is senescence); the deaths
@@ -7517,14 +7598,15 @@ class World {
         // child reuses a freed slot, the previous occupant's moduleCount and block
         // would otherwise survive and be inherited again — a zero-module organism
         // carrying its dead neighbour's DNA.
+        // Populate every side array to this new slot BEFORE any slot-indexed write,
+        // including the chemistry transfer below — sizing afterward would leave the
+        // newborn's chemistry write truncated.
+        this.ensureSlotArrays(slot);
         this.store.moduleCount[slot] = 0;
         // Seed an elemental body proportional to the organism's starting size.
         // Without this every organism would begin with zero biomass and could
         // neither grow nor die into the pools correctly.
         if (this.chemCfg.enabled && this.chemStores && this.chemistry && parentSlot >= 0) {
-            // A BIRTH builds tissue out of its parent's tissue. Seeding fresh biomass
-            // here instead created matter from nothing on every birth, which is the
-            // source of the 70-180% conservation residuals.
             transferToOffspring(this.chemStores, parentSlot, slot, OFFSPRING_TISSUE_FRACTION);
         }
         else if (this.chemCfg.enabled && this.chemStores && this.chemistry) {
@@ -7549,15 +7631,6 @@ class World {
         if (this.profiling)
             this.phenotypeMs += now() - phenT0;
         this.store.phenotypeDerivations++;
-        // Grow every slot-indexed side array BEFORE writing into it.
-        //
-        // The organism store grows itself, but these parallel arrays are owned by
-        // World. If they are left at their initial size, typed-array writes past
-        // the end are silently dropped and reads return undefined: sensing targets
-        // vanish, birth queue entries are lost, and nothing throws. That failure is
-        // invisible until population exceeds the initial capacity - which is
-        // exactly the regime the benchmark ladder is meant to measure.
-        this.ensureSlotArrays(slot);
         this.live[slot] = 1;
         // Clear dormancy: allocate() reuses released slots, and dormant[] is only
         // overwritten in actPhase. Without this a newborn inherits the previous
@@ -9191,6 +9264,18 @@ class World {
                         this.ledger.recordSpill(overflow);
                     if (gained > 0)
                         store.hunger[as] = 0;
+                    // MATTER RIDE-ALONG. With the knob unset this is exactly the old
+                    // energy-only behaviour: nothing here runs. When enabled, the
+                    // attacker assimilates the tissue equivalent of the energy DRAINED
+                    // from the prey (`removed`), not the energy it actually kept
+                    // (`gained`): `transferEnergy` caps the predator's gain at its own
+                    // STORAGE_CAPACITY, so a satiated predator spills the overflow to
+                    // detritus but must still take the matter it removed. Gating matter
+                    // on `gained` would let a full predator strip a prey of energy while
+                    // the tissue stayed behind, decoupling the two books again.
+                    if (this.chemCfg.enabled && this.chemCfg.predationMatter && this.chemStores && removed > 0) {
+                        this.predationMatterCarbon += transferPredationMatter(this.chemStores, as, ds, removed);
+                    }
                 }
             }
         }
@@ -9549,6 +9634,10 @@ class World {
                         const bcx = Math.min(this.detritus.cols - 1, Math.max(0, (store.x[slot] / fieldW) | 0));
                         const bcy = Math.min(this.detritus.rows - 1, Math.max(0, (store.y[slot] / fieldH) | 0));
                         this.detritus.data[bcy * this.detritus.cols + bcx] += (labile[e] + litter[e]) * CHEM_TO_LEGACY_PER_CARBON;
+                        // Book the same converted energy into the causal ledger: the mass that
+                        // crossed into legacy detritus has left the chemical economy. Leaving
+                        // this unbooked was the bridge hole named in declared limits.
+                        this.ledger.recordOrganicInput((labile[e] + litter[e]) * CHEM_TO_LEGACY_PER_CARBON);
                     }
                 }
             }
@@ -10561,6 +10650,7 @@ class World {
         }
         cc.freeEnergy = cfg.chemistryFreeEnergy === true;
         cc.freeNutrients = cfg.chemistryFreeNutrients === true;
+        cc.predationMatter = cfg.chemistryPredationMatter === true;
         const field = this.nutrients[0];
         const cols = field.cols;
         const rows = field.rows;
@@ -10754,6 +10844,10 @@ class World {
             if (gained > 0) {
                 store.energy[slot] += gained;
                 chem.flux.chemEnergyIncome += gained;
+                // Booked into the CAUSAL energy ledger, not only the chemistry
+                // separate accumulator: the identity above cannot see this income
+                // otherwise and a chemistry-on run looks like it minted energy.
+                this.ledger.recordChemicalIncome(gained);
             }
             biomassDemand(1, this.chemDemand);
             assimilate(chem, st, slot, cell, cfg, this.chemDemand);
@@ -10779,6 +10873,9 @@ class World {
                 const cost = r.carbon * ENERGY_PER_CARBON;
                 store.energy[slot] -= cost;
                 chem.flux.chemEnergySpent += cost;
+                // The expenditure half of the chemical income above, booked the same
+                // way so the causal ledger can close on a chemistry-enabled run.
+                this.ledger.recordChemicalExpenditure(cost);
                 chem.flux.chemCarbonBuilt += r.carbon;
             }
         }
