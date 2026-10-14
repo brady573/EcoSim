@@ -84,7 +84,7 @@ export const WORLD_ENGINE_VERSION = 'ts-evo-poc/0.7.0';
  * and the diagnostic bridge ledger booking. These are accounting-identity changes
  * while preserving chemistry-off runs, so it is a chemistry-component bump.
  */
-export const CHEMISTRY_ENGINE_VERSION = 'chem/0.7.1';
+export const CHEMISTRY_ENGINE_VERSION = 'chem/0.7.2';
 
 /**
  * Whether the chemistry semantics themselves changed in the 0.7.0 correction.

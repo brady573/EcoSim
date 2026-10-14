@@ -2223,6 +2223,23 @@ function gate36(): void {
     ` | bridge fires=${bridgeFires} closes=${bridgeCloses}`);
 }
 
+/**
+ * G37 — the per-organism gross substrate budget is live, not cosmetic.
+ *
+ * The budget must actually bind in a running chemistry world, and the
+ * settlement clamp must remain small. A helper-only test would not prove the
+ * engine calls the new path.
+ */
+function gate37(): void {
+  const w = new World({ config: { seed: 517, founders: 400, genomeV2: true, chemistry: true } as never });
+  for (let i = 0; i < 300; i++) w.step();
+  const clamp = w.chemistry!.totalClamped();
+  const hits = w.chemBudgetLimited;
+  const pass = hits > 0 && clamp < 0.10;
+  record('G37', 'per-organism gross substrate budgets bind in a live chemistry world', pass,
+    `budget-limited reactions=${hits} | cumulative settle clamp=${clamp.toFixed(6)} (limit 0.10)`);
+}
+
 function main(): void {
   console.log(`=== credibility gates :: ${WORLD_ENGINE_VERSION} ===`);
   console.log(`scenario: founders=${SMALL.founders} world=${SMALL.worldW}x${SMALL.worldH} ticks=${TICKS} seed=${SMALL.seed}\n`);
@@ -2261,6 +2278,7 @@ function main(): void {
   gate34();
   gate35();
   gate36();
+  gate37();
 
   const failed = results.filter((r) => !r.pass);
   console.log(`\n${results.length - failed.length}/${results.length} checks passed`);

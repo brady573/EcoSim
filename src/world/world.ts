@@ -885,6 +885,11 @@ export class World {
   /** Scratch buffers allocated once; the hot path must not allocate. */
   private chemOut = new Float64Array(POOL_COUNT);
   private chemExtents = new Float64Array(RX_COUNT);
+  /** Per-organism gross substrate budget; never replenished by products. */
+  private chemGrossBudget = new Float64Array(POOL_COUNT);
+  private chemBudgetHits = new Float64Array(POOL_COUNT);
+  /** Cumulative reactions whose rate was reduced by a gross budget. */
+  chemBudgetLimited = 0;
   private chemDemand = newElemVec();
   private chemScratch = newElemVec();
   private chemLabile = newElemVec();
@@ -4541,7 +4546,17 @@ export class World {
       // per organism so a reaction that stopped firing this tick reads zero
       // instead of retaining its previous value and being reported again.
       this.chemExtents.fill(0);
-      const gained = runMetabolism(chem, st, slot, cell, cfg, out, this.chemExtents);
+      // Gross budgets are seeded from the SAME pre-tick pool values the first
+      // reaction reads. They decrease with each realized substrate draw, but
+      // products do not refill them within this organism's tick. This prevents
+      // a produced pool from cancelling a previous draw in `out` and restoring
+      // an already-spent substrate budget.
+      for (let q = 0; q < POOL_COUNT; q++) this.chemGrossBudget[q] = chem.remaining(q, cell);
+      this.chemBudgetHits.fill(0);
+      const gained = runMetabolism(
+        chem, st, slot, cell, cfg, out, this.chemExtents, this.chemGrossBudget, this.chemBudgetHits,
+      );
+      for (let q = 0; q < POOL_COUNT; q++) this.chemBudgetLimited += this.chemBudgetHits[q];
       // Apply the organism's NET chemical transfers exactly once.
       //
       // CONSUMPTION IS BOOKED AS A CLAIM, not as a plain delta. `remaining()`

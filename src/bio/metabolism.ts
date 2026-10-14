@@ -398,6 +398,8 @@ export function reactionExtent(
   capStrength: number,
   out: Float64Array,
   light = 1,
+  grossBudget?: Float64Array,
+  budgetHits?: Float64Array,
 ): number {
   const o2 = chem.fields[POOL.O2].data[cell];
   if (o2 < r.minO2) return 0;
@@ -432,32 +434,31 @@ export function reactionExtent(
   // concentration and their combined draw is N times the pool.
   for (const sub of r.substrates) {
     if (sub.coeff <= 0) continue;
-    // FINDING 4 FIXED. `remaining()` accounts for CLAIMS made by organisms
-    // already processed this tick, but this organism's own reactions do not
-    // claim until the world applies the NET `out` vector after runMetabolism
-    // returns. So several reactions inside ONE organism each read the same
-    // uncancelled availability and the combined draw could exceed the cell's
-    // contents. The overshoot was then clamped to zero by settle() while the
-    // matching PRODUCTS had already been credited at full value — clamping one
-    // side of a transfer and not the other is matter creation.
-    //
-    // `out[pool]` is this organism's running net for the pool, so adding back
-    // the negative part gives the budget genuinely left for this reaction. The
-    // buffer already exists and is already the right one; nothing new is
-    // allocated.
-    //
-    // ORDER, stated precisely: execution order is FIXED (REACTIONS is a static
-    // table) and contains no randomness, so a given seed and configuration
-    // reproduce exactly. But under contention it is not irrelevant — when two
-    // of one organism's reactions compete for the same substrate, the
-    // earlier-listed one is served first. That is a deterministic priority
-    // rule, not an order-dependence in the result.
-    const avail = chem.remaining(sub.pool, cell) + Math.min(0, out[sub.pool]);
-    rate = Math.min(rate, (avail > 0 ? avail : 0) / sub.coeff);
+    // Gross substrate budget, not NET. `remaining()` already accounts for
+    // CLAIMS made by organisms earlier this tick. This organism additionally
+    // carries a per-tick GROSS budget: every reaction decrements it as it
+    // executes. Using `out[pool]` here was unsafe because a reaction producing
+    // the same pool could erase an earlier reaction's draw in the net vector,
+    // then the later draw saw the full starting inventory again. Two reaction
+    // extents could therefore exceed the real cell together and their products
+    // and energy were credited at full value while settle() clamped the
+    // overdraw. The fixed REACTIONS order is the declared priority rule.
+    const avail = grossBudget
+      ? grossBudget[sub.pool]
+      : chem.remaining(sub.pool, cell) + Math.min(0, out[sub.pool]);
+    const budgetBound = (avail > 0 ? avail : 0) / sub.coeff;
+    if (budgetBound < rate) {
+      if (budgetHits) budgetHits[sub.pool]++;
+      rate = budgetBound;
+    }
   }
   if (rate <= 1e-12) return 0;
 
-  for (const sub of r.substrates) out[sub.pool] -= sub.coeff * rate;
+  for (const sub of r.substrates) {
+    const drawn = sub.coeff * rate;
+    out[sub.pool] -= drawn;
+    if (grossBudget) grossBudget[sub.pool] -= drawn;
+  }
   for (const prod of r.products) out[prod.pool] += prod.coeff * rate;
   return rate;
 }
