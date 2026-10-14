@@ -84,8 +84,11 @@ async function primary(mobile) {
       if (mobile) await page.touchscreen.tap(pick.x, pick.y);
       else await page.mouse.click(pick.x, pick.y);
       await page.locator('#inspect').waitFor({ state: 'visible' });
-      assert.ok((await page.locator('#inspect').innerText()).includes('Organism #'));
-      assert.equal((await page.locator('#inspect').innerText()).includes('Tissue (mol):'), chemistry);
+      // textContent, not innerText: the CSS uppercases h1s, and innerText returns
+      // the rendered (uppercased) form, which would fail a case-sensitive match.
+      const inspectText = await page.locator('#inspect').evaluate((el) => el.textContent);
+      assert.ok(inspectText.includes('Organism #'));
+      assert.equal(inspectText.includes('Tissue (mol):'), chemistry);
       assert.equal((await snapshot(page)).hash, advanced.hash, 'picking/inspection must not mutate biology');
       await page.screenshot({ path: `${out}/${mobile ? 'mobile' : 'desktop'}-${chemistry}-${genome}.png` });
       for (const bad of ['0', '1.5', '4294967296']) {
