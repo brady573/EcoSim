@@ -117,5 +117,8 @@ export function runIdentity(chemistryEnabled: boolean): string {
  * cycle; G28: growth occurs, not net standing stock) and G34 was added for the
  * Owner-authorised canopy correction. The suite's semantics changed, so a
  * result recorded under gates/0.4.0 is not comparable without re-running.
+ *
+ * gates/0.7.0 covers the current suite through G37, including live-world
+ * verification of per-organism gross substrate budgets.
  */
-export const GATE_SUITE_VERSION = 'gates/0.5.0';
+export const GATE_SUITE_VERSION = 'gates/0.7.0';

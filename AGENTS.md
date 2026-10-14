@@ -318,6 +318,11 @@ the identity).
   into legacy starvation. The contract is satisfied for the decision and not for
   the organism; stated here because the original defect exploited exactly that
   ambiguity.
+- **Chemistry reaction allocation uses a gross per-organism substrate budget.**
+  Each realized reaction draw decrements the budget; products do not refill it
+  within the same organism tick. Fixed `REACTIONS` order is the declared
+  deterministic priority rule. G37 proves the budget binds in a live world and
+  settlement clamping remains within its limit.
 - **Energy is reconciled through the legacy causal ledger when chemistry is on.** Chemical reaction income and chemical growth expenditure are now booked as `chemicalIncome` and `chemicalSpent` against the same identity G3 enforces (G36), so a chemistry-enabled run no longer settles or mints energy silently. G3 itself still runs chemistry unset and therefore says nothing about chemistry. Chemical income is **8.388%** of legacy+chemical income by G33's measure (income only: flux versus `ledger.capture`) in `evidence/ledger-reconciliation-20261013.txt`; growth cost is treated as dissipation. The remaining separation is the mass book: chemical growth biomass is tracked as matter and is not counted by `Ledger.biomass()`, which sums `store.energy`.
 - **Predation transfers energy but not matter.** The legacy predator/grazer
   interaction moves `store.energy` from prey to consumer with **no parallel

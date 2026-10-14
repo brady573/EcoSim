@@ -3214,7 +3214,7 @@ function reactionById(id) {
  * developmental onset and module magnitude matter biologically rather than as
  * a boolean gate.
  */
-function reactionExtent(r, chem, cell, capStrength, out, light = 1, grossBudget) {
+function reactionExtent(r, chem, cell, capStrength, out, light = 1, grossBudget, budgetHits) {
     const o2 = chem.fields[POOL.O2].data[cell];
     if (o2 < r.minO2)
         return 0;
@@ -3262,7 +3262,12 @@ function reactionExtent(r, chem, cell, capStrength, out, light = 1, grossBudget)
         const avail = grossBudget
             ? grossBudget[sub.pool]
             : chem.remaining(sub.pool, cell) + Math.min(0, out[sub.pool]);
-        rate = Math.min(rate, (avail > 0 ? avail : 0) / sub.coeff);
+        const budgetBound = (avail > 0 ? avail : 0) / sub.coeff;
+        if (budgetBound < rate) {
+            if (budgetHits)
+                budgetHits[sub.pool]++;
+            rate = budgetBound;
+        }
     }
     if (rate <= 1e-12)
         return 0;
@@ -3627,7 +3632,7 @@ function seedBiomass(st, slot, carbon) {
  * delta buffer; nothing here writes a pool directly, which is what keeps the
  * chemistry order-independent.
  */
-function runMetabolism(chem, st, slot, cell, cfg, out, extentOut, grossBudget) {
+function runMetabolism(chem, st, slot, cell, cfg, out, extentOut, grossBudget, budgetHits) {
     const mask = st.capMask[slot];
     if (mask === 0)
         return 0;
@@ -3644,7 +3649,7 @@ function runMetabolism(chem, st, slot, cell, cfg, out, extentOut, grossBudget) {
         const strength = capStrengthAt(st, slot, r.cap);
         if (strength <= 0)
             continue;
-        const extent = reactionExtent(r, chem, cell, strength, out, st.light[slot], grossBudget);
+        const extent = reactionExtent(r, chem, cell, strength, out, st.light[slot], grossBudget, budgetHits);
         if (extent <= 0)
             continue;
         // `out` accumulates NET transfers for the whole organism and is applied
@@ -6480,8 +6485,11 @@ function runIdentity(chemistryEnabled) {
  * cycle; G28: growth occurs, not net standing stock) and G34 was added for the
  * Owner-authorised canopy correction. The suite's semantics changed, so a
  * result recorded under gates/0.4.0 is not comparable without re-running.
+ *
+ * gates/0.7.0 covers the current suite through G37, including live-world
+ * verification of per-organism gross substrate budgets.
  */
-const GATE_SUITE_VERSION = 'gates/0.5.0';
+const GATE_SUITE_VERSION = 'gates/0.7.0';
 
 exports.WORLD_ENGINE_VERSION = WORLD_ENGINE_VERSION;
 exports.CHEMISTRY_ENGINE_VERSION = CHEMISTRY_ENGINE_VERSION;
@@ -7272,6 +7280,9 @@ class World {
     chemExtents = new Float64Array(RX_COUNT);
     /** Per-organism gross substrate budget; never replenished by products. */
     chemGrossBudget = new Float64Array(POOL_COUNT);
+    chemBudgetHits = new Float64Array(POOL_COUNT);
+    /** Cumulative reactions whose rate was reduced by a gross budget. */
+    chemBudgetLimited = 0;
     chemDemand = newElemVec();
     chemScratch = newElemVec();
     chemLabile = newElemVec();
@@ -10795,7 +10806,10 @@ class World {
             // an already-spent substrate budget.
             for (let q = 0; q < POOL_COUNT; q++)
                 this.chemGrossBudget[q] = chem.remaining(q, cell);
-            const gained = runMetabolism(chem, st, slot, cell, cfg, out, this.chemExtents, this.chemGrossBudget);
+            this.chemBudgetHits.fill(0);
+            const gained = runMetabolism(chem, st, slot, cell, cfg, out, this.chemExtents, this.chemGrossBudget, this.chemBudgetHits);
+            for (let q = 0; q < POOL_COUNT; q++)
+                this.chemBudgetLimited += this.chemBudgetHits[q];
             // Apply the organism's NET chemical transfers exactly once.
             //
             // CONSUMPTION IS BOOKED AS A CLAIM, not as a plain delta. `remaining()`

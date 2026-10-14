@@ -50,34 +50,41 @@ triples; this correction changes what the guild figures are measured over.
 
 Repeat runs of the new pins are byte-identical on this runtime.
 
+### Historical raw chemistry panels
+
+`evidence/chem-cohort-1000-070-20261013.txt`,
+`evidence/chem-matrix-91011-070-20261013.txt`,
+`evidence/chem-predation-knob-070-20261013.txt`,
+`evidence/chem-predation-knob-10seed-20261013.txt`, and
+`evidence/chem-predation-knob-gd3-10seed-20261013.txt` are `chem/0.7.0`
+provenance only. Current panels end in `-072-` and run under `chem/0.7.2`.
+
 ## 3. Pre-registered results — `PREREGISTRATION.md`
 
-| Hypothesis | 0.6.0 result | Status | 0.7.0 status |
+| Hypothesis | 0.6.0 result | Status | Current status (`chem/0.7.2`) |
 |---|---|---|---|
-| H1 nutrient vs energy limitation | SUPPORTED, 3235:1, 10/10 seeds | **HISTORICAL** | **CURRENT** — SUPPORTED, median 1755:1, 10/10 seeds (`PREREGISTRATION-070-RESULTS.md`) |
+| H1 nutrient vs energy limitation | SUPPORTED, 3235:1, 10/10 seeds | **HISTORICAL** | **CURRENT** — SUPPORTED, median 1735:1, 10/10 seeds (`PREREGISTRATION-070-RESULTS.md`) |
 | H2 nutrients gate reproduction | SUPPORTED, 10/10 vs 0/10 | **HISTORICAL** | **CURRENT** — SUPPORTED, births nonzero 10/10 with nutrients, exactly 0 on 10/10 without |
 | H3 anaerobic opportunity | FALSIFIED, 0/10 | **HISTORICAL** | **CURRENT** — FALSIFIED again, all three reactions zero 10/10, hypoxia identically 0 |
 | H4 chemosynthesis | PARTIAL | **HISTORICAL** | **CURRENT** — PARTIAL again, iron oxidation nonzero 10/10, sulfur oxidation zero 10/10 |
 | H5 capability heritability | SUPPORTED, 8/10 | **HISTORICAL** | **CURRENT but not supported** — segregated on only 5/10 seeds; offspring correlation NOT MEASURED, so the registered falsification condition is unestablished |
-| H6 performance floors | SUPPORTED | **HISTORICAL** | **CURRENT** (re-measured, all floors cleared) |
+| H6 performance floors | SUPPORTED | **HISTORICAL** | **HISTORICAL** — the 207/404 ticks/s figures were measured under chem/0.7.0 and are not current under chem/0.7.2 |
 | H7 does not self-sustain | SUPPORTED, 10/10 declining | **HISTORICAL** | **CURRENT** (still 10/10 declining, median terminal pop 6) |
 
-H1–H5 were re-measured under `0.7.0` on 2026-10-13; see
+H1–H5 were re-measured under `ts-evo-poc/0.7.0+chem/0.7.2` on 2026-10-13; see
 `PREREGISTRATION-070-RESULTS.md` for thresholds and raw data. The historical
 `0.6.0` verdicts above are retained as provenance and are not comparable to the
 current figures digit-for-digit.
 
 ## 4. H9/H10/H11 — `PREDECLARATION-H9H10.md`
 
-| Hypothesis | 0.6.0 result | Status | 0.7.0 status |
+| Hypothesis | 0.6.0 result | Status | Current status (`chem/0.7.2`) |
 |---|---|---|---|
-| H9 organic-carbon supply | UNTESTED (lever wrong) | **HISTORICAL** | **CURRENT — UNTESTED again** (lever moved DIC 29×, OC flat; see `PREDECLARATION-H9H10-070-RESULTS.md`) |
-| H10 legacy food-web bridge | FALSIFIED | **HISTORICAL** | **CURRENT — FALSIFIED again** (detritus 277→547, pop 6→5) |
-| H11 additive | FALSIFIED | **HISTORICAL** | **CURRENT — FALSIFIED again** (5 vs 7 and 5) |
+| H9 organic-carbon supply | UNTESTED (lever wrong) | **HISTORICAL** | **CURRENT — UNTESTED again** (lever moved DIC 29×, OC flat; see `PREDECLARATION-H9H10-072-RESULTS.md`) |
+| H10 legacy food-web bridge | FALSIFIED | **HISTORICAL** | **CURRENT — FALSIFIED again** (detritus 266→546, pop 6→6) |
+| H11 additive | FALSIFIED | **HISTORICAL** | **CURRENT — FALSIFIED again** (7 vs 8 and 6) |
 
-H9–H11 were re-run under `0.7.0` on 2026-10-13 using the same seed panel and
-horizon; see `PREDECLARATION-H9H10-070.md` (pre-declaration) and
-`PREDECLARATION-H9H10-070-RESULTS.md` (raw data). The `0.6.0` verdicts are
+H9–H11 were re-run under `ts-evo-poc/0.7.0+chem/0.7.2` on 2026-10-13 using the same seed panel and horizon; see `PREDECLARATION-H9H10-070.md` (pre-declaration) and `PREDECLARATION-H9H10-072-RESULTS.md`. The `chem/0.7.0` results file is historical. The `0.6.0` verdicts are
 retained as provenance.
 
 **The two inert-intervention bugs found there** (world coordinates passed to a
@@ -94,7 +101,11 @@ canopy correction does not touch. Its **population figures** are **HISTORICAL**.
 The conclusion "chemistry is not neutral" survives in direction but not in
 magnitude — see §6.
 
-## 6. Cohort comparison — re-run under `0.7.0`
+## 6. Cohort comparison — current panel under `chem/0.7.2`
+
+The detailed demographic table below was measured under the now-historical `chem/0.7.0` panel and is retained as provenance. The current `chem/0.7.2` run measured base population median 6 (3–39), births median 6, chemistry-off population median 668 (391–1520), and H5 segregation 5/10. See `evidence/chem-cohort-1000-072-20261013.txt`.
+
+### Historical detailed table under `chem/0.7.0`
 
 10 seeds (517, 1013, 24601, 7, 99, 31337, 4242, 8080, 555, 12345), 1000 ticks,
 400 founders.
@@ -186,8 +197,8 @@ Unchanged by this correction and **not** addressed by it:
   deposit and the lookup shared the SAME wrong convention (swapped axes, say)
   both would agree and the test would pass. The capture half is what closes that
   hole, because it exercises deposit → lookup → ledger.
-- H1–H5 and H9–H11 verdicts remain **PENDING** re-measurement and must not be
-  quoted as current.
+- H1–H5 and H9–H11 verdicts were re-measured under `chem/0.7.2`; older
+  0.7.0/0.7.1 figures remain historical provenance.
 
 ## 10. Defect found during the correction review
 

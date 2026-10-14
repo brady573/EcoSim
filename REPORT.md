@@ -5763,17 +5763,32 @@ Invariants added:
 - `chemStores` is grown in `ensureSlotArrays`, so slot growth no longer leaves
   new chemistry slots out of bounds.
 
-Diagnostic cohort: 5 seeds, 1000 ticks, 400 founders, post-hoc. Raw output:
-`evidence/chem-predation-knob-070-20261013.txt`; details:
+Current diagnostic cohort: 10 seeds, 1000 ticks, 400 founders, post-hoc, under
+`ts-evo-poc/0.7.0+chem/0.7.2`. Raw output:
+`evidence/chem-predation-knob-10seed-072-20261013.txt`; details:
 `CHEM-PREDATION-KNOB-DIAGNOSTICS.md`.
 
-  base              pop med 6   births med 10   matter carbon 0.0000
-  predationMatter   pop med 9   births med 17   matter carbon 6.9466 mol
+  base              pop med 6    births med 6    matter carbon 0.0000
+  predationMatter   pop med 10   births med 10   matter carbon 7.7126 mol
 
-Sexual births and generation depth: base 4 sexual births, mean generation depth
-0.021; predationMatter 2 sexual births, mean generation depth 0.005. The
+Sexual births and generation depth: base 0 sexual births, mean generation depth
+0.000; predationMatter 4 sexual births, mean generation depth 0.028. The
 ride-along does not establish sustained multi-generation inheritance.
 
 This is not claimed to rescue the ecosystem or demonstrate a full food web. It
 demonstrates a conservation-safe prey-to-predator matter-transfer mechanism as
 an opt-in diagnostic only.
+
+## Chemistry reaction-allocation correction — `chem/0.7.2`
+
+A chemistry run previously capped each reaction substrate draw against the
+organism's NET pool delta. A later reaction's product could cancel an earlier
+draw in that net vector and restore an already-spent budget. `chem/0.7.2` adds
+a per-organism GROSS budget seeded from the pre-tick pool values and decremented
+by every realized substrate draw. Products do not refill it within the same
+organism tick. REACTIONS order is the declared deterministic priority.
+
+G37 proves the budget binds in a running chemistry world (budget-limited
+reactions > 0) while cumulative settlement clamping stays below its limit.
+Chemistry-off parity is unchanged. Chemistry-on cohort and intervention evidence
+was re-run under this identity; older chemistry panels remain historical.
