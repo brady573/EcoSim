@@ -1940,6 +1940,103 @@ function gate29(): void {
     `mated=${mated} sexualQueued=${sexualQueued} noAsexReached=${noAsexReached} sexualSkipped=${sexualSkipped} slots=(${highA},${highB})`);
 }
 
+// ---------------------------------------------------------------------------
+// G30 — per-pool nutrient cap holds on every RETURN path (Task 6 pin)
+// ---------------------------------------------------------------------------
+// WHY THIS GATE EXISTS. The four nutrient return paths (excretion + three
+// biotic-mineralisation sites) used to clamp to a FLAT `nutrientPerCell *
+// fertility`, dropping the per-pool multiplier `nutrientCapacity = [1.0, 0.78,
+// 0.62]`. Pools B and C could therefore be filled ABOVE their declared
+// capacity by a return. That was corrected by routing all four sites through
+// the shared helper `nutrientCapAt`.
+//
+// The defect was LATENT: parity, gates and contracts all stayed green with the
+// bug present, because the pools never approach a ceiling at declared settings.
+// Nothing else in this suite would notice if the correction were reverted — so
+// this gate is the only thing holding it in place.
+//
+// MEASUREMENT. The per-pool cap is a SOFT TARGET, not an invariant:
+// `ScalarField.step()` diffusion runs after the regeneration clamp, so a
+// low-fertility cell beside a rich one drifts above its own cap every tick
+// even with no writers at all. Asserting against zero would therefore fail
+// regardless of the correction. This gate runs TWO arms and asserts a RATIO:
+//   - baseline: every nutrient writer silenced, diffusion alone;
+//   - saturation: returns are the only writers, pools driven to their ceiling.
+// Saturation excess must stay within 2x the measured baseline. If the
+// correction is reverted, B and C jump to ~8x and ~10x baseline under this
+// gate's own configuration (measured by reverting nutrientCapAt and
+// re-running) and this gate fails loudly. The larger ~150x/~240x figures
+// belong to the probe's bigger saturation world, not to this gate.
+function gate30(): void {
+  interface CapWorld {
+    readonly nutrients: { readonly data: Float32Array }[];
+    readonly habitat: { readonly fertility: { readonly data: Float32Array } };
+    readonly config: { nutrientPerCell: number; nutrientCapacity: number[] };
+    step(): void;
+  }
+
+  const GATE_TICKS = 120;
+  const capWorld = (overrides: Record<string, unknown>): CapWorld =>
+    new World({
+      config: {
+        founders: 300, worldW: 800, worldH: 800, seed: 4242, label: 'gates30',
+        // Shared saturation substrate: drive every pool toward its ceiling.
+        nutrientRegen: 0.5, nutrientCyclic: false, nutrientFloor: 0,
+        producerCaptureScale: 0,
+        ...overrides,
+      },
+    }) as unknown as CapWorld;
+
+  /** Peak per-pool excess above the DECLARED per-pool cap, over all ticks. */
+  const peakExcess = (w: CapWorld): number[] => {
+    const best = [0, 0, 0];
+    const nCells = w.nutrients[0].data.length;
+    for (let t = 0; t < GATE_TICKS; t++) {
+      w.step();
+      for (let nIdx = 0; nIdx < 3; nIdx++) {
+        const data = w.nutrients[nIdx].data;
+        const mod = w.config.nutrientCapacity[nIdx] ?? 1;
+        for (let ci = 0; ci < nCells; ci++) {
+          const cap = w.config.nutrientPerCell * w.habitat.fertility.data[ci] * mod;
+          const over = data[ci] - cap;
+          if (over > best[nIdx]) best[nIdx] = over;
+        }
+      }
+    }
+    return best;
+  };
+
+  // Baseline: every writer silenced. Only diffusion can move a pool now.
+  const base = peakExcess(capWorld({
+    excretionRate: 0, bioticMineralisation: 0, basalFoodPerCell: 0,
+    recyclingRate: 0,
+  }));
+  // Saturation: returns are the only writers (no producer draw, detritus-only
+  // web feeding mineralisation). This is where the defect was reachable.
+  const sat = peakExcess(capWorld({
+    excretionRate: 0.06, bioticMineralisation: 1.0, basalFoodPerCell: 0.5,
+    recyclingRate: 0.02,
+  }));
+
+  // A zero baseline would make the ratio meaningless (division by zero) and
+  // would itself mean diffusion is not running — a different failure to
+  // surface, not something to divide by.
+  const ratios = [0, 1, 2].map((n) => (base[n] > 1e-12 ? sat[n] / base[n] : Infinity));
+  const pass = ratios.every((r) => r <= 2);
+
+  record('G30', 'per-pool nutrient cap holds on every return path (Task 6 pin)',
+    pass,
+    `peak excess above per-pool cap — saturation vs diffusion baseline. ` +
+    `A: ${sat[0].toFixed(6)}/${base[0].toFixed(6)} (x${ratios[0].toFixed(2)}), ` +
+    `B: ${sat[1].toFixed(6)}/${base[1].toFixed(6)} (x${ratios[1].toFixed(2)}), ` +
+    `C: ${sat[2].toFixed(6)}/${base[2].toFixed(6)} (x${ratios[2].toFixed(2)}). ` +
+    `All must be <= x2.00. Pool A (mod 1.0) is the built-in control: its ` +
+    `per-pool cap EQUALS the flat cap, so it cannot discriminate and must ` +
+    `sit near baseline either way. Teeth verified by reverting ` +
+    `nutrientCapAt to the flat cap: B -> x8.38, C -> x10.16, A unchanged ` +
+    `at x1.00 (FAIL, as required).`);
+}
+
 function main(): void {
   console.log(`=== credibility gates :: ${WORLD_ENGINE_VERSION} ===`);
   console.log(`scenario: founders=${SMALL.founders} world=${SMALL.worldW}x${SMALL.worldH} ticks=${TICKS} seed=${SMALL.seed}\n`);
@@ -1971,6 +2068,7 @@ function main(): void {
   gate27();
   gate28();
   gate29();
+  gate30();
 
   const failed = results.filter((r) => !r.pass);
   console.log(`\n${results.length - failed.length}/${results.length} checks passed`);

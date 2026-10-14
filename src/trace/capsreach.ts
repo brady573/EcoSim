@@ -8,19 +8,30 @@
  * difference is REACHED in a running world, not merely whether it exists in
  * the source.
  *
- * Four return sites use the flat cap:
- *   world.ts:2195  excretion (all organisms, every tick)
- *   world.ts:2362  biotic mineralisation from sediment
- *   world.ts:2429  biotic mineralisation from labile detritus
- *   world.ts:2511  biotic mineralisation from recalcitrant litter
- * Two sites apply the per-pool multiplier:
- *   world.ts:1060  initial seeding
- *   world.ts:1472  abiotic regeneration clamp
+ * Four return sites clamped to the flat cap; all four now clamp through the
+ * shared per-pool helper `nutrientCapAt` (world.ts:1387):
+ *   world.ts:2236  excretion (all organisms, every tick)
+ *   world.ts:2404  biotic mineralisation from sediment
+ *   world.ts:2471  biotic mineralisation from labile detritus
+ *   world.ts:2553  biotic mineralisation from recalcitrant litter
+ * Two sites apply the per-pool multiplier but were NOT routed through the
+ * helper, so three spellings of the cap still exist in the engine:
+ *   world.ts:1060  initial seeding   (capacityAt * mod)
+ *   world.ts:1504  abiotic regen clamp (inline: perCell * fert * mod)
+ * One further writer has NO cap at all and is deliberately untouched:
+ *   world.ts:1607  abiotic mineralisation broadcast `nData[i] += share`
  *
  * Phase order inside step(): regeneration clamps FIRST (Phase 2), then returns
  * are written (Phase 4, actPhase). So an excess created this tick survives
  * until the NEXT tick's regeneration clamp — a one-tick window in which the
  * pool holds more than its declared capacity.
+ *
+ * CAVEAT ON "EXCESS": the per-pool cap is a SOFT TARGET, not an invariant.
+ * `ScalarField.step()` diffusion runs AFTER the regen clamp (world.ts:1531 vs
+ * 1528), so a low-fertility cell beside a rich one drifts above its own
+ * per-pool cap every tick regardless of any return path. The NEGATIVE CONTROL
+ * arm measures that baseline; every other arm must be read against it, never
+ * against zero.
  *
  * READ-ONLY: constructs a World, steps it, reads. Sets no knob, writes no
  * state, draws no randomness.
@@ -113,6 +124,18 @@ function scan(w: CapsInternals) {
 console.log(`NUTRIENT CAP REACHABILITY seed=${SEED} ticks=${TICKS}`);
 console.log('READ-ONLY: no knob set, no state written, no RNG drawn by this probe.');
 console.log('');
+// Honest config disclosure: this probe's BASE is the diagnostic effective
+// config shared with patchtrack/nutrientflow/relianceprobe, NOT the engine's
+// declared defaults. ~16 fields differ (worldW/H 2400 vs 4000, founders 400
+// vs 1200, nutrientCyclic true vs null, producerCaptureScale 0.35 vs null,
+// nutrientFloor 0.05 vs 0, mixotrophySaturation 1.0 vs 0.4, meatYieldPerMass
+// 0 vs 1.6, and others). Call it "effective", never "declared": a zero-excess
+// result here does NOT by itself establish non-reachability under declared
+// defaults. That conclusion rests on parity (C1) being byte-identical, which
+// is an independent, defaults-based check.
+console.log('CONFIG: diagnostic effective config (excretion-return family), NOT engine defaults.');
+console.log('  Non-reachability under DECLARED defaults rests on parity C1, not on this probe.');
+console.log('');
 
 interface Arm {
   label: string;
@@ -121,11 +144,11 @@ interface Arm {
 
 const ARMS: Arm[] = [
   {
-    label: 'excretion ON (0.06, declared pinned config)',
+    label: 'BASE effective config, excretion ON (0.06)',
     overrides: { excretionRate: 0.06 },
   },
   {
-    label: 'excretion OFF (0.0) — isolates the excretion path',
+    label: 'BASE effective config, excretion OFF (0.0) — isolates the excretion path',
     overrides: { excretionRate: 0 },
   },
   {
@@ -181,9 +204,19 @@ const ARMS: Arm[] = [
   },
   {
     // NEGATIVE CONTROL. Everything silenced: no broadcast, no returns, no
-    // producer draw, no floor. Only the per-pool regen clamp runs. This must
-    // report ZERO excess on every pool, or the scan itself is wrong.
-    label: 'NEGATIVE CONTROL — all nutrient writers silenced',
+    // producer draw, no floor. Only the per-pool regen clamp runs.
+    //
+    // PREREGISTERED PREDICTION: ZERO excess on every pool.
+    // OUTCOME: FALSIFIED. It reports ~0.05-0.08. Root cause found:
+    // `ScalarField.step()` diffusion runs AFTER the regen clamp
+    // (world.ts diffusion call vs the clamp above it), so a low-fertility
+    // cell beside a rich one is pushed past its own per-pool cap every tick.
+    // The per-pool cap is a SOFT TARGET, not an invariant — which is why
+    // every other arm must be read against this baseline, never against zero.
+    // The residual scales 1 : 0.780 : 0.620 across pools, matching the
+    // capacity multipliers: a relative overshoot of the ceiling, not noise.
+    // A falsified prediction is a result, so it is recorded here, not deleted.
+    label: 'NEGATIVE CONTROL — all nutrient writers silenced (diffusion baseline)',
     overrides: {
       excretionRate: 0,
       nutrientRegen: 0.5,
@@ -193,6 +226,30 @@ const ARMS: Arm[] = [
       bioticMineralisation: 0,
       basalFoodPerCell: 0,
       recyclingRate: 0,
+    },
+  },
+  {
+    // DECISIVE DISCRIMINATOR. The negative control above attributes its
+    // residual to diffusion by inference. This arm turns that inference into
+    // a measurement: identical to the negative control but with diffusion off,
+    // so the ONLY remaining mechanism capable of moving a pool past its clamp
+    // is gone. It must report exactly ZERO on every pool.
+    //
+    // PREREGISTERED PREDICTION: exactly 0 excess, all pools, all ticks.
+    // If it does not report zero, the diffusion attribution is wrong and the
+    // baseline has some other cause that must be found before any cap claim
+    // in this file can be trusted.
+    label: 'DECISIVE — negative control + nutrientDiffusivity=0 (attribution test)',
+    overrides: {
+      excretionRate: 0,
+      nutrientRegen: 0.5,
+      nutrientCyclic: false,
+      nutrientFloor: 0,
+      producerCaptureScale: 0,
+      bioticMineralisation: 0,
+      basalFoodPerCell: 0,
+      recyclingRate: 0,
+      nutrientDiffusivity: 0,
     },
   },
 ];
@@ -233,8 +290,25 @@ for (const arm of ARMS) {
       `${pad(peakExcessCount[nIdx], 12)} ${pad(peakExcessMax[nIdx].toFixed(6), 18)} ` +
       `${pad(totalExcessMass[nIdx].toFixed(4), 24)}`);
   }
+
+  // Machine-checked verdict for the DECISIVE arm. With diffusion off and every
+  // writer silenced, no mechanism can move a pool past its clamp, so any
+  // excess at all falsifies the diffusion attribution. This throws rather than
+  // prints, because a falsified attribution printed quietly is exactly how a
+  // wrong cause gets recorded as a right one.
+  if (arm.label.startsWith('DECISIVE') && ticksWithExcess !== 0) {
+    throw new Error(
+      `ATTRIBUTION FALSIFIED: nutrientDiffusivity=0 still shows excess on ` +
+      `${ticksWithExcess}/${TICKS} ticks. The diffusion explanation for the ` +
+      `baseline is wrong; find the real cause before trusting any cap claim.`,
+    );
+  }
   console.log('');
 }
+
+console.log('Verdict on the diffusion attribution: ' +
+  'the DECISIVE arm (diffusion off, all writers silenced) reported zero excess,');
+console.log('  so the NEGATIVE CONTROL residual is diffusion. Attribution measured, not inferred.');
 
 console.log('Interpretation:');
 console.log('  - The NEGATIVE CONTROL is the baseline that makes every other arm readable.');

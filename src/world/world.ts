@@ -1369,19 +1369,31 @@ export class World {
    * declared capacity by a return — a silent un-cap of exactly the two pools
    * the per-pool multipliers exist to keep co-limiting.
    *
-   * Measured reachability (src/trace/capsreach.ts): under the declared
-   * excretion-return config the pools never approach any ceiling, so the
-   * defect is NOT reached there (0 excess in 3000 ticks). Under a saturation
-   * arm it IS reached, with B and C exceeding their per-pool caps by 150x and
-   * 240x the diffusion baseline. Routing every writer through this one helper
-   * is the smallest correction that makes the cap semantics uniform.
+   * Measured reachability (src/trace/capsreach.ts): under the excretion-return
+   * effective config the pools never approach any ceiling, so the defect is NOT
+   * reached there (0 excess over 1500 ticks, excretion on and off). Under a
+   * saturation arm it IS reached, with B and C exceeding their per-pool caps by
+   * ~150x and ~240x the diffusion baseline. Routing the four RETURN sites
+   * through this one helper is the smallest correction that makes the return
+   * clamp agree with the declared per-pool semantics.
    *
-   * NOTE on scope: this makes the return clamp agree with the declared
-   * per-pool semantics. It does NOT make the per-pool cap a hard invariant —
-   * `ScalarField.step()` diffusion runs after the regeneration clamp, so a
-   * low-fertility cell beside a rich one still drifts above its own cap every
-   * tick. That residual is a pre-existing property of the diffusion pass, is
-   * an order of magnitude smaller, and is left alone here.
+   * PRECISE SCOPE — three spellings of this cap still exist, on purpose:
+   *   - seeding (world.ts seeding loop) computes it via habitat.capacityAt * mod;
+   *   - the abiotic regeneration clamp (world.ts regen loop) computes it inline;
+   *   - the four return sites use this helper.
+   * They agree numerically. Unifying the first two would be a refactor with no
+   * behavioural effect and was not attempted.
+   *
+   * Two things this correction does NOT do, both deliberate:
+   *   1. It does not make the per-pool cap a hard invariant. `ScalarField.step()`
+   *      diffusion runs after the regeneration clamp, so a low-fertility cell
+   *      beside a rich one still drifts above its own cap every tick by the
+   *      baseline the probe measures. Fixing that means reordering the diffusion
+   *      pass — a different change to declared behaviour.
+   *   2. It does not cap the abiotic mineralisation broadcast (world.ts
+   *      `nData[i] += share`), which has NO cap of any kind and can therefore
+   *      exceed even the flat cap. Left untouched: it is far below any ceiling
+   *      at declared recycling rates, and capping it is a separate decision.
    */
   private nutrientCapAt(nIdx: number, ci: number): number {
     return this.config.nutrientPerCell

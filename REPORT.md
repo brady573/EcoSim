@@ -7694,18 +7694,30 @@ A (mod 1.0) is unaffected; pools B (0.78) and C (0.62) could be filled **above
 their declared capacity** by a return. That contradicts the accepted per-pool
 semantics stated in the config's own doc comment.
 
-### Reachability: NOT reached under declared config
+### Reachability: NOT reached under the diagnostic effective config
 
-The pinned excretion-return config never brings any pool near a ceiling, so the
-defect does not fire there. Sweeping every tick (not just the endpoint):
+**Config disclosure.** The probe's base is the *diagnostic effective config*
+shared with patchtrack/nutrientflow/relianceprobe — NOT the engine's declared
+defaults. Roughly sixteen fields differ (worldW/H 2400 vs 4000, founders 400
+vs 1200, nutrientCyclic true vs null, producerCaptureScale 0.35 vs null,
+nutrientFloor 0.05 vs 0, mixotrophySaturation 1.0 vs 0.4, meatYieldPerMass 0
+vs 1.6, and others). A zero-excess result here does **not** by itself establish
+non-reachability under declared defaults; that conclusion rests on parity C1
+being byte-identical, an independent defaults-based check.
+
+The effective config never brings any pool near a ceiling, so the defect does
+not fire there. Sweeping every tick (not just the endpoint), command
+`node build/trace/capsreach.js 1500 517` (seed 517, horizon 1500 ticks —
+the discrimination horizon; an initial 3000-tick sweep on the same config
+likewise reported 0 excess on both arms):
 
 | Arm | Ticks with per-pool excess |
 |-----|----------------------------|
-| excretion ON (0.06, declared) | **0 / 1500** |
-| excretion OFF (0.0) | **0 / 1500** |
+| BASE effective config, excretion ON (0.06) | **0 / 1500** |
+| BASE effective config, excretion OFF (0.0) | **0 / 1500** |
 
 This is why parity was never disturbed and why the bug survived review: it is
-latent at declared settings.
+latent at effective settings.
 
 ### Reachability: REACHED under a saturation arm
 
@@ -7736,6 +7748,25 @@ Two further discriminators separate the causes: silencing only the unclamped
 abiotic broadcast (recyclingRate=0) and silencing all return paths. The
 broadcast alone reproduces the baseline, confirming it is not the driver.
 
+### The attribution, measured not inferred
+
+The diffusion explanation above was an *inference* until a DECISIVE arm made
+it a *measurement*. Preregistered prediction: with `nutrientDiffusivity = 0`
+added to the negative control, no mechanism remains that can move a pool past
+its clamp, so excess must be exactly zero. Outcome:
+
+| Arm | Ticks with per-pool excess |
+|-----|----------------------------|
+| NEGATIVE CONTROL (diffusion on, all writers silenced) | 1496 / 1500 |
+| **DECISIVE — negative control + nutrientDiffusivity=0** | **0 / 1500** |
+
+Prediction confirmed. The residual is diffusion running after the regeneration
+clamp. The probe now *throws* rather than prints if this arm ever reports
+non-zero, because a falsified attribution printed quietly is how a wrong cause
+gets recorded as a right one. The negative control's own preregistered
+prediction (zero excess) was **FALSIFIED** by its first run; that falsification
+is recorded in the probe source rather than deleted, per the evidence rules.
+
 ### Before / after, against the baseline
 
 Saturation arm, peak excess per cell (cumulative excess mass in brackets):
@@ -7758,16 +7789,63 @@ applied literally: every gate that reads the same quantity reads the scaled
 value, through one helper, so the flat cap cannot reappear at one site while
 the others are corrected.
 
+**Precise scope — three spellings of this cap still exist, on purpose:**
+seeding computes it via `habitat.capacityAt * mod`, the abiotic regeneration
+clamp computes it inline, and the four return sites use the helper. They agree
+numerically. Unifying the first two would be a refactor with no behavioural
+effect and was not attempted.
+
+### Independent review and the gap it found
+
+An independent validation-sufficiency pass (via the `test` specialist — the
+`review` specialist could not receive this private-repo diff under its
+provider's data-use posture) confirmed the fix but found one material gap:
+**nothing automated pinned the correction.** Parity, gates and contracts all
+stayed green *with the bug present*, because the pools never approach a
+ceiling at effective settings — so reverting the fix would have left every
+cited check passing. Its other findings were record defects, all corrected:
+stale positional citations in the probe header, an overclaiming `world.ts` doc
+comment (it said "every writer" routes through the helper; the unclamped
+broadcast and the inline regen clamp do not), the false "declared pinned
+config" label, and the falsified prediction not recorded in the probe itself.
+
+### The pin: gate G30
+
+G30 runs two arms on a saturation substrate (800x800, 120 ticks, seed 4242):
+a diffusion baseline (all writers silenced) and a saturation arm where returns
+are the only writers, then asserts saturation peak excess stays within 2x the
+measured baseline. It asserts a **ratio, not an absolute**, because the
+per-pool cap is a soft target — an absolute threshold would fail on diffusion
+alone.
+
+Teeth verified by reverting `nutrientCapAt` to the flat cap and re-running:
+
+| Pool | mod | With correction | Reverted (flat cap) |
+|------|-----|------------------|---------------------|
+| A | 1.00 | x1.00 | x1.00 (control — cannot discriminate) |
+| B | 0.78 | x1.00 | **x8.38 -> FAIL** |
+| C | 0.62 | x1.00 | **x10.16 -> FAIL** |
+
+The revert test is how the gate was proven non-ceremonial: it fails on exactly
+the regression it exists to catch, and pool A — which the correction cannot
+affect — does not move.
+
 ### Validation
 
 - Parity **byte-identical** on both pinned seeds at engine 0.6.2
   (517 -> P882/C170/D65; 24601 -> P563/C279/D90). The correction changes
-  nothing under declared config, which the reachability sweep predicted.
-- 37/37 gates, 11/11 contracts, 153/153 workflow checks pass.
+  nothing under effective config, which the reachability sweep predicted.
+  Parity alone could not detect this defect (it was latent), which is why the
+  presence-style check G30 was added alongside it.
+- 38/38 gates (G30 new), 11/11 contracts, 153/153 workflow checks pass.
 - Determinism: repeat runs byte-identical (C7).
 - Ledger/conservation: G3 accounting residual unchanged; nutrient is not
   covered by the energy ledger, so the correction is outside that identity and
   cannot perturb it.
+- Presence check: `nutrientCapAt` present in **both** build targets — the CLI
+  build and the app bundle (17 references each). Both `tsconfig.build.json`
+  and `tsconfig.app.json` were rebuilt, since `world.ts` changed and the build
+  trap warns that building only one target silently ships a stale engine.
 
 ### What this correction does NOT do (disclosed scope)
 
@@ -7787,8 +7865,10 @@ the others are corrected.
 
 Engine remains `ts-evo-poc/0.6.2`: parity pins are unchanged, so no re-pinning
 and no retirement chain entry is warranted. Evidence recorded under 0.6.2
-before this commit remains valid — the correction is unreachable at declared
-config, which the 0/1500 sweep demonstrates directly.
+before this commit remains valid — the correction is unreachable at the
+diagnostic effective config, which the 0/1500 sweep demonstrates directly,
+and under declared defaults parity C1 is byte-identical (the independent
+defaults-based check).
 
 --------------------------------------------------------------------------------
 REVIEW RESPONSE CORRECTIONS V2 (2026-10-13, reviewer Acrius-max on head 87cefa7)
