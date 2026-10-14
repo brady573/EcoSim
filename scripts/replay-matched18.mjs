@@ -13,6 +13,7 @@ assert.equal(args.length, 2, 'Usage: node scripts/replay-matched18.mjs --out NEW
 assert.equal(args[0], '--out', 'Output directory must be explicit');
 const out = resolve(args[1]);
 assert.ok(!existsSync(out), 'Output directory already exists; refusing to overwrite evidence');
+assert.ok(!out.startsWith(original + '/'), 'Replay output must not be written inside the recorded evidence panel');
 const protocol = JSON.parse(readFileSync(join(original, 'protocol.json'), 'utf8'));
 const records = readFileSync(join(original, 'runs.jsonl'), 'utf8').trim().split('\n').map(JSON.parse);
 assert.equal(records.length, 36);
