@@ -1,4 +1,6 @@
-// Pre-registered cohort runner for chem/0.7.0.
+// Pre-registered cohort runner. Emits every figure the verdict documents quote,
+// including per-guild births and generation depth, so the three-guild
+// coexistence and Generations claims are measured rather than carried over.
 // Reads PREREGISTRATION.md hypotheses H1-H7. Writes results only from measured data.
 import { World } from '../build/world/world.js';
 import { REACTIONS, RX_COUNT } from '../build/bio/metabolism.js';
@@ -18,17 +20,36 @@ function run(seed, ticks, extra = {}) {
     w.step();
     if (i % 100 === 99) pop.push(w.store.population);
   }
-  const ext = Array.from(w.chemEvidence.extent);
+  // chemistry-off worlds have no chemistry objects at all.
+  const ext = w.chemEvidence ? Array.from(w.chemEvidence.extent) : new Array(RX_COUNT).fill(0);
+  // Per-guild births, indexed [guild][path] where path 0 = asexual, 1 = sexual.
+  // Guild 2 is the decomposer: the three-guild coexistence question is whether
+  // it reproduces at all. These were previously quoted from a retired panel.
+  const guildBirths = w.demographics().births.map((g) => ({ asex: g[0], sex: g[1] }));
+  // Generation depth over LIVE organisms: sexual children increment depth.
+  let gdMax = 0, gdSum = 0, gdN = 0;
+  for (let sl = 0; sl < w.store.capacity; sl++) {
+    if (!w.aliveAt(sl)) continue;
+    const d = w.store.generationDepth[sl];
+    gdMax = Math.max(gdMax, d); gdSum += d; gdN++;
+  }
+  const sexualBirths = guildBirths.reduce((a, g) => a + g.sex, 0);
+  const asexBirths = guildBirths.reduce((a, g) => a + g.asex, 0);
   return {
     seed, births: births(w) - b0, pop: w.store.population, series: pop,
     nutLim: w.chemNutrientLimited, enLim: w.chemEnergyLimited,
     nb: w.chemReproBlockedNutrient, cb: w.chemReproBlockedCarbon,
-    hypoxia: w.chemAudit.hypoxicFraction,
-    carbonBuilt: w.chemistry.flux.chemCarbonBuilt,
+    chemAuditOk: w.chemAudit !== null,
+    // chemAudit is null when chemistry is off; the OFF arm must still run.
+    hypoxia: w.chemAudit ? w.chemAudit.hypoxicFraction : 0,
+    carbonBuilt: w.chemistry ? w.chemistry.flux.chemCarbonBuilt : 0,
     ext, capFe: countCap(w), startPop: 400,
+    guildBirths, sexualBirths, asexBirths,
+    gdMax, gdMean: gdN > 0 ? gdSum / gdN : 0,
   };
 }
 function countCap(w) {
+  if (!w.chemStores) return { y: 0, n: 0 };
   const st = w.chemStores, bit = 1 << 7; let y = 0, n = 0;
   for (let s = 0; s < w.store.capacity; s++) { if (!w.aliveAt(s)) continue; n++; if (st.capMask[s] & bit) y++; }
   return { y, n };
@@ -109,3 +130,25 @@ console.log('\n--- H7 terminal population vs 400 founders ---');
 const decline = summary.base.filter(r => r.pop < 400).length;
 console.log(`seeds ending BELOW 400 founders: ${decline}/${SEEDS.length}  -> H7 ${decline >= 6 ? 'SUPPORTED' : 'FALSIFIED'}`);
 console.log(`median terminal population ${f(stats(summary.base.map(r => r.pop)).med, 0)}`);
+
+// --- Three-guild coexistence and generation depth (measured here, not carried over) ---
+console.log('\n--- guild births, reproduction pathway and generation depth ---');
+const armsForGuild = [
+  ['base', {}],
+  ['chemOff', { chemistry: false }],
+];
+for (const [name, extra] of armsForGuild) {
+  // run(seed, ticks, extra) — the horizon must be passed explicitly; passing
+  // the config object as `ticks` silently runs ZERO ticks and reports all-zero
+  // guild births, which reads exactly like a real null result.
+  const rows = SEEDS.map((sd) => run(sd, TICKS, extra));
+  const nDecomp = rows.filter((r) => r.guildBirths[2].asex + r.guildBirths[2].sex > 0).length;
+  const nProd = rows.filter((r) => r.guildBirths[0].asex + r.guildBirths[0].sex > 0).length;
+  const nCons = rows.filter((r) => r.guildBirths[1].asex + r.guildBirths[1].sex > 0).length;
+  const sexTot = rows.reduce((a, r) => a + r.sexualBirths, 0);
+  const asexTot = rows.reduce((a, r) => a + r.asexBirths, 0);
+  console.log(`${name.padEnd(8)} producer births on ${nProd}/10 | consumer ${nCons}/10 | DECOMPOSER ${nDecomp}/10`);
+  console.log(`${name.padEnd(8)} asexual births total ${asexTot} | sexual births total ${sexTot}`
+    + ` | max gd ${stats(rows.map((r) => r.gdMax)).max}`
+    + ` | mean gd ${stats(rows.map((r) => r.gdMean)).mean.toFixed(3)}`);
+}

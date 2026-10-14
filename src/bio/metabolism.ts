@@ -398,7 +398,6 @@ export function reactionExtent(
   capStrength: number,
   out: Float64Array,
   light = 1,
-  grossBudget?: Float64Array,
   budgetHits?: Float64Array,
 ): number {
   const o2 = chem.fields[POOL.O2].data[cell];
@@ -443,9 +442,11 @@ export function reactionExtent(
     // extents could therefore exceed the real cell together and their products
     // and energy were credited at full value while settle() clamped the
     // overdraw. The fixed REACTIONS order is the declared priority rule.
-    const avail = grossBudget
-      ? grossBudget[sub.pool]
-      : chem.remaining(sub.pool, cell) + Math.min(0, out[sub.pool]);
+    // Cross-organism, per-cell, one-snapshot budget: pre-tick inventory minus
+    // every gross draw already reserved in this cell this tick. Products never
+    // refill it, so a reaction that returns half its substrate cannot lend that
+    // half to the next organism before settle().
+    const avail = chem.remainingForReaction(sub.pool, cell);
     const budgetBound = (avail > 0 ? avail : 0) / sub.coeff;
     if (budgetBound < rate) {
       if (budgetHits) budgetHits[sub.pool]++;
@@ -457,7 +458,7 @@ export function reactionExtent(
   for (const sub of r.substrates) {
     const drawn = sub.coeff * rate;
     out[sub.pool] -= drawn;
-    if (grossBudget) grossBudget[sub.pool] -= drawn;
+    chem.claimGross(sub.pool, cell, drawn);
   }
   for (const prod of r.products) out[prod.pool] += prod.coeff * rate;
   return rate;

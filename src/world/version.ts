@@ -84,7 +84,7 @@ export const WORLD_ENGINE_VERSION = 'ts-evo-poc/0.7.0';
  * and the diagnostic bridge ledger booking. These are accounting-identity changes
  * while preserving chemistry-off runs, so it is a chemistry-component bump.
  */
-export const CHEMISTRY_ENGINE_VERSION = 'chem/0.7.5';
+export const CHEMISTRY_ENGINE_VERSION = 'chem/0.7.7';
 
 /**
  * Whether the chemistry semantics themselves changed in the 0.7.0 correction.
@@ -118,7 +118,8 @@ export function runIdentity(chemistryEnabled: boolean): string {
  * Owner-authorised canopy correction. The suite's semantics changed, so a
  * result recorded under gates/0.4.0 is not comparable without re-running.
  *
- * gates/0.7.4 covers the current suite through G39 with split conservation
- * tolerances and a discriminating 1:1 H/O uptake control.
+ * gates/0.7.6 covers the current suite through G40 with split conservation
+ * tolerances, a discriminating 1:1 H/O uptake control, and the three-arm
+ * cross-organism shared-budget control.
  */
-export const GATE_SUITE_VERSION = 'gates/0.7.4';
+export const GATE_SUITE_VERSION = 'gates/0.7.6';

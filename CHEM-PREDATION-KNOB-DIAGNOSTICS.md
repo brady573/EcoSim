@@ -1,9 +1,9 @@
 # Diagnostics — `chemistryPredationMatter` ride-along (post-hoc)
 
 **Date:** 2026-10-13
-**Engine:** `ts-evo-poc/0.7.0+chem/0.7.5`
+**Engine:** `ts-evo-poc/0.7.0+chem/0.7.7`
 **Runner:** `scripts/chem-predation-knob.mjs`
-**Raw output:** `evidence/chem-predation-knob-10seed-075-20261013.txt`
+**Raw output:** `evidence/chem-predation-knob-10seed-077-20261013.txt`
 
 This is a **post-hoc diagnostic result**, not a pre-registered hypothesis run. A 5-seed first pass was superseded by this 10-seed panel.
 The comparison is base chemistry versus the same config with the null-default
@@ -24,44 +24,46 @@ Seeds: 517, 1013, 24601, 7, 99, 31337, 4242, 8080, 555, 12345. Horizon 1000 tick
 
 | arm | pop median | pop range | births median | carbon transferred median | C residual median | settle clamp max |
 |---|---:|---:|---:|---:|---:|---:|
-| base | 6 | 3–39 | 6 | 0.0000 | 0.0002% | 0.077 |
-| predationMatter | 8 | 1–46 | 9 | 7.0149 mol | 0.0002% | 0.076 |
+| base | 8 | 2–36 | 9 | 0.0000 | 0.0002% | 0.067 |
+| predationMatter | 9 | 3–40 | 9 | 5.9226 mol | 0.0002% | 0.068 |
 
-Population increases on 5/10 seeds, decreases on 2/10, and is unchanged on 3/10.
-Median population is 6→8 and median births 6→9. The effect remains mixed.
+Population increases on 4/10 seeds, decreases on 4/10, unchanged on 2/10.
+Births: 3 up, 4 down, 3 unchanged. Median population 8→9; median births 9→9.
 
 ## Per seed
 
 | seed | base pop | matter pop | pop delta | base births | matter births | birth delta | matter carbon |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| 517 | 39 | 46 | +7 | 46 | 57 | +11 | 5.5430 |
-| 1013 | 3 | 3 | 0 | 3 | 3 | 0 | 7.7881 |
-| 24601 | 4 | 6 | +2 | 6 | 21 | +15 | 6.3171 |
-| 7 | 8 | 10 | +2 | 6 | 10 | +4 | 9.2799 |
-| 99 | 6 | 6 | 0 | 5 | 5 | 0 | 7.7126 |
-| 31337 | 3 | 1 | -2 | 5 | 5 | 0 | 20.8456 |
-| 4242 | 3 | 3 | 0 | 4 | 2 | -2 | 4.0862 |
-| 8080 | 6 | 13 | +7 | 7 | 17 | +10 | 17.8297 |
-| 555 | 17 | 13 | -4 | 17 | 7 | -10 | 5.6183 |
-| 12345 | 18 | 24 | +6 | 30 | 27 | -3 | 5.0280 |
+| 7 | 10 | 7 | -3 | 11 | 8 | -3 | 9.8610 |
+| 99 | 5 | 11 | +6 | 8 | 17 | +9 | 4.8662 |
+| 517 | 36 | 40 | +4 | 47 | 41 | -6 | 1.0178 |
+| 555 | 14 | 13 | -1 | 10 | 10 | +0 | 5.6183 |
+| 1013 | 3 | 3 | +0 | 2 | 6 | +4 | 6.2269 |
+| 4242 | 4 | 3 | -1 | 5 | 4 | -1 | 4.1488 |
+| 8080 | 33 | 19 | -14 | 36 | 20 | -16 | 15.8937 |
+| 12345 | 26 | 33 | +7 | 39 | 51 | +12 | 7.3150 |
+| 24601 | 5 | 5 | +0 | 7 | 7 | +0 | 1.6428 |
+| 31337 | 2 | 3 | +1 | 5 | 5 | +0 | 16.3044 |
 
 ## Immediate reading
 
 - **The mechanism is active and finite.** Base arm moves exactly 0 carbon; the
-  ride-along arm transfers 7.01 mol median. Arms differ.
+  ride-along arm transfers 5.92 mol median. Arms differ.
 - **Conservation is preserved.** The C residual remains within the normal
   sub-0.01% range; the ride-along does not mint matter. G35 additionally checks
   stoichiometric proportionality directly on synthetic slots.
-- **The effect is mixed.** Median population is
-  6→8; median births 6→9. The strongest single change is seed 517
-  (39→46, births 46→57). Six seeds show equal or fewer births with the knob on.
+- **The effect is mixed.** Median population 8→9 and median births 9→9, but
+  the per-seed spread is wide in both directions: population +6 (seed 99) to
+  -14 (seed 8080). The largest single regression, seed 8080, is also the only
+  seed with sexual births in the base arm, so the ride-along does not
+  consistently help even the lineages that can recombine.
 
 ## Sexual reproduction and generation depth
 
-- base: 0 sexual births; mean live generation depth 0.000; max 0.
-- predationMatter: 4 sexual births; mean live generation depth 0.028; max 1.
+- base: 4 sexual births (seeds 8080); mean live generation depth 0.012; max 1.
+- predationMatter: 6 sexual births (seeds 517, 8080); mean live generation depth 0.026; max 1.
 
-This does not establish sustained multi-generation inheritance.
+Sexual recombination occurs on 1/10 base seeds and 2/10 predation-matter seeds, so the lineage is not strictly asexual, but it does not persist: no arm sustains a recombined lineage to a multi-generation outcome at 1000 ticks. Mixed result, recorded as such.
 
 ## What is NOT claimed
 

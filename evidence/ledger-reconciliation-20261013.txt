@@ -74,31 +74,33 @@ scenario: founders=300 world=2000x2000 ticks=250 seed=4242
 [PASS] G26 reaction network is element-balanced
          all 13 reactions balance across C, N, P, S, Fe (denitrification exempt by declared gas export)
 [PASS] G27 elemental conservation holds in a running world
-         C 0.0003%  N -0.0000%  P 0.0000%  S -0.0000%  Fe -0.0000% | cumulative settle clamp 0.0350 mol (tolerance 0.10%)
+         C 0.0003%  N -0.0000%  P 0.0000%  S -0.0000%  Fe -0.0000% | cumulative settle clamp 0.0330 mol (tolerance 0.10%)
 [PASS] G28 living tissue grows in a running world
-         max single-organism tissue gain 0.0586 mol | chemistry-path carbon built 284.33 mol | net standing carbon 400.00 -> 102.34 mol (net may fall while growth occurs; that is a population claim, not this gate's)
+         max single-organism tissue gain 0.0586 mol | chemistry-path carbon built 282.48 mol | net standing carbon 400.00 -> 110.64 mol (net may fall while growth occurs; that is a population claim, not this gate's)
 [PASS] G29 reproduction is genuinely nutrient-limited
-         nutrients present: 5 births | nutrients removed: 0 births
+         nutrients present: 7 births | nutrients removed: 0 births
 [PASS] G30 metabolic capability is transmitted parent to child
-         46 parent->child pairs observed: 28 inherited, 18 lost, 0 gained the iron-uptake bit 
+         47 parent->child pairs observed: 39 inherited, 8 lost, 0 gained the iron-uptake bit 
 [PASS] G31 death recycles tissue to the correct pools
-         tissue 1.8604 mol -> labile +0.2920, litter +0.0060 (burial 0.001), total returned +0.2979
+         tissue 1.8604 mol -> labile +0.2931, litter +0.0059 (burial 0.001), total returned +0.2991
 [PASS] G32 chemistry runs under a distinct experimental identity
-         knob off "ts-evo-poc/0.7.0" | knob on "ts-evo-poc/0.7.0+chem/0.7.5" | state digests 9100d5dd vs 1ec028b9
+         knob off "ts-evo-poc/0.7.0" | knob on "ts-evo-poc/0.7.0+chem/0.7.7" | state digests 9100d5dd vs 1ec028b9
 [PASS] G33 chemical energy share is measured from a single-record ledger
-         chemical income 2118.1 / (legacy 23134 + chemical) = 8.388% | charged 150.0 (declared scope: G33 is an income-share measurement; G36 runs chemistry through the causal ledger. Chemical biomass remains a separate mass book; ceiling 10%)
+         chemical income 2465.5 / (legacy 23334 + chemical) = 9.556% | charged 149.9 (declared scope: G33 is an income-share measurement; G36 runs chemistry through the causal ledger. Chemical biomass remains a separate mass book; ceiling 10%)
 [PASS] G34 canopy lookup is spatially correct and reaches capture
          grid 12x7 at shadeGrain 3 | inside injected cell 25 (want 25) | corners 0/0 edges 0/0 (want 0/0/0/0) | legacy capture open 786.13 shaded 90.62 (responds) | isolated canopy high 359.43 none 840.57 ratio 2.34 (responds)
 [PASS] G35 predation matter ride-along is inert-off and a real transfer when on
-         carbon moved off(on null)/on: 0.0000 / 0.5968 mol | conservation off/on: ok / ok (tolerance 0.10%, clamp<=1) | stoichiometry proportional
+         carbon moved off(on null)/on: 0.0000 / 0.9945 mol | conservation off/on: ok / ok (tolerance 0.10%, clamp<=1) | stoichiometry proportional
 [PASS] G36 chemical energy is reconciled through the legacy causal ledger
-         base residual 0.00011% | income 2118.11 (1.642% of input) vs flux 2118.11 (match true) | spend 150.02 vs flux 150.02 (match true) | material=true | control residual 4.26975% (breaks=true) | bridge residual 0.00011% | bridge fires=true closes=true
+         base residual 0.00011% | income 2465.50 (1.903% of input) vs flux 2465.50 (match true) | spend 149.93 vs flux 149.93 (match true) | material=true | control residual 4.26596% (breaks=true) | bridge residual 0.00011% | bridge fires=true closes=true
 [PASS] G37 per-organism gross substrate budgets bind in a live chemistry world
-         budget-limited reactions=267525 | cumulative settle clamp=0.034994 (limit 0.10)
+         budget-limited reactions=205964 | cumulative settle clamp=0.033002 (limit 0.10)
 [PASS] G38 freeNutrients is a booked subsidy without gate bypasses
-         subsidy=459.3061 mol | carbonBuilt=1378.0444 mol | all-7 conservation=true | nutrientLimited=17544 | empty-store negative control carbon=0 lacking=nutrient
+         subsidy=339.4208 mol | carbonBuilt=1265.3173 mol | all-7 conservation=true | nutrientLimited=37113 | empty-store negative control carbon=0 lacking=nutrient
 [PASS] G39 H2O uptake credits H and O 1:1 and the live book closes
-         H |residual|=0.00298% O |residual|=0.01253% (limit 0.5%) | claimed=0.20000000000000284 storeH=0.2 storeO=0.2
+         H |residual|=0.00541% O |residual|=0.01066% (limit 0.5%) | claimed=0.20000000000000284 storeH=0.2 storeO=0.2
+[PASS] G40 cross-organism gross draws obey the shared one-snapshot cell budget
+         tight OC=0.02: org1 extent=0.0200 aggregateGross=0.020000 (limit 0.02) | roomy OC=10: org1 extent=0.0450 org2 extent=0.0450 aggregate=0.0900 | reaction-then-uptake: available=0.000000000 taken=0.000000000
 
-47/47 checks passed
+48/48 checks passed
 ALL GATES PASS

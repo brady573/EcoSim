@@ -885,8 +885,6 @@ export class World {
   /** Scratch buffers allocated once; the hot path must not allocate. */
   private chemOut = new Float64Array(POOL_COUNT);
   private chemExtents = new Float64Array(RX_COUNT);
-  /** Per-organism gross substrate budget; never replenished by products. */
-  private chemGrossBudget = new Float64Array(POOL_COUNT);
   private chemBudgetHits = new Float64Array(POOL_COUNT);
   /** Cumulative reactions whose rate was reduced by a gross budget. */
   chemBudgetLimited = 0;
@@ -4546,33 +4544,34 @@ export class World {
       // per organism so a reaction that stopped firing this tick reads zero
       // instead of retaining its previous value and being reported again.
       this.chemExtents.fill(0);
-      // Gross budgets are seeded from the SAME pre-tick pool values the first
-      // reaction reads. They decrease with each realized substrate draw, but
-      // products do not refill them within this organism's tick. This prevents
-      // a produced pool from cancelling a previous draw in `out` and restoring
-      // an already-spent substrate budget.
-      for (let q = 0; q < POOL_COUNT; q++) this.chemGrossBudget[q] = chem.remaining(q, cell);
+      // The gross reaction budget is owned by Chemistry and is SHARED across
+      // organisms in the same cell for the whole tick: `chem.claimGross()`
+      // reserves every realized substrate draw, and products never refill it.
+      // Seeding a per-organism array from `chem.remaining()` would let the next
+      // organism re-use the OC a previous organism's reaction returned before
+      // settle() ever ran.
       this.chemBudgetHits.fill(0);
       const gained = runMetabolism(
-        chem, st, slot, cell, cfg, out, this.chemExtents, this.chemGrossBudget, this.chemBudgetHits,
+        chem, st, slot, cell, cfg, out, this.chemExtents, this.chemBudgetHits,
       );
       for (let q = 0; q < POOL_COUNT; q++) this.chemBudgetLimited += this.chemBudgetHits[q];
       // Apply the organism's NET chemical transfers exactly once.
       //
-      // CONSUMPTION IS BOOKED AS A CLAIM, not as a plain delta. `remaining()`
-      // — which every uptake path reads — accounts for claims, so without this
-      // the reactions' own substrate consumption was invisible to the organisms
-      // that ran later in the same tick. Each read the full pre-tick
-      // concentration, N organisms oversubscribed the pool N-fold, settle()
-      // clamped the CONSUMPTION to zero and the unmaterialised remainder simply
-      // vanished — while their PRODUCTS had already been credited at full
-      // value. Clamping one side of a transfer and not the other is matter
-      // creation, and it read as +80% nitrogen.
+      // PRODUCTS ARE APPLIED; CONSUMPTION IS ALREADY RESERVED.
+      //
+      // `reactionExtent` books every substrate draw through
+      // `chem.claimGross()` the moment the extent is realized, into the same
+      // `claimed` array assimilation uses. So the gross substrate reservation
+      // is already visible to every later reaction and every later uptake in
+      // this cell this tick, and claiming the net delta again here would debit
+      // the budget twice. The FIELD, however, must still receive the net delta:
+      // for a same-pool reaction the returned fraction is real product and has
+      // to come back, which is why `out` is applied whole and only the
+      // reservation is one-sided.
       for (let q = 0; q < POOL_COUNT; q++) {
         const v = out[q];
         if (v === 0) continue;
-        if (v < 0) chem.claim(q, cell, -v);
-        else chem.react(q, cell, v);
+        chem.react(q, cell, v);
       }
 
       // Evidence: record the extent each reaction actually executed, taken from

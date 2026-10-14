@@ -456,6 +456,33 @@ export class Chemistry {
     return free > 0 ? free : 0;
   }
 
+  /**
+   * What remains for a REACTION substrate after this tick's reservations.
+   *
+   * Reactions and assimilation share ONE reservation array, so this is the
+   * same one-snapshot budget: the pre-tick inventory minus everything already
+   * reserved in this cell this tick — reaction gross draws by every organism
+   * and every uptake by every organism. Products never refill it.
+   */
+  remainingForReaction(pool: POOL, cell: number): number {
+    return this.remaining(pool, cell);
+  }
+
+  /**
+   * Reserve a GROSS reaction-substrate draw for this tick.
+   *
+   * It is booked into the SAME `claimed` array assimilation uses, so a
+   * substrate a reaction returned this tick cannot be re-taken by a later
+   * reaction OR by a later organism's uptake before `settle()`. Reserving the
+   * gross draw here (>= the net draw) is what makes the one-snapshot contract
+   * hold; the caller must NOT also claim the reaction's net delta.
+   */
+  claimGross(pool: POOL, cell: number, amount: number): void {
+    if (amount <= 0) return;
+    this.claimed[pool * this.cols * this.rows + cell] += amount;
+    this.grossDrawnTotal[pool] += amount;
+  }
+
   /** Book a draw against a pool so later organisms in this tick see less. */
   claim(pool: POOL, cell: number, amount: number): void {
     if (amount <= 0) return;
@@ -490,6 +517,9 @@ export class Chemistry {
 
   /** Cells that were clamped on the most recent settle, per pool. */
   readonly clampedCells = new Float64Array(POOL_COUNT);
+
+  /** Cumulative gross reaction-substrate draws, per pool. Diagnostic only. */
+  readonly grossDrawnTotal = new Float64Array(POOL_COUNT);
 
   /** Apply accumulated deltas, then transport. Order is fixed and declared. */
   settle(): void {

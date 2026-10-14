@@ -2767,6 +2767,32 @@ class Chemistry {
         const free = this.fields[pool].data[cell] - this.claimed[i];
         return free > 0 ? free : 0;
     }
+    /**
+     * What remains for a REACTION substrate after this tick's reservations.
+     *
+     * Reactions and assimilation share ONE reservation array, so this is the
+     * same one-snapshot budget: the pre-tick inventory minus everything already
+     * reserved in this cell this tick — reaction gross draws by every organism
+     * and every uptake by every organism. Products never refill it.
+     */
+    remainingForReaction(pool, cell) {
+        return this.remaining(pool, cell);
+    }
+    /**
+     * Reserve a GROSS reaction-substrate draw for this tick.
+     *
+     * It is booked into the SAME `claimed` array assimilation uses, so a
+     * substrate a reaction returned this tick cannot be re-taken by a later
+     * reaction OR by a later organism's uptake before `settle()`. Reserving the
+     * gross draw here (>= the net draw) is what makes the one-snapshot contract
+     * hold; the caller must NOT also claim the reaction's net delta.
+     */
+    claimGross(pool, cell, amount) {
+        if (amount <= 0)
+            return;
+        this.claimed[pool * this.cols * this.rows + cell] += amount;
+        this.grossDrawnTotal[pool] += amount;
+    }
     /** Book a draw against a pool so later organisms in this tick see less. */
     claim(pool, cell, amount) {
         if (amount <= 0)
@@ -2799,6 +2825,8 @@ class Chemistry {
     clampedCumulative = new Float64Array(POOL_COUNT);
     /** Cells that were clamped on the most recent settle, per pool. */
     clampedCells = new Float64Array(POOL_COUNT);
+    /** Cumulative gross reaction-substrate draws, per pool. Diagnostic only. */
+    grossDrawnTotal = new Float64Array(POOL_COUNT);
     /** Apply accumulated deltas, then transport. Order is fixed and declared. */
     settle() {
         const n = this.cols * this.rows;
@@ -3215,7 +3243,7 @@ function reactionById(id) {
  * developmental onset and module magnitude matter biologically rather than as
  * a boolean gate.
  */
-function reactionExtent(r, chem, cell, capStrength, out, light = 1, grossBudget, budgetHits) {
+function reactionExtent(r, chem, cell, capStrength, out, light = 1, budgetHits) {
     const o2 = chem.fields[POOL.O2].data[cell];
     if (o2 < r.minO2)
         return 0;
@@ -3260,9 +3288,11 @@ function reactionExtent(r, chem, cell, capStrength, out, light = 1, grossBudget,
         // extents could therefore exceed the real cell together and their products
         // and energy were credited at full value while settle() clamped the
         // overdraw. The fixed REACTIONS order is the declared priority rule.
-        const avail = grossBudget
-            ? grossBudget[sub.pool]
-            : chem.remaining(sub.pool, cell) + Math.min(0, out[sub.pool]);
+        // Cross-organism, per-cell, one-snapshot budget: pre-tick inventory minus
+        // every gross draw already reserved in this cell this tick. Products never
+        // refill it, so a reaction that returns half its substrate cannot lend that
+        // half to the next organism before settle().
+        const avail = chem.remainingForReaction(sub.pool, cell);
         const budgetBound = (avail > 0 ? avail : 0) / sub.coeff;
         if (budgetBound < rate) {
             if (budgetHits)
@@ -3275,8 +3305,7 @@ function reactionExtent(r, chem, cell, capStrength, out, light = 1, grossBudget,
     for (const sub of r.substrates) {
         const drawn = sub.coeff * rate;
         out[sub.pool] -= drawn;
-        if (grossBudget)
-            grossBudget[sub.pool] -= drawn;
+        chem.claimGross(sub.pool, cell, drawn);
     }
     for (const prod of r.products)
         out[prod.pool] += prod.coeff * rate;
@@ -3633,7 +3662,7 @@ function seedBiomass(st, slot, carbon) {
  * delta buffer; nothing here writes a pool directly, which is what keeps the
  * chemistry order-independent.
  */
-function runMetabolism(chem, st, slot, cell, cfg, out, extentOut, grossBudget, budgetHits) {
+function runMetabolism(chem, st, slot, cell, cfg, out, extentOut, budgetHits) {
     const mask = st.capMask[slot];
     if (mask === 0)
         return 0;
@@ -3650,7 +3679,7 @@ function runMetabolism(chem, st, slot, cell, cfg, out, extentOut, grossBudget, b
         const strength = capStrengthAt(st, slot, r.cap);
         if (strength <= 0)
             continue;
-        const extent = reactionExtent(r, chem, cell, strength, out, st.light[slot], grossBudget, budgetHits);
+        const extent = reactionExtent(r, chem, cell, strength, out, st.light[slot], budgetHits);
         if (extent <= 0)
             continue;
         // `out` accumulates NET transfers for the whole organism and is applied
@@ -6470,7 +6499,7 @@ const WORLD_ENGINE_VERSION = 'ts-evo-poc/0.7.0';
  * and the diagnostic bridge ledger booking. These are accounting-identity changes
  * while preserving chemistry-off runs, so it is a chemistry-component bump.
  */
-const CHEMISTRY_ENGINE_VERSION = 'chem/0.7.5';
+const CHEMISTRY_ENGINE_VERSION = 'chem/0.7.7';
 /**
  * Whether the chemistry semantics themselves changed in the 0.7.0 correction.
  *
@@ -6501,10 +6530,11 @@ function runIdentity(chemistryEnabled) {
  * Owner-authorised canopy correction. The suite's semantics changed, so a
  * result recorded under gates/0.4.0 is not comparable without re-running.
  *
- * gates/0.7.4 covers the current suite through G39 with split conservation
- * tolerances and a discriminating 1:1 H/O uptake control.
+ * gates/0.7.6 covers the current suite through G40 with split conservation
+ * tolerances, a discriminating 1:1 H/O uptake control, and the three-arm
+ * cross-organism shared-budget control.
  */
-const GATE_SUITE_VERSION = 'gates/0.7.4';
+const GATE_SUITE_VERSION = 'gates/0.7.6';
 
 exports.WORLD_ENGINE_VERSION = WORLD_ENGINE_VERSION;
 exports.CHEMISTRY_ENGINE_VERSION = CHEMISTRY_ENGINE_VERSION;
@@ -7293,8 +7323,6 @@ class World {
     /** Scratch buffers allocated once; the hot path must not allocate. */
     chemOut = new Float64Array(POOL_COUNT);
     chemExtents = new Float64Array(RX_COUNT);
-    /** Per-organism gross substrate budget; never replenished by products. */
-    chemGrossBudget = new Float64Array(POOL_COUNT);
     chemBudgetHits = new Float64Array(POOL_COUNT);
     /** Cumulative reactions whose rate was reduced by a gross budget. */
     chemBudgetLimited = 0;
@@ -10814,36 +10842,34 @@ class World {
             // per organism so a reaction that stopped firing this tick reads zero
             // instead of retaining its previous value and being reported again.
             this.chemExtents.fill(0);
-            // Gross budgets are seeded from the SAME pre-tick pool values the first
-            // reaction reads. They decrease with each realized substrate draw, but
-            // products do not refill them within this organism's tick. This prevents
-            // a produced pool from cancelling a previous draw in `out` and restoring
-            // an already-spent substrate budget.
-            for (let q = 0; q < POOL_COUNT; q++)
-                this.chemGrossBudget[q] = chem.remaining(q, cell);
+            // The gross reaction budget is owned by Chemistry and is SHARED across
+            // organisms in the same cell for the whole tick: `chem.claimGross()`
+            // reserves every realized substrate draw, and products never refill it.
+            // Seeding a per-organism array from `chem.remaining()` would let the next
+            // organism re-use the OC a previous organism's reaction returned before
+            // settle() ever ran.
             this.chemBudgetHits.fill(0);
-            const gained = runMetabolism(chem, st, slot, cell, cfg, out, this.chemExtents, this.chemGrossBudget, this.chemBudgetHits);
+            const gained = runMetabolism(chem, st, slot, cell, cfg, out, this.chemExtents, this.chemBudgetHits);
             for (let q = 0; q < POOL_COUNT; q++)
                 this.chemBudgetLimited += this.chemBudgetHits[q];
             // Apply the organism's NET chemical transfers exactly once.
             //
-            // CONSUMPTION IS BOOKED AS A CLAIM, not as a plain delta. `remaining()`
-            // — which every uptake path reads — accounts for claims, so without this
-            // the reactions' own substrate consumption was invisible to the organisms
-            // that ran later in the same tick. Each read the full pre-tick
-            // concentration, N organisms oversubscribed the pool N-fold, settle()
-            // clamped the CONSUMPTION to zero and the unmaterialised remainder simply
-            // vanished — while their PRODUCTS had already been credited at full
-            // value. Clamping one side of a transfer and not the other is matter
-            // creation, and it read as +80% nitrogen.
+            // PRODUCTS ARE APPLIED; CONSUMPTION IS ALREADY RESERVED.
+            //
+            // `reactionExtent` books every substrate draw through
+            // `chem.claimGross()` the moment the extent is realized, into the same
+            // `claimed` array assimilation uses. So the gross substrate reservation
+            // is already visible to every later reaction and every later uptake in
+            // this cell this tick, and claiming the net delta again here would debit
+            // the budget twice. The FIELD, however, must still receive the net delta:
+            // for a same-pool reaction the returned fraction is real product and has
+            // to come back, which is why `out` is applied whole and only the
+            // reservation is one-sided.
             for (let q = 0; q < POOL_COUNT; q++) {
                 const v = out[q];
                 if (v === 0)
                     continue;
-                if (v < 0)
-                    chem.claim(q, cell, -v);
-                else
-                    chem.react(q, cell, v);
+                chem.react(q, cell, v);
             }
             // Evidence: record the extent each reaction actually executed, taken from
             // the transfers it wrote rather than from its presence in the genome.

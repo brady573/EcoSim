@@ -17,6 +17,7 @@
  */
 import { existsSync, readFileSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -1354,13 +1355,32 @@ for (const [wfPath, label] of [
   const inv = readFileSync(join(root, 'EVIDENCE-INVENTORY.md'), 'utf8');
   const rows = inv.split('\n').filter((l) => l.includes('`ts-evo-poc/') && l.includes('chem/'));
   const currentRows = rows.filter((l) => l.includes('**CURRENT**'));
-  const identityOk = currentRows.length === 1 && currentRows[0].includes(`\`${current}\``);
+  const identityStrings = rows.map((l) => (l.split('|')[1] ?? '').trim()).filter(Boolean);
+  const dupes = identityStrings.filter((x, i) => identityStrings.indexOf(x) !== i);
+  const identityUnique = dupes.length === 0;
+  const identityOk = identityUnique
+    && currentRows.length === 1 && currentRows[0].includes(`\`${current}\``);
   const paths = [...inv.matchAll(/`(evidence\/[^`]+\.(?:txt|md|html))`/g)].map((m) => m[1]);
   const missing = [...new Set(paths)].filter((rel) => !existsSync(join(root, rel)));
-  check('W9-identity', 'inventory has exactly one CURRENT chemistry identity matching version.ts', identityOk,
-    `current=${current} currentRows=${currentRows.length} ${identityOk ? '' : 'MISMATCH'}`);
+  check('W9-identity', 'inventory has exactly one CURRENT chemistry identity, no duplicate rows, matching version.ts', identityOk,
+    `current=${current} currentRows=${currentRows.length} unique=${identityUnique}`
+    + ` ${identityOk ? '' : 'MISMATCH' + (dupes.length ? ` DUPES:${[...new Set(dupes)].join(',')}` : '')}`);
   check('W9-evidence-paths', 'every evidence path cited by the inventory exists', missing.length === 0,
     missing.length === 0 ? `${new Set(paths).size} referenced paths exist` : `MISSING: ${missing.join(', ')}`);
+}
+
+// ---------------------------------------------------------------------------
+// W10 — verdict-document figures must come from the CURRENT raw panel.
+//
+// A stale figure quoting a retired evidence panel has been the recurring
+// provenance failure here. Each declared figure names its raw file, so the
+// check fails loudly if either the raw panel or the doc moves without the other.
+// ---------------------------------------------------------------------------
+{
+  const r = spawnSync(process.execPath, [join(root, 'scripts', 'check-doc-figures.mjs')], { encoding: 'utf8' });
+  const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
+  const last = out.trim().split('\n').filter(Boolean).pop() ?? 'no output';
+  check('W10-doc-figures', 'verdict-doc figures match the current raw panel, and the panel carries the current identity', r.status === 0, last);
 }
 
 // ===========================================================================

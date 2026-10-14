@@ -142,6 +142,15 @@ Required before a change is considered done:
    workflows. Gates prove a *run* is sound; these prove the layer that reports
    the run cannot report a measurement it did not take.
 
+   W9 and W10 cover provenance specifically. W9 asserts the evidence inventory
+   has exactly one CURRENT chemistry identity, matching `version.ts`, with no
+   duplicate rows, and that every `evidence/` path it cites exists. W10 asserts
+   every declared verdict figure is present in the CURRENT raw panel *and* in
+   the document that quotes it. Stale figures lifted from a retired panel are
+   the recurring failure here, so they are checked mechanically rather than by
+   rereading. Adding a figure means adding a case to
+   `scripts/check-doc-figures.mjs`.
+
 ### The evidence layer is not the engine
 
 `tools/ladder/`, `tools/diagnostics/` and `scripts/` produce and report
@@ -283,6 +292,14 @@ tested the helper and not the world. Four more rules follow from that:
   Expressed traits rise with age and then FALL BACK as energy cannot sustain
   them. A begin/end comparison on one organism reads "unchanged" while
   development plainly happened in between (G21, G23).
+- **Quote the figure's panel, not the panel's predecessor.** A verdict table is
+  only current if the current raw panel measures that quantity. The
+  three-guild coexistence and generation-depth tables were carried across
+  several identities before being re-measured under `chem/0.7.7`, and the
+  chemistry-OFF decomposer figure moved from 6/10 to 2/10 when it finally was.
+  `scripts/chem-cohort.mjs` now emits per-guild births and generation depth so
+  the headline claims are measured, and W10 pins each of those figures to the
+  panel that produced it.
 - **A population difference between knob-set and knob-unset arms is not
   evidence of biology.** Enabling the knob draws extra randomness, so the arms
   diverge on the stochastic trajectory before anything is compared. This
@@ -324,11 +341,25 @@ the identity).
   into legacy starvation. The contract is satisfied for the decision and not for
   the organism; stated here because the original defect exploited exactly that
   ambiguity.
-- **Chemistry reaction allocation uses a gross per-organism substrate budget.**
-  Each realized reaction draw decrements the budget; products do not refill it
-  within the same organism tick. Fixed `REACTIONS` order is the declared
-  deterministic priority rule. G37 proves the budget binds in a live world and
-  settlement clamping remains within its limit.
+- **Chemistry reaction allocation uses one gross per-cell substrate budget for
+  the whole tick.** `reactionExtent()` books every realized substrate draw
+  through `chemistry.claimGross()`, which writes into the SAME `claimed`
+  reservation array assimilation uses — so reactions and uptake share a single
+  pre-tick snapshot budget across every organism in the cell. Products never
+  refill it. The FIELD still receives the net delta (a same-pool reaction's
+  returned fraction is real product); only the reservation is one-sided.
+  Fixed `REACTIONS` order is the declared deterministic priority rule.
+
+  G37 proves the budget binds in a live world and clamping stays within limit.
+  G40 is the discriminating control with O2 = 0 (anaerobic family, OC return
+  0.45), and non-vacuity is witnessed by realized reaction EXTENT rather than
+  energy because anaerobic decomposition is a zero-energy service reaction:
+  (A) tight two-organism/one-cell, aggregate gross draw equals the 0.02 start by
+  near-equality — 0.029 under a net-only budget; (B) roomy OC = 10 so the second
+  organism still realizes extent 0.0450, proving the budget is shared rather
+  than exclusive; (C) after a reaction reserves its draw, the OC visible to the
+  next organism's `assimilate()` is 0, so uptake cannot re-take the returned
+  fraction.
 - **H/O are tracked at the declared reservoir boundary, not molecularly.** Water
   uptake credits H and O 1:1, aerobic respiration returns H2O as the inverse of
   photosynthesis, and reservoir top-up/sink are booked as boundary fluxes. G39

@@ -1,6 +1,6 @@
 # H9/H10/H11 results under `ts-evo-poc/0.7.0`
 
-> **SUPERSEDED:** this `chem/0.7.0` panel is historical. Current results are in `PREDECLARATION-H9H10-075-RESULTS.md` under `chem/0.7.5`.
+> **SUPERSEDED:** this `chem/0.7.0` panel is historical. Current results are in `PREDECLARATION-H9H10-077-RESULTS.md` under `chem/0.7.7`.
 
 **Run:** 2026-10-13, after the Owner-authorized canopy correction.
 **Model identity:** `ts-evo-poc/0.7.0+chem/0.7.0`

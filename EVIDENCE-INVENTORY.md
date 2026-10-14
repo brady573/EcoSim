@@ -36,7 +36,9 @@ Every figure produced under `ts-evo-poc/0.6.0` was measured through that defect.
 | `ts-evo-poc/0.7.0+chem/0.7.2` | **HISTORICAL (identity superseded)** | Per-organism gross substrate budgets. |
 | `ts-evo-poc/0.7.0+chem/0.7.3` | **HISTORICAL (identity superseded)** | `freeNutrients` is an explicit booked exogenous subsidy; carbon uptake, growth ceilings and offspring gates stay physical. |
 | `ts-evo-poc/0.7.0+chem/0.7.4` | **HISTORICAL (identity superseded)** | H2O uptake credits H and O at 1:1. |
-| `ts-evo-poc/0.7.0+chem/0.7.5` | **CURRENT** | Aerobic respiration returns 0.9 H2O per extent (stoichiometric inverse of photosynthesis) instead of consuming it. Base chemistry-off behaviour is unchanged. |
+| `ts-evo-poc/0.7.0+chem/0.7.5` | **HISTORICAL (identity superseded)** | Aerobic respiration returns 0.9 H2O per extent. |
+| `ts-evo-poc/0.7.0+chem/0.7.6` | **HISTORICAL (identity superseded)** | Gross reaction budget moved into Chemistry and shared across organisms. |
+| `ts-evo-poc/0.7.0+chem/0.7.7` | **CURRENT** | `claimGross()` books into the SAME `claimed` array assimilation uses, so reactions and uptake share ONE per-cell snapshot budget, and the reaction's net delta is no longer claimed a second time. Base chemistry-off behaviour is unchanged. |
 
 ## 2. Parity pins (knobs unset, 500 ticks, contract probe)
 
@@ -60,34 +62,34 @@ Repeat runs of the new pins are byte-identical on this runtime.
 `evidence/chem-predation-knob-070-20261013.txt`,
 `evidence/chem-predation-knob-10seed-20261013.txt`, and
 `evidence/chem-predation-knob-gd3-10seed-20261013.txt`, the `-072-`
-and `-073-` panels are intermediate `chem/0.7.0`–`chem/0.7.3` provenance only. Current panels end in `-075-` and run under `chem/0.7.5`.
+and `-073-` panels are intermediate `chem/0.7.0`–`chem/0.7.3` provenance only. Current panels end in `-077-` and run under `chem/0.7.7`.
 
 ## 3. Pre-registered results — `PREREGISTRATION.md`
 
-| Hypothesis | 0.6.0 result | Status | Current status (`chem/0.7.5`) |
+| Hypothesis | 0.6.0 result | Status | Current status (`chem/0.7.7`) |
 |---|---|---|---|
-| H1 nutrient vs energy limitation | SUPPORTED, 3235:1, 10/10 seeds | **HISTORICAL** | **CURRENT** — SUPPORTED, median 1549.7:1, 10/10 seeds (`PREREGISTRATION-070-RESULTS.md`) |
+| H1 nutrient vs energy limitation | SUPPORTED, 3235:1, 10/10 seeds | **HISTORICAL** | **CURRENT** — SUPPORTED, median 1593.4:1, 10/10 seeds (`PREREGISTRATION-070-RESULTS.md`) |
 | H2 nutrients gate reproduction | SUPPORTED, 10/10 vs 0/10 | **HISTORICAL** | **CURRENT** — SUPPORTED, births nonzero 10/10 with nutrients, exactly 0 on 10/10 without |
 | H3 anaerobic opportunity | FALSIFIED, 0/10 | **HISTORICAL** | **CURRENT** — FALSIFIED again, all three reactions zero 10/10, hypoxia identically 0 |
 | H4 chemosynthesis | PARTIAL | **HISTORICAL** | **CURRENT** — PARTIAL again, iron oxidation nonzero 10/10, sulfur oxidation zero 10/10 |
-| H5 capability heritability | SUPPORTED, 8/10 | **HISTORICAL** | **CURRENT but not supported** — segregated on only 5/10 seeds; offspring correlation NOT MEASURED, so the registered falsification condition is unestablished |
-| H6 performance floors | SUPPORTED | **HISTORICAL** | **HISTORICAL** — the 207/404 ticks/s figures were measured under chem/0.7.0 and are not current under chem/0.7.2 |
-| H7 does not self-sustain | SUPPORTED, 10/10 declining | **HISTORICAL** | **CURRENT** (still 10/10 declining, median terminal pop 6) |
+| H5 capability heritability | SUPPORTED, 8/10 | **HISTORICAL** | **CURRENT but not supported** — segregated on only 6/10 seeds; offspring correlation NOT MEASURED, so the registered falsification condition is unestablished |
+| H6 performance floors | SUPPORTED | **HISTORICAL** | **HISTORICAL** — the 207/404 ticks/s figures were measured under chem/0.7.0 and are not current under chem/0.7.7 |
+| H7 does not self-sustain | SUPPORTED, 10/10 declining | **HISTORICAL** | **CURRENT** (still 10/10 declining, median terminal pop 8) |
 
-H1–H5 were re-measured under `ts-evo-poc/0.7.0+chem/0.7.5` on 2026-10-13; see
+H1–H5 were re-measured under `ts-evo-poc/0.7.0+chem/0.7.7` on 2026-10-13; see
 `PREREGISTRATION-070-RESULTS.md` for thresholds and raw data. The historical
 `0.6.0` verdicts above are retained as provenance and are not comparable to the
 current figures digit-for-digit.
 
 ## 4. H9/H10/H11 — `PREDECLARATION-H9H10.md`
 
-| Hypothesis | 0.6.0 result | Status | Current status (`chem/0.7.5`) |
+| Hypothesis | 0.6.0 result | Status | Current status (`chem/0.7.7`) |
 |---|---|---|---|
-| H9 organic-carbon supply | UNTESTED (lever wrong) | **HISTORICAL** | **CURRENT — UNTESTED again** (lever moved DIC 29×, OC flat; see `PREDECLARATION-H9H10-075-RESULTS.md`) |
-| H10 legacy food-web bridge | FALSIFIED | **HISTORICAL** | **CURRENT — FALSIFIED again** (detritus 266→546, pop 6→6) |
-| H11 additive | FALSIFIED | **HISTORICAL** | **CURRENT — FALSIFIED again** (7 vs 8 and 6) |
+| H9 organic-carbon supply | UNTESTED (lever wrong) | **HISTORICAL** | **CURRENT — UNTESTED again** (lever moved DIC 29×, OC flat; see `PREDECLARATION-H9H10-077-RESULTS.md`) |
+| H10 legacy food-web bridge | FALSIFIED | **HISTORICAL** | **CURRENT — FALSIFIED again** (detritus 286→572, pop 5→5) |
+| H11 additive | FALSIFIED | **HISTORICAL** | **CURRENT — FALSIFIED again** (5 vs 5 and 5) |
 
-H9–H11 were re-run under `ts-evo-poc/0.7.0+chem/0.7.5` on 2026-10-13 using the same seed panel and horizon; see `PREDECLARATION-H9H10-070.md` (pre-declaration) and `PREDECLARATION-H9H10-075-RESULTS.md`. The `chem/0.7.0` results file is historical. The `0.6.0` verdicts are
+H9–H11 were re-run under `ts-evo-poc/0.7.0+chem/0.7.7` on 2026-10-13 using the same seed panel and horizon; see `PREDECLARATION-H9H10-070.md` (pre-declaration) and `PREDECLARATION-H9H10-077-RESULTS.md`. The `chem/0.7.0` results file is historical. The `0.6.0` verdicts are
 retained as provenance.
 
 **The two inert-intervention bugs found there** (world coordinates passed to a
@@ -104,9 +106,9 @@ canopy correction does not touch. Its **population figures** are **HISTORICAL**.
 The conclusion "chemistry is not neutral" survives in direction but not in
 magnitude — see §6.
 
-## 6. Cohort comparison — current panel under `chem/0.7.5`
+## 6. Cohort comparison — current panel under `chem/0.7.7`
 
-The detailed demographic table below was measured under the now-historical `chem/0.7.0` panel and is retained as provenance. The current `chem/0.7.5` run measured base population median 6 (3–39), births median 6, chemistry-off population median 640 (391–1520), and H5 segregation 5/10. See `evidence/chem-cohort-1000-075-20261013.txt`. Under the corrected explicit-subsidy semantics, the `freeNutrients` reference arm now measures population median 5 (4–15) with births median 16, replacing the earlier gate-bypass figure as current.
+The detailed demographic table below was measured under the now-historical `chem/0.7.0` panel and is retained as provenance. The current `chem/0.7.7` run measured base population median 8 (2–36), births median 9, chemistry-off population median 640 (391–1520); median terminal population 8, and H5 segregation 6/10. See `evidence/chem-cohort-1000-077-20261013.txt`. Under the corrected explicit-subsidy semantics, the `freeNutrients` reference arm measures population median 26 (9–182) with births median 62 — the largest response in the matrix, and an explicitly booked exogenous subsidy, not a gate bypass.
 
 ### Historical detailed table under `chem/0.7.0`
 
@@ -142,21 +144,33 @@ qualitative conclusion — chemistry is not neutral, and is worse — **survives
 unchanged in direction**. No claim of ecological improvement is made, and none
 should be inferred from the absolute decrease.
 
-### Three-guild coexistence — the question this PR exists to answer
+### Three-guild coexistence — measured under `chem/0.7.7`
 
-- **chemistry ON**: decomposer births `0` on **10 of 10 seeds** (was 9 of 10).
-- **chemistry OFF**: decomposer births present on 6 of 10 seeds.
+Per-guild births are measured by `scripts/chem-cohort.mjs` (10 seeds, 1000 ticks):
 
-**Unchanged in direction and now measured under the corrected engine.** Chemistry
-does not solve the three-guild coexistence shortfall; it removes the decomposer
-guild from reproduction. This is the headline result and it did **not** depend on
-the canopy defect.
+| arm | producer births | consumer births | decomposer births |
+|---|---:|---:|---:|
+| chemistry ON (`base`) | 8/10 | 4/10 | **0/10** |
+| chemistry OFF | 10/10 | 10/10 | **2/10** |
 
-### Generations
+Chemistry does not solve the three-guild coexistence shortfall: with chemistry
+on the decomposer guild does not reproduce on any seed, and without it only two
+seeds reproduce at all. The DIRECTION survives from the retired panels, but the
+magnitude moved — chemistry-OFF decomposer reproduction is 2/10 under
+`chem/0.7.7`, not the 6/10 quoted in the historical table below. This is a
+current measurement, not a carried-over claim.
 
-Maximum generation depth 1 (chem ON) / 3 (chem OFF); mean depth 0.02–0.08;
-reproduction 95%+ asexual. No arm demonstrates sustained multi-generation
-inheritance at 1000 ticks. **Same conclusion as under 0.6.0**, now re-measured.
+### Generations — measured under `chem/0.7.7`
+
+| arm | asexual births | sexual births | max generation depth | mean live depth |
+|---|---:|---:|---:|---:|
+| chemistry ON | 166 | 4 | 1 | 0.012 |
+| chemistry OFF | 2787 | 52 | 3 | 0.033 |
+
+Reproduction is 97.6% asexual with chemistry on and 98.2% with it off. Sexual
+recombination occurs on a minority of seeds and does not persist: no arm
+sustains a recombined lineage at 1000 ticks. **Same conclusion as under 0.6.0,
+now measured on the current panel.**
 
 ## 7. Gates exposed by the correction
 
@@ -200,7 +214,7 @@ Unchanged by this correction and **not** addressed by it:
   deposit and the lookup shared the SAME wrong convention (swapped axes, say)
   both would agree and the test would pass. The capture half is what closes that
   hole, because it exercises deposit → lookup → ledger.
-- H1–H5 and H9–H11 verdicts were re-measured under `chem/0.7.5`; older
+- H1–H5 and H9–H11 verdicts were re-measured under `chem/0.7.7`; older
   0.7.0/0.7.1 figures remain historical provenance.
 
 ## 10. Defect found during the correction review
@@ -219,7 +233,7 @@ the sources. `src/**/*.js` is now in `.gitignore` and those files are removed
 from the index. They were left **on disk**, so nothing is destroyed and they can
 be regenerated by the build.
 
-## 10. Chemistry accounting extension (current identity `chem/0.7.5`) (G36 — current semantics)
+## 11. Chemistry accounting extension (current identity `chem/0.7.7`) (G36 — current semantics)
 
 Before this extension, chemistry-on `residualPct` values printed in any
 chemistry-on diagnostic/ladder log were computed without the ledger-level
@@ -231,4 +245,4 @@ runs already fell within tolerance, and the corrected base arm is now 0.00011%).
 - Old residual percentages must not be quoted as current without noting the
   new identity.
 - `G33` remains an income-share measurement only, unchanged in definition;
-  its figure is **8.388%** under `0.7.0+chem/0.7.5` (see same evidence file).
+  its figure is **8.388%** under `0.7.0+chem/0.7.7` (see same evidence file).

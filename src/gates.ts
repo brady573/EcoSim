@@ -34,11 +34,13 @@ import { OrganismStore } from './core/soa.js';
 import type { Phenotype } from './bio/phenotype.js';
 import { Rng } from './core/rng.js';
 import { INTENT } from './world/world.js';
-import { REACTIONS, CAP } from './bio/metabolism.js';
+import { REACTIONS, CAP, CAP_COUNT } from './bio/metabolism.js';
+
 import { runIdentity, CHEMISTRY_ENGINE_VERSION } from './world/version.js';
 import { E_RUNTIME_COUNT, E } from './bio/elements.js';
 import {
-  DEFAULT_CHEM_CONFIG, assimilate, canAffordOffspring, grow, newChemStores, transferPredationMatter,
+  DEFAULT_CHEM_CONFIG, assimilate, canAffordOffspring, grow, newChemStores,
+  runMetabolism, transferPredationMatter,
 } from './bio/chemlife.js';
 import { Chemistry, DEFAULT_CHEMISTRY, POOL, POOL_RT } from './world/chemistry.js';
 
@@ -2298,6 +2300,111 @@ function gate39(): void {
     + ` | claimed=${claimed} storeH=${st.stores[E.H]} storeO=${st.stores[E.O]}`);
 }
 
+/**
+ * G40 — one per-cell snapshot budget covers reactions AND uptake.
+ *
+ * DISCRIMINATING two-organism negative control on a same-pool reaction, run
+ * with O2 = 0 so the ANAEROBIC family is selected: anaerobic decomposition
+ * draws 1 OC and returns 0.45, so its net draw hides 45% of the gross draw. If
+ * the budget were NET, organism 1 would reserve only its net OC depletion and
+ * organism 2 would be offered the 0.45 it just returned, pushing the AGGREGATE
+ * gross draw to 0.029 against a 0.02 cell.
+ *
+ * Three arms:
+ *   A tight (OC = 0.02) — near-equality to the start, so a fully blocked
+ *     second organism cannot pass.
+ *   B roomy (OC = 10)  — both organisms act, so the budget is shared, not
+ *     exclusive.
+ *   C reaction then uptake — after a reaction reserves its gross draw, the OC
+ *     visible to the next organism's `assimilate()` is 0.
+ */
+function gate40(): void {
+  // O2 = 0 selects anaerobic decomposition, the clearest same-pool reaction:
+  // it draws 1 OC and returns 0.45 OC, so its NET draw hides 45% of the draw.
+  // Under a NET-only budget the second organism would be offered that returned
+  // OC before settle(), and the AGGREGATE gross draw would exceed the cell.
+  const runPair = (startOC: number) => {
+    const chem = new Chemistry(1, 1, 1, DEFAULT_CHEMISTRY);
+    chem.fields[POOL.OC].data[0] = startOC;
+    // O2 = 0 selects ANAEROBIC decomposition, whose OC return (0.45) is the
+    // same-pool case the control is about. DEFAULT_CHEMISTRY seeds O2 = 0.9,
+    // which would select the aerobic family (OC return 0.30) instead.
+    chem.fields[POOL.O2].data[0] = 0;
+    chem.fields[POOL.ON].data[0] = 100;
+    chem.fields[POOL.OP].data[0] = 100;
+    chem.fields[POOL.OS].data[0] = 100;
+    const st = newChemStores(2);
+    for (let slot = 0; slot < 2; slot++) {
+      st.capMask[slot] = CAP.AEROBIC;
+      st.capStrength[slot * CAP_COUNT + 1] = 1; // CAP.AEROBIC = 1 << 1
+    }
+    const cfg = { ...DEFAULT_CHEM_CONFIG, enabled: true };
+    const out = new Float64Array(POOL_RT.H2O + 1);
+    const ext = new Float64Array(REACTIONS.length);
+    const before = chem.grossDrawnTotal[POOL.OC];
+    // Anaerobic decomposition is a SERVICE reaction: its `energy` is 0.0 by
+    // design, so energy cannot prove it ran. The realized reaction EXTENT is
+    // the non-vacuity witness.
+    runMetabolism(chem, st, 0, 0, cfg, out, ext);
+    const x0 = Array.from(ext).reduce((a, b) => a + b, 0);
+    for (let q = 0; q < POOL_RT.H2O + 1; q++) if (out[q] !== 0) chem.react(q, 0, out[q]);
+    out.fill(0);
+    ext.fill(0);
+    runMetabolism(chem, st, 1, 0, cfg, out, ext);
+    const x1 = Array.from(ext).reduce((a, b) => a + b, 0);
+    return { e0: x0, e1: x1, aggregate: chem.grossDrawnTotal[POOL.OC] - before, startOC };
+  };
+
+  // A: budget binds. The shared snapshot must not be exceeded in aggregate.
+  const tight = runPair(0.02);
+  // NEAR-EQUALITY, not `<=`: the budget must be EXACTLY exhausted. A plain
+  // upper bound would also pass if the second organism were blocked outright
+  // and never drew at all.
+  const tightOk = tight.e0 > 0 && Math.abs(tight.aggregate - tight.startOC) < 1e-9;
+  // B: budget has room. The budget is shared, not exclusive: the second
+  // organism still acts once the first organism's draw is reserved.
+  const roomy = runPair(10);
+  const roomyOk = roomy.e0 > 0 && roomy.e1 > 0 && roomy.aggregate > 0;
+  // C: reaction then uptake. The substrate a reaction reserved must also be
+  // invisible to a LATER organism's assimilation in the same tick. Under a
+  // budget that only guarded reaction-vs-reaction, this uptake would be handed
+  // the returned OC fraction.
+  const mix = new Chemistry(1, 1, 1, DEFAULT_CHEMISTRY);
+  mix.fields[POOL.OC].data[0] = 0.02;
+  mix.fields[POOL.O2].data[0] = 0;
+  mix.fields[POOL.ON].data[0] = 100;
+  mix.fields[POOL.OP].data[0] = 100;
+  mix.fields[POOL.OS].data[0] = 100;
+  const mst = newChemStores(2);
+  for (let slot = 0; slot < 2; slot++) {
+    mst.capMask[slot] = CAP.AEROBIC;
+    mst.capStrength[slot * CAP_COUNT + 1] = 1;
+  }
+  const mcfg = { ...DEFAULT_CHEM_CONFIG, enabled: true };
+  const mout = new Float64Array(POOL_RT.H2O + 1);
+  const ocBefore = mix.grossDrawnTotal[POOL.OC];
+  const mext = new Float64Array(REACTIONS.length);
+  runMetabolism(mix, mst, 0, 0, mcfg, mout, mext);
+  const me = Array.from(mext).reduce((a, b) => a + b, 0);
+  for (let q = 0; q < POOL_RT.H2O + 1; q++) if (mout[q] !== 0) mix.react(q, 0, mout[q]);
+  // Organism 2 ASSIMILATES. If the reaction's gross reservation leaked, it
+  // would see 0.02 - net(=0.011) and take part of the returned fraction.
+  const demand = new Float64Array(E.COUNT);
+  demand[E.C] = 1;
+  const availForUptake = mix.remaining(POOL.OC, 0);
+  assimilate(mix, mst, 1, 0, mcfg, demand);
+  const mixOk = me > 0
+    && Math.abs((mix.grossDrawnTotal[POOL.OC] - ocBefore) - 0.02) < 1e-9
+    && availForUptake <= 1e-12
+    && mst.stores[E.COUNT * 1 + E.C] <= 1e-12;
+
+  const pass = tightOk && roomyOk && mixOk;
+  record('G40', 'cross-organism gross draws obey the shared one-snapshot cell budget', pass,
+    `tight OC=${tight.startOC}: org1 extent=${tight.e0.toFixed(4)} aggregateGross=${tight.aggregate.toFixed(6)} (limit ${tight.startOC})`
+    + ` | roomy OC=${roomy.startOC}: org1 extent=${roomy.e0.toFixed(4)} org2 extent=${roomy.e1.toFixed(4)} aggregate=${roomy.aggregate.toFixed(4)}`
+    + ` | reaction-then-uptake: available=${availForUptake.toFixed(9)} taken=${mst.stores[E.COUNT * 1 + E.C].toFixed(9)}`);
+}
+
 function main(): void {
   console.log(`=== credibility gates :: ${WORLD_ENGINE_VERSION} ===`);
   console.log(`scenario: founders=${SMALL.founders} world=${SMALL.worldW}x${SMALL.worldH} ticks=${TICKS} seed=${SMALL.seed}\n`);
@@ -2339,6 +2446,7 @@ function main(): void {
   gate37();
   gate38();
   gate39();
+  gate40();
 
   const failed = results.filter((r) => !r.pass);
   console.log(`\n${results.length - failed.length}/${results.length} checks passed`);

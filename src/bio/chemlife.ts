@@ -320,7 +320,6 @@ export function runMetabolism(
   cfg: ChemConfig,
   out: Float64Array,
   extentOut?: Float64Array,
-  grossBudget?: Float64Array,
   budgetHits?: Float64Array,
 ): number {
   const mask = st.capMask[slot];
@@ -335,7 +334,7 @@ export function runMetabolism(
     // its stoichiometry says.
     const strength = capStrengthAt(st, slot, r.cap);
     if (strength <= 0) continue;
-    const extent = reactionExtent(r, chem, cell, strength, out, st.light[slot], grossBudget, budgetHits);
+    const extent = reactionExtent(r, chem, cell, strength, out, st.light[slot], budgetHits);
     if (extent <= 0) continue;
     // `out` accumulates NET transfers for the whole organism and is applied
     // ONCE by the caller.

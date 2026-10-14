@@ -5764,16 +5764,18 @@ Invariants added:
   new chemistry slots out of bounds.
 
 Current diagnostic cohort: 10 seeds, 1000 ticks, 400 founders, post-hoc, under
-`ts-evo-poc/0.7.0+chem/0.7.5`. Raw output:
-`evidence/chem-predation-knob-10seed-075-20261013.txt`; details:
+`ts-evo-poc/0.7.0+chem/0.7.7`. Raw output:
+`evidence/chem-predation-knob-10seed-077-20261013.txt`; details:
 `CHEM-PREDATION-KNOB-DIAGNOSTICS.md`.
 
-  base              pop med 6    births med 6    matter carbon 0.0000
-  predationMatter   pop med 8    births med 9    matter carbon 7.0149 mol
+  base              pop med 8    births med 9    matter carbon 0.0000
+  predationMatter   pop med 9    births med 9    matter carbon 5.9226 mol
 
-Sexual births and generation depth: base 0 sexual births, mean generation depth
-0.000; predationMatter 4 sexual births, mean generation depth 0.028. The
-ride-along does not establish sustained multi-generation inheritance.
+Sexual births: base 4 (seed 8080), predationMatter 6 (seeds 517, 8080). Sexual
+recombination occurs but does not persist: no arm sustains a recombined lineage
+at 1000 ticks. Population response is mixed (4 seeds up, 4 down, 2 unchanged);
+the largest regression (seed 8080, 33 -> 19) is the base arm's only sexual
+lineage.
 
 This is not claimed to rescue the ecosystem or demonstrate a full food web. It
 demonstrates a conservation-safe prey-to-predator matter-transfer mechanism as
@@ -5793,7 +5795,7 @@ reactions > 0) while cumulative settlement clamping stays below its limit.
 Chemistry-off parity is unchanged. Chemistry-on cohort and intervention evidence
 was re-run under this identity; older chemistry panels remain historical.
 
-## Explicit `freeNutrients` subsidy — `chem/0.7.5`
+## Explicit `freeNutrients` subsidy — `chem/0.7.7`
 
 `freeNutrients` no longer forces the growth ceiling or bypasses the offspring
 nutrient gate. H/O/N/P/S/Fe stores are topped up to the physical assimilation
@@ -5804,7 +5806,7 @@ organism still has to assimilate organic carbon from its cell.
 G38 proves the subsidy is non-zero, produces real tissue, and keeps C/N/P/S/Fe
 within the declared conservation tolerance. Chemistry-off parity is unchanged.
 
-## Water oxygen correction — `chem/0.7.5`
+## Water oxygen correction — `chem/0.7.7`
 
 H2O uptake previously debited the water reservoir for both hydrogen and oxygen
 but credited only the tissue's 0.5 O:H ratio, destroying half the oxygen claimed.
@@ -5813,10 +5815,74 @@ oxygen returns through the declared reservoir sink at death. G39 measures live
 H and O residuals at 0.00298% and 0.01253%, both inside the 0.5% declared limit,
 and a synthetic control proves one claimed H2O mole credits exactly one H and one O.
 
-## Aerobic respiration water balance — `chem/0.7.5`
+## Aerobic respiration water balance — `chem/0.7.7`
 
 Aerobic respiration is now the stoichiometric inverse of photosynthesis: it
 consumes OC + 0.2 O2 and RETURNS 1 DIC + 0.9 H2O. It previously listed 0.9
 H2O as a substrate while its own comment claimed the inverse, destroying water
 every time organic matter was respired. Live H/O residuals fall to 0.00298% and
 0.01253% respectively under G39.
+
+## Shared one-snapshot substrate budget — `chem/0.7.7`
+
+`chemistry.claimGross()` books every realized reaction substrate draw into the
+SAME `claimed` reservation array assimilation uses, so there is ONE snapshot
+budget per cell per tick for reactions AND uptake. A same-pool reaction such as
+anaerobic decomposition (1 OC drawn, 0.45 OC returned) previously let the NEXT
+organism — by reaction OR by uptake — re-use the returned OC before `settle()`
+ran, because the budget was reseeded from a NET remaining figure.
+
+The reaction's net delta is no longer claimed a second time: that double-debit
+made the budget bind roughly 35% early for anaerobic-style (net/gross ~0.55)
+mixes. The FIELD still receives the net delta — a same-pool reaction's returned
+fraction is real product — so only the RESERVATION is one-sided.
+
+G40 is the discriminating control, all with O2 = 0 so the anaerobic family is
+selected (DEFAULT_CHEMISTRY seeds O2 = 0.9 and would pick the aerobic 0.30 return):
+
+- **A, tight** (two organisms, one cell, OC = 0.02): organism 1 realizes extent
+  0.0200 and the aggregate gross draw is 0.020000 — asserted as NEAR-EQUALITY to
+  the starting inventory, so a fully blocked second organism cannot pass it.
+  Under a net-only budget the same control computes 0.029, which exceeds the
+  start. Non-vacuity is witnessed by realized reaction EXTENT, not energy:
+  anaerobic decomposition is a service reaction whose energy credit is 0.0.
+- **B, roomy** (OC = 10): both organisms realize extent 0.0450, so the budget is
+  shared rather than exclusive.
+- **C, reaction then uptake**: after organism 1's reaction reserves the gross
+  draw, the OC visible to organism 2's `assimilate()` is 0. It cannot re-take the
+  returned fraction.
+
+## Mechanical doc/evidence provenance guard — `gates/0.7.6`
+
+Stale figures lifted from a retired evidence panel have been this repository's
+recurring provenance failure: 0.5.0, 0.6.0, and `chem/0.7.2` each had at
+least one verdict quoted from a panel that no longer described the live engine.
+Rereading did not catch it; two independent reviews did.
+
+`scripts/check-doc-figures.mjs` now declares each verdict figure against a named
+raw file and asserts it is present in BOTH the raw panel and the document that
+quotes it. It runs as W10 in the workflow fixtures, and W9 asserts the inventory
+has exactly one CURRENT chemistry identity matching `version.ts` with no
+duplicate rows and that every cited `evidence/` path exists. At the time of
+writing the guard reports 17/17 figures matching the `chem/0.7.7` `-077-` panel.
+
+## Three-guild coexistence and generation depth re-measured — `chem/0.7.7`
+
+The three-guild coexistence and generation-depth tables had been carried across
+several chemistry identities without a current measurement behind them. The
+cohort runner now emits per-guild births, reproduction pathway and generation
+depth, and the panel was re-run under `chem/0.7.7`.
+
+| arm | producer | consumer | decomposer | asexual | sexual | max gd | mean gd |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| chemistry ON | 8/10 | 4/10 | 0/10 | 166 | 4 | 1 | 0.012 |
+| chemistry OFF | 10/10 | 10/10 | 2/10 | 2787 | 52 | 3 | 0.033 |
+
+Direction survives; magnitude did not. Chemistry-OFF decomposer reproduction is
+2/10 here, against the 6/10 quoted in the retired panels. Reproduction is 97.6%
+asexual with chemistry on and 98.2% with it off, and no arm sustains a recombined
+lineage at 1000 ticks.
+
+The re-run panel is a strict SUPERSET of the previous `-077-` panel: every
+pre-existing line is byte-identical and the guild section is additive, which
+also re-confirms determinism across the runner change.
