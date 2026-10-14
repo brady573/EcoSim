@@ -334,18 +334,17 @@ the identity).
   the legacy web. The `chemistryToLegacyDetritus` diagnostic bridges them and is
   how that separation was measured.  Enabling it now converts the chemical
   labile/litter pool into legacy detritus and books the same amount as
-  `recordOrganicInput`, i.e. as exogenous organic input to the legacy loop (not
-  as reuse of already-accounted energy).  Arms now differ on `injectOrganic`,
-  which G36 confirms.
-- **The same coarse-canopy defect survives in the LEGACY light path**, at
-  `src/world/world.ts` in the photosynthesis block: `shadeMass` is coarse
-  (`shadeCols × shadeRows`, grain 4) but is indexed with a full-resolution
-  substrate index, so Beer-Lambert self-shading is disabled across most of the
-  world there. The chemistry path was fixed; this one was deliberately NOT, because
-  the parity pins were measured with it and fixing it changes declared behaviour.
-  It is a parity re-pin decision, not a bugfix, and it is the Owner's to make.
-  Until then, the canopy does not bind producer income in the legacy path, and the
-  density dependence the comment above it describes is largely not happening.
+  `recordOrganicInput`, i.e. as an **exogenous** organic import on the
+  legacy side. It does **not** debit any chemistry pool. That is deliberate: the
+  bridge is a diagnostic subsidy/parallel accounting path, not a conserved
+  transfer, and it must not be read as proof that matter has physically
+  crossed between economies. Arms differ on `injectOrganic`, which G36 verifies.
+- **Coarse-canopy status: SUPERSEDED.** The legacy
+  photosynthesis path's use of the coarse `shadeMass` array was corrected
+  under the Owner-authorized canopy correction, and parity pins were
+  re-pinned. Do not describe the defect as "surviving" as a current declared
+  limit; any historical reference to it is provenance evidence. See
+  `REPORT.md`/`EVIDENCE-INVENTORY.md` for the correction chain.
 - **Consequently**: this repository has NOT demonstrated a fully integrated
   food web. It has demonstrated a balanced chemistry subsystem coupled to the
   legacy ecosystem at the organism, not at the meal.

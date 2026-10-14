@@ -10,7 +10,7 @@ scenario: founders=300 world=2000x2000 ticks=250 seed=4242
 [PASS] G2 finite / valid state
          73,259 organism-states and 625,000 field-cells checked, 0 violations
 [PASS] G3 causal resource accounting
-         identity capture+organic+founding == biomass+detritus+dissipated. Worst |residual| = 0.00003% at tick 250 (tolerance 0.5%). Final: capture=4806.5 organicInput=0.0 founding=28034.3 => totalInput=32840.8; biomass=4332.2 detritus=41.7 dissipated=15176.7 => accounted=19550.7. Dissipation split: basal=10778 move=208 sense=1482 contest=3 repro=44 mineralised=8 spoiled=2 unassimilated=2652
+         identity capture+organic+founding+chemicalIncome == biomass+detritus+dissipated+chemicalSpent. Worst |residual| = 0.00003% at tick 250 (tolerance 0.5%). Final: capture=4806.5 organicInput=0.0 founding=28034.3 => totalInput=32840.8; biomass=4332.2 detritus=41.7 dissipated=15176.7 => accounted=19550.7. Dissipation split: basal=10778 move=208 sense=1482 contest=3 repro=44 mineralised=8 spoiled=2 unassimilated=2652
 [PASS] G4 consistent births and deaths
          population == founders(300) + births(59) - deaths(77) == 282 at every one of 250 ticks
 [PASS] G4b death cause attribution
@@ -84,7 +84,7 @@ scenario: founders=300 world=2000x2000 ticks=250 seed=4242
 [PASS] G31 death recycles tissue to the correct pools
          tissue 1.8964 mol -> labile +0.2938, litter +0.0059 (burial 0.001), total returned +0.2998
 [PASS] G32 chemistry runs under a distinct experimental identity
-         knob off "ts-evo-poc/0.7.0" | knob on "ts-evo-poc/0.7.0+chem/0.7.0" | state digests 9100d5dd vs 5c45881b
+         knob off "ts-evo-poc/0.7.0" | knob on "ts-evo-poc/0.7.0+chem/0.7.1" | state digests 9100d5dd vs 5c45881b
 [PASS] G33 chemical energy share is measured from a single-record ledger
          chemical income 2084.6 / (legacy 23196 + chemical) = 8.246% | charged 155.8 (declared scope: G33 is an income-share measurement; G36 runs chemistry through the causal ledger. Chemical biomass remains a separate mass book; ceiling 10%)
 [PASS] G34 canopy lookup is spatially correct and reaches capture

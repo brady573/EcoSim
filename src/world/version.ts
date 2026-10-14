@@ -77,12 +77,14 @@ export const WORLD_ENGINE_VERSION = 'ts-evo-poc/0.7.0';
  * same failure in a new place, and it would be invisible to any consumer that
  * reads only the version.
  *
- * Bumped to 0.7.0 for the chemistry semantics as they now stand: conservation
- * accounting closed, photosynthesis gated on local light, chemical energy
- * income and growth expenditure booked, detrital sulfur aligned to tissue
- * stoichiometry.
+ * Bumped to 0.7.0 for the keyed accounting semantics (conservation accounting closed,
+ * photosynthesis gated on local light, detrital sulfur aligned to tissue stoichiometry).
+ *
+ * chem/0.7.1 adds the causal energy reconciliation, H/O death release,
+ * and the diagnostic bridge ledger booking. These are accounting-identity changes
+ * while preserving chemistry-off runs, so it is a chemistry-component bump.
  */
-export const CHEMISTRY_ENGINE_VERSION = 'chem/0.7.0';
+export const CHEMISTRY_ENGINE_VERSION = 'chem/0.7.1';
 
 /**
  * Whether the chemistry semantics themselves changed in the 0.7.0 correction.
