@@ -992,9 +992,20 @@ let inspectorWasShown = false;
 
 function layoutFit(): void {
   inspectorWasShown = (document.getElementById('inspect') as HTMLElement).style.display !== 'none';
+  // Corner-fit geometry must be measured AS IF corner were active. Once dock
+  // engages, the controls stretch full-bleed, so measuring cW/sW in dock state
+  // makes topRowFits fail forever and dock becomes sticky — the corner layout
+  // becomes unreachable even after the inspector closes, at sizes (e.g.
+  // 1280x800 laptops) where corner genuinely fits. Forcing the attribute to
+  // 'corner' for the measurement removes that feedback loop; the flip happens
+  // synchronously within this task, so the browser never paints the
+  // intermediate state. Phone widths are unaffected: vw <= 640 forces dock
+  // regardless of the measured fit, and the mobile media query does not depend
+  // on the attribute.
+  const root = document.documentElement;
+  root.setAttribute('data-layout', 'corner');
   const vw = window.innerWidth;
   const vh = window.innerHeight;
-  const gap = parseFloat(getComputedStyle(dockEl).gap) || 0;
   const cH = controlsEl.offsetHeight;
   const cW = controlsEl.offsetWidth;
 
@@ -1019,8 +1030,11 @@ function layoutFit(): void {
   document.documentElement.setAttribute('data-layout', dock ? 'dock' : 'corner');
 
   // --controls-h is only meaningful in dock mode, and only when the controls
-  // sit above the dock rather than inside it.
+  // sit above the dock rather than inside it. The dock's flex gap is only in
+  // effect once data-layout='dock' is set, so read it here, not during the
+  // corner-forced measurement above.
   if (dock) {
+    const gap = parseFloat(getComputedStyle(dockEl).gap) || 0;
     dockEl.style.setProperty('--controls-h', `${Math.round(cH + gap)}px`);
   } else {
     dockEl.style.removeProperty('--controls-h');

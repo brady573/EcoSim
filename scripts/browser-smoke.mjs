@@ -101,6 +101,10 @@ async function primary(mobile) {
       await page.locator('#btn-restart').click();
       assert.equal((await snapshot(page)).hash, initial.hash);
       await page.locator('#inspect').waitFor({ state: 'hidden' });
+      // Desktop regression: with the inspector closed again, the corner layout
+      // must come back. A sticky dock (measured while dock was active) used to
+      // make corner unreachable and covered the canvas for the next mode.
+      if (!mobile) assert.equal(await page.locator('html').getAttribute('data-layout'), 'corner');
       results.push({ test: 'primary modes, inspect, invalid seed and deterministic restart', mobile, chemistry, genome });
     }
     const canvas = await page.locator('canvas').boundingBox();
