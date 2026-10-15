@@ -1,2 +1,6 @@
-candidate-SHA=baseline-SHA=8956699fa28497993fb58fb6b455130daf778777
-candidate-SHA=70a2ad24472ba4b1245eb0d6ffa26ddd88bf7656
+baseline-SHA=8956699fa28497993fb58fb6b455130daf778777
+candidate-SHA=37561a5dcef3687239af3286b6bd0f6205ddfee1
+note: candidate is the ENGINE src identity the A/B binary was built from.
+src/world/ + src/bio/role.ts are byte-identical from 37561a5 through the
+current head (only gates/evidence/docs changed after); verify with
+`git diff 37561a5..HEAD -- src/world/ src/bio/role.ts` (empty).
