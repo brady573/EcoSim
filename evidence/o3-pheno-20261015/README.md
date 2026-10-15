@@ -30,12 +30,15 @@ Compiled build used; never `tsx` for horizons.
   11/11 contract (C1 pins 517→P882/C170/D65, 24601→P563/C279/D90 unchanged),
   154/154 workflow. See the PR body for SHAs and CI run.
 
-## Pre/post-mirror nonperturbation A/B (local cross-worktree check)
+## Pre/post-mirror nonperturbation A/B (portable replay)
 
-`ab-063-064-digest.mjs` steps the pre-mirror 0.6.3 build
-(`/root/EcoSim-issue15/build`, source 8956699) against this tree's 0.6.4 build
-with identical viability config, seeds 517/41001, 500 ticks. Device-local paths
-— NOT clean-checkout replay; the archived output is the observation:
-5 trajectory digests equal per seed, all pre-existing guild books elementwise
-identical (mismatches 0), census identical. Third nonperturbation leg alongside
-C1 pins and code inspection.
+`ab-063-064-digest.mjs` takes two build paths as argv (baseline then candidate;
+see its header for exact preparation commands) — no worktree paths baked in.
+Baseline: pristine source `8956699`; candidate: this PR head (both SHAs in
+`ab-SHAs.txt`). Archived output repeats the observation with identical
+seed/config/command (2 seeds x 500 ticks, viability): 5 trajectory digests
+equal per seed (digests cover state+RNG), all pre-existing guild books
+(excretion + biotic return families, all four books each, plus per-guild
+per-pool photo uptake) elementwise identical (mismatches 0), census identical. Non-zero exit if any
+digest or book differs. Third nonperturbation leg alongside C1 pins and code
+inspection.

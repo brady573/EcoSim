@@ -8169,4 +8169,6 @@ Measurement-only re-base 0.6.3 → 0.6.4 (same parity pair, no re-pin; gates
 0.5.0 → 0.6.0). Evidence: `evidence/o3-pheno-20261015/` (2-seed viability
 demonstration: viability 500t recalc-branch event flux ≈ 92% seed 517 —
 CONSUMER-displayed share was 42.5%, a different instrument). This is
-instrumentation, not a reliance verdict; O1/O2 remain unapproved pending gates.
+instrumentation, not a reliance verdict; O1/O2 are conditionally Owner-authorized
+(after accepted Gate 1 / Gate 2 respectively) but not implemented and not
+eligible to start until the prior gate is accepted.

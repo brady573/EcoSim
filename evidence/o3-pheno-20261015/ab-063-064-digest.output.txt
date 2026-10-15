@@ -1,2 +1,3 @@
+baseline=/tmp/o3base/build/world/world.js candidate=./build/world/world.js ticks=500 seeds=[517,41001]
 seed 517 digests5x=true guildBooksMismatch=0 census=P267/C102/D88
 seed 41001 digests5x=true guildBooksMismatch=0 census=P189/C201/D122
