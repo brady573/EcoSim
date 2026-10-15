@@ -8172,3 +8172,20 @@ CONSUMER-displayed share was 42.5%, a different instrument). This is
 instrumentation, not a reliance verdict; O1/O2 are conditionally Owner-authorized
 (after accepted Gate 1 / Gate 2 respectively) but not implemented and not
 eligible to start until the prior gate is accepted.
+
+### O1 phenotype-class suppression (0.6.4, Owner Stage 2, issue #15)
+
+New null-default knob `phenoMineralReturn: {carrionOnly, recalcOnly, dual} |
+null` (each a return fraction in [0, 1]; bad values throw at construction).
+When set, `mineraliseThroughCeiling` scales the OFFERED return for the named
+expressed class; feeding takes, energy, presence and all other behavior are
+untouched. `neither` always passes through and is reported. The scaled offer
+drives `mineralisedCell`/`bioticMineralised`, so cyclic-regen/broadcast
+coupling is measured distinctly via existing abiotic books. G34 asserts the
+deficit identity (named class accepted == 0 exactly, others continue),
+null-restores-declared digests, 5/5 rejections, twin determinism and retained
+populations. Gates 0.6.0 → 0.7.0; engine stays 0.6.4 (null = no change).
+Evidence: `evidence/o1-knockout-20261015/` (viability 500t: recalc deficits
+1302.8 / 2730.7 to exactly zero; abioticRegen feedback recorded separately;
+suppression is not extinction). No reliance verdict; O2 needs Gate 2 + an
+interpretable deficit.

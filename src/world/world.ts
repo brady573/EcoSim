@@ -1161,6 +1161,29 @@ export class World {
       }
     }
 
+    // O1 phenotype-class return fractions: validated at construction, never
+    // mid-run. null/undefined = declared full return. Each named fraction
+    // must be finite in [0, 1]; anything else throws rather than silently
+    // scaling into a different experiment. The key SET is closed too: an
+    // unknown key (e.g. `neither`, which structurally cannot be suppressed,
+    // or a typo) throws rather than being silently ignored while the user
+    // believes it applies. `neither` is not configurable and always passes
+    // through (see mineraliseThroughCeiling).
+    const pmr = cfg.phenoMineralReturn;
+    if (pmr !== null && pmr !== undefined) {
+      for (const k of ['carrionOnly', 'recalcOnly', 'dual'] as const) {
+        const v: unknown = (pmr as Record<string, unknown>)[k];
+        if (typeof v !== 'number' || !Number.isFinite(v) || v < 0 || v > 1) {
+          throw new Error(`bad phenoMineralReturn.${k}: ${JSON.stringify(v)} (want finite number in [0, 1]; the whole knob may be null for declared behaviour)`);
+        }
+      }
+      for (const k of Object.keys(pmr)) {
+        if (k !== 'carrionOnly' && k !== 'recalcOnly' && k !== 'dual') {
+          throw new Error(`unknown phenoMineralReturn key: ${JSON.stringify(k)} (want exactly carrionOnly/recalcOnly/dual)`);
+        }
+      }
+    }
+
     this.reproSurplus = resolveReproSurplusTicks(cfg);
 
     this.rng = new Rng(cfg.seed);
@@ -1674,7 +1697,6 @@ export class World {
     returned: number,
     source: 0 | 1 | 2,
   ): void {
-    const perPool = returned / NUTRIENT_COUNT;
     const g = this.roleOf(slot).trophic;
     const base = (g * NUTRIENT_COUNT * 3 + source);
     // Donor class from LIVE expressed traits at event time (O3). Computed once
@@ -1687,6 +1709,21 @@ export class World {
       s.trait(slot, TRAIT.RECALCITRANT_DIGESTION),
       s.trait(slot, TRAIT.SPEED));
     const phenoBase = cls * TROPHIC_COUNT * NUTRIENT_COUNT * 3 + base;
+    // O1 suppression (Owner Stage 2): shrink the OFFERED return for the named
+    // class. Feeding takes already happened upstream; only this offer, the
+    // book entries below, and the coupled mineralisedCell/bioticMineralised
+    // feedback move. `scale === 1` (and null knob) uses `returned` directly so
+    // declared behaviour is bit-identical; `returned * scale` is exact for
+    // scale 1 anyway, but the branch makes the guarantee structural.
+    // `neither` (cls 3) always passes through: suppressing an anomaly class
+    // would hide stale-flag/trait-drift events instead of reporting them.
+    const pmr = this.config.phenoMineralReturn;
+    let scale = 1;
+    if (pmr !== null && pmr !== undefined && cls !== 3) {
+      scale = cls === 0 ? pmr.carrionOnly : cls === 1 ? pmr.recalcOnly : pmr.dual;
+    }
+    const offered = scale === 1 ? returned : returned * scale;
+    const perPool = offered / NUTRIENT_COUNT;
     const pheno = {
       accepted: this.bioticPhenoAcceptedClassGuildPoolSource,
       attempted: this.bioticPhenoAttemptedClassGuildPoolSource,
@@ -1707,8 +1744,12 @@ export class World {
     this.returnThroughCeiling(nutC, 2, ci, perPool, base + 2 * 3,
       this.bioticMineralizationGuildPoolSource, this.bioticAttemptedGuildPoolSource,
       this.bioticCapLossGuildPoolSource, this.bioticEvictionGuildPoolSource, pheno);
-    this.bioticMineralised += returned;
-    this.mineralisedCell[ci] += returned;
+    // The SCALED offer drives the coupled feedback (cyclic regen reads
+    // mineralisedCell; broadcast reads bioticMineralised): suppression's
+    // downstream coupling is therefore measured distinctly through the
+    // existing abiotic books, never routed around.
+    this.bioticMineralised += offered;
+    this.mineralisedCell[ci] += offered;
   }
 
   private writeRole(slot: number, r: RoleReadout): void {

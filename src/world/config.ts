@@ -661,6 +661,32 @@ export interface WorldConfig {
    */
   bioticMineralisation: number;
 
+  /**
+   * Diagnostic: per-phenotype-class mineralization RETURN fraction
+   * (O1, Owner Stage 2, issue #15). `null` = declared behaviour, exactly:
+   * every class returns in full and the knob restores declared behaviour on
+   * rollback with no residue.
+   *
+   * When set, each named donor class (`carrionOnly`, `recalcOnly`, `dual`;
+   * see `classifyMineralPheno` in `src/bio/role.ts`) offers that fraction of
+   * its computed return into the per-pool ceiling. `1` = full declared
+   * return, `0` = the class offers nothing. Feeding takes, energy flows,
+   * organism presence and all unrelated behavior are untouched: only the
+   * OFFERED amount shrinks, so the four books stay truthful (attempted
+   * reflects actual offers; the deficit reads as null-arm accepted minus
+   * suppressed-arm accepted per class, via the O3 books).
+   *
+   * `neither` events (stale-flag anomalies) always pass through unsuppressed
+   * and are reported, never silently zeroed. The coupled cyclic-regeneration
+   * and broadcast feedback (`mineralisedCell`, `bioticMineralised`) follows
+   * the scaled offer naturally and is measured distinctly through the
+   * existing abiotic books — not routed around. Each fraction must be a
+   * finite number in [0, 1]; anything else throws at construction. There is
+   * deliberately no predicted effect size: suppression moves offers, and the
+   * ecosystem answers.
+   */
+  phenoMineralReturn: { carrionOnly: number; recalcOnly: number; dual: number } | null;
+
   /** Fraction of basal metabolism excreted back into the local substrate. */
   excretionRate: number;
 
@@ -824,6 +850,8 @@ export const DEFAULT_CONFIG: WorldConfig = {
   nutrientCyclic: null,
   // Modular genome v2 (see field comment). null = declared behaviour, exactly.
   genomeV2: null,
+  // O1 phenotype-class return fractions (see field comment). null = declared.
+  phenoMineralReturn: null,
   nutrientFloor: 0,
   sporeDispersal: null,
   dormantSenescence: null,

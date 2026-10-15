@@ -1,0 +1,6 @@
+seed 517 NULL accepted [124.9,1302.8,128.8,0.0] abio=7.08 alive=P267/C102/D88
+seed 517 SUPP accepted [41.9,0.0,145.8,0.0] abio=0.82 alive=P278/C85/D70
+seed 517 recalcDeficit=1302.8 recalcSuppressedToZero=true nullRestores=true twins=equal
+seed 41001 NULL accepted [42.7,2730.7,193.1,0.0] abio=11.27 alive=P189/C201/D122
+seed 41001 SUPP accepted [30.6,0.0,206.9,0.0] abio=1.00 alive=P203/C150/D104
+seed 41001 recalcDeficit=2730.7 recalcSuppressedToZero=true nullRestores=true twins=equal

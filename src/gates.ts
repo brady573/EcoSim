@@ -2487,6 +2487,133 @@ function gate33(): void {
     `path), neither share ${(gvNeitherShare * 100).toFixed(2)}% reported.`);
 }
 
+// G34 — O1 phenotype-class suppression (Owner Stage 2, issue #15).
+//
+// Fixed seeds, no cohort. Suppressing exactly one named donor class must zero
+// that class's accepted return while the others continue; a null knob must
+// reproduce the unset run digest-for-digest (reversibility is constructional:
+// the knob is read per event, and `scale === 1` reuses `returned` directly).
+// Bad knob values throw at construction. Cyclic-regen coupling is RECORDED
+// distinctly (abioticRegen books move with the scaled mineralisedCell flux),
+// never asserted in a direction: trajectories diverge once offers differ, so
+// only the deficit identity is asserted, the feedback reported.
+function gate34(): void {
+  const TICKS = 120;
+  const base = {
+    founders: 300, worldW: 800, worldH: 800, seed: 4242, label: 'gates34',
+    nutrientRegen: 0.5, nutrientCyclic: false, nutrientFloor: 0,
+    producerCaptureScale: 0,
+    excretionRate: 0.06, bioticMineralisation: 1.0, basalFoodPerCell: 0.5,
+    recyclingRate: 0.02,
+  };
+  const run = (knob: { carrionOnly: number; recalcOnly: number; dual: number } | null | undefined, gv: boolean): World => {
+    const w = new World({ config: { ...base, ...(knob === undefined ? {} : { phenoMineralReturn: knob }), ...(gv ? { genomeV2: true } : {}) } });
+    for (let t = 0; t < TICKS; t++) w.step();
+    return w;
+  };
+  const classAccepted = (w: World): [number, number, number, number] => {
+    const ph = w.getFluxSnapshot().bioticMineralizationByPheno.accepted;
+    const tot = [0, 0, 0, 0];
+    for (let c = 0; c < 4; c++) {
+      for (let g = 0; g < TROPHIC_COUNT; g++) {
+        for (let p = 0; p < NUTRIENT_COUNT; p++) {
+          for (let src = 0; src < 3; src++) tot[c] += ph[c][g][p][src];
+        }
+      }
+    }
+    return tot as [number, number, number, number];
+  };
+
+  // (i) Suppress recalcOnly: that class reads exactly 0, carrionOnly continues.
+  const wNull = run(undefined, false);
+  const wSup = run({ carrionOnly: 1, recalcOnly: 0, dual: 1 }, false);
+  const accNull = classAccepted(wNull);
+  const accSup = classAccepted(wSup);
+  const targetedZero = accSup[1] === 0;
+  const untargetedContinue = accSup[0] > 0;
+  const deficit = accNull[1] - accSup[1];
+
+  // (ii) Null knob restores declared behaviour digest-for-digest.
+  const wExplicitNull = run(null, false);
+  const nullRestores = wExplicitNull.hashState() === wNull.hashState();
+
+  // (iii) genomeV2 arm: suppress dual (the class drift reaches there).
+  const gNull = run(undefined, true);
+  const gSup = run({ carrionOnly: 1, recalcOnly: 1, dual: 0 }, true);
+  const gAccSup = classAccepted(gSup);
+  const gAccNull = classAccepted(gNull);
+  const dualZero = gAccSup[2] === 0;
+  const gvOthersContinue = gAccSup[1] > 0;
+  const dualDeficit = gAccNull[2] - gAccSup[2];
+
+  // (iv) Rejected inputs throw at construction (no silent rescale).
+  const badKnobs: unknown[] = [
+    { carrionOnly: 1, recalcOnly: 2, dual: 1 },
+    { carrionOnly: 1, recalcOnly: NaN, dual: 1 },
+    { carrionOnly: -0.1, recalcOnly: 1, dual: 1 },
+    { carrionOnly: 1, recalcOnly: 1 } as unknown,
+    'off' as unknown,
+    { carrionOnly: 1, recalcOnly: 1, dual: 1, neither: 0 } as unknown,
+  ];
+  let throws = 0;
+  for (const bad of badKnobs) {
+    try {
+      new World({ config: { ...base, phenoMineralReturn: bad as never } });
+    } catch {
+      throws++;
+    }
+  }
+
+  // (v) Twin determinism with the knob set (incl. new books) + digest equality.
+  const wSup2 = run({ carrionOnly: 1, recalcOnly: 0, dual: 1 }, false);
+  const fa = wSup.getFluxSnapshot().bioticMineralizationByPheno;
+  const fb = wSup2.getFluxSnapshot().bioticMineralizationByPheno;
+  let detMismatch = 0;
+  for (let c = 0; c < MINERAL_PHENO_CLASS_COUNT; c++) {
+    for (let g = 0; g < TROPHIC_COUNT; g++) {
+      for (let p = 0; p < NUTRIENT_COUNT; p++) {
+        for (let src = 0; src < 3; src++) {
+          if (fa.accepted[c][g][p][src] !== fb.accepted[c][g][p][src]) detMismatch++;
+        }
+      }
+    }
+  }
+  const twinsEqual = detMismatch === 0 && wSup.hashState() === wSup2.hashState();
+
+  // (vi) Regen feedback recorded distinctly (reported, not direction-asserted).
+  // NOTE: this G34 arm sets nutrientCyclic:false, so the abio delta below is
+  // trajectory-mediated regen difference (different depletion -> different
+  // toward-cap regen), not coupling-mediated. Genuine coupled feedback is
+  // measured in the viability demonstration (nutrientCyclic:true there).
+  const abio = (w: World): number => w.getFluxSnapshot().abioticRegen.reduce((x, y) => x + y, 0);
+  const abioNull = abio(wNull);
+  const abioSup = abio(wSup);
+
+  // Organisms retained: suppression must not be extinction by construction.
+  let aliveNull = 0, aliveSup = 0;
+  for (let i = 0; i < wNull.store.count; i++) if (wNull.aliveAt(i)) aliveNull++;
+  for (let i = 0; i < wSup.store.count; i++) if (wSup.aliveAt(i)) aliveSup++;
+
+  record('G34', 'phenotype-class suppression zeroes the named class return only',
+    targetedZero && untargetedContinue && nullRestores && dualZero && gvOthersContinue
+    && throws === badKnobs.length && twinsEqual && aliveSup > 0,
+    `saturation arm, ${TICKS} ticks, suppress recalcOnly=0: recalc accepted ` +
+    `${accSup[1].toFixed(3)} (must be exactly 0) vs null-arm ` +
+    `${accNull[1].toFixed(3)} (deficit ${deficit.toFixed(3)}); carrionOnly ` +
+    `accepted ${accSup[0].toFixed(3)} (> 0 required — untargeted classes ` +
+    `continue). Null knob digest ${nullRestores ? 'equals' : 'DIFFERS FROM'} ` +
+    `unset (must equal). genomeV2 suppress dual=0: dual accepted ` +
+    `${gAccSup[2].toFixed(3)} (must be 0) vs null-arm ${gAccNull[2].toFixed(3)} ` +
+    `(deficit ${dualDeficit.toFixed(3)}), recalc accepted ` +
+    `${gAccSup[1].toFixed(3)} (> 0 required). Bad knobs threw ` +
+    `${throws}/${badKnobs.length} (must all throw). Twins: book mismatches ` +
+    `${detMismatch}, digests ${wSup.hashState() === wSup2.hashState() ? 'equal' : 'DIFFER'}. ` +
+    `Cyclic feedback (reported, trajectory-mediated here — coupling measured ` +
+    `in the viability demonstration): abioticRegen null-arm ${abioNull.toFixed(3)} vs ` +
+    `suppressed-arm ${abioSup.toFixed(3)} — recorded distinctly, no direction asserted. Alive: null-arm ${aliveNull}, ` +
+    `suppressed-arm ${aliveSup} (> 0 required — suppression is not extinction).`);
+}
+
 function main(): void {
   console.log(`=== credibility gates :: ${WORLD_ENGINE_VERSION} ===`);
   console.log(`scenario: founders=${SMALL.founders} world=${SMALL.worldW}x${SMALL.worldH} ticks=${TICKS} seed=${SMALL.seed}\n`);
@@ -2521,6 +2648,7 @@ function main(): void {
   gate30();
   gate31();
   gate33();
+  gate34();
 
   const failed = results.filter((r) => !r.pass);
   console.log(`\n${results.length - failed.length}/${results.length} checks passed`);

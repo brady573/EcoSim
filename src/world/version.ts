@@ -107,6 +107,6 @@ export const WORLD_ENGINE_VERSION = 'ts-evo-poc/0.6.4';
  * Identifier for the credibility-check suite. G30 (per-pool nutrient cap on
  * return paths) shipped with gates/0.4.0; G31 and G32 (the book-level checks)
  * with gates/0.5.0; G33 (phenotype-partitioned mineralization books) with
- * gates/0.6.0.
+ * gates/0.6.0; G34 (O1 phenotype-class suppression) with gates/0.7.0.
  */
-export const GATE_SUITE_VERSION = 'gates/0.6.0';
+export const GATE_SUITE_VERSION = 'gates/0.7.0';
