@@ -12,6 +12,8 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { gunzipSync } from 'node:zlib';
+import assert from 'node:assert/strict';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const raw = {
@@ -48,6 +50,63 @@ const docs = {
   predation: read(join(root, 'CHEM-PREDATION-KNOB-DIAGNOSTICS.md')),
 };
 const currentDoc = read(join(root, 'RECONCILIATION-080-RESULTS.md'));
+// Reconstruct selected-family timing from raw compressed events, not merely
+// the runner's summary. This remains a descriptive, outcome-selected witness.
+{
+  const dir = join(root, 'evidence/chem-firstbirth-41001-20261015');
+  const protocol = JSON.parse(read(join(dir, 'protocol.json')));
+  const complete = JSON.parse(read(join(dir, 'complete.json')));
+  const summaries = JSON.parse(read(join(dir, 'life-summaries.json')));
+  const raw = gunzipSync(readFileSync(join(dir, 'families.jsonl.gz'))).toString('utf8');
+  const doc = read(join(root, 'CHEM-FIRSTBIRTH-RESULTS.md'));
+  assert.equal(protocol.identity, expectedIdentity);
+  assert.ok(doc.includes(expectedIdentity));
+  const lives = new Map();
+  let births = 0;
+  for (const line of raw.trim().split('\n')) {
+    const e = JSON.parse(line);
+    if (e.kind === 'birthTransfer') {
+      assert.ok(!lives.has(e.id));
+      lives.set(e.id, { id: e.id, parentId: e.parentId, birthTick: e.tick,
+        firstMatterAffordableTick: null, firstMatureMatterAffordableTick: null,
+        firstActualOffspringTick: null, deathTick: null, gateObservations: 0 });
+      if (e.parentId >= 0) {
+        births++;
+        assert.ok(lives.has(e.parentId));
+        lives.get(e.parentId).firstActualOffspringTick ??= e.tick;
+        assert.deepEqual(e.parentStoresBefore, e.parentStoresAfter);
+        assert.ok(e.childStoresAtBirth.every((v) => v === 0));
+        for (let k = 0; k < 7; k++) assert.ok(Math.abs(e.parentBiomassBefore[k]
+          - e.parentBiomassAfter[k] - e.childBiomassAtBirth[k]) < 1e-12);
+      }
+    } else {
+      const life = lives.get(e.id);
+      assert.ok(life);
+      if (e.kind === 'death') life.deathTick = e.tick;
+      else {
+        assert.equal(e.kind, 'offspringGate');
+        life.gateObservations++;
+        if (e.lacking === 'none') {
+          life.firstMatterAffordableTick ??= e.tick;
+          if (e.age >= e.maturityAge) life.firstMatureMatterAffordableTick ??= e.tick;
+        }
+      }
+    }
+  }
+  const rows = [...lives.values()].sort((a, b) => a.id - b.id);
+  assert.deepEqual(rows, summaries);
+  assert.equal(births, complete.births);
+  assert.equal(rows.length, complete.selectedFamiliesIndividuals);
+  for (const r of rows) assert.equal(r.gateObservations, (r.deathTick ?? protocol.ticks) - r.birthTick);
+  for (const [cohort, test] of [['founders', (r) => r.parentId < 0], ['offspring', (r) => r.parentId >= 0]]) {
+    const selected = rows.filter(test);
+    const count = (key) => selected.filter((r) => r[key] !== null).length;
+    const quoted = `| ${cohort} | ${selected.length} | ${count('firstMatterAffordableTick')} | ${count('firstMatureMatterAffordableTick')} | ${count('firstActualOffspringTick')} | ${count('deathTick')} |`;
+    assert.ok(doc.includes(quoted), `firstbirth figure missing: ${quoted}`);
+  }
+  const firstTicks = rows.filter((r) => r.parentId < 0).map((r) => r.firstActualOffspringTick).sort((a, b) => a - b);
+  assert.ok(doc.includes(`**${firstTicks.join(', ')}**`));
+}
 // The mechanism panel is descriptive, but its quoted figures still owe the
 // record raw-data checks. Recompute them rather than trusting summary.json.
 {

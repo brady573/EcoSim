@@ -67,7 +67,7 @@ const CHEM_TO_LEGACY_PER_CARBON = 0.5;
 import { deriveRole, developmentalScale, stageDamageFactor, MOTILITY, TROPHIC, TROPHIC_COUNT, type RoleReadout } from '../bio/role.js';
 import { TraceLog, TRACE, DEATH_CAUSE, type TraceOptions } from '../trace/trace.js';
 import { REPRO_GATE, type ReproProbe } from '../trace/reproprobe.js';
-import { ChemBoundaryLog } from '../trace/chem-boundary.js';
+import { ChemBoundaryLog, type ChemBoundaryEvent } from '../trace/chem-boundary.js';
 import { InteractionQueue, INTERACTION, OUTCOME, type ResolutionRecord } from '../bio/interactions.js';
 import { resolveConfig, type WorldConfig, type DormantSenescence } from './config.js';
 import { Ledger } from './ledger.js';
@@ -1498,6 +1498,11 @@ export class World {
     this.ensureSlotArrays(slot);
 
     this.store.moduleCount[slot] = 0;
+    const boundaryParentBase = parentSlot * E.COUNT;
+    const boundaryParent = this.boundaryLog !== null && this.chemStores && parentSlot >= 0 ? {
+      parentStoresBefore: Array.from(this.chemStores.stores.subarray(boundaryParentBase, boundaryParentBase + E.COUNT)),
+      parentBiomassBefore: Array.from(this.chemStores.biomass.subarray(boundaryParentBase, boundaryParentBase + E.COUNT)),
+    } : null;
     // Seed an elemental body proportional to the organism's starting size.
     // Without this every organism would begin with zero biomass and could
     // neither grow nor die into the pools correctly.
@@ -1569,6 +1574,20 @@ export class World {
     // store.age here would read whatever the recycled slot last held.
     const r = deriveRole(this.store.physical, slot * TRAIT_COUNT, 0);
     this.writeRole(slot, r);
+    if (this.boundaryLog !== null && this.chemStores) {
+      const base = slot * E.COUNT;
+      this.boundaryLog.record({ kind: 'birthTransfer', tick: bornTick,
+        id: this.store.id[slot], parentId, age: 0, guild: r.trophic,
+        maturityAge: this.store.trait(slot, TRAIT.MATURITY_AGE),
+        ...(boundaryParent ?? {}),
+        ...(boundaryParent === null ? {} : {
+          parentStoresAfter: Array.from(this.chemStores.stores.subarray(boundaryParentBase, boundaryParentBase + E.COUNT)),
+          parentBiomassAfter: Array.from(this.chemStores.biomass.subarray(boundaryParentBase, boundaryParentBase + E.COUNT)),
+        }),
+        childStoresAtBirth: Array.from(this.chemStores.stores.subarray(base, base + E.COUNT)),
+        childBiomassAtBirth: Array.from(this.chemStores.biomass.subarray(base, base + E.COUNT)),
+      });
+    }
   }
 
   /** Write a role readout into the flat cache block. */
@@ -4702,8 +4721,8 @@ export class World {
   }
 
   /** Detached numeric boundary records; never exposes mutable engine state. */
-  chemistryBoundaryTrace() {
-    return this.boundaryLog?.snapshot() ?? null;
+  chemistryBoundaryTrace(kind?: ChemBoundaryEvent['kind']) {
+    return this.boundaryLog?.snapshot(kind) ?? null;
   }
 
   /** Whether event tracing is active on this world. */

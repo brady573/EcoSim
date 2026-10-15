@@ -81,6 +81,9 @@ stores. Combined with standing-store reproduction thresholds, a child must
 refill its stores independently. Decide whether this endowment is intentional
 only after tracing parent/child holdings and first-birth eligibility. No reserve
 gift, free nutrient rescue or threshold tuning is proposed without that decision.
+The later selected-family witness in `CHEM-FIRSTBIRTH-RESULTS.md` records real
+endowment and timing without changing them. It does not isolate their causal
+effect and does not turn the proposed choices into accepted physiology.
 
 ## Remaining causal work — not satisfied by the current panel
 

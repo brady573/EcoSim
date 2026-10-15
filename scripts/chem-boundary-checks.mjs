@@ -31,10 +31,21 @@ for (const seed of [517, 24601]) for (const chemistry of [null, true]) for (cons
   }
   const log = traced.chemistryBoundaryTrace();
   assert.deepEqual(log, repeat.chemistryBoundaryTrace(), 'repeat trace byte-equivalent values');
-  assert.ok(log.events.length <= 3 * 128);
+  assert.ok(log.events.length <= 4 * 128);
   assert.equal(log.total - log.events.length, log.dropped);
   if (chemistry) {
     assert.ok(log.counts.chemistry > 0 && log.counts.offspringGate > 0);
+    assert.ok(log.counts.birthTransfer >= 400, 'founder endowment recorded');
+    if (seed === 517 && genomeV2) assert.ok(log.events.some((e) => e.kind === 'birthTransfer' && e.parentId >= 0),
+      'live parent-child transfer witness is required, not just founders');
+    for (const event of log.events.filter((e) => e.kind === 'birthTransfer' && e.parentId >= 0)) {
+      assert.deepEqual(event.parentStoresBefore, event.parentStoresAfter, 'tissue transfer does not give away stores');
+      assert.ok(event.childStoresAtBirth.every((v) => v === 0), 'offspring starts without transferred nutrient stores');
+      for (let e = 0; e < 7; e++) {
+        const loss = event.parentBiomassBefore[e] - event.parentBiomassAfter[e];
+        assert.ok(Math.abs(loss - event.childBiomassAtBirth[e]) < 1e-12, 'per-element parent-child transfer closes');
+      }
+    }
     assert.ok(log.events.some((e) => e.kind === 'death' && e.biomassAtDeath?.[0] > 0),
       'death witness must retain actual pre-release carbon, not cleared zeros');
     for (const event of log.events.filter((e) => e.kind === 'offspringGate')) {
@@ -56,6 +67,10 @@ for (const seed of [517, 24601]) for (const chemistry of [null, true]) for (cons
     }
   }
   const before = boundaryStateDigest(traced);
+  const birthsOnly = traced.chemistryBoundaryTrace('birthTransfer');
+  assert.ok(birthsOnly.events.every((e) => e.kind === 'birthTransfer'));
+  assert.deepEqual(birthsOnly.counts, log.counts);
+  assert.equal(birthsOnly.dropped, log.dropped, 'filtering does not count unrequested kinds as dropped');
   if (log.events.length) {
     log.events[0].id = -999;
     assert.notEqual(traced.chemistryBoundaryTrace().events[0].id, -999);

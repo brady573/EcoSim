@@ -34,6 +34,12 @@ samples, full life histories, population rates or representative cohorts.
   is unset. Parent id identifies founders versus offspring, not full lineage
   depth. No claim of a single underlying ecological cause follows from a
   proximate death label.
+- `birthTransfer` (added after the original boundary witness): parent chemical
+  stores/tissue before and after transfer and newborn chemical endowment after
+  identity/role initialization. Founder endowments have no parent fields.
+  Legacy energy provisioning occurs later and is not measured by this record.
+  Kind-filtered snapshots report `returned` separately from global ring
+  `retained`/`dropped` totals; filtering does not itself imply lost records.
 
 ## Evidence and reproducibility
 
@@ -65,7 +71,9 @@ It is a diagnostic algorithm, not a replacement for the versioned run hash.
 
 ## Still outstanding
 
-Selective, preregistered reaction interventions and parent-to-child/first-birth
-life-history tracing remain required. The present tail ring is insufficient
-for complete parent/offspring nutrient trajectories. Biological choices and
+The original tail-ring witness is insufficient for full life histories. A
+separate losslessly drained, selected-family witness is now documented in
+`CHEM-FIRSTBIRTH-RESULTS.md`; it does not retroactively add missing fields to
+the old boundary panels. Selective, preregistered reaction interventions and
+broader demographic attribution remain outstanding. Biological choices and
 the proposed dimensional/dial corrections are in `MECHANISM-OWNER-DECISIONS.md`.

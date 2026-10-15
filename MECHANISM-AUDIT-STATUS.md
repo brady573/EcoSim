@@ -33,8 +33,10 @@ Measured on this engine:
 These helper results do **not** establish the cause or size of population
 loss. Passive live-world boundary instrumentation and a matched witness now
 exist; see `CHEM-BOUNDARY-INSTRUMENT.md` for timing, parity and retention limits.
-Complete parent/offspring trajectories, first-birth timing and selective,
-explicitly declared reaction interventions are still required.
+A selected-family parent/offspring/first-birth witness is now recorded in
+`CHEM-FIRSTBIRTH-RESULTS.md`, with explicit one-seed and outcome-selection limits.
+Selective, explicitly declared reaction interventions and broader attribution
+are still required.
 The iron environmental reaction and organism Fe uptake share a capability;
 clearing that capability is NOT an isolated environmental-reaction control.
 
