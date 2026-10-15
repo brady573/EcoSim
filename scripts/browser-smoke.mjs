@@ -21,10 +21,18 @@ const failures = [];
 const results = [];
 let browser;
 const snapshot = (page) => page.evaluate(async () => (await import('/view/viewer.js')).viewerBrowserSnapshot());
-const until = (page, predicate, ms = 15000) => page.waitForFunction(async (source) => {
-  const s = (await import('/view/viewer.js')).viewerBrowserSnapshot();
-  return Function('s', `return (${source})(s)`)(s);
-}, predicate.toString(), { timeout: ms });
+async function until(page, predicate, ms = 15000) {
+  // Import once outside polling: an async polling predicate returns a Promise,
+  // which can be treated as truthy before the actual condition is resolved.
+  await page.evaluate(async () => {
+    window.__smokeSnapshot = (await import('/view/viewer.js')).viewerBrowserSnapshot;
+  });
+  await page.waitForFunction((source) => {
+    return Function('s', `return (${source})(s)`)(window.__smokeSnapshot());
+  }, predicate.toString(), { timeout: ms });
+  const observed = await snapshot(page);
+  assert.ok(predicate(observed), `Wait condition not satisfied at tick ${observed.tick}`);
+}
 async function pause(page) {
   const s = await snapshot(page);
   if (!s.paused) await page.locator('#btn-pause').click();
