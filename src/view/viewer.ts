@@ -1178,9 +1178,9 @@ app.ticker.add(() => {
     // is unknown while the layout decision is first made. Re-check when its
     // visibility changes, or the decision is made against an assumed height and
     // never revisited.
-    const shown = selected >= 0;
-    if (shown !== inspectorWasShown) layoutFit();
     if (selected >= 0) renderInspector();
+    const shown = document.getElementById('inspect')!.style.display !== 'none';
+    if (shown !== inspectorWasShown) layoutFit();
     drawStats(fps, frameMs, simMs, updateMs, ticksRun);
   }
 });
@@ -1204,7 +1204,7 @@ export function viewerBrowserSnapshot() {
     }
   }
   return {
-    tick: world.tick, hash: world.hashState(), paused, drawn: lastDrawn,
+    tick: world.tick, population: world.store.population, hash: world.hashState(), paused, drawn: lastDrawn,
     camera: { x: cam.x, y: cam.y, zoom: cam.zoom },
     selected: selectedId, provenance: viewerProvenance(world),
     config: JSON.parse(viewerReplayConfig(world)),

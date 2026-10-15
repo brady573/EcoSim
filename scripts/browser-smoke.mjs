@@ -65,16 +65,14 @@ async function primary(mobile) {
       await page.locator('#btn-4x').click();
       await until(page, (s) => s.tick >= 32);
       if (chemistry && genome) {
-        // Module-enabled reactions need expressed modules (developmental
-        // onset is a fraction of lifespan), so at tick 32 the genome arm can
-        // still book zero chemical income. G33 proves substantial income by
-        // tick 600 for this exact seed/config, so run there at Max speed
-        // (512 ticks/frame) and require it there instead.
-        await page.locator('#btn-max').click();
+        // Keep batches small: Max advances 512 ticks/frame and browser command
+        // latency can overshoot the intended observation horizon substantially.
+        await page.locator('#btn-16x').click();
         await until(page, (s) => s.tick >= 600, 240000);
       }
       await pause(page);
       const advanced = await snapshot(page);
+      console.log(`mode chem=${chemistry} genome=${genome}: tick=${advanced.tick} pop=${advanced.population} income=${advanced.chemicalIncome} cBuilt=${advanced.chemicalCarbonBuilt} drawn=${advanced.drawn}`);
       if (chemistry && genome) {
         assert.ok(advanced.chemicalIncome > 0 && advanced.chemicalCarbonBuilt > 0);
       }
