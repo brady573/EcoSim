@@ -989,6 +989,8 @@ const controlsEl = document.getElementById('controls') as HTMLElement;
  * being true, instead of never.
  */
 let inspectorWasShown = false;
+/** Last layoutFit inputs, for diagnostics. Written by layoutFit only. */
+let lastLayoutFit: Record<string, number | boolean> = {};
 
 function layoutFit(): void {
   inspectorWasShown = (document.getElementById('inspect') as HTMLElement).style.display !== 'none';
@@ -1028,6 +1030,7 @@ function layoutFit(): void {
 
   const dock = !topRowFits || !leftColumnFits || !inspectorFitsWidth || vw <= 640;
   document.documentElement.setAttribute('data-layout', dock ? 'dock' : 'corner');
+  lastLayoutFit = { vw, vh, cW, cH, sW, iH, iW, topRowFits, leftColumnFits, inspectorFitsWidth, dock };
 
   // --controls-h is only meaningful in dock mode, and only when the controls
   // sit above the dock rather than inside it. The dock's flex gap is only in
@@ -1201,6 +1204,7 @@ export function viewerBrowserSnapshot() {
     config: JSON.parse(viewerReplayConfig(world)),
     chemicalIncome: world.chemistry?.flux.chemEnergyIncome ?? null,
     chemicalCarbonBuilt: world.chemistry?.flux.chemCarbonBuilt ?? null,
+    layout: { ...lastLayoutFit },
     picks,
   };
 }

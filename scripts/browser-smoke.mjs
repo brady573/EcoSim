@@ -104,7 +104,11 @@ async function primary(mobile) {
       // Desktop regression: with the inspector closed again, the corner layout
       // must come back. A sticky dock (measured while dock was active) used to
       // make corner unreachable and covered the canvas for the next mode.
-      if (!mobile) assert.equal(await page.locator('html').getAttribute('data-layout'), 'corner');
+      if (!mobile) {
+        const fit = (await snapshot(page)).layout;
+        console.log(`desktop layout fit after restart: ${JSON.stringify(fit)}`);
+        assert.equal(await page.locator('html').getAttribute('data-layout'), 'corner');
+      }
       results.push({ test: 'primary modes, inspect, invalid seed and deterministic restart', mobile, chemistry, genome });
     }
     const canvas = await page.locator('canvas').boundingBox();
