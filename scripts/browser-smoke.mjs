@@ -21,10 +21,10 @@ const failures = [];
 const results = [];
 let browser;
 const snapshot = (page) => page.evaluate(async () => (await import('/view/viewer.js')).viewerBrowserSnapshot());
-const until = (page, predicate) => page.waitForFunction(async (source) => {
+const until = (page, predicate, ms = 15000) => page.waitForFunction(async (source) => {
   const s = (await import('/view/viewer.js')).viewerBrowserSnapshot();
   return Function('s', `return (${source})(s)`)(s);
-}, predicate.toString(), { timeout: 15000 });
+}, predicate.toString(), { timeout: ms });
 async function pause(page) {
   const s = await snapshot(page);
   if (!s.paused) await page.locator('#btn-pause').click();
@@ -64,6 +64,15 @@ async function primary(mobile) {
       await page.locator('#btn-config').click();
       await page.locator('#btn-4x').click();
       await until(page, (s) => s.tick >= 32);
+      if (chemistry && genome) {
+        // Module-enabled reactions need expressed modules (developmental
+        // onset is a fraction of lifespan), so at tick 32 the genome arm can
+        // still book zero chemical income. G33 proves substantial income by
+        // tick 600 for this exact seed/config, so run there at Max speed
+        // (512 ticks/frame) and require it there instead.
+        await page.locator('#btn-max').click();
+        await until(page, (s) => s.tick >= 600, 240000);
+      }
       await pause(page);
       const advanced = await snapshot(page);
       if (chemistry && genome) {
