@@ -1,4 +1,4 @@
-import { World } from '/root/EcoSim-issue15/build/world/world.js';
+import { World } from '../../build/world/world.js';
 function build(seed, overrides={}) {
   return new World({ config: { founders:400, worldW:2400, worldH:2400, seed,
     consumerPhotoScale:0, consumerBasalScale:0.25, decomposerPhotoScale:0, decomposerFounders:0.25,

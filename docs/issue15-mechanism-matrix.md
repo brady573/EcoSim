@@ -1,4 +1,11 @@
-# Issue #15 Track A — Mechanism inventory (0.6.3, source-linked)
+# Issue #15 Track A — Mechanism inventory (0.6.3, source-linked) — TRACK A PARTIAL
+
+> Status: INITIAL COMBINED INVENTORY, not the completed per-priority
+> scientific-equivalence matrix. Eight compound rows cover many disparate knobs;
+> individual controls still lack their own full source/reachability/intermediate
+> response/tradeoff + reputable external reference. Do NOT claim D1
+> scientific-inventory closure from this file. Lack of parameter calibration
+> remains an open Owner decision, not a regression.
 
 > Worktree: `/root/EcoSim-issue15`, branch `issue15/mechanism-audit-spec`, from `origin/main` `8956699`.
 > Engine: `ts-evo-poc/0.6.3`. Declared-default pins verified this worktree:
@@ -98,9 +105,19 @@ honesty + Owner-decision status | evidence path / SHA / command.
    Measured 500t seed 517 (archived
    `evidence/issue15-pilot-scratch-20261015/mini-flux.mjs` +
    `mini-attrib.mjs` + raw outputs; engine 0.6.3, SHA 8956699, viability config,
-   compiled): control bioAcc 1556.6 = 662.0 CONSUMER-displayed +
-   894.6 DECOMPOSER-displayed, 0 PRODUCER; live mineralisers 134 = 0/46/88 P/C/D.
-   Label≠function: 34% of mineralisers display CONSUMER (mobile recalc path).
+   compiled; portable replay verified byte-identical): control bioAcc 1556.6 =
+   662.0 CONSUMER-displayed + 894.6 DECOMPOSER-displayed, 0 PRODUCER; live
+   mineralisers 134 = 0/46/88 P/C/D. Label≠function: 34% of live mineralisers
+   display CONSUMER (mobile recalc path).
+   Denominators differ and neither is trait-path attribution: 662.0/1556.6 is a
+   DISPLAY-guild flux share, 46/134 a survivor headcount. The two `role.ts`
+   qualifiers overlap within one organism (carrion path needs `speed<2.4`,
+   recalc path does not), and recalc mineralisation occurs in DECOMPOSER-displayed
+   organisms too. A2-candidate census @500t (same evidence dir,
+   `a2-reachability.mjs`): seed 517 total 88 = carrionOnly 3 / recalcOnly 72 /
+   dual 13 / neither 0; seed 41001 total 141 = 2 / 131 / 8 / 0. The recalc branch
+   dominates; NO effect-size prediction for path suppression is made before
+   trait-linked per-event evidence (O1 withdrawn — see prereg).
    `bioticMineralisation=0` → bioAcc 0.0 exactly (both seeds), arms differ.
    Off-target: `abioticRegen` cumulative also → 0.0 (7.1→0.0 seed 517; 11.3→0.0
    seed 41001) because cyclic rate `raw/(raw+sat)` (`world.ts:1751-1754`) sees
