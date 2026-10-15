@@ -45,18 +45,24 @@ restart, corner/dock layout, wheel/mouse pan and two-contact touch pinch.
 The overall suite **FAILED** during portable export parsing: clipboard status
 was prefixed to JSON. Portable preset/canvas acceptance did not finish.
 
-The requested repair keeps export JSON separate from clipboard status, adds
-success/unavailable/rejected clipboard branch assertions, and adds a genuine
-one-contact Chromium touch drag with camera movement and biological-hash
-preservation assertions. These new scenarios await new-head CI; they are not
-yet passing evidence. Compact-landscape touch coverage is not claimed.
+The repair at `d85bfa0cedde8afefe74a35b1f0b1dd83355f57d` passed the entire
+browser suite in [run 38671856365](https://github.com/brady573/EcoSim/actions/runs/38671856365).
+Both CI jobs succeeded. This run completed all four primary modes on desktop
+and simulated mobile, one-contact touch panning (camera movement, unchanged
+biological hash and selection), two-contact pinch, and offline portable
+baseline/balanced presets with nonblank Canvas pixels. Export remained pure
+JSON in both presets across clipboard success, unavailable and rejected
+branches; successful copy bytes matched the textarea exactly. The normal job
+also passed typecheck, gates, viewer checks, contracts and workflow fixtures.
+Compact-landscape touch coverage is not claimed.
 
 No browser executable, Playwright/Puppeteer installation or browser tool is
 available on the local device. No browser install or capacity-denied command
 was attempted. CI is browser execution, not physical-device validation.
 Physical-phone gestures, visual quality and clipboard integration remain
 unverified; clipboard branch tests use controlled browser API substitutes.
-The handoff cannot be declared fully complete while portable acceptance fails.
+Automated Chromium browser acceptance now passes. Physical-device acceptance
+remains separate and unverified.
 
 Browser checklist for the intended server (`npm run view`, localhost:5178):
 1. Exercise all four mode combinations; check identity and chemical readouts.
