@@ -45,7 +45,7 @@
     <option value="base">baseline setup</option>
   </select>
 </div>
-<div id="dump"><div>run data — long-press, select all, copy, paste to chat:</div><textarea id="dumptext" readonly></textarea></div>
+<div id="dump"><div>run data — long-press, select all, copy, paste to chat:</div><div id="copy-status" role="status"></div><textarea id="dumptext" readonly></textarea></div>
 <div id="legend"><span class="p">■ producers</span> · <span class="c">■ consumers</span> · <span class="d">■ decomposers</span> · <span style="color:#888">■ dormant</span></div>
 <div id="note">Portable legacy viewer: chemistry and Genome V2 are off in both presets.
 <br>Use the primary PixiJS viewer for advanced experiments.
@@ -156,7 +156,7 @@ pauseBtn.onclick = function() {
   if (!playing && rafId) { cancelAnimationFrame(rafId); rafId = 0; }
   if (playing) { lastCommit = performance.now(); rafId = requestAnimationFrame(frame); }
 };
-document.getElementById('export').onclick = function() {
+document.getElementById('export').onclick = async function() {
   if (!handle) return;
   if (rafId) { cancelAnimationFrame(rafId); rafId = 0; playing = false; pauseBtn.textContent = 'resume'; }
   var dump = SimApp.dumpRun(handle, modeEl.value === 'base');
@@ -166,12 +166,16 @@ document.getElementById('export').onclick = function() {
   box.style.display = 'block';
   area.value = text;
   area.select();
+  var status = document.getElementById('copy-status');
+  status.textContent = 'Copy manually: long-press the JSON, select all, and copy.';
   try {
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text);
-      area.value = 'COPIED ' + text.length + ' chars — paste into chat.\n\n' + text;
+      await navigator.clipboard.writeText(text);
+      status.textContent = 'Copied ' + text.length + ' chars — paste into chat.';
     }
-  } catch (e) { /* manual copy from textarea */ }
+  } catch (e) {
+    status.textContent = 'Clipboard unavailable. Copy manually: long-press the JSON, select all, and copy.';
+  }
   box.scrollIntoView(false);
 };
 stepBtn.onclick = function() {

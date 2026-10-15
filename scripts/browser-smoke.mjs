@@ -155,6 +155,19 @@ async function primary(mobile) {
       const session = await context.newCDPSession(page);
       before = await snapshot(page);
       await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [
+        { x: point.x, y: point.y, id: 1 },
+      ] });
+      await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [
+        { x: point.x + 40, y: point.y + 30, id: 1 },
+      ] });
+      await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+      after = await snapshot(page);
+      assert.ok(after.camera.x !== before.camera.x || after.camera.y !== before.camera.y,
+        'one-contact touchscreen drag pans camera');
+      assert.equal(after.hash, before.hash);
+      assert.equal(after.selected, before.selected, 'touch drag must not pick');
+      before = await snapshot(page);
+      await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [
         { x: point.x, y: point.y, id: 1 }, { x: point.x + 30, y: point.y, id: 2 },
       ] });
       await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [
@@ -182,8 +195,35 @@ async function portable() {
       await page.locator('#run').click();
       await page.waitForFunction(() => /t[1-9]\d*/.test(document.getElementById('readout').textContent));
       await page.locator('#pause').click();
-      await page.locator('#export').click();
-      const dump = JSON.parse(await page.locator('#dumptext').inputValue());
+      let dump;
+      let originalJSON;
+      for (const clipboard of ['success', 'unavailable', 'rejected']) {
+        await page.evaluate((branch) => {
+          window.__copied = null;
+          Object.defineProperty(navigator, 'clipboard', { configurable: true,
+            value: branch === 'unavailable' ? undefined : {
+              writeText: async (text) => {
+                if (branch === 'rejected') throw new Error('test clipboard rejection');
+                window.__copied = text;
+              },
+            },
+          });
+        }, clipboard);
+        await page.locator('#export').click();
+        await page.waitForFunction((branch) => {
+          const status = document.getElementById('copy-status').textContent;
+          return branch === 'success' ? status.startsWith('Copied ')
+            : branch === 'rejected' ? status.startsWith('Clipboard unavailable.')
+            : status.startsWith('Copy manually:');
+        }, clipboard);
+        const text = await page.locator('#dumptext').inputValue();
+        dump = JSON.parse(text);
+        assert.equal(text, JSON.stringify(dump), 'textarea is pure machine-readable JSON');
+        if (originalJSON === undefined) originalJSON = text;
+        assert.equal(text, originalJSON, 'clipboard branch never changes exported data');
+        if (clipboard === 'success') assert.equal(await page.evaluate(() => window.__copied), text);
+        results.push({ test: 'portable JSON clipboard branch', preset, clipboard });
+      }
       assert.equal(dump.seed, 517);
       assert.equal(dump.baseline, preset === 'base');
       assert.ok(dump.tick > 0 && dump.pop > 0);

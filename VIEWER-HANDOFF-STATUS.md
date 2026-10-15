@@ -35,13 +35,28 @@ restart/input/readout/presence fixes. HTTP delivery checks returned 200 for
 the primary HTML and compiled experiment module; both new control IDs were
 present in the served page. HTTP delivery is not browser execution.
 
-## Outstanding browser acceptance
+## Browser evidence and remaining acceptance
+
+Real Chromium CI at `fd4d2fcd00340e37033dff9298719bd9e57fb5db`
+([run 38668724930](https://github.com/brady573/EcoSim/actions/runs/38668724930))
+completed all four chemistry × Genome V2 modes on desktop and simulated mobile:
+identity/readouts, organism picking, invalid-seed preservation, deterministic
+restart, corner/dock layout, wheel/mouse pan and two-contact touch pinch.
+The overall suite **FAILED** during portable export parsing: clipboard status
+was prefixed to JSON. Portable preset/canvas acceptance did not finish.
+
+The requested repair keeps export JSON separate from clipboard status, adds
+success/unavailable/rejected clipboard branch assertions, and adds a genuine
+one-contact Chromium touch drag with camera movement and biological-hash
+preservation assertions. These new scenarios await new-head CI; they are not
+yet passing evidence. Compact-landscape touch coverage is not claimed.
 
 No browser executable, Playwright/Puppeteer installation or browser tool is
 available on the local device. No browser install or capacity-denied command
-was attempted. Actual rendering, pan/pinch, mobile layout, inspector clicks,
-DOM restart-failure recovery and file-open behavior remain **NOT VERIFIED**.
-The handoff cannot be declared fully complete on headless evidence alone.
+was attempted. CI is browser execution, not physical-device validation.
+Physical-phone gestures, visual quality and clipboard integration remain
+unverified; clipboard branch tests use controlled browser API substitutes.
+The handoff cannot be declared fully complete while portable acceptance fails.
 
 Browser checklist for the intended server (`npm run view`, localhost:5178):
 1. Exercise all four mode combinations; check identity and chemical readouts.
