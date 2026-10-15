@@ -834,6 +834,12 @@ function restartFromControls(): boolean {
     refreshConfigExport();
     error.textContent = '';
     renderInspector();
+    // Re-evaluate synchronously: restart closes the inspector, which can move
+    // the layout decision (dock back to corner). The ticker only re-checks on
+    // inspector-visibility change every UI_REFRESH_EVERY frames, so without
+    // this the stale dock lingers — and covers the canvas — for several
+    // frames after every restart.
+    layoutFit();
     return true;
   } catch (e) {
     error.textContent = e instanceof Error ? e.message : String(e);
