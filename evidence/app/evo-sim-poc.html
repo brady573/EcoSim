@@ -2257,6 +2257,48 @@ const TROPHIC_NAME = {
 /** Number of trophic guilds. Exported so array strides derive from it. */
 const TROPHIC_COUNT = 3;
 /**
+ * Disjoint mineralizer donor classes for per-event flux attribution (O3).
+ *
+ * These partition the `bioticMineraliser` predicate in `deriveRole` below:
+ * the two qualifying branches (carrion path needs `speed < 2.4`, recalc path
+ * does not) can overlap WITHIN one organism, so the classes — not the raw
+ * branches — are what flux is booked by. Substrate writers
+ * (sediment/detritus/litter) are a SEPARATE axis, never a "path" here.
+ */
+const MINERAL_PHENO = {
+    /** Carrion branch only: `photo < 0.34 && carrion > 0.55 && speed < 2.4`, recalc branch false. */
+    CARRION_ONLY: 0,
+    /** Recalc branch only: `photo < 0.34 && recalc > 0.5`, carrion branch false. */
+    RECALC_ONLY: 1,
+    /** Both branches true. Suppression targets this class, never half of it. */
+    DUAL: 2,
+    /** Flag true but neither branch true at event time (stale cache / trait drift — see G33). */
+    NEITHER: 3,
+};
+/** Number of mineralizer donor classes. Exported so array strides derive from it. */
+const MINERAL_PHENO_CLASS_COUNT = 4;
+/**
+ * Classify one mineralization event by the organism's LIVE expressed traits.
+ *
+ * Pure function: four float reads in, one class out. No RNG, no writes.
+ * Operators replicate `deriveRole`'s predicate exactly (`<`, `>` strict).
+ * `NEITHER` covers both `photo >= 0.34` and gated-but-no-path; a mineralizing
+ * slot classifying NEITHER means the cached flag and live traits disagree
+ * (refresh lag or post-birth trait drift), which G33 reports rather than asserts.
+ */
+function classifyMineralPheno(photo, carrion, recalc, speed) {
+    const gated = photo < 0.34;
+    const c = gated && carrion > 0.55 && speed < 2.4;
+    const r = gated && recalc > 0.5;
+    if (c && !r)
+        return MINERAL_PHENO.CARRION_ONLY;
+    if (r && !c)
+        return MINERAL_PHENO.RECALC_ONLY;
+    if (c && r)
+        return MINERAL_PHENO.DUAL;
+    return MINERAL_PHENO.NEITHER;
+}
+/**
  * Motility class.
  *
  * `reach` is the interaction reach in world units, separate from locomotion:
@@ -2409,6 +2451,9 @@ function stageDamageFactor(readout) {
 exports.TROPHIC = TROPHIC;
 exports.TROPHIC_NAME = TROPHIC_NAME;
 exports.TROPHIC_COUNT = TROPHIC_COUNT;
+exports.MINERAL_PHENO = MINERAL_PHENO;
+exports.MINERAL_PHENO_CLASS_COUNT = MINERAL_PHENO_CLASS_COUNT;
+exports.classifyMineralPheno = classifyMineralPheno;
 exports.MOTILITY = MOTILITY;
 exports.MOTILITY_NAME = MOTILITY_NAME;
 exports.LIFE_STAGE = LIFE_STAGE;
@@ -4348,6 +4393,25 @@ __def("world/version.js", function(require, exports, module){/**
 /**
  * Bump on any behavioural change to the simulation.
  *
+ * 0.6.4 is a MEASUREMENT re-base, not a behavioural change. Engine semantics,
+ * seed parity and reproducibility are untouched: the pools themselves, the
+ * writer paths, and every default are the same, and the pinned pair 517 ->
+ * 882/170/65, 24601 -> 563/279/90 (500 ticks) still holds — no new
+ * retirement-chain entry, no re-pin.
+ *
+ * What this release changes is the instrumentation the probes read:
+ *   - `getFluxSnapshot()` exposes a fifth family,
+ *     `bioticMineralizationByPheno`, partitioning every biotic-mineralization
+ *     book by expressed donor class (0=carrionOnly, 1=recalcOnly, 2=dual,
+ *     3=neither; see `classifyMineralPheno` in `src/bio/role.ts` and G33).
+ *     The existing four families are byte-identical: the pheno books are
+ *     written from the same clamp locals through one optional mirror branch
+ *     (excretion callers omit it), add no RNG draw, change no field write,
+ *     and are excluded from `hashState`. The partition identity
+ *     `old[g][p][src] == sum over classes` is asserted per cell by G33.
+ *     A living-organism census is not an event-flux measurement; the census
+ *     denominators and these books are deliberately different instruments.
+ *
  * 0.6.3 is a MEASUREMENT re-base, not a behavioural change. Engine semantics,
  * seed parity and reproducibility are untouched: the pools themselves, the
  * writer paths, and every default are the same, and the pinned pair 517 ->
@@ -4416,13 +4480,14 @@ __def("world/version.js", function(require, exports, module){/**
  * All figures recorded under 0.4.1 describe the DEFECTIVE semantics and are
  * provenance only. See REPORT.md.
  */
-const WORLD_ENGINE_VERSION = 'ts-evo-poc/0.6.3';
+const WORLD_ENGINE_VERSION = 'ts-evo-poc/0.6.4';
 /**
  * Identifier for the credibility-check suite. G30 (per-pool nutrient cap on
- * return paths) shipped with gates/0.4.0; only G31 and G32 (the book-level
- * checks) were added in this release.
+ * return paths) shipped with gates/0.4.0; G31 and G32 (the book-level checks)
+ * with gates/0.5.0; G33 (phenotype-partitioned mineralization books) with
+ * gates/0.6.0.
  */
-const GATE_SUITE_VERSION = 'gates/0.5.0';
+const GATE_SUITE_VERSION = 'gates/0.6.0';
 
 exports.WORLD_ENGINE_VERSION = WORLD_ENGINE_VERSION;
 exports.GATE_SUITE_VERSION = GATE_SUITE_VERSION;
@@ -4466,7 +4531,7 @@ const { RollingDigest } = require("../core/hash.js");
 const { TRAIT, TRAITS, BODY_GENES, TRAIT_COUNT } = require("../bio/genome.js");
 const { Phenotype, resolveCapacity } = require("../bio/phenotype.js");
 const { HabitatMap } = require("../bio/habitat.js");
-const { deriveRole, developmentalScale, stageDamageFactor, MOTILITY, TROPHIC, TROPHIC_COUNT } = require("../bio/role.js");
+const { deriveRole, developmentalScale, stageDamageFactor, MOTILITY, TROPHIC, TROPHIC_COUNT, MINERAL_PHENO_CLASS_COUNT, classifyMineralPheno } = require("../bio/role.js");
 const { TraceLog, TRACE, DEATH_CAUSE } = require("../trace/trace.js");
 const { REPRO_GATE } = require("../trace/reproprobe.js");
 const { InteractionQueue, INTERACTION, OUTCOME } = require("../bio/interactions.js");
@@ -4954,6 +5019,11 @@ class World {
         const bioticMineralization = {
             attempted: [], accepted: [], capLoss: [], eviction: [],
         };
+        // O3: per-event attribution by expressed donor class [class][guild][pool][source].
+        // Partitions bioticMineralization: old[g][p][src] == sum over classes. See G33.
+        const bioticMineralizationByPheno = {
+            attempted: [], accepted: [], capLoss: [], eviction: [],
+        };
         for (let g = 0; g < TROPHIC_COUNT; g++) {
             photoUptake[g] = [];
             excretionReturns.attempted[g] = [];
@@ -5006,7 +5076,28 @@ class World {
                 this.abioticMineralizationPoolSource[p * 3 + 2],
             ];
         }
-        return { photoUptake, excretionReturns, bioticMineralization, abioticRegen, abioticMineralization };
+        this.fillPhenoBook(bioticMineralizationByPheno.attempted, this.bioticPhenoAttemptedClassGuildPoolSource);
+        this.fillPhenoBook(bioticMineralizationByPheno.accepted, this.bioticPhenoAcceptedClassGuildPoolSource);
+        this.fillPhenoBook(bioticMineralizationByPheno.capLoss, this.bioticPhenoCapLossClassGuildPoolSource);
+        this.fillPhenoBook(bioticMineralizationByPheno.eviction, this.bioticPhenoEvictionClassGuildPoolSource);
+        return { photoUptake, excretionReturns, bioticMineralization, bioticMineralizationByPheno, abioticRegen, abioticMineralization };
+    }
+    /**
+     * Fill one `bioticMineralizationByPheno` book from its flat array.
+     * factored so the four books share one stride computation with the guild
+     * books above: `class * 27 + guild * 9 + pool * 3 + source`.
+     */
+    fillPhenoBook(out, arr) {
+        for (let c = 0; c < MINERAL_PHENO_CLASS_COUNT; c++) {
+            out[c] = [];
+            for (let g = 0; g < TROPHIC_COUNT; g++) {
+                out[c][g] = [];
+                for (let p = 0; p < NUTRIENT_COUNT; p++) {
+                    const o = c * TROPHIC_COUNT * NUTRIENT_COUNT * 3 + g * NUTRIENT_COUNT * 3 + p * 3;
+                    out[c][g][p] = [arr[o + 0], arr[o + 1], arr[o + 2]];
+                }
+            }
+        }
     }
     /**
      * Grow every per-slot array this class owns so index `slot` is writable.
@@ -5129,6 +5220,8 @@ class World {
     //   excretion{Attempted,Returns,CapLoss,Eviction}[guild * NUTRIENT_COUNT + pool]
     //   biotic{Attempted,Mineralization,CapLoss,Eviction}[guild * NUTRIENT_COUNT * 3 + pool * 3 + source]
     //     source: 0=sediment, 1=detritus, 2=litter
+    //   bioticPheno{Attempted,Accepted,CapLoss,Eviction}[class * TROPHIC_COUNT * NUTRIENT_COUNT * 3 + guild * NUTRIENT_COUNT * 3 + pool * 3 + source]
+    //     class: 0=carrionOnly, 1=recalcOnly, 2=dual, 3=neither (see classifyMineralPheno)
     //   abioticRegen[pool]
     //   abioticMineralization[pool * 3 + source]  source: 0=detritus, 1=sediment, 2=litter
     photoUptakeGuildPool = new Float64Array(TROPHIC_COUNT * NUTRIENT_COUNT);
@@ -5163,6 +5256,21 @@ class World {
     bioticAttemptedGuildPoolSource = new Float64Array(TROPHIC_COUNT * NUTRIENT_COUNT * 3);
     bioticCapLossGuildPoolSource = new Float64Array(TROPHIC_COUNT * NUTRIENT_COUNT * 3);
     bioticEvictionGuildPoolSource = new Float64Array(TROPHIC_COUNT * NUTRIENT_COUNT * 3);
+    /**
+     * Per-EVENT mineralization flux by expressed donor class (O3, Owner decision
+     * 2026-10-15 Stage 1). Same four books, partitioned one level deeper:
+     * `[class * TROPHIC_COUNT * NUTRIENT_COUNT * 3 + guild * NUTRIENT_COUNT * 3
+     * + pool * 3 + source]`, classes from `classifyMineralPheno` in
+     * `src/bio/role.ts` (0=carrionOnly, 1=recalcOnly, 2=dual, 3=neither).
+     * Class-outermost keeps the inner `(guild, pool, source)` stride identical
+     * to the guild books above, so the reconciliation sum reuses the same
+     * addressing. Pure observation: written from the same locals as the guild
+     * books, never read by simulation logic, excluded from `hashState`.
+     */
+    bioticPhenoAcceptedClassGuildPoolSource = new Float64Array(MINERAL_PHENO_CLASS_COUNT * TROPHIC_COUNT * NUTRIENT_COUNT * 3);
+    bioticPhenoAttemptedClassGuildPoolSource = new Float64Array(MINERAL_PHENO_CLASS_COUNT * TROPHIC_COUNT * NUTRIENT_COUNT * 3);
+    bioticPhenoCapLossClassGuildPoolSource = new Float64Array(MINERAL_PHENO_CLASS_COUNT * TROPHIC_COUNT * NUTRIENT_COUNT * 3);
+    bioticPhenoEvictionClassGuildPoolSource = new Float64Array(MINERAL_PHENO_CLASS_COUNT * TROPHIC_COUNT * NUTRIENT_COUNT * 3);
     abioticRegenPool = new Float64Array(NUTRIENT_COUNT);
     abioticMineralizationPoolSource = new Float64Array(NUTRIENT_COUNT * 3);
     /** Diagnostic counters: graze takes split from predation (the ledger merges
@@ -5844,7 +5952,12 @@ class World {
      * `data` is passed rather than re-read so the caller's local alias and the
      * written array cannot diverge, and it is mutated in place.
      */
-    returnThroughCeiling(data, nIdx, ci, amount, off, accepted, attempted, capLoss, eviction) {
+    returnThroughCeiling(data, nIdx, ci, amount, off, accepted, attempted, capLoss, eviction, 
+    // Optional phenotype mirror (O3). Excretion callers omit it and behave
+    // byte-identically to before. One holder object per mineralization EVENT
+    // (not per pool call) keeps the hot path allocation-free apart from that
+    // single short-lived object; the booked values are the same locals.
+    pheno = null) {
         const cap = this.nutrientCapAt(nIdx, ci);
         const before = data[ci];
         const after = Math.min(cap, before + amount);
@@ -5856,6 +5969,12 @@ class World {
         accepted[off] += acceptedAmt;
         capLoss[off] += amount - acceptedAmt;
         eviction[off] += before > after ? before - after : 0;
+        if (pheno !== null) {
+            pheno.attempted[pheno.off] += amount;
+            pheno.accepted[pheno.off] += acceptedAmt;
+            pheno.capLoss[pheno.off] += amount - acceptedAmt;
+            pheno.eviction[pheno.off] += before > after ? before - after : 0;
+        }
     }
     /**
      * One biotic-mineralisation return: split `returned` across the three pools,
@@ -5873,10 +5992,26 @@ class World {
         const perPool = returned / NUTRIENT_COUNT;
         const g = this.roleOf(slot).trophic;
         const base = (g * NUTRIENT_COUNT * 3 + source);
+        // Donor class from LIVE expressed traits at event time (O3). Computed once
+        // per event so the three per-pool calls cannot split one event across
+        // classes. Pure reads: no RNG, no writes, no behaviour change.
+        const s = this.store;
+        const cls = classifyMineralPheno(s.trait(slot, TRAIT.PHOTOSYNTHETIC_RATE), s.trait(slot, TRAIT.CARRION_AFFINITY), s.trait(slot, TRAIT.RECALCITRANT_DIGESTION), s.trait(slot, TRAIT.SPEED));
+        const phenoBase = cls * TROPHIC_COUNT * NUTRIENT_COUNT * 3 + base;
+        const pheno = {
+            accepted: this.bioticPhenoAcceptedClassGuildPoolSource,
+            attempted: this.bioticPhenoAttemptedClassGuildPoolSource,
+            capLoss: this.bioticPhenoCapLossClassGuildPoolSource,
+            eviction: this.bioticPhenoEvictionClassGuildPoolSource,
+            off: 0,
+        };
         // Offsets step by 3 because the source dimension is the innermost one.
-        this.returnThroughCeiling(nutA, 0, ci, perPool, base + 0 * 3, this.bioticMineralizationGuildPoolSource, this.bioticAttemptedGuildPoolSource, this.bioticCapLossGuildPoolSource, this.bioticEvictionGuildPoolSource);
-        this.returnThroughCeiling(nutB, 1, ci, perPool, base + 1 * 3, this.bioticMineralizationGuildPoolSource, this.bioticAttemptedGuildPoolSource, this.bioticCapLossGuildPoolSource, this.bioticEvictionGuildPoolSource);
-        this.returnThroughCeiling(nutC, 2, ci, perPool, base + 2 * 3, this.bioticMineralizationGuildPoolSource, this.bioticAttemptedGuildPoolSource, this.bioticCapLossGuildPoolSource, this.bioticEvictionGuildPoolSource);
+        pheno.off = phenoBase + 0 * 3;
+        this.returnThroughCeiling(nutA, 0, ci, perPool, base + 0 * 3, this.bioticMineralizationGuildPoolSource, this.bioticAttemptedGuildPoolSource, this.bioticCapLossGuildPoolSource, this.bioticEvictionGuildPoolSource, pheno);
+        pheno.off = phenoBase + 1 * 3;
+        this.returnThroughCeiling(nutB, 1, ci, perPool, base + 1 * 3, this.bioticMineralizationGuildPoolSource, this.bioticAttemptedGuildPoolSource, this.bioticCapLossGuildPoolSource, this.bioticEvictionGuildPoolSource, pheno);
+        pheno.off = phenoBase + 2 * 3;
+        this.returnThroughCeiling(nutC, 2, ci, perPool, base + 2 * 3, this.bioticMineralizationGuildPoolSource, this.bioticAttemptedGuildPoolSource, this.bioticCapLossGuildPoolSource, this.bioticEvictionGuildPoolSource, pheno);
         this.bioticMineralised += returned;
         this.mineralisedCell[ci] += returned;
     }

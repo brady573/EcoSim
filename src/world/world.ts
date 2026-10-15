@@ -39,7 +39,7 @@ import { RollingDigest } from '../core/hash.js';
 import { TRAIT, TRAITS, BODY_GENES, TRAIT_COUNT, type TraitSpec } from '../bio/genome.js';
 import { Phenotype, resolveCapacity } from '../bio/phenotype.js';
 import { HabitatMap } from '../bio/habitat.js';
-import { deriveRole, developmentalScale, stageDamageFactor, MOTILITY, TROPHIC, TROPHIC_COUNT, type RoleReadout } from '../bio/role.js';
+import { deriveRole, developmentalScale, stageDamageFactor, MOTILITY, TROPHIC, TROPHIC_COUNT, MINERAL_PHENO_CLASS_COUNT, classifyMineralPheno, type RoleReadout } from '../bio/role.js';
 import { TraceLog, TRACE, DEATH_CAUSE, type TraceOptions } from '../trace/trace.js';
 import { REPRO_GATE, type ReproProbe } from '../trace/reproprobe.js';
 import { InteractionQueue, INTERACTION, OUTCOME, type ResolutionRecord } from '../bio/interactions.js';
@@ -628,6 +628,7 @@ export class World {
     photoUptake: number[][];
     excretionReturns: ReturnBooks<number[][]>;
     bioticMineralization: ReturnBooks<number[][][]>;
+    bioticMineralizationByPheno: ReturnBooks<number[][][][]>;
     abioticRegen: number[];
     abioticMineralization: number[][];
   } {
@@ -636,6 +637,11 @@ export class World {
       attempted: [], accepted: [], capLoss: [], eviction: [],
     };
     const bioticMineralization: ReturnBooks<number[][][]> = {
+      attempted: [], accepted: [], capLoss: [], eviction: [],
+    };
+    // O3: per-event attribution by expressed donor class [class][guild][pool][source].
+    // Partitions bioticMineralization: old[g][p][src] == sum over classes. See G33.
+    const bioticMineralizationByPheno: ReturnBooks<number[][][][]> = {
       attempted: [], accepted: [], capLoss: [], eviction: [],
     };
     for (let g = 0; g < TROPHIC_COUNT; g++) {
@@ -690,7 +696,32 @@ export class World {
         this.abioticMineralizationPoolSource[p * 3 + 2],
       ];
     }
-    return { photoUptake, excretionReturns, bioticMineralization, abioticRegen, abioticMineralization };
+    this.fillPhenoBook(bioticMineralizationByPheno.attempted, this.bioticPhenoAttemptedClassGuildPoolSource);
+    this.fillPhenoBook(bioticMineralizationByPheno.accepted, this.bioticPhenoAcceptedClassGuildPoolSource);
+    this.fillPhenoBook(bioticMineralizationByPheno.capLoss, this.bioticPhenoCapLossClassGuildPoolSource);
+    this.fillPhenoBook(bioticMineralizationByPheno.eviction, this.bioticPhenoEvictionClassGuildPoolSource);
+    return { photoUptake, excretionReturns, bioticMineralization, bioticMineralizationByPheno, abioticRegen, abioticMineralization };
+  }
+
+  /**
+   * Fill one `bioticMineralizationByPheno` book from its flat array.
+   * factored so the four books share one stride computation with the guild
+   * books above: `class * 27 + guild * 9 + pool * 3 + source`.
+   */
+  private fillPhenoBook(
+    out: number[][][][],
+    arr: Float64Array,
+  ): void {
+    for (let c = 0; c < MINERAL_PHENO_CLASS_COUNT; c++) {
+      out[c] = [];
+      for (let g = 0; g < TROPHIC_COUNT; g++) {
+        out[c][g] = [];
+        for (let p = 0; p < NUTRIENT_COUNT; p++) {
+          const o = c * TROPHIC_COUNT * NUTRIENT_COUNT * 3 + g * NUTRIENT_COUNT * 3 + p * 3;
+          out[c][g][p] = [arr[o + 0], arr[o + 1], arr[o + 2]];
+        }
+      }
+    }
   }
 
   /**
@@ -815,6 +846,8 @@ export class World {
   //   excretion{Attempted,Returns,CapLoss,Eviction}[guild * NUTRIENT_COUNT + pool]
   //   biotic{Attempted,Mineralization,CapLoss,Eviction}[guild * NUTRIENT_COUNT * 3 + pool * 3 + source]
   //     source: 0=sediment, 1=detritus, 2=litter
+  //   bioticPheno{Attempted,Accepted,CapLoss,Eviction}[class * TROPHIC_COUNT * NUTRIENT_COUNT * 3 + guild * NUTRIENT_COUNT * 3 + pool * 3 + source]
+  //     class: 0=carrionOnly, 1=recalcOnly, 2=dual, 3=neither (see classifyMineralPheno)
   //   abioticRegen[pool]
   //   abioticMineralization[pool * 3 + source]  source: 0=detritus, 1=sediment, 2=litter
   private photoUptakeGuildPool = new Float64Array(TROPHIC_COUNT * NUTRIENT_COUNT);
@@ -849,6 +882,21 @@ export class World {
   private bioticAttemptedGuildPoolSource = new Float64Array(TROPHIC_COUNT * NUTRIENT_COUNT * 3);
   private bioticCapLossGuildPoolSource = new Float64Array(TROPHIC_COUNT * NUTRIENT_COUNT * 3);
   private bioticEvictionGuildPoolSource = new Float64Array(TROPHIC_COUNT * NUTRIENT_COUNT * 3);
+  /**
+   * Per-EVENT mineralization flux by expressed donor class (O3, Owner decision
+   * 2026-10-15 Stage 1). Same four books, partitioned one level deeper:
+   * `[class * TROPHIC_COUNT * NUTRIENT_COUNT * 3 + guild * NUTRIENT_COUNT * 3
+   * + pool * 3 + source]`, classes from `classifyMineralPheno` in
+   * `src/bio/role.ts` (0=carrionOnly, 1=recalcOnly, 2=dual, 3=neither).
+   * Class-outermost keeps the inner `(guild, pool, source)` stride identical
+   * to the guild books above, so the reconciliation sum reuses the same
+   * addressing. Pure observation: written from the same locals as the guild
+   * books, never read by simulation logic, excluded from `hashState`.
+   */
+  private bioticPhenoAcceptedClassGuildPoolSource = new Float64Array(MINERAL_PHENO_CLASS_COUNT * TROPHIC_COUNT * NUTRIENT_COUNT * 3);
+  private bioticPhenoAttemptedClassGuildPoolSource = new Float64Array(MINERAL_PHENO_CLASS_COUNT * TROPHIC_COUNT * NUTRIENT_COUNT * 3);
+  private bioticPhenoCapLossClassGuildPoolSource = new Float64Array(MINERAL_PHENO_CLASS_COUNT * TROPHIC_COUNT * NUTRIENT_COUNT * 3);
+  private bioticPhenoEvictionClassGuildPoolSource = new Float64Array(MINERAL_PHENO_CLASS_COUNT * TROPHIC_COUNT * NUTRIENT_COUNT * 3);
   private abioticRegenPool = new Float64Array(NUTRIENT_COUNT);
   private abioticMineralizationPoolSource = new Float64Array(NUTRIENT_COUNT * 3);
 
@@ -1577,6 +1625,14 @@ export class World {
     attempted: Float64Array,
     capLoss: Float64Array,
     eviction: Float64Array,
+    // Optional phenotype mirror (O3). Excretion callers omit it and behave
+    // byte-identically to before. One holder object per mineralization EVENT
+    // (not per pool call) keeps the hot path allocation-free apart from that
+    // single short-lived object; the booked values are the same locals.
+    pheno: {
+      accepted: Float64Array; attempted: Float64Array;
+      capLoss: Float64Array; eviction: Float64Array; off: number;
+    } | null = null,
   ): void {
     const cap = this.nutrientCapAt(nIdx, ci);
     const before = data[ci];
@@ -1589,6 +1645,12 @@ export class World {
     accepted[off] += acceptedAmt;
     capLoss[off] += amount - acceptedAmt;
     eviction[off] += before > after ? before - after : 0;
+    if (pheno !== null) {
+      pheno.attempted[pheno.off] += amount;
+      pheno.accepted[pheno.off] += acceptedAmt;
+      pheno.capLoss[pheno.off] += amount - acceptedAmt;
+      pheno.eviction[pheno.off] += before > after ? before - after : 0;
+    }
   }
 
   /**
@@ -1615,16 +1677,36 @@ export class World {
     const perPool = returned / NUTRIENT_COUNT;
     const g = this.roleOf(slot).trophic;
     const base = (g * NUTRIENT_COUNT * 3 + source);
+    // Donor class from LIVE expressed traits at event time (O3). Computed once
+    // per event so the three per-pool calls cannot split one event across
+    // classes. Pure reads: no RNG, no writes, no behaviour change.
+    const s = this.store;
+    const cls = classifyMineralPheno(
+      s.trait(slot, TRAIT.PHOTOSYNTHETIC_RATE),
+      s.trait(slot, TRAIT.CARRION_AFFINITY),
+      s.trait(slot, TRAIT.RECALCITRANT_DIGESTION),
+      s.trait(slot, TRAIT.SPEED));
+    const phenoBase = cls * TROPHIC_COUNT * NUTRIENT_COUNT * 3 + base;
+    const pheno = {
+      accepted: this.bioticPhenoAcceptedClassGuildPoolSource,
+      attempted: this.bioticPhenoAttemptedClassGuildPoolSource,
+      capLoss: this.bioticPhenoCapLossClassGuildPoolSource,
+      eviction: this.bioticPhenoEvictionClassGuildPoolSource,
+      off: 0,
+    };
     // Offsets step by 3 because the source dimension is the innermost one.
+    pheno.off = phenoBase + 0 * 3;
     this.returnThroughCeiling(nutA, 0, ci, perPool, base + 0 * 3,
       this.bioticMineralizationGuildPoolSource, this.bioticAttemptedGuildPoolSource,
-      this.bioticCapLossGuildPoolSource, this.bioticEvictionGuildPoolSource);
+      this.bioticCapLossGuildPoolSource, this.bioticEvictionGuildPoolSource, pheno);
+    pheno.off = phenoBase + 1 * 3;
     this.returnThroughCeiling(nutB, 1, ci, perPool, base + 1 * 3,
       this.bioticMineralizationGuildPoolSource, this.bioticAttemptedGuildPoolSource,
-      this.bioticCapLossGuildPoolSource, this.bioticEvictionGuildPoolSource);
+      this.bioticCapLossGuildPoolSource, this.bioticEvictionGuildPoolSource, pheno);
+    pheno.off = phenoBase + 2 * 3;
     this.returnThroughCeiling(nutC, 2, ci, perPool, base + 2 * 3,
       this.bioticMineralizationGuildPoolSource, this.bioticAttemptedGuildPoolSource,
-      this.bioticCapLossGuildPoolSource, this.bioticEvictionGuildPoolSource);
+      this.bioticCapLossGuildPoolSource, this.bioticEvictionGuildPoolSource, pheno);
     this.bioticMineralised += returned;
     this.mineralisedCell[ci] += returned;
   }

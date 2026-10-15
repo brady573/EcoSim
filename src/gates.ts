@@ -31,7 +31,7 @@ import {
   expressModules, inheritModules, recombineModules, seedFounderModules,
 } from './bio/modgenome.js';
 import { OrganismStore, NUTRIENT_COUNT } from './core/soa.js';
-import { TROPHIC_COUNT } from './bio/role.js';
+import { TROPHIC_COUNT, MINERAL_PHENO_CLASS_COUNT } from './bio/role.js';
 import type { Phenotype } from './bio/phenotype.js';
 import { Rng } from './core/rng.js';
 import { INTENT } from './world/world.js';
@@ -2270,6 +2270,116 @@ function gate31(): void {
     `identity was only tested on its trivial branch.`);
 }
 
+// G33 — phenotype-partitioned mineralization books (O3, Owner decision 2026-10-15).
+//
+// The new `bioticMineralizationByPheno` family must partition the existing
+// guild books exactly: for every (guild, pool, source) and every one of the
+// four books, `guild book == sum over the 4 donor classes`. Per-cell, like
+// G32: aggregates would let misbooked classes cancel. `neither` is REPORTED,
+// not asserted zero: the cached mineralizer flag and live expressed traits
+// refresh on different cadences (plus post-birth trait drift under genomeV2),
+// so a stale-flag event can legitimately classify NEITHER. Asserting zero
+// would couple the gate to refresh cadence. New-books determinism is checked
+// by twin runs with elementwise snapshot equality (books are excluded from
+// `hashState` by design, so nothing else covers them).
+function gate33(): void {
+  const TICKS = 120;
+  const cfg = {
+    founders: 300, worldW: 800, worldH: 800, seed: 4242, label: 'gates33',
+    nutrientRegen: 0.5, nutrientCyclic: false, nutrientFloor: 0,
+    producerCaptureScale: 0,
+    excretionRate: 0.06, bioticMineralisation: 1.0, basalFoodPerCell: 0.5,
+    recyclingRate: 0.02,
+  };
+  const run = (): World => {
+    const w = new World({ config: { ...cfg } });
+    for (let t = 0; t < TICKS; t++) w.step();
+    return w;
+  };
+  const a = run();
+  const fa = a.getFluxSnapshot();
+  const ph = fa.bioticMineralizationByPheno;
+  const old = fa.bioticMineralization;
+
+  let attempted = 0;
+  let worstResidual = 0;
+  let worstNegValue: number | null = null;
+  let worstNegWhere = 'none';
+  let acceptedNonNeither = 0;
+  let neitherAccepted = 0;
+  let phenoEviction = 0;
+  const bookOf = (fam: { attempted: number[][][][]; accepted: number[][][][]; capLoss: number[][][][]; eviction: number[][][][] }, book: 'attempted' | 'accepted' | 'capLoss' | 'eviction') => fam[book];
+  for (let g = 0; g < TROPHIC_COUNT; g++) {
+    for (let p = 0; p < NUTRIENT_COUNT; p++) {
+      for (let src = 0; src < 3; src++) {
+        const cells: Array<[book: 'attempted' | 'accepted' | 'capLoss' | 'eviction', guildVal: number]> = [
+          ['attempted', old.attempted[g][p][src]],
+          ['accepted', old.accepted[g][p][src]],
+          ['capLoss', old.capLoss[g][p][src]],
+          ['eviction', old.eviction[g][p][src]],
+        ];
+        for (const [book, guildVal] of cells) {
+          let s = 0;
+          for (let c = 0; c < MINERAL_PHENO_CLASS_COUNT; c++) {
+            const v: number = bookOf(ph, book)[c][g][p][src];
+            s += v;
+            attempted += book === 'attempted' ? v : 0;
+            if (v < 0 && (worstNegValue === null || v < worstNegValue)) {
+              worstNegValue = v;
+              worstNegWhere = `pheno.${book}[class ${c}][guild ${g}][pool ${p}][source ${src}] = ${v}`;
+            }
+            if (book === 'accepted') {
+              if (c === 3) neitherAccepted += v;
+              else acceptedNonNeither += v;
+            }
+            if (book === 'eviction') phenoEviction += v;
+          }
+          const r = Math.abs(guildVal - s);
+          if (r > worstResidual) worstResidual = r;
+        }
+      }
+    }
+  }
+  const partitionOk = worstResidual <= 1e-6 * Math.max(1, attempted);
+  const negOk = worstNegValue === null || worstNegValue >= -1e-12 * Math.max(1, attempted);
+  const nonVacuous = attempted > 0 && acceptedNonNeither > 0 && phenoEviction > 0;
+
+  // Twin-run determinism over the NEW family (elementwise ===).
+  const b = run();
+  const fb = b.getFluxSnapshot();
+  const pb = fb.bioticMineralizationByPheno;
+  let detMismatch = 0;
+  for (let c = 0; c < MINERAL_PHENO_CLASS_COUNT; c++) {
+    for (let g = 0; g < TROPHIC_COUNT; g++) {
+      for (let p = 0; p < NUTRIENT_COUNT; p++) {
+        for (let src = 0; src < 3; src++) {
+          if (bookOf(ph, 'attempted')[c][g][p][src] !== bookOf(pb, 'attempted')[c][g][p][src]) detMismatch++;
+          if (bookOf(ph, 'accepted')[c][g][p][src] !== bookOf(pb, 'accepted')[c][g][p][src]) detMismatch++;
+          if (bookOf(ph, 'capLoss')[c][g][p][src] !== bookOf(pb, 'capLoss')[c][g][p][src]) detMismatch++;
+          if (bookOf(ph, 'eviction')[c][g][p][src] !== bookOf(pb, 'eviction')[c][g][p][src]) detMismatch++;
+        }
+      }
+    }
+  }
+  const hashEqual = a.hashState() === b.hashState();
+  const neitherShare = acceptedNonNeither + neitherAccepted > 0
+    ? neitherAccepted / (acceptedNonNeither + neitherAccepted) : 0;
+
+  record('G33', 'phenotype books partition guild books at every (class, guild, pool, source)',
+    negOk && partitionOk && nonVacuous && detMismatch === 0 && hashEqual,
+    `saturation arm (G32 verbatim + phenotype mirror), ${TICKS} ticks: ` +
+    `per-cell guild==sum(classes) worst residual ${worstResidual.toExponential(2)}, ` +
+    `limit 1e-6 x max(1, attempted=${attempted.toFixed(1)}). ` +
+    `Worst negative pheno cell: ${worstNegWhere} (limit -1e-12 x max(1, attempted)). ` +
+    `Non-neither accepted ${acceptedNonNeither.toFixed(3)} (> 0 required); ` +
+    `neither accepted ${neitherAccepted.toFixed(3)} ` +
+    `(share ${(neitherShare * 100).toFixed(2)}%, REPORTED not asserted — stale ` +
+    `flag / trait-drift events classify here). Pheno eviction total ` +
+    `${phenoEviction.toExponential(3)} (> 0 required, ceiling bit). Twin-run new-book ` +
+    `mismatches ${detMismatch} (must be 0); trajectory digests ` +
+    `${hashEqual ? 'equal' : 'DIFFER'} (must be equal).`);
+}
+
 function main(): void {
   console.log(`=== credibility gates :: ${WORLD_ENGINE_VERSION} ===`);
   console.log(`scenario: founders=${SMALL.founders} world=${SMALL.worldW}x${SMALL.worldH} ticks=${TICKS} seed=${SMALL.seed}\n`);
@@ -2303,6 +2413,7 @@ function main(): void {
   gate29();
   gate30();
   gate31();
+  gate33();
 
   const failed = results.filter((r) => !r.pass);
   console.log(`\n${results.length - failed.length}/${results.length} checks passed`);
