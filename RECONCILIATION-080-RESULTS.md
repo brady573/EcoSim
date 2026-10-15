@@ -1,4 +1,7 @@
-# Main reconciliation — current results
+> HISTORICAL after Owner-authorized D1/D2 (`chem/0.7.8`, 2026-10-15).
+> All figures retain their original `chem/0.7.7` identity, not current biology.
+
+# Main reconciliation — historical results
 
 Identity: `ts-evo-poc/0.8.0+chem/0.7.7`. Measured 2026-10-14 after merging
 main 8956699 into checkpoint 6a08e4d. Chemistry-off identity is

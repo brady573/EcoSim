@@ -27,6 +27,61 @@ const versionSrc = read(join(root, 'src', 'world', 'version.ts'));
 const worldV = /WORLD_ENGINE_VERSION = '([^']+)'/.exec(versionSrc)?.[1] ?? '';
 const chemV = /CHEMISTRY_ENGINE_VERSION = '([^']+)'/.exec(versionSrc)?.[1] ?? '';
 const expectedIdentity = `${worldV}+${chemV}`;
+// Live qualification is separate from the archived chemistry panels below.
+{
+  const doc = read(join(root, 'CHEM-078-CORRECTIONS.md'));
+  const rows = read(join(root, 'evidence/chem078-final-targeted-20261015.jsonl')).trim().split('\n').map(JSON.parse);
+  assert.equal(rows[0].identity, expectedIdentity);
+  assert.ok(doc.includes(expectedIdentity));
+  assert.equal(rows.filter((r) => r.decision === 'D1').length, 20);
+  assert.equal(rows.filter((r) => r.decision === 'D2').length, 45);
+  const live = rows.find((r) => r.decision === 'D1-live');
+  assert.ok(live?.positiveGrowth > 0 && live.perElementPostconditions);
+  assert.equal(live.flux, live.ledger);
+  for (const kind of ['half-P', 'half-Fe', 'absent-Fe', 'abundant', 'energy-limited']) {
+    const r = rows.find((r) => r.decision === 'D1' && r.kind === kind && r.requestedCarbon === 0.012);
+    assert.ok(r);
+    const quoted = `| ${kind} | 0.012 | ${Number(r.builtCarbon.toPrecision(12))} |`;
+    assert.ok(doc.includes(quoted), `missing D1 measured figure: ${quoted}`);
+  }
+  for (const scale of [0.5, 1, 2]) for (const element of [0, 3, 4, 5, 6]) {
+    for (const boundary of ['below', 'exact', 'above']) {
+      const r = rows.find((r) => r.decision === 'D2' && r.scale === scale && r.element === element && r.boundary === boundary);
+      assert.equal(r?.ok, boundary !== 'below');
+    }
+  }
+  const dir = join(root, 'evidence/chem078-final-20261015');
+  const protocol = JSON.parse(read(join(dir, 'protocol.json')));
+  const complete = JSON.parse(read(join(dir, 'complete.json')));
+  const current = read(join(dir, 'runs.jsonl')).trim().split('\n').map(JSON.parse);
+  const pairs = read(join(dir, 'comparisons.jsonl')).trim().split('\n').map(JSON.parse);
+  assert.equal(protocol.identity, expectedIdentity);
+  assert.equal(complete.uniqueRuns, 4);
+  assert.equal(complete.executions, 8);
+  assert.equal(complete.repeatsExact, 4);
+  assert.equal(complete.legacyControlsMatched, 2);
+  assert.equal(current.length, 4);
+  assert.equal(pairs.length, 4);
+  assert.equal(new Set(pairs.map((r) => `${r.arm}:${r.seed}`)).size, 4);
+  for (const pair of pairs) {
+    const { trajectory, ...record } = current.find((r) => r.seed === pair.seed && r.arm === pair.arm) ?? {};
+    assert.deepEqual(record, pair.after);
+    assert.equal(record.tick, protocol.ticks);
+    if (pair.arm === 'legacy') assert.deepEqual(pair.after, pair.before);
+    else {
+      assert.equal(pair.before.identity, 'ts-evo-poc/0.8.0+chem/0.7.7');
+      assert.equal(pair.after.identity, expectedIdentity);
+      for (const when of ['before', 'after']) for (const element of ['C', 'H', 'O']) {
+        assert.equal(pair[when].chemistry.elementalResiduals.find((r) => r.element === element)?.ok, false,
+          'quoted inherited strict-audit limitation must remain visible in raw evidence');
+      }
+    }
+    assert.ok(doc.includes(`| ${pair.seed} | ${pair.arm} | ${pair.before.population} | ${pair.after.population} | ${pair.before.births} | ${pair.after.births} |`));
+  }
+}
+// Fixed identity of the reconciled investigation panels. A live chemistry bump
+// does not relabel archived cohorts or make their numbers current again.
+const reconciledIdentity = 'ts-evo-poc/0.8.0+chem/0.7.7';
 // These cases intentionally protect the retained historical 0.7.0 panel.
 // Current 0.8.0 measurements are checked separately below, never relabelled.
 const historicalIdentity = 'ts-evo-poc/0.7.0+chem/0.7.7';
@@ -59,8 +114,8 @@ const currentDoc = read(join(root, 'RECONCILIATION-080-RESULTS.md'));
   const summaries = JSON.parse(read(join(dir, 'life-summaries.json')));
   const raw = gunzipSync(readFileSync(join(dir, 'families.jsonl.gz'))).toString('utf8');
   const doc = read(join(root, 'CHEM-FIRSTBIRTH-RESULTS.md'));
-  assert.equal(protocol.identity, expectedIdentity);
-  assert.ok(doc.includes(expectedIdentity));
+  assert.equal(protocol.identity, reconciledIdentity);
+  assert.ok(doc.includes(reconciledIdentity));
   const lives = new Map();
   let births = 0;
   for (const line of raw.trim().split('\n')) {
@@ -117,7 +172,7 @@ const currentDoc = read(join(root, 'RECONCILIATION-080-RESULTS.md'));
   const doc = read(join(root, 'MECHANISM-FOUR-ARM-RESULTS.md'));
   if (records.length !== 72 || complete.runs !== 72 || complete.historicalControlsMatched !== 36
     || new Set(records.map((r) => `${r.arm}:${r.seed}`)).size !== 72) throw new Error('incomplete mechanism panel');
-  if (protocol.identity !== expectedIdentity || !doc.includes(expectedIdentity)) throw new Error('mechanism identity mismatch');
+  if (protocol.identity !== reconciledIdentity || !doc.includes(reconciledIdentity)) throw new Error('historical mechanism identity mismatch');
   for (const arm of protocol.arms) {
     const rows = records.filter((r) => r.arm === arm.name);
     if (rows.length !== 18 || new Set(rows.map((r) => r.seed)).size !== 18
@@ -153,7 +208,7 @@ const currentDoc = read(join(root, 'RECONCILIATION-080-RESULTS.md'));
     }
   }
 }
-if (!currentDoc.includes(expectedIdentity)) throw new Error('current results identity mismatch');
+if (!currentDoc.includes(reconciledIdentity)) throw new Error('historical reconciliation identity mismatch');
 const currentPredation = read(join(root, 'evidence/chem-predation-knob-10seed-080-20261014.txt'));
 const sexualTotals = ['base', 'predationMatter'].map((arm) => {
   const block = currentPredation.split(`--- ${arm} ---`)[1].split(`${arm}:`)[0];
@@ -202,8 +257,8 @@ for (const rel of [
   'evidence/chem-matrix-91011-080-20261014.txt',
   'evidence/chem-predation-knob-10seed-080-20261014.txt',
 ]) {
-  if (!read(join(root, rel)).split('\n')[0].includes(expectedIdentity)) {
-    throw new Error(`current raw identity mismatch: ${rel}`);
+  if (!read(join(root, rel)).split('\n')[0].includes(reconciledIdentity)) {
+    throw new Error(`historical raw identity mismatch: ${rel}`);
   }
 }
 for (const doc of [docs.prereg, docs.matrixDoc, docs.predation]) {
@@ -258,7 +313,7 @@ for (const [docKey, rawKey, label, inRaw, inDoc] of CASES) {
 }
 
 console.log(`\n${CASES.length - failed}/${CASES.length} doc figures match their current raw evidence`);
-console.log(`historical figures preserved; current raw identity ${expectedIdentity} checked separately`);
+console.log(`historical figures preserved at ${reconciledIdentity}; live identity ${expectedIdentity} checked separately`);
 process.exit(failed > 0 || process.exitCode ? 1 : 0);
 
 function read(p) {

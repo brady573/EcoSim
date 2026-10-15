@@ -19,6 +19,8 @@ export interface ChemBoundaryEvent {
   uptakeIncludesSubsidy?: boolean;
   storesAfter?: number[];
   biomassAfter?: number[];
+  biomassBeforeGrowth?: number[];
+  energyBeforeGrowth?: number;
   storesAtDeath?: number[];
   biomassAtDeath?: number[];
   capMask?: number;

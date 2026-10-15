@@ -1,3 +1,12 @@
+# Current chemistry status — 2026-10-15
+
+`ts-evo-poc/0.8.0+chem/0.7.8` applies Owner-authorized D1/D2 correctness
+corrections. See `CHEM-078-CORRECTIONS.md` for current targeted evidence.
+Earlier chemistry measurements below, including sections called "current"
+at the time, remain historical under their recorded identities; they have not
+been requalified or silently relabelled. Chemistry-unset parity is unchanged.
+This is not an ecological success verdict or merge approval.
+
 # REPORT — Digital Evolution Advanced Simulation TypeScript Proof of Concept
 
 **Engine version under test:** `ts-evo-poc/0.1.0`

@@ -1,3 +1,6 @@
+> HISTORICAL under `chem/0.7.7` after the D1/D2 transition. Figures unchanged.
+> Replay requires matching source at `8fddb08`, not the current engine.
+
 # Chemical endowment and first birth — one-seed witness
 
 Identity: `ts-evo-poc/0.8.0+chem/0.7.7`, advanced arm, seed 41001,

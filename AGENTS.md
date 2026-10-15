@@ -19,6 +19,10 @@ evolutionary simulation. Single TypeScript tree. Engine version
 `ts-evo-poc/0.8.0` (main 0.6.3 reconciled with the canopy and chemistry branch).
 
 - **STATUS: EXPERIMENTAL. NOT PRODUCTION CODE.**
+- Current chemistry identity: `chem/0.7.8` (Owner-accepted D1/D2, 2026-10-15).
+  Chemistry-unset parity and base `ts-evo-poc/0.8.0` are unchanged. Chemistry
+  figures under `chem/0.7.7` below are historical, not current measurements;
+  use `CHEM-078-CORRECTIONS.md` for the new identity's qualified scope.
 - Judged on **reproducibility, honest accounting, emergence without forcing,
   and multi-seed method** — not on conformance to any product architecture.
 - The Project Owner is the sole product and design authority. The Coding Agent
@@ -381,7 +385,7 @@ the identity).
   photosynthesis, and reservoir top-up/sink are booked as boundary fluxes. G39
   asserts both a discriminating 1:1 uptake control and the live H/O books. No
   claim is made about molecular water identity or speciation.
-- **Energy is reconciled through the legacy causal ledger when chemistry is on.** Chemical reaction income and chemical growth expenditure are booked as `chemicalIncome` and `chemicalSpent` against the identity G3 enforces (G36). G3 itself still runs chemistry unset. Chemical income is **9.646%** by G33's income-only measure (flux versus `ledger.capture`) under the reconciled 0.8.0 engine, recorded in `evidence/reconciliation-080-gates-20261014.txt`. The old 8.388% figure is historical. Growth cost is treated as dissipation. Chemical growth biomass remains matter, not `Ledger.biomass()` (which sums `store.energy`); this is not full trophic integration.
+- **Energy is reconciled through the legacy causal ledger when chemistry is on.** Chemical reaction income and chemical growth expenditure are booked as `chemicalIncome` and `chemicalSpent` against the identity G3 enforces (G36). G3 itself still runs chemistry unset. Historical `chem/0.7.7` chemical income was **9.646%** by G33's income-only measure (flux versus `ledger.capture`), recorded in `evidence/reconciliation-080-gates-20261014.txt`; neither that figure nor the earlier 8.388% figure is a current `chem/0.7.8` measurement. See `CHEM-078-CORRECTIONS.md` and its gate evidence for the qualified current scope. Growth cost is treated as dissipation. Chemical growth biomass remains matter, not `Ledger.biomass()` (which sums `store.energy`); this is not full trophic integration.
 - **Predation transfers energy but not matter.** The legacy predator/grazer
   interaction moves `store.energy` from prey to consumer with **no parallel
   elemental transfer** from prey tissue or stores. A chemical mass ledger that

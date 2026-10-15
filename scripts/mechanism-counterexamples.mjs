@@ -9,6 +9,8 @@ import { Chemistry, DEFAULT_CHEMISTRY, POOL_RT as P, POOL_COUNT } from '../build
 import { REACTIONS, reactionExtent } from '../build/bio/metabolism.js';
 import { biomassDemand, BIOMASS_STOICH, ELEMENT_NAMES } from '../build/bio/elements.js';
 import { runIdentity } from '../build/world/version.js';
+assert.equal(runIdentity(true), 'ts-evo-poc/0.8.0+chem/0.7.7',
+  'Historical defect reproducer: use source at 8fddb08; current corrections use scripts/chem-correctness-checks.mjs');
 
 console.log(JSON.stringify({ kind: 'provenance', identity: runIdentity(true),
   scope: 'synthetic public-helper fixtures, not live-world causal evidence',

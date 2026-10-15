@@ -4,6 +4,7 @@ import { readFileSync, mkdirSync, writeFileSync, appendFileSync, existsSync } fr
 import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { World } from '../build/world/world.js';
+import { runIdentity } from '../build/world/version.js';
 import { REACTIONS } from '../build/bio/metabolism.js';
 import { POOL_NAMES } from '../build/world/chemistry.js';
 import { ELEMENT_NAMES } from '../build/bio/elements.js';
@@ -18,6 +19,7 @@ assert.ok(!existsSync(out), 'Refusing existing output');
 const panel = join(root, 'evidence/mechanism-four-arm-20261015');
 assert.ok(!out.startsWith(panel + '/'), 'Do not write inside factorial panel');
 const protocol = JSON.parse(readFileSync(join(panel, 'protocol.json'), 'utf8'));
+assert.equal(runIdentity(true), protocol.identity, 'Historical boundary replay requires its matching engine (8fddb08)');
 const seed = protocol.seeds[0]; // first already authorized seed, no seed search
 const checkpoints = [1, 32, 120, 300, 600, protocol.ticks];
 const prior = readFileSync(join(panel, 'runs.jsonl'), 'utf8').trim().split('\n').map(JSON.parse);

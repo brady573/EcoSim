@@ -10,6 +10,7 @@ import { pipeline } from 'node:stream/promises';
 import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { World } from '../build/world/world.js';
+import { runIdentity } from '../build/world/version.js';
 import { boundaryStateDigest } from './boundary-state-digest.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -26,6 +27,7 @@ const config = JSON.parse(readFileSync(join(panel, `advanced-${seed}-config.json
 const prior = readFileSync(join(panel, 'runs.jsonl'), 'utf8').trim().split('\n').map(JSON.parse)
   .find((r) => r.seed === seed && r.arm === 'advanced');
 assert.ok(prior);
+assert.equal(runIdentity(true), prior.identity, 'Historical family replay requires its matching engine (8fddb08)');
 assert.equal(config.decomposerDormancy, null, 'complete per-tick gate coverage requires no dormant skip');
 mkdirSync(out, { recursive: true });
 writeFileSync(join(out, 'protocol.json'), JSON.stringify({ seed, ticks: protocol.ticks,

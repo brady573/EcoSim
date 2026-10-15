@@ -1201,6 +1201,10 @@ export class World {
     }
     this.repro = opts.reproProbe ?? null;
     const cfg = resolveConfig(opts.config);
+    if (cfg.chemistryReproNutrientDemand != null
+      && (!Number.isFinite(cfg.chemistryReproNutrientDemand) || cfg.chemistryReproNutrientDemand < 0)) {
+      throw new Error('chemistryReproNutrientDemand must be finite and non-negative, or null');
+    }
     this.config = cfg;
     // Normalise the senescence knob once (user config untouched): a plain
     // number is legacy fixed-grace mode; an object selects a scale-free mode.
@@ -5127,6 +5131,10 @@ export class World {
       const boundaryUptake = boundaryBefore === null ? null
         : Array.from(st.stores.subarray(boundaryBase, boundaryBase + E.COUNT),
           (v, e) => v - boundaryBefore.stores[e]);
+      const boundaryGrowth = boundaryBefore === null ? null : {
+        biomassBeforeGrowth: Array.from(st.biomass.subarray(boundaryBase, boundaryBase + E.COUNT)),
+        energyBeforeGrowth: store.energy[slot],
+      };
 
       // Growth is the MINIMUM of what energy and what matter permit. This is
       // the energy/matter separation made operational rather than asserted.
@@ -5165,6 +5173,7 @@ export class World {
             return gross;
           }),
           storesBefore: boundaryBefore.stores, uptake: boundaryUptake!,
+          ...boundaryGrowth,
           uptakeIncludesSubsidy: cfg.freeNutrients,
           storesAfter: Array.from(st.stores.subarray(boundaryBase, boundaryBase + E.COUNT)),
           biomassAfter: Array.from(st.biomass.subarray(boundaryBase, boundaryBase + E.COUNT)),

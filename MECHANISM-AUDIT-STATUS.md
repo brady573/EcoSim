@@ -1,8 +1,11 @@
 # Mechanism audit — investigation, not a biology repair
 
 Review: PR #14 / 5530741428, source baseline `3fd245e`.
-Engine remains `ts-evo-poc/0.8.0+chem/0.7.7`; passive instrumentation added,
-with no biological behavior changes and no altered reaction semantics.
+The investigation below describes `ts-evo-poc/0.8.0+chem/0.7.7` and remains
+historical after D1/D2. Current correction work is `chem/0.7.8`, documented in
+`CHEM-078-CORRECTIONS.md`. The Owner authorized D1/D2 on 2026-10-15 in
+https://github.com/brady573/EcoSim/pull/14#issuecomment-6193809477 ; accepted
+D3–D5 directions retain the specific implementation/parameter gates there.
 
 ## Phase 1: reproducible helper counterexamples
 

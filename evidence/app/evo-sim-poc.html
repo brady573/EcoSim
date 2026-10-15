@@ -3854,7 +3854,10 @@ function grow(st, slot, requestedCarbon, energyAvailable, _cfg, result, scratch)
         if (need <= 0)
             continue;
         const have = st.stores[base + e];
-        const possible = have / need;
+        // have/need is a fraction of THIS request, not carbon moles. Comparing
+        // that fraction directly with matterCarbon admitted malformed tissue for
+        // partial shortages whenever the requested carbon was below one mole.
+        const possible = requestedCarbon * (have / need);
         if (possible < matterCarbon)
             matterCarbon = possible;
     }
@@ -3995,7 +3998,7 @@ function canAffordOffspring(st, slot, cfg) {
     const base = slot * E.COUNT;
     // MACRONUTRIENTS are required at tissue stoichiometry.
     for (const e of MACRONUTRIENTS) {
-        const need = v[e] * cfg.reproNutrientDemand;
+        const need = v[e]; // biomassDemand already applied the linear demand scale
         if (need <= 0)
             continue;
         if (st.stores[base + e] < need)
@@ -4822,6 +4825,43 @@ exports.REPRO_GATE = REPRO_GATE;
 exports.REPRO_GATE_NAMES = REPRO_GATE_NAMES;
 exports.REPRO_GATE_COUNT = REPRO_GATE_COUNT;
 exports.ReproProbeLog = ReproProbeLog;
+
+});
+__def("trace/chem-boundary.js", function(require, exports, module){class ChemBoundaryLog {
+    capacity;
+    events = {
+        chemistry: [], offspringGate: [], death: [], birthTransfer: [],
+    };
+    counts = { chemistry: 0, offspringGate: 0, death: 0, birthTransfer: 0 };
+    constructor(capacity) {
+        this.capacity = capacity;
+        if (!Number.isSafeInteger(capacity) || capacity < 1)
+            throw new Error('chemBoundary capacity must be a positive safe integer');
+    }
+    record(event) {
+        this.counts[event.kind]++;
+        const rows = this.events[event.kind];
+        const at = (this.counts[event.kind] - 1) % this.capacity;
+        rows[at] = event;
+    }
+    snapshot(selectedKind) {
+        const total = Object.values(this.counts).reduce((a, b) => a + b, 0);
+        const kinds = Object.keys(this.events);
+        const retained = kinds.reduce((sum, kind) => sum + this.events[kind].length, 0);
+        const events = kinds.filter((kind) => selectedKind === undefined || kind === selectedKind).flatMap((kind) => {
+            const rows = this.events[kind];
+            const start = this.counts[kind] > this.capacity ? this.counts[kind] % this.capacity : 0;
+            return [...rows.slice(start), ...rows.slice(0, start)];
+        });
+        return { policy: 'per-kind-ring', capacityPerKind: this.capacity, total,
+            // retained/dropped are GLOBAL ring totals even for a filtered snapshot.
+            returned: events.length,
+            selectedKind: selectedKind ?? null, retained, dropped: total - retained, counts: { ...this.counts },
+            events: structuredClone(events) };
+    }
+}
+
+exports.ChemBoundaryLog = ChemBoundaryLog;
 
 });
 __def("bio/interactions.js", function(require, exports, module){/**
@@ -6507,7 +6547,10 @@ const WORLD_ENGINE_VERSION = 'ts-evo-poc/0.8.0';
  * and the diagnostic bridge ledger booking. These are accounting-identity changes
  * while preserving chemistry-off runs, so it is a chemistry-component bump.
  */
-const CHEMISTRY_ENGINE_VERSION = 'chem/0.7.7';
+// Owner D1/D2, 2026-10-15: dimensionally valid limiting-element growth and
+// linear macronutrient offspring demand. All chem/0.7.7 panels are historical;
+// chemistry-unset base semantics and parity remain unchanged.
+const CHEMISTRY_ENGINE_VERSION = 'chem/0.7.8';
 /**
  * Whether the chemistry semantics themselves changed in the 0.7.0 correction.
  *
@@ -6543,7 +6586,7 @@ function runIdentity(chemistryEnabled) {
  * cross-organism shared-budget control.
  */
 // Combined chemistry and main validation suite, including G41-G47.
-const GATE_SUITE_VERSION = 'gates/0.8.0';
+const GATE_SUITE_VERSION = 'gates/0.8.1';
 
 exports.WORLD_ENGINE_VERSION = WORLD_ENGINE_VERSION;
 exports.CHEMISTRY_ENGINE_VERSION = CHEMISTRY_ENGINE_VERSION;
@@ -6605,6 +6648,7 @@ const CHEM_TO_LEGACY_PER_CARBON = 0.5;
 const { deriveRole, developmentalScale, stageDamageFactor, MOTILITY, TROPHIC, TROPHIC_COUNT } = require("../bio/role.js");
 const { TraceLog, TRACE, DEATH_CAUSE } = require("../trace/trace.js");
 const { REPRO_GATE } = require("../trace/reproprobe.js");
+const { ChemBoundaryLog } = require("../trace/chem-boundary.js");
 const { InteractionQueue, INTERACTION, OUTCOME } = require("../bio/interactions.js");
 const { resolveConfig } = require("./config.js");
 const { Ledger } = require("./ledger.js");
@@ -7552,6 +7596,7 @@ class World {
      * pays one predictable null check per event site and allocates nothing.
      */
     traceLog = null;
+    boundaryLog = null;
     /**
      * Reproduction-gate tallies. Null when the probe is not attached, so the
      * unprobed path pays one predictable null check per gate and allocates
@@ -7572,11 +7617,17 @@ class World {
     /** Cached last snapshot. */
     snapshot;
     constructor(opts = {}) {
+        if (opts.chemBoundary)
+            this.boundaryLog = new ChemBoundaryLog(opts.chemBoundary.capacity);
         if (opts.trace?.enabled) {
             this.traceLog = new TraceLog(opts.trace.capacity ?? 20000);
         }
         this.repro = opts.reproProbe ?? null;
         const cfg = resolveConfig(opts.config);
+        if (cfg.chemistryReproNutrientDemand != null
+            && (!Number.isFinite(cfg.chemistryReproNutrientDemand) || cfg.chemistryReproNutrientDemand < 0)) {
+            throw new Error('chemistryReproNutrientDemand must be finite and non-negative, or null');
+        }
         this.config = cfg;
         // Normalise the senescence knob once (user config untouched): a plain
         // number is legacy fixed-grace mode; an object selects a scale-free mode.
@@ -7848,6 +7899,11 @@ class World {
         // newborn's chemistry write truncated.
         this.ensureSlotArrays(slot);
         this.store.moduleCount[slot] = 0;
+        const boundaryParentBase = parentSlot * E.COUNT;
+        const boundaryParent = this.boundaryLog !== null && this.chemStores && parentSlot >= 0 ? {
+            parentStoresBefore: Array.from(this.chemStores.stores.subarray(boundaryParentBase, boundaryParentBase + E.COUNT)),
+            parentBiomassBefore: Array.from(this.chemStores.biomass.subarray(boundaryParentBase, boundaryParentBase + E.COUNT)),
+        } : null;
         // Seed an elemental body proportional to the organism's starting size.
         // Without this every organism would begin with zero biomass and could
         // neither grow nor die into the pools correctly.
@@ -7914,6 +7970,20 @@ class World {
         // store.age here would read whatever the recycled slot last held.
         const r = deriveRole(this.store.physical, slot * TRAIT_COUNT, 0);
         this.writeRole(slot, r);
+        if (this.boundaryLog !== null && this.chemStores) {
+            const base = slot * E.COUNT;
+            this.boundaryLog.record({ kind: 'birthTransfer', tick: bornTick,
+                id: this.store.id[slot], parentId, age: 0, guild: r.trophic,
+                maturityAge: this.store.trait(slot, TRAIT.MATURITY_AGE),
+                ...(boundaryParent ?? {}),
+                ...(boundaryParent === null ? {} : {
+                    parentStoresAfter: Array.from(this.chemStores.stores.subarray(boundaryParentBase, boundaryParentBase + E.COUNT)),
+                    parentBiomassAfter: Array.from(this.chemStores.biomass.subarray(boundaryParentBase, boundaryParentBase + E.COUNT)),
+                }),
+                childStoresAtBirth: Array.from(this.chemStores.stores.subarray(base, base + E.COUNT)),
+                childBiomassAtBirth: Array.from(this.chemStores.biomass.subarray(base, base + E.COUNT)),
+            });
+        }
     }
     /** Write a role readout into the flat cache block. */
     /**
@@ -9712,6 +9782,20 @@ class World {
             // is not attempted. Reads this tick's flag (set in actPhase feeding).
             if (dormancyOn && this.dormant[slot] === 1)
                 continue;
+            if (this.boundaryLog !== null && this.chemCfg.enabled && this.chemStores) {
+                const base = slot * E.COUNT;
+                const afford = canAffordOffspring(this.chemStores, slot, this.chemCfg);
+                this.boundaryLog.record({ kind: 'offspringGate', tick: this.tick,
+                    id: store.id[slot], parentId: store.parentId[slot], age: store.age[slot],
+                    guild: this.roleOf(slot).trophic, maturityAge: store.trait(slot, TRAIT.MATURITY_AGE),
+                    cooldown: store.reproCooldown[slot], energy: store.energy[slot],
+                    energyFraction: store.energy[slot] / Math.max(1, this.capacityOf(slot)),
+                    threshold: store.trait(slot, TRAIT.REPRO_THRESHOLD), lacking: afford.lacking,
+                    damage: store.damage[slot],
+                    storesAfter: Array.from(this.chemStores.stores.subarray(base, base + E.COUNT)),
+                    biomassAfter: Array.from(this.chemStores.biomass.subarray(base, base + E.COUNT)),
+                });
+            }
             // Guild is resolved lazily and ONLY when a probe is attached, so the
             // unprobed path pays one null check per gate and nothing more.
             const guild = probe === null ? -1 : this.roleOf(slot).trophic;
@@ -9964,6 +10048,13 @@ class World {
                 store.energy[slot] <= 0 && store.hunger[slot] > 400;
             if (!lethal)
                 continue;
+            // Capture BEFORE releaseOnDeath clears chemical tissue/stores. Passing
+            // only detached values keeps the instrument outside biological authority.
+            const deathBase = slot * E.COUNT;
+            const boundaryDeathHoldings = this.boundaryLog !== null && this.chemStores ? {
+                storesAtDeath: Array.from(this.chemStores.stores.subarray(deathBase, deathBase + E.COUNT)),
+                biomassAtDeath: Array.from(this.chemStores.biomass.subarray(deathBase, deathBase + E.COUNT)),
+            } : {};
             // MATTER returns to the environment here. Tissue buries in part and
             // becomes labile detritus in the rest; unexpended stores are excreted as
             // available forms rather than as dead tissue, which is why a
@@ -10103,6 +10194,18 @@ class World {
             // above answer "how many"; this answers "why THIS one" — the damage
             // split (starve vs injury), age, and guild at the moment of death, which
             // were not otherwise recoverable after the fact.
+            if (this.boundaryLog !== null) {
+                const cause = store.damage[slot] < FATAL_DAMAGE
+                    ? store.age[slot] > lifespan ? 'age' : 'starve'
+                    : starveShare > injuryShare && starveShare >= senesceShare && starveShare >= diseaseShare
+                        ? 'starve' : 'damage';
+                this.boundaryLog.record({ kind: 'death', tick: this.tick,
+                    id: store.id[slot], parentId: store.parentId[slot], age: store.age[slot],
+                    guild: this.roleOf(slot).trophic, maturityAge: store.trait(slot, TRAIT.MATURITY_AGE), cause,
+                    energy: store.energy[slot],
+                    ...boundaryDeathHoldings,
+                });
+            }
             if (this.traceLog !== null) {
                 const cause = store.damage[slot] < FATAL_DAMAGE
                     ? store.age[slot] > lifespan
@@ -10891,6 +10994,10 @@ class World {
     trace() {
         return this.traceLog;
     }
+    /** Detached numeric boundary records; never exposes mutable engine state. */
+    chemistryBoundaryTrace(kind) {
+        return this.boundaryLog?.snapshot(kind) ?? null;
+    }
     /** Whether event tracing is active on this world. */
     get tracing() {
         return this.traceLog !== null;
@@ -11196,9 +11303,17 @@ class World {
             // organism re-use the OC a previous organism's reaction returned before
             // settle() ever ran.
             this.chemBudgetHits.fill(0);
+            const boundaryBase = slot * E.COUNT;
+            const boundaryBefore = this.boundaryLog === null ? null : {
+                pools: chem.fields.map((f) => f.data[cell]),
+                remaining: Array.from({ length: POOL_COUNT }, (_, p) => chem.remaining(p, cell)),
+                stores: Array.from(st.stores.subarray(boundaryBase, boundaryBase + E.COUNT)),
+            };
             const gained = runMetabolism(chem, st, slot, cell, cfg, out, this.chemExtents, this.chemBudgetHits);
             for (let q = 0; q < POOL_COUNT; q++)
                 this.chemBudgetLimited += this.chemBudgetHits[q];
+            const boundaryAfterReactions = boundaryBefore === null ? null
+                : Array.from({ length: POOL_COUNT }, (_, p) => chem.remaining(p, cell));
             // Apply the organism's NET chemical transfers exactly once.
             //
             // PRODUCTS ARE APPLIED; CONSUMPTION IS ALREADY RESERVED.
@@ -11259,6 +11374,12 @@ class World {
             }
             biomassDemand(1, this.chemDemand);
             assimilate(chem, st, slot, cell, cfg, this.chemDemand);
+            const boundaryUptake = boundaryBefore === null ? null
+                : Array.from(st.stores.subarray(boundaryBase, boundaryBase + E.COUNT), (v, e) => v - boundaryBefore.stores[e]);
+            const boundaryGrowth = boundaryBefore === null ? null : {
+                biomassBeforeGrowth: Array.from(st.biomass.subarray(boundaryBase, boundaryBase + E.COUNT)),
+                energyBeforeGrowth: store.energy[slot],
+            };
             // Growth is the MINIMUM of what energy and what matter permit. This is
             // the energy/matter separation made operational rather than asserted.
             const requested = carbon * 0.012;
@@ -11285,6 +11406,25 @@ class World {
                 // way so the causal ledger can close on a chemistry-enabled run.
                 this.ledger.recordChemicalExpenditure(cost);
                 chem.flux.chemCarbonBuilt += r.carbon;
+            }
+            if (this.boundaryLog !== null && boundaryBefore !== null) {
+                this.boundaryLog.record({ kind: 'chemistry', tick: this.tick,
+                    id: store.id[slot], parentId: store.parentId[slot], age: store.age[slot],
+                    guild: this.roleOf(slot).trophic, maturityAge: store.trait(slot, TRAIT.MATURITY_AGE),
+                    cell, poolsBefore: boundaryBefore.pools, remainingBefore: boundaryBefore.remaining,
+                    remainingAfterReactions: boundaryAfterReactions, reactionExtents: Array.from(this.chemExtents),
+                    reactionGross: REACTIONS.map((rx, id) => {
+                        const gross = Array(POOL_COUNT).fill(0);
+                        for (const sub of rx.substrates)
+                            gross[sub.pool] += sub.coeff * this.chemExtents[id];
+                        return gross;
+                    }),
+                    storesBefore: boundaryBefore.stores, uptake: boundaryUptake,
+                    ...boundaryGrowth,
+                    uptakeIncludesSubsidy: cfg.freeNutrients,
+                    storesAfter: Array.from(st.stores.subarray(boundaryBase, boundaryBase + E.COUNT)),
+                    biomassAfter: Array.from(st.biomass.subarray(boundaryBase, boundaryBase + E.COUNT)),
+                    capMask: st.capMask[slot], energy: store.energy[slot], });
             }
         }
         chem.settle();

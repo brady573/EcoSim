@@ -87,7 +87,10 @@ export const WORLD_ENGINE_VERSION = 'ts-evo-poc/0.8.0';
  * and the diagnostic bridge ledger booking. These are accounting-identity changes
  * while preserving chemistry-off runs, so it is a chemistry-component bump.
  */
-export const CHEMISTRY_ENGINE_VERSION = 'chem/0.7.7';
+// Owner D1/D2, 2026-10-15: dimensionally valid limiting-element growth and
+// linear macronutrient offspring demand. All chem/0.7.7 panels are historical;
+// chemistry-unset base semantics and parity remain unchanged.
+export const CHEMISTRY_ENGINE_VERSION = 'chem/0.7.8';
 
 /**
  * Whether the chemistry semantics themselves changed in the 0.7.0 correction.
@@ -126,4 +129,4 @@ export function runIdentity(chemistryEnabled: boolean): string {
  * cross-organism shared-budget control.
  */
 // Combined chemistry and main validation suite, including G41-G47.
-export const GATE_SUITE_VERSION = 'gates/0.8.0';
+export const GATE_SUITE_VERSION = 'gates/0.8.1';

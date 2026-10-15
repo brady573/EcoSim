@@ -528,7 +528,10 @@ export function grow(
     const need = v[e];
     if (need <= 0) continue;
     const have = st.stores[base + e];
-    const possible = have / need;
+    // have/need is a fraction of THIS request, not carbon moles. Comparing
+    // that fraction directly with matterCarbon admitted malformed tissue for
+    // partial shortages whenever the requested carbon was below one mole.
+    const possible = requestedCarbon * (have / need);
     if (possible < matterCarbon) matterCarbon = possible;
   }
   // Energy-limited ceiling: constructing tissue costs energy per unit carbon.
@@ -669,7 +672,7 @@ export function canAffordOffspring(
   const base = slot * E.COUNT;
   // MACRONUTRIENTS are required at tissue stoichiometry.
   for (const e of MACRONUTRIENTS) {
-    const need = v[e] * cfg.reproNutrientDemand;
+    const need = v[e]; // biomassDemand already applied the linear demand scale
     if (need <= 0) continue;
     if (st.stores[base + e] < need) return { ok: false, lacking: 'nutrient' };
   }

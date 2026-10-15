@@ -15,6 +15,7 @@ const out = resolve(args[1]);
 assert.ok(!existsSync(out), 'Refusing existing output');
 assert.ok(!out.startsWith(source + '/'), 'Do not write inside historical panel');
 const original = JSON.parse(readFileSync(join(source, 'protocol.json'), 'utf8'));
+assert.equal(runIdentity(true), 'ts-evo-poc/0.8.0+chem/0.7.7', 'Historical panel replay requires its matching engine (8fddb08)');
 const historical = readFileSync(join(source, 'runs.jsonl'), 'utf8').trim().split('\n').map(JSON.parse);
 assert.equal(historical.length, 36);
 assert.equal(new Set(historical.map((r) => `${r.arm}:${r.seed}`)).size, 36);

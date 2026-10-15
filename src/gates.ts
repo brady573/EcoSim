@@ -45,6 +45,7 @@ import {
 } from './bio/chemlife.js';
 import { Chemistry, DEFAULT_CHEMISTRY, POOL, POOL_RT } from './world/chemistry.js';
 import { REPRO_GATE, type ReproProbe } from './trace/reproprobe.js';
+import { chemicalGrowthCases, chemicalReproductionCases, chemicalLiveGrowthCases } from './chem-correctness.js';
 
 interface GateResult {
   id: string;
@@ -3296,7 +3297,18 @@ function main(): void {
   gate44();
   gate45();
   gate46();
-
+  for (const [id, name, test] of [
+    ['G48', 'D1 growth preserves every element at the limiting carbon quantity', chemicalGrowthCases],
+    ['G49', 'D2 N/P demand is linear; carbon/cofactor boundaries stay explicit', chemicalReproductionCases],
+    ['G50', 'D1 live tissue/store/energy charges agree with realized growth', chemicalLiveGrowthCases],
+  ] as const) {
+    try {
+      const cases = test();
+      record(id, name, true, `${cases.length} targeted cases passed`);
+    } catch (error) {
+      record(id, name, false, String(error));
+    }
+  }
 
   const failed = results.filter((r) => !r.pass);
   console.log(`\n${results.length - failed.length}/${results.length} checks passed`);

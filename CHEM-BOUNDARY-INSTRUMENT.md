@@ -1,3 +1,7 @@
+> The archived live witnesses below describe `chem/0.7.7`. D1/D2 change the
+> current chemistry to `chem/0.7.8`; replay old panels at source `8fddb08`.
+> Instrument structure is retained, but old observations are not new biology.
+
 # Passive chemistry boundary witness
 
 ## Scope and authority

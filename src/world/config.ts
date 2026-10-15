@@ -576,7 +576,7 @@ export interface WorldConfig {
   chemistryEnergyScale: number | null;
   /** Fraction of an assimilated element that is retained vs excreted. */
   chemistryAssimilationEfficiency: number | null;
-  /** N, P and trace stores an organism must hold to build one offspring. */
+  /** Linear finite non-negative demand scale for offspring C/N/P and trace reserve; null = 1. */
   chemistryReproNutrientDemand: number | null;
   /**
    * Ablations. Each must be REVERSIBLE and actually wired into biological
