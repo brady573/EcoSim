@@ -16,11 +16,15 @@
 **Q0 (Tier-0, answerable with current code, confounded):** does GLOBAL biotic
 suppression (`bioticMineralisation=0`, which also zeroes cyclic regen via
 `mineralisedCell=0`) measurably move producer capture/energy/births vs a matched
-control in the tested stratum/interval? **Conditional falsifier:** B1 zeroes
-accepted bio flow yet producer capture/energy/births do not move *in that
-stratum/interval* — then Q0 is answered NEGATIVE for that stratum/interval only.
-This says NOTHING about phenotype/service-level dependence (a Q0 negative does
-not falsify reliance on any named provider or path).
+control in the tested stratum/interval? **Conditional reading:** B1 zeroes
+accepted bio flow; report the matched producer capture/energy/births move *in that
+stratum/interval* as observed — a no-detected-move outcome is recorded as
+"no detected move, conditional to stratum/interval", a mixed-seed move as
+"heterogeneous/confounded". Neither is a phenotype-level verdict.
+This says NOTHING about phenotype/service-level dependence (a Q0 observation does
+not confirm or falsify reliance on any named provider or path). Producer energy
+and realized births are NOT measured by the current Tier-0 scripts; capture-only
+statements must say so.
 
 **H1-isolated (future, needs Owner-approved Tier-1):** the accepted-flow share of
 a NAMED heritable provider path supplies producer uptake. Untestable until
@@ -48,7 +52,7 @@ All on compiled output (`node build/...`), never `tsx` for long horizons.
 | Arm | Delta vs matched control | Interpretation (honest label) |
 |---|---|---|
 | A CONTROL | viability diagnostic config as-is | reference |
-| A2 PROPOSED-LIMITING CANDIDATE | A with `nutrientFloor:0, basalFoodPerCell:0` (regen 0.0002, cyclic true kept) | PROPOSED regime, NOT established limiting; config-only, no engine change. Reachability verdict below: NOT limiting at 500t; harsher but inconsistent at 2000t — do NOT launch cohorts on it |
+| A2 PROPOSED-LIMITING CANDIDATE | A with `nutrientFloor:0, basalFoodPerCell:0` (regen 0.0002, cyclic true kept) | PROPOSED regime, NOT established limiting; config-only, no engine change. Reachability verdict below: nutrient limitation not demonstrated at 500t; harsher but heterogeneous at 2000t — do NOT launch cohorts on it |
 | B1 NO_BIO | A/A2 + `bioticMineralisation:0` | GLOBAL process sensitivity; NOT decomposer-specific (also zeroes cyclic regen via `mineralisedCell=0` — disclosed confound) |
 | B2 NO_EXCR | A/A2 + `excretionRate:0` | second global sensitivity + comparison |
 | P POSITIVE | A/A2 + `producerCaptureScale:0` | must collapse producer uptake; proves chain can see an effect |
@@ -84,8 +88,9 @@ attribute any flux unit to a phenotype — per-unit books need Tier 1 Option 3.
 4. **Reachability gate (A2):** A2 must show producer uptake binding on a relevant
    pool/interval (pools drawn down, capUtil low, A2 uptake clearly < A, or an
    observable B1-vs-A2 move) before ANY cohort. Measured 2026-10-15
-   (`a2-reachability.mjs`): at 500t A2 is NOT limiting (util 0.52–0.53 both
-   strata; photo −3–4%; B1A2-vs-A2 −5%/+1% inconsistent). At 2000t A2 is harsher
+   (`a2-reachability.mjs`): at 500t nutrient limitation is not demonstrated
+   (util 0.52–0.53 both strata — global capUtil does not test local producer
+   limitation; photo −3–4%; B1A2-vs-A2 −5%/+1%, heterogeneous). At 2000t A2 is harsher
    (util →0.43–0.46; photo −23–25% vs A; extinctions incl. full B1A2 collapse
    seed 41001) but the B1 contrast stays seed-inconsistent (−16% seed 517, +7%
    seed 41001) under collapse dynamics + cyclic confound. Valid outcome: A2 as
@@ -139,18 +144,25 @@ this evidence dir). Commands in README. Compiled build, never tsx.
   DECOMPOSER; live mineralisers 134 = 0/46/88 — provider confound is real, guild
   census cannot stand in for function.
 - `node evidence/issue15-pilot-scratch-20261015/a2-reachability.mjs` (PROPOSED-regime
-  test, 2 seeds): 500t A2 NOT limiting (util 0.52–0.53; photo 9220→8904 seed 517,
-  8174→7872 seed 41001; B1A2-vs-A2 −5%/+1%). 2000t harsher but inconsistent
-  (util →0.43–0.46; photo −23–25% vs A; B1A2-vs-A2 −16%/+7%; extinctions incl.
-  P0/C0/D0 B1A2 seed 41001 vs P5/C25/D0 A2). PA2 photo 0.0 (positive works);
-  N byte-identical; observer reads nonperturbing at A2. Census (disjoint):
+  test, 2 seeds): 500t: nutrient limitation not demonstrated (util 0.52–0.53 —
+  global capUtil does not test local producer limitation; photo 9220→8904 seed 517,
+  8174→7872 seed 41001; B1A2-vs-A2 −5%/+1%, heterogeneous). 2000t harsher but
+  heterogeneous/confounded
+  (util →0.43–0.46; photo −23–25% vs A; B1A2-vs-A2 −15.5%/+7.5% — B1A2 moves
+  capture vs A2 in BOTH seeds but in opposite directions; extinctions incl.
+  P0/C0/D0 B1A2 seed 41001 vs P5/C25/D0 A2). Verdict: global process site reached;
+  outcome heterogeneous/confounded; isolated phenotype nutrient-service effect
+  INCONCLUSIVE (energy/births not measured here). PA2 photo 0.0 (positive works);
+  N byte-identical; terminal-state hash agreement after repeated A2 read calls
+  (not complete sampled-trajectory on/off equivalence). Census (disjoint):
   recalcOnly 72/88 + 131/141 dominates; dual 13/8; carrionOnly 3/2; neither 0.
   Test-design decision RETURNED (no 12+24): (i) A2-as-specified is not a clean
   limiting regime — options: deeper limitation (lower regen? zero initial-stock
   arm? longer horizon with trajectory analysis?) each as a NEW proposal with its
-  own reachability gate, or (ii) accept Q0-negative-for-tested-strata as the
-  Tier-0 result and proceed to trait-linked per-event measurement design (O3)
-  before any cohort. No option is pre-approved.
+  own reachability gate, or (ii) record "global process site reached; outcome
+  heterogeneous/confounded; isolated phenotype nutrient-service effect
+  INCONCLUSIVE" as the Tier-0 observation and proceed to trait-linked per-event
+  measurement design (O3 proposal) before any cohort. No option is pre-approved.
 - Baseline validation clean: typecheck, 40/40 gates, 11/11 contract (C1 pins hold),
   154/154 workflow (this worktree, before any change).
 
@@ -189,9 +201,12 @@ when null; never shipped into ordinary biology as permanent rules):
   the D gap without touching selection. Still an engine change (new arrays +
   snapshot keys) → version bump + parity + G31-style writer-isolated proof.
 
-Recommendation: Tier-0 Q0-negative-for-tested-strata stands as the read-only result;
+Recommendation: Tier-0 observation stands — global process site reached; outcome
+heterogeneous/confounded; isolated phenotype nutrient-service effect INCONCLUSIVE
+(energy/births not measured in Tier-0 scripts);
 A2-as-specified is NOT approved for cohorts. Next Owner decisions requested:
-(R1) accept Q0/A2-reachability as the Tier-0 close-out, (R2) approve deeper-limitation
+(R1) accept Tier-0 apparatus/reachability observations as close-out (not a verdict,
+not merge approval), (R2) approve deeper-limitation
 regime candidates each with their own reachability gate, and/or (R3) approve O3-style
 trait-linked per-event measurement design before any O1/O2 behaviour. If O-any approved,
 implement one option only, with pre-registered predictions/falsifiers and full
