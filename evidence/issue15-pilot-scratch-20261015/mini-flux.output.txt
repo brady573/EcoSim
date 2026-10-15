@@ -1,0 +1,7 @@
+seed 517 CONTROL P267/C102/D88 photo9220.4 ex9209.1 bio1556.6 abio7.1 hashe4211a02
+seed 517 NO_BIO   P274/C63/D65 photo9238.5 ex9149.0 bio0.0 abio0.0 hash0ff04fa3
+seed 517 NO_EXCR  P281/C76/D72 photo9599.4 ex0.0 bio1526.0 abio7.5 hash921099e7
+seed 41001 CONTROL P189/C201/D122 photo8174.6 ex9125.2 bio2966.4 abio11.3 hashb93a97b3
+seed 41001 NO_BIO   P211/C214/D170 photo8422.9 ex9180.4 bio0.0 abio0.0 hash3df4e8b2
+seed 41001 NO_EXCR  P216/C192/D112 photo8813.5 ex0.0 bio2206.9 abio8.6 hash686685df
+elapsed 5.307s

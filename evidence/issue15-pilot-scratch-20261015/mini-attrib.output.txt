@@ -1,0 +1,6 @@
+seed 517 guild 0 bioAccepted 0.0
+seed 517 guild 1 bioAccepted 662.0
+seed 517 guild 2 bioAccepted 894.6
+mineralisers live: total 134 P/C/D=0/46/88
+nutrient totals 59089,46307,37083
+hash w e4211a02 w2 e4211a02 equal=true
