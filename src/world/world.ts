@@ -67,6 +67,7 @@ const CHEM_TO_LEGACY_PER_CARBON = 0.5;
 import { deriveRole, developmentalScale, stageDamageFactor, MOTILITY, TROPHIC, TROPHIC_COUNT, type RoleReadout } from '../bio/role.js';
 import { TraceLog, TRACE, DEATH_CAUSE, type TraceOptions } from '../trace/trace.js';
 import { REPRO_GATE, type ReproProbe } from '../trace/reproprobe.js';
+import { ChemBoundaryLog } from '../trace/chem-boundary.js';
 import { InteractionQueue, INTERACTION, OUTCOME, type ResolutionRecord } from '../bio/interactions.js';
 import { resolveConfig, type WorldConfig, type DormantSenescence } from './config.js';
 import { Ledger } from './ledger.js';
@@ -275,6 +276,8 @@ export interface WorldOptions {
    * event log and MUST NOT change any simulation outcome — see src/trace.
    */
   trace?: TraceOptions;
+  /** Passive bounded chemistry/gate/death records; absent means disabled. */
+  chemBoundary?: { capacity: number };
   /**
    * Optional reproduction-gate probe. Purely observational and MUST NOT change
    * any simulation outcome — see src/trace/reproprobe. Null when absent.
@@ -1169,6 +1172,7 @@ export class World {
    * pays one predictable null check per event site and allocates nothing.
    */
   private traceLog: TraceLog | null = null;
+  private boundaryLog: ChemBoundaryLog | null = null;
   /**
    * Reproduction-gate tallies. Null when the probe is not attached, so the
    * unprobed path pays one predictable null check per gate and allocates
@@ -1191,6 +1195,7 @@ export class World {
   snapshot: WorldSnapshot;
 
   constructor(opts: WorldOptions = {}) {
+    if (opts.chemBoundary) this.boundaryLog = new ChemBoundaryLog(opts.chemBoundary.capacity);
     if (opts.trace?.enabled) {
       this.traceLog = new TraceLog(opts.trace.capacity ?? 20000);
     }
@@ -3421,6 +3426,20 @@ export class World {
       // Dormant decomposers do not propose breeding: growth into absent food
       // is not attempted. Reads this tick's flag (set in actPhase feeding).
       if (dormancyOn && this.dormant[slot] === 1) continue;
+      if (this.boundaryLog !== null && this.chemCfg.enabled && this.chemStores) {
+        const base = slot * E.COUNT;
+        const afford = canAffordOffspring(this.chemStores, slot, this.chemCfg);
+        this.boundaryLog.record({ kind: 'offspringGate', tick: this.tick,
+          id: store.id[slot], parentId: store.parentId[slot], age: store.age[slot],
+          guild: this.roleOf(slot).trophic, maturityAge: store.trait(slot, TRAIT.MATURITY_AGE),
+          cooldown: store.reproCooldown[slot], energy: store.energy[slot],
+          energyFraction: store.energy[slot] / Math.max(1, this.capacityOf(slot)),
+          threshold: store.trait(slot, TRAIT.REPRO_THRESHOLD), lacking: afford.lacking,
+          damage: store.damage[slot],
+          storesAfter: Array.from(this.chemStores.stores.subarray(base, base + E.COUNT)),
+          biomassAfter: Array.from(this.chemStores.biomass.subarray(base, base + E.COUNT)),
+        });
+      }
       // Guild is resolved lazily and ONLY when a probe is attached, so the
       // unprobed path pays one null check per gate and nothing more.
       const guild = probe === null ? -1 : this.roleOf(slot).trophic;
@@ -3695,6 +3714,14 @@ export class World {
         store.energy[slot] <= 0 && store.hunger[slot] > 400;
       if (!lethal) continue;
 
+      // Capture BEFORE releaseOnDeath clears chemical tissue/stores. Passing
+      // only detached values keeps the instrument outside biological authority.
+      const deathBase = slot * E.COUNT;
+      const boundaryDeathHoldings = this.boundaryLog !== null && this.chemStores ? {
+        storesAtDeath: Array.from(this.chemStores.stores.subarray(deathBase, deathBase + E.COUNT)),
+        biomassAtDeath: Array.from(this.chemStores.biomass.subarray(deathBase, deathBase + E.COUNT)),
+      } : {};
+
       // MATTER returns to the environment here. Tissue buries in part and
       // becomes labile detritus in the rest; unexpended stores are excreted as
       // available forms rather than as dead tissue, which is why a
@@ -3823,6 +3850,18 @@ export class World {
       // above answer "how many"; this answers "why THIS one" — the damage
       // split (starve vs injury), age, and guild at the moment of death, which
       // were not otherwise recoverable after the fact.
+      if (this.boundaryLog !== null) {
+        const cause = store.damage[slot] < FATAL_DAMAGE
+          ? store.age[slot] > lifespan ? 'age' : 'starve'
+          : starveShare > injuryShare && starveShare >= senesceShare && starveShare >= diseaseShare
+            ? 'starve' : 'damage';
+        this.boundaryLog.record({ kind: 'death', tick: this.tick,
+          id: store.id[slot], parentId: store.parentId[slot], age: store.age[slot],
+          guild: this.roleOf(slot).trophic, maturityAge: store.trait(slot, TRAIT.MATURITY_AGE), cause,
+          energy: store.energy[slot],
+          ...boundaryDeathHoldings,
+        });
+      }
       if (this.traceLog !== null) {
         const cause =
           store.damage[slot] < FATAL_DAMAGE
@@ -4662,6 +4701,11 @@ export class World {
     return this.traceLog;
   }
 
+  /** Detached numeric boundary records; never exposes mutable engine state. */
+  chemistryBoundaryTrace() {
+    return this.boundaryLog?.snapshot() ?? null;
+  }
+
   /** Whether event tracing is active on this world. */
   get tracing(): boolean {
     return this.traceLog !== null;
@@ -4989,10 +5033,18 @@ export class World {
       // organism re-use the OC a previous organism's reaction returned before
       // settle() ever ran.
       this.chemBudgetHits.fill(0);
+      const boundaryBase = slot * E.COUNT;
+      const boundaryBefore = this.boundaryLog === null ? null : {
+        pools: chem.fields.map((f) => f.data[cell]),
+        remaining: Array.from({ length: POOL_COUNT }, (_, p) => chem.remaining(p, cell)),
+        stores: Array.from(st.stores.subarray(boundaryBase, boundaryBase + E.COUNT)),
+      };
       const gained = runMetabolism(
         chem, st, slot, cell, cfg, out, this.chemExtents, this.chemBudgetHits,
       );
       for (let q = 0; q < POOL_COUNT; q++) this.chemBudgetLimited += this.chemBudgetHits[q];
+      const boundaryAfterReactions = boundaryBefore === null ? null
+        : Array.from({ length: POOL_COUNT }, (_, p) => chem.remaining(p, cell));
       // Apply the organism's NET chemical transfers exactly once.
       //
       // PRODUCTS ARE APPLIED; CONSUMPTION IS ALREADY RESERVED.
@@ -5053,6 +5105,9 @@ export class World {
 
       biomassDemand(1, this.chemDemand);
       assimilate(chem, st, slot, cell, cfg, this.chemDemand);
+      const boundaryUptake = boundaryBefore === null ? null
+        : Array.from(st.stores.subarray(boundaryBase, boundaryBase + E.COUNT),
+          (v, e) => v - boundaryBefore.stores[e]);
 
       // Growth is the MINIMUM of what energy and what matter permit. This is
       // the energy/matter separation made operational rather than asserted.
@@ -5078,6 +5133,24 @@ export class World {
         // way so the causal ledger can close on a chemistry-enabled run.
         this.ledger.recordChemicalExpenditure(cost);
         chem.flux.chemCarbonBuilt += r.carbon;
+      }
+      if (this.boundaryLog !== null && boundaryBefore !== null) {
+        this.boundaryLog.record({ kind: 'chemistry', tick: this.tick,
+          id: store.id[slot], parentId: store.parentId[slot], age: store.age[slot],
+          guild: this.roleOf(slot).trophic, maturityAge: store.trait(slot, TRAIT.MATURITY_AGE),
+          cell, poolsBefore: boundaryBefore.pools, remainingBefore: boundaryBefore.remaining,
+          remainingAfterReactions: boundaryAfterReactions!, reactionExtents: Array.from(this.chemExtents),
+          reactionGross: REACTIONS.map((rx, id) => {
+            const gross = Array<number>(POOL_COUNT).fill(0);
+            for (const sub of rx.substrates) gross[sub.pool] += sub.coeff * this.chemExtents[id];
+            return gross;
+          }),
+          storesBefore: boundaryBefore.stores, uptake: boundaryUptake!,
+          uptakeIncludesSubsidy: cfg.freeNutrients,
+          storesAfter: Array.from(st.stores.subarray(boundaryBase, boundaryBase + E.COUNT)),
+          biomassAfter: Array.from(st.biomass.subarray(boundaryBase, boundaryBase + E.COUNT)),
+          capMask: st.capMask[slot], energy: store.energy[slot],
+        });
       }
     }
 

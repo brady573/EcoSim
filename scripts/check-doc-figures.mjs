@@ -48,6 +48,52 @@ const docs = {
   predation: read(join(root, 'CHEM-PREDATION-KNOB-DIAGNOSTICS.md')),
 };
 const currentDoc = read(join(root, 'RECONCILIATION-080-RESULTS.md'));
+// The mechanism panel is descriptive, but its quoted figures still owe the
+// record raw-data checks. Recompute them rather than trusting summary.json.
+{
+  const directory = join(root, 'evidence/mechanism-four-arm-20261015');
+  const protocol = JSON.parse(read(join(directory, 'protocol.json')));
+  const complete = JSON.parse(read(join(directory, 'complete.json')));
+  const records = read(join(directory, 'runs.jsonl')).trim().split('\n').map(JSON.parse);
+  const doc = read(join(root, 'MECHANISM-FOUR-ARM-RESULTS.md'));
+  if (records.length !== 72 || complete.runs !== 72 || complete.historicalControlsMatched !== 36
+    || new Set(records.map((r) => `${r.arm}:${r.seed}`)).size !== 72) throw new Error('incomplete mechanism panel');
+  if (protocol.identity !== expectedIdentity || !doc.includes(expectedIdentity)) throw new Error('mechanism identity mismatch');
+  for (const arm of protocol.arms) {
+    const rows = records.filter((r) => r.arm === arm.name);
+    if (rows.length !== 18 || new Set(rows.map((r) => r.seed)).size !== 18
+      || rows.some((r) => !protocol.seeds.includes(r.seed) || r.tick !== 1000
+        || !Number.isFinite(r.population) || !Number.isFinite(r.births))) throw new Error('bad mechanism arm');
+    const pops = rows.map((r) => r.population).sort((a, b) => a - b);
+    const mean = pops.reduce((a, b) => a + b, 0) / 18;
+    const median = (pops[8] + pops[9]) / 2;
+    const births = rows.reduce((s, r) => s + r.births, 0);
+    const zero = rows.filter((r) => r.population === 0).length;
+    const quoted = `| ${arm.name} | ${mean.toFixed(2)} | ${median} | ${births} | ${zero}/18 |`;
+    if (!doc.includes(quoted)) throw new Error(`mechanism doc mismatch: ${quoted}`);
+  }
+}
+// Pin the live plumbing claim to retained records, not to the helper fixture
+// or a model of what the source should have measured.
+{
+  const directory = join(root, 'evidence/chem-boundary-live-20261015-v2');
+  const protocol = JSON.parse(read(join(directory, 'protocol.json')));
+  const complete = JSON.parse(read(join(directory, 'complete.json')));
+  const records = read(join(directory, 'checkpoints.jsonl')).trim().split('\n').map(JSON.parse);
+  if (complete.arms !== 4 || complete.checkpointsPerArm !== 6 || !complete.broadParity
+    || records.length !== 24 || new Set(records.map((r) => `${r.arm}:${r.tick}`)).size !== 24) {
+    throw new Error('incomplete corrected live witness');
+  }
+  const events = records.filter((r) => r.arm === 'advanced').flatMap((r) => r.trace.events)
+    .filter((e) => e.kind === 'chemistry');
+  for (const [name, pool, element] of [['nitrification', 2, 3], ['iron oxidation', 8, 6], ['iron uptake', 8, 6]]) {
+    const id = protocol.reactions.indexOf(name);
+    if (id < 0 || !events.some((e) => e.reactionExtents[id] > 0 && e.remainingBefore[pool] > 0
+      && e.remainingAfterReactions[pool] === 0 && e.uptake[element] === 0)) {
+      throw new Error(`missing live reaction/reservation/zero-uptake witness: ${name}`);
+    }
+  }
+}
 if (!currentDoc.includes(expectedIdentity)) throw new Error('current results identity mismatch');
 const currentPredation = read(join(root, 'evidence/chem-predation-knob-10seed-080-20261014.txt'));
 const sexualTotals = ['base', 'predationMatter'].map((arm) => {

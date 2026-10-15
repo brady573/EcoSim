@@ -1,7 +1,8 @@
 # Mechanism audit — investigation, not a biology repair
 
 Review: PR #14 / 5530741428, source baseline `3fd245e`.
-Engine remains `ts-evo-poc/0.8.0+chem/0.7.7`; no production changes.
+Engine remains `ts-evo-poc/0.8.0+chem/0.7.7`; passive instrumentation added,
+with no biological behavior changes and no altered reaction semantics.
 
 ## Phase 1: reproducible helper counterexamples
 
@@ -30,24 +31,26 @@ Measured on this engine:
 ## Remaining required investigation
 
 These helper results do **not** establish the cause or size of population
-loss. Required next: live-world boundary instrumentation with broad state/RNG
-parity, per-element uptake/store and reproduction progression, cohort/age
-death accounting, and selective, explicitly declared reaction interventions.
+loss. Passive live-world boundary instrumentation and a matched witness now
+exist; see `CHEM-BOUNDARY-INSTRUMENT.md` for timing, parity and retention limits.
+Complete parent/offspring trajectories, first-birth timing and selective,
+explicitly declared reaction interventions are still required.
 The iron environmental reaction and organism Fe uptake share a capability;
 clearing that capability is NOT an isolated environmental-reaction control.
 
-Reuse the existing matched protocol's 18 seeds (41001–41018), 400 founders,
-1000 ticks for the four chemistry × Genome V2 arms before any extension.
-Record exact resolved configs, hashes and all four arms separately. No new
+The matched four-arm panel is now complete: see `MECHANISM-FOUR-ARM-RESULTS.md`
+and its raw directory. It reuses the existing protocol's seeds, founders and
+horizon and preserves exact resolved configs and hashes. No new
 success threshold or extinction attribution is introduced here. Preregister
 the causal intervention panel before running it; descriptive four-arm
 differences alone cannot identify which nutrient pathway causes loss.
 
-Owner decision packet still needed: intended nitrate/iron physiology, universal
+Owner decision packet: `MECHANISM-OWNER-DECISIONS.md` covers nitrate/iron physiology, universal
 founder repertoire and reproduction tissue/store inheritance. A fixed growth
 limiter changes chemistry semantics: repair requires a new identity and fresh
 targeted evidence, not relabeling existing panels or tuning survival.
 
 Generation depth currently advances on recombinant offspring, not every
 asexual succession; it must not be interpreted as complete lineage depth.
-PR remains draft/open/unmerged. Phase 1 is not completion of the review.
+PR remains draft/open/unmerged. These investigation phases do not complete
+the review or authorize changed biological semantics.

@@ -114,6 +114,8 @@ jobs:
 
       - name: Primary viewer advanced-path checks
         run: node scripts/viewer-checks.mjs
+      - name: Passive chemistry boundary checks
+        run: node scripts/chem-boundary-checks.mjs
 
       # App bundle input. Deliberately a SEPARATE tsconfig from the CLI build:
       # tsconfig.app.json -> build/app/, tsconfig.build.json -> build/. Building
