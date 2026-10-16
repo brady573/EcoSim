@@ -1,10 +1,54 @@
-seed 517 A photo[3230.6,3083.4,2906.4] abio=7.1 pools=[59089,46307,37083] P267/C102/D88
-seed 517 B photo[3295.9,3072.4,3046.0] abio=0.8 pools=[58583,45877,36504] P278/C85/D70
-seed 517 C photo[3330.3,3023.3,2996.1] exo=1175.8 abio=1.5 pools=[59016,46392,37020] P278/C82/D78
+seed 517 A prodDisplayedPhoto[3230.6,3083.4,2906.4] allGuildPhoto[3230.6,3083.4,2906.4] abioPerPool=[3.0,2.3,1.8] pools=[59089,46307,37083]
+  t0 censusP/C/D=[300/50/50] prodEnergy=9306.9 (initial; no births yet)
+  t100 censusP/C/D=[300/50/50] prodEnergy=6209.6 birthsP/C/D=[0/0/0]
+  t250 censusP/C/D=[270/76/58] prodEnergy=4413.0 birthsP/C/D=[51/29/8]
+  t500 censusP/C/D=[267/102/88] prodEnergy=3733.3 birthsP/C/D=[161/123/42]
+  deaths t0->t100 P/C/D=[0/0/0] (identity: N(prev)+placed−N(now); no direct death probe exists)
+  deaths t100->t250 P/C/D=[81/3/0] (identity: N(prev)+placed−N(now); no direct death probe exists)
+  deaths t250->t500 P/C/D=[113/68/4] (identity: N(prev)+placed−N(now); no direct death probe exists)
+seed 517 B prodDisplayedPhoto[3295.9,3072.4,3046.0] allGuildPhoto[3295.9,3072.4,3046.0] abioPerPool=[0.3,0.3,0.2] pools=[58583,45877,36504]
+  t0 censusP/C/D=[300/50/50] prodEnergy=9306.9 (initial; no births yet)
+  t100 censusP/C/D=[300/50/50] prodEnergy=6222.4 birthsP/C/D=[0/0/0]
+  t250 censusP/C/D=[265/75/58] prodEnergy=4503.4 birthsP/C/D=[49/30/9]
+  t500 censusP/C/D=[278/85/70] prodEnergy=4167.2 birthsP/C/D=[166/92/24]
+  deaths t0->t100 P/C/D=[0/0/0] (identity: N(prev)+placed−N(now); no direct death probe exists)
+  deaths t100->t250 P/C/D=[84/5/1] (identity: N(prev)+placed−N(now); no direct death probe exists)
+  deaths t250->t500 P/C/D=[104/52/3] (identity: N(prev)+placed−N(now); no direct death probe exists)
+seed 517 C prodDisplayedPhoto[3330.3,3023.3,2996.1] allGuildPhoto[3330.3,3023.3,2996.1] abioPerPool=[0.6,0.5,0.4] pools=[59016,46392,37020]
+  t0 censusP/C/D=[300/50/50] prodEnergy=9306.9 (initial; no births yet)
+  t100 censusP/C/D=[300/50/50] prodEnergy=6211.7 birthsP/C/D=[0/0/0]
+  t250 censusP/C/D=[265/70/49] prodEnergy=4490.8 birthsP/C/D=[45/25/0]
+  t500 censusP/C/D=[278/82/78] prodEnergy=3943.5 birthsP/C/D=[170/86/32]
+  deaths t0->t100 P/C/D=[0/0/0] (identity: N(prev)+placed−N(now); no direct death probe exists)
+  deaths t100->t250 P/C/D=[80/5/1] (identity: N(prev)+placed−N(now); no direct death probe exists)
+  deaths t250->t500 P/C/D=[112/49/3] (identity: N(prev)+placed−N(now); no direct death probe exists)
+seed 517 C exogenousAccepted=1175.8 (delivery at suppressed cells/ticks/pools)
 seed 517 C-twins exoMismatch=0 digests=equal
 seed 517 nullRescueParity=equal (must be equal)
-seed 41001 A photo[2733.1,2671.7,2769.8] abio=11.3 pools=[60299,47373,37830] P189/C201/D122
-seed 41001 B photo[2797.8,2792.6,2915.3] abio=1.0 pools=[59351,46371,36804] P203/C150/D104
-seed 41001 C photo[2835.1,2718.3,2945.4] exo=2897.9 abio=0.9 pools=[60258,47387,37718] P210/C242/D144
+seed 41001 A prodDisplayedPhoto[2733.1,2671.7,2769.8] allGuildPhoto[2733.1,2671.7,2769.8] abioPerPool=[4.8,3.7,2.9] pools=[60299,47373,37830]
+  t0 censusP/C/D=[285/69/46] prodEnergy=9116.4 (initial; no births yet)
+  t100 censusP/C/D=[285/77/46] prodEnergy=5977.5 birthsP/C/D=[0/8/0]
+  t250 censusP/C/D=[227/139/51] prodEnergy=4254.5 birthsP/C/D=[30/74/6]
+  t500 censusP/C/D=[189/201/122] prodEnergy=3005.9 birthsP/C/D=[83/235/80]
+  deaths t0->t100 P/C/D=[0/0/0] (identity: N(prev)+placed−N(now); no direct death probe exists)
+  deaths t100->t250 P/C/D=[88/4/1] (identity: N(prev)+placed−N(now); no direct death probe exists)
+  deaths t250->t500 P/C/D=[91/99/3] (identity: N(prev)+placed−N(now); no direct death probe exists)
+seed 41001 B prodDisplayedPhoto[2797.8,2792.6,2915.3] allGuildPhoto[2797.8,2792.6,2915.3] abioPerPool=[0.4,0.3,0.3] pools=[59351,46371,36804]
+  t0 censusP/C/D=[285/69/46] prodEnergy=9116.4 (initial; no births yet)
+  t100 censusP/C/D=[284/75/46] prodEnergy=5916.5 birthsP/C/D=[0/6/0]
+  t250 censusP/C/D=[249/150/55] prodEnergy=4156.9 birthsP/C/D=[51/82/10]
+  t500 censusP/C/D=[203/150/104] prodEnergy=3142.1 birthsP/C/D=[102/168/61]
+  deaths t0->t100 P/C/D=[1/0/0] (identity: N(prev)+placed−N(now); no direct death probe exists)
+  deaths t100->t250 P/C/D=[86/1/1] (identity: N(prev)+placed−N(now); no direct death probe exists)
+  deaths t250->t500 P/C/D=[97/86/2] (identity: N(prev)+placed−N(now); no direct death probe exists)
+seed 41001 C prodDisplayedPhoto[2835.1,2718.3,2945.4] allGuildPhoto[2835.1,2718.3,2945.4] abioPerPool=[0.4,0.3,0.2] pools=[60258,47387,37718]
+  t0 censusP/C/D=[285/69/46] prodEnergy=9116.4 (initial; no births yet)
+  t100 censusP/C/D=[285/77/46] prodEnergy=5957.3 birthsP/C/D=[0/8/0]
+  t250 censusP/C/D=[230/137/73] prodEnergy=4254.3 birthsP/C/D=[29/75/28]
+  t500 censusP/C/D=[210/242/144] prodEnergy=3032.3 birthsP/C/D=[91/247/101]
+  deaths t0->t100 P/C/D=[0/0/0] (identity: N(prev)+placed−N(now); no direct death probe exists)
+  deaths t100->t250 P/C/D=[84/7/1] (identity: N(prev)+placed−N(now); no direct death probe exists)
+  deaths t250->t500 P/C/D=[82/67/2] (identity: N(prev)+placed−N(now); no direct death probe exists)
+seed 41001 C exogenousAccepted=2897.9 (delivery at suppressed cells/ticks/pools)
 seed 41001 C-twins exoMismatch=0 digests=equal
 seed 41001 nullRescueParity=equal (must be equal)
