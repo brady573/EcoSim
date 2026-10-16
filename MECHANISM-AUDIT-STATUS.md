@@ -38,8 +38,9 @@ loss. Passive live-world boundary instrumentation and a matched witness now
 exist; see `CHEM-BOUNDARY-INSTRUMENT.md` for timing, parity and retention limits.
 A selected-family parent/offspring/first-birth witness is now recorded in
 `CHEM-FIRSTBIRTH-RESULTS.md`, with explicit one-seed and outcome-selection limits.
-Selective, explicitly declared reaction interventions and broader attribution
-are still required.
+The later accepted experiment-only selective trials are recorded in
+`RXOMIT-RAPID-RESULTS.md`. They do not establish nutrient-only demographic
+causation; broader attribution and permanent physiology remain open.
 The iron environmental reaction and organism Fe uptake share a capability;
 clearing that capability is NOT an isolated environmental-reaction control.
 

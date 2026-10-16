@@ -1,6 +1,8 @@
 # Owner-authorized D1/D2 corrections — chemistry 0.7.8
 
-Current identity: `ts-evo-poc/0.8.0+chem/0.7.8`; gate suite `gates/0.8.1`.
+D1/D2 release identity: `ts-evo-poc/0.8.0+chem/0.7.8`; its recorded gate suite
+is `gates/0.8.1`. The later research-selector suite is `gates/0.8.2`; that
+does not relabel these original qualification receipts.
 Authority: https://github.com/brady573/EcoSim/pull/14#issuecomment-6193809477 .
 D1/D2 were already authorized on 2026-10-15. Prior statements that approval
 was pending were incorrect and are superseded, not treated as new Owner gates.
@@ -107,8 +109,8 @@ scripts refuse a mismatched engine and direct users to source `8fddb08`.
 W10 preserves their figure pins separately from the live correction evidence.
 No broad ecological verdict is requalified by targeted tests or green CI.
 
-PR stays draft/open/unmerged. D3/D4 selective controls and physiology reviews,
-D5a founder frequencies and D5b element-specific provisioning allocations
-remain outstanding. Issue #15 O3/Gate 1/O1/Gate 2/O2 is separate.
-`D3D4-SELECTIVE-PREREGISTRATION.md` prepares the next scoped design review;
-it is not an executed experiment or self-issued approval of a new switch.
+PR stays draft/open/unmerged. The subsequent experiment-only D3/D4 selector
+was accepted in review 5540863270 and its isolated rapid trials are recorded
+in `RXOMIT-RAPID-RESULTS.md`. Permanent physiology, broader causal attribution,
+D5a frequencies and D5b provisioning allocations remain outstanding. Issue
+#15 O3/Gate 1/O1/Gate 2/O2 is separate; these trials promote none of its gates.

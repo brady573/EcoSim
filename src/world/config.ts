@@ -1,3 +1,5 @@
+import type { ReactionOmission } from '../bio/metabolism.js';
+
 /**
  * World configuration for the experimental evolution engine.
  *
@@ -578,6 +580,8 @@ export interface WorldConfig {
   chemistryAssimilationEfficiency: number | null;
   /** Linear finite non-negative demand scale for offspring C/N/P and trace reserve; null = 1. */
   chemistryReproNutrientDemand: number | null;
+  /** Research only: omit exactly one named reaction, preserving uptake/capabilities. */
+  chemistryReactionOmit: ReactionOmission | null;
   /**
    * Ablations. Each must be REVERSIBLE and actually wired into biological
    * execution — a knob that parses and prints but changes nothing is the dead
@@ -872,6 +876,7 @@ export const DEFAULT_CONFIG: WorldConfig = {
   chemistryEnergyScale: null,
   chemistryAssimilationEfficiency: null,
   chemistryReproNutrientDemand: null,
+  chemistryReactionOmit: null,
   chemistryNoChemosynthesis: null,
   chemistryNoAnaerobic: null,
   chemistryNoNitrogenCycle: null,

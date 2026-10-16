@@ -67,6 +67,8 @@ export const enum CAP {
 }
 
 export const CAP_COUNT = 12;
+/** Approved experiment-only omissions; never a capability-mask knockout. */
+export type ReactionOmission = 'nitrification' | 'iron oxidation' | 'iron uptake';
 
 /** A substrate requirement: pool plus moles consumed per unit of extent. */
 interface Sub {

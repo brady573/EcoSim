@@ -3571,6 +3571,7 @@ const DEFAULT_CHEM_CONFIG = {
     energyScale: 1,
     assimilationEfficiency: 0.62,
     reproNutrientDemand: 1,
+    reactionOmit: null,
     noChemosynthesis: false,
     noAnaerobic: false,
     noNitrogenCycle: false,
@@ -3708,6 +3709,8 @@ function runMetabolism(chem, st, slot, cell, cfg, out, extentOut, budgetHits) {
 }
 /** Ablations must actually gate execution, not merely be recorded. */
 function isAblated(r, cfg) {
+    if (cfg.reactionOmit != null && r.name === cfg.reactionOmit)
+        return true;
     if (cfg.noChemosynthesis
         && (r.cap === CAP.SULF_OXIDIZE || r.cap === CAP.FE_CHEMO))
         return true;
@@ -4830,9 +4833,9 @@ exports.ReproProbeLog = ReproProbeLog;
 __def("trace/chem-boundary.js", function(require, exports, module){class ChemBoundaryLog {
     capacity;
     events = {
-        chemistry: [], offspringGate: [], death: [], birthTransfer: [],
+        chemistry: [], offspringGate: [], death: [], birthTransfer: [], reproduction: [],
     };
-    counts = { chemistry: 0, offspringGate: 0, death: 0, birthTransfer: 0 };
+    counts = { chemistry: 0, offspringGate: 0, death: 0, birthTransfer: 0, reproduction: 0 };
     constructor(capacity) {
         this.capacity = capacity;
         if (!Number.isSafeInteger(capacity) || capacity < 1)
@@ -4844,18 +4847,27 @@ __def("trace/chem-boundary.js", function(require, exports, module){class ChemBou
         const at = (this.counts[event.kind] - 1) % this.capacity;
         rows[at] = event;
     }
-    snapshot(selectedKind) {
+    snapshot(selectedKind, sinceCount) {
+        if (sinceCount !== undefined && (selectedKind === undefined || !Number.isSafeInteger(sinceCount)
+            || sinceCount < 0 || sinceCount > this.counts[selectedKind]))
+            throw new Error('invalid boundary sinceCount');
         const total = Object.values(this.counts).reduce((a, b) => a + b, 0);
         const kinds = Object.keys(this.events);
         const retained = kinds.reduce((sum, kind) => sum + this.events[kind].length, 0);
         const events = kinds.filter((kind) => selectedKind === undefined || kind === selectedKind).flatMap((kind) => {
             const rows = this.events[kind];
             const start = this.counts[kind] > this.capacity ? this.counts[kind] % this.capacity : 0;
-            return [...rows.slice(start), ...rows.slice(0, start)];
+            const ordered = [...rows.slice(start), ...rows.slice(0, start)];
+            if (sinceCount === undefined)
+                return ordered;
+            const fresh = this.counts[kind] - sinceCount;
+            return fresh === 0 ? [] : ordered.slice(-Math.min(fresh, ordered.length));
         });
         return { policy: 'per-kind-ring', capacityPerKind: this.capacity, total,
             // retained/dropped are GLOBAL ring totals even for a filtered snapshot.
             returned: events.length,
+            unreadLost: sinceCount === undefined || selectedKind === undefined ? 0
+                : Math.max(0, this.counts[selectedKind] - sinceCount - this.events[selectedKind].length),
             selectedKind: selectedKind ?? null, retained, dropped: total - retained, counts: { ...this.counts },
             events: structuredClone(events) };
     }
@@ -5367,15 +5379,7 @@ exports.OUTCOME = OUTCOME;
 exports.InteractionQueue = InteractionQueue;
 
 });
-__def("world/config.js", function(require, exports, module){/**
- * World configuration for the experimental evolution engine.
- *
- * Every field here participates in the reproducibility contract
- * (engineVersion + resolved config + seed). Defaults are the experiment's
- * baseline; `WorldConfig` is fully resolved at construction and is safe to
- * serialize, so a benchmark run can record exactly what it ran.
- */
-const DEFAULT_CONFIG = {
+__def("world/config.js", function(require, exports, module){const DEFAULT_CONFIG = {
     worldW: 4000,
     worldH: 4000,
     fieldCell: 40,
@@ -5524,6 +5528,7 @@ const DEFAULT_CONFIG = {
     chemistryEnergyScale: null,
     chemistryAssimilationEfficiency: null,
     chemistryReproNutrientDemand: null,
+    chemistryReactionOmit: null,
     chemistryNoChemosynthesis: null,
     chemistryNoAnaerobic: null,
     chemistryNoNitrogenCycle: null,
@@ -6569,10 +6574,16 @@ const CHEMISTRY_ENGINE_VERSION = 'chem/0.7.8';
  * pinned one, and is reported as such. Evidence produced under either string
  * cannot be silently compared against the other, because the strings differ.
  */
-function runIdentity(chemistryEnabled) {
-    return chemistryEnabled
-        ? `${WORLD_ENGINE_VERSION}+${CHEMISTRY_ENGINE_VERSION}`
-        : WORLD_ENGINE_VERSION;
+function runIdentity(config) {
+    const chemistryEnabled = typeof config === 'boolean' ? config : config.chemistry === true;
+    const omission = typeof config === 'boolean' ? null : config.chemistryReactionOmit;
+    const base = chemistryEnabled ? `${WORLD_ENGINE_VERSION}+${CHEMISTRY_ENGINE_VERSION}` : WORLD_ENGINE_VERSION;
+    if (omission == null)
+        return base;
+    if (!chemistryEnabled || !['nitrification', 'iron oxidation', 'iron uptake'].includes(omission)) {
+        throw new Error('invalid research omission identity');
+    }
+    return `${base}+rxomit/1/${omission.replaceAll(' ', '-')}`;
 }
 /** Identifier for the credibility-check suite that accompanies this version. */
 /**
@@ -6586,7 +6597,7 @@ function runIdentity(chemistryEnabled) {
  * cross-organism shared-budget control.
  */
 // Combined chemistry and main validation suite, including G41-G47.
-const GATE_SUITE_VERSION = 'gates/0.8.1';
+const GATE_SUITE_VERSION = 'gates/0.8.2';
 
 exports.WORLD_ENGINE_VERSION = WORLD_ENGINE_VERSION;
 exports.CHEMISTRY_ENGINE_VERSION = CHEMISTRY_ENGINE_VERSION;
@@ -7624,6 +7635,9 @@ class World {
         }
         this.repro = opts.reproProbe ?? null;
         const cfg = resolveConfig(opts.config);
+        if (cfg.chemistryReactionOmit != null && (!['nitrification', 'iron oxidation', 'iron uptake'].includes(cfg.chemistryReactionOmit)
+            || cfg.chemistry !== true))
+            throw new Error('chemistryReactionOmit requires chemistry=true and exactly one supported reaction name');
         if (cfg.chemistryReproNutrientDemand != null
             && (!Number.isFinite(cfg.chemistryReproNutrientDemand) || cfg.chemistryReproNutrientDemand < 0)) {
             throw new Error('chemistryReproNutrientDemand must be finite and non-negative, or null');
@@ -9565,12 +9579,18 @@ class World {
             const b = this.mateCandB[i];
             if (a >= b)
                 continue; // self-contact, or the pair seen from the other side
-            if (this.intent[a] !== INTENT.MATE || this.intent[b] !== INTENT.MATE)
+            if (this.intent[a] !== INTENT.MATE || this.intent[b] !== INTENT.MATE) {
+                this.recordReproduction(a, 'matePairIntent', 'pairRejected', [], { pathway: 'sexual' });
+                this.recordReproduction(b, 'matePairIntent', 'pairRejected', [], { pathway: 'sexual' });
                 continue;
+            }
             // The partner must have selected THIS organism, not merely be in MATE
             // intent with someone else.
-            if (this.mateTarget[b] !== a)
+            if (this.mateTarget[b] !== a) {
+                this.recordReproduction(a, 'matePairReciprocity', 'pairRejected', ['matePairIntent'], { pathway: 'sexual' });
+                this.recordReproduction(b, 'matePairReciprocity', 'pairRejected', ['matePairIntent'], { pathway: 'sexual' });
                 continue;
+            }
             this.submittedByKind[INTERACTION.MATE]++;
             this.interactions.submit(store, a, b, INTERACTION.MATE, 0);
         }
@@ -9604,6 +9624,8 @@ class World {
             const upB = upkeepOf(store.trait(b, TRAIT.BASAL_COST), store.trait(b, TRAIT.SIZE), store.trait(b, TRAIT.MASS_COST))
                 * this.pioneerFactor(b) * this.consumerUpkeepFactor(b);
             if (store.energy[a] <= upA * this.reproSurplus || store.energy[b] <= upB * this.reproSurplus) {
+                this.recordReproduction(a, 'matePairSurplus', 'pairRejected', ['matePairIntent', 'matePairReciprocity'], { pathway: 'sexual' });
+                this.recordReproduction(b, 'matePairSurplus', 'pairRejected', ['matePairIntent', 'matePairReciprocity'], { pathway: 'sexual' });
                 return;
             }
             // Mark both slots as having successfully mated this tick.
@@ -9770,6 +9792,29 @@ class World {
     // -------------------------------------------------------------------------
     // Phase 6: reproduction proposals
     // -------------------------------------------------------------------------
+    /** Actual reached decision sites, not re-evaluation of hypothetical gates. */
+    recordReproduction(slot, stage, outcome, passedGates = [], extra = {}) {
+        if (this.boundaryLog === null)
+            return;
+        const s = this.store;
+        const known = slot >= 0 && this.live[slot] === 1 && (extra.id === undefined || s.id[slot] === extra.id);
+        const base = slot * E.COUNT;
+        this.boundaryLog.record({ kind: 'reproduction', tick: this.tick, stage, outcome,
+            passedGates: [...passedGates], id: extra.id ?? (known ? s.id[slot] : -1),
+            parentId: known ? s.parentId[slot] : -1, age: known ? s.age[slot] : -1,
+            guild: known ? this.roleOf(slot).trophic : -1,
+            maturityAge: known ? s.trait(slot, TRAIT.MATURITY_AGE) : -1,
+            ...(known ? {
+                energy: s.energy[slot], cooldown: s.reproCooldown[slot], damage: s.damage[slot],
+                energyFraction: s.energy[slot] / Math.max(1, this.capacityOf(slot)),
+                threshold: s.trait(slot, TRAIT.REPRO_THRESHOLD),
+            } : {}),
+            ...(known && this.chemStores ? {
+                storesAfter: Array.from(this.chemStores.stores.subarray(base, base + E.COUNT)),
+                biomassAfter: Array.from(this.chemStores.biomass.subarray(base, base + E.COUNT)),
+            } : {}), ...extra,
+        });
+    }
     proposeReproduction() {
         const store = this.store;
         const n = store.count;
@@ -9780,8 +9825,12 @@ class World {
                 continue;
             // Dormant decomposers do not propose breeding: growth into absent food
             // is not attempted. Reads this tick's flag (set in actPhase feeding).
-            if (dormancyOn && this.dormant[slot] === 1)
+            const reached = this.boundaryLog === null ? null : [];
+            if (dormancyOn && this.dormant[slot] === 1) {
+                this.recordReproduction(slot, 'dormancy', 'blocked');
                 continue;
+            }
+            reached?.push('dormancy');
             if (this.boundaryLog !== null && this.chemCfg.enabled && this.chemStores) {
                 const base = slot * E.COUNT;
                 const afford = canAffordOffspring(this.chemStores, slot, this.chemCfg);
@@ -9800,10 +9849,12 @@ class World {
             // unprobed path pays one null check per gate and nothing more.
             const guild = probe === null ? -1 : this.roleOf(slot).trophic;
             if (store.reproCooldown[slot] > 0) {
+                this.recordReproduction(slot, 'cooldown', 'blocked', reached ?? []);
                 if (probe !== null)
                     probe.blocked(slot, guild, REPRO_GATE.cooldown);
                 continue;
             }
+            reached?.push('cooldown');
             // Mass-corrected: breeding eligibility must be judged against the same
             // capacity that gates intake, or an organism can qualify to breed at a
             // fraction of a reserve that intake would have refused to fill.
@@ -9811,10 +9862,12 @@ class World {
             const threshold = store.trait(slot, TRAIT.REPRO_THRESHOLD);
             const energyFrac = store.energy[slot] / Math.max(1, capacity);
             if (energyFrac < threshold) {
+                this.recordReproduction(slot, 'energyFraction', 'blocked', reached ?? [], { gateValue: energyFrac, gateLimit: threshold });
                 if (probe !== null)
                     probe.blocked(slot, guild, REPRO_GATE.fraction);
                 continue;
             }
+            reached?.push('energyFraction');
             // MATTER gate, independent of the energy gate above.
             //
             // This is where the energy/matter separation becomes an ecological fact.
@@ -9826,6 +9879,7 @@ class World {
             if (this.chemCfg.enabled && this.chemStores) {
                 const afford = canAffordOffspring(this.chemStores, slot, this.chemCfg);
                 if (!afford.ok) {
+                    this.recordReproduction(slot, `matter:${afford.lacking}`, 'blocked', reached ?? []);
                     if (afford.lacking === 'nutrient')
                         this.chemReproBlockedNutrient++;
                     else
@@ -9835,17 +9889,22 @@ class World {
                     continue;
                 }
             }
+            reached?.push(this.chemCfg.enabled && this.chemStores ? 'matter' : 'matter:notApplicable');
             const maturityAge = store.trait(slot, TRAIT.MATURITY_AGE);
             if (store.age[slot] < maturityAge) {
+                this.recordReproduction(slot, 'maturity', 'blocked', reached ?? []);
                 if (probe !== null)
                     probe.blocked(slot, guild, REPRO_GATE.maturity);
                 continue;
             }
+            reached?.push('maturity');
             if (store.damage[slot] > FATAL_DAMAGE * 0.45) {
+                this.recordReproduction(slot, 'damage', 'blocked', reached ?? []);
                 if (probe !== null)
                     probe.blocked(slot, guild, REPRO_GATE.damage);
                 continue;
             }
+            reached?.push('damage');
             // Viable surplus: reproduction requires enough reserve to sustain the
             // organism for a drought period, not merely a fraction of its storage
             // buffer. Without this, a small-bodied organism with a small buffer could
@@ -9853,10 +9912,12 @@ class World {
             // REPORT.md.
             const upkeep = upkeepOf(store.trait(slot, TRAIT.BASAL_COST), store.trait(slot, TRAIT.SIZE), store.trait(slot, TRAIT.MASS_COST)) * this.pioneerFactor(slot) * this.consumerUpkeepFactor(slot);
             if (store.energy[slot] <= upkeep * this.reproSurplus) {
+                this.recordReproduction(slot, 'surplus', 'blocked', reached ?? [], { gateValue: store.energy[slot], gateLimit: upkeep * this.reproSurplus });
                 if (probe !== null)
                     probe.blocked(slot, guild, REPRO_GATE.surplus);
                 continue;
             }
+            reached?.push('surplus');
             const asexualRate = store.trait(slot, TRAIT.ASEXUAL_RATE);
             const mateSeeking = store.trait(slot, TRAIT.MATE_SEEKING);
             // Sexual reproduction proceeds only for organisms that achieved a
@@ -9865,6 +9926,7 @@ class World {
             // genotypes breed slower asexually, creating a genuine trade-off.
             const sexual = this.successfulMating[slot] === 1;
             if (sexual) {
+                this.recordReproduction(slot, 'sexualRoute', 'delegated', reached ?? [], { pathway: 'sexual' });
                 if (probe !== null)
                     probe.blocked(slot, guild, REPRO_GATE.sexual);
                 continue; // handled by the MATE interaction, already queued
@@ -9892,11 +9954,17 @@ class World {
             if (probe !== null) {
                 probe.reachedRoll(slot, guild, drive, energyFrac - threshold, store.trait(slot, TRAIT.ASEXUAL_RATE), mateSeeking);
             }
-            if (drive <= 0)
+            if (drive <= 0) {
+                this.recordReproduction(slot, 'drive', 'blocked', reached ?? []);
                 continue;
+            }
+            reached?.push('drive');
             // Exactly one rng.chance() call, as before: storing the result instead of
             // inlining it in the condition preserves the RNG stream byte-for-byte.
             const passed = this.rng.chance(Math.min(0.9, drive));
+            this.recordReproduction(slot, 'lottery', passed ? 'passed' : 'blocked', reached ?? [], {
+                pathway: 'asexual', gateValue: drive, gateLimit: Math.min(0.9, drive),
+            });
             if (probe !== null && passed)
                 probe.fired(slot, guild);
             if (!passed)
@@ -9974,6 +10042,9 @@ class World {
             this.birthDrops++;
         }
         const parentId = this.store.id[parentSlot];
+        this.recordReproduction(parentSlot, 'queue', 'queued', [], {
+            requestedChildren: count, pathway: mateSlot >= 0 ? 'sexual' : 'asexual',
+        });
         this.repro?.queued?.(this.roleOf(parentSlot).trophic, mateSlot >= 0, count);
         for (let i = 0; i < count; i++) {
             this.birthParentSlot[this.pendingBirths] = parentSlot;
@@ -10263,6 +10334,9 @@ class World {
             // and made the effective ceiling roughly half of the configured value,
             // which also inflated the reported cap-hit count.
             if (store.population >= cfg.maxPopulation) {
+                for (let pending = q; pending < this.pendingBirths; pending++) {
+                    this.recordReproduction(this.birthParentSlot[pending], 'admissionCap', 'blocked', [], { id: this.birthParentId[pending] });
+                }
                 this.populationCapHits += this.pendingBirths - q;
                 break;
             }
@@ -10274,6 +10348,7 @@ class World {
                 !this.live[parent] ||
                 queuedParentId < 0 ||
                 this.store.id[parent] !== queuedParentId) {
+                this.recordReproduction(parent, 'admissionParent', 'blocked', ['admissionCap'], { id: queuedParentId });
                 continue;
             }
             // Inheritance with mutation. Sexual children branch the lineage;
@@ -10318,8 +10393,13 @@ class World {
             // A transfer within biomass, not dissipation, so it lives in
             // transferredOutByGuild rather than in the expenditure buckets.
             const slot = store.allocate();
-            if (slot < 0)
+            if (slot < 0) {
+                this.recordReproduction(parent, 'admissionAllocation', 'blocked', ['admissionCap', 'admissionParent']);
+                for (let pending = q + 1; pending < this.pendingBirths; pending++) {
+                    this.recordReproduction(this.birthParentSlot[pending], 'admissionAllocation', 'notReached:phaseStopped', [], { id: this.birthParentId[pending] });
+                }
                 break;
+            }
             this.ledger.recordTransferOut(perChild, this.roleOf(parent).trophic);
             this.populateSlot(slot, genome, body, store.id[parent], lineageId, this.tick, modBlock, modCount, parent);
             this.noteSlot(slot);
@@ -10585,6 +10665,9 @@ class World {
             // life-history cost rather than a bookkeeping detail.
             store.reproCooldown[parent] = 8 + this.rng.int(26);
             this.totalBirths++;
+            this.recordReproduction(parent, 'placement', 'placed', ['admissionCap', 'admissionParent', 'admissionAllocation'], {
+                childId: store.id[slot], pathway: this.birthMateSlot[q] >= 0 ? 'sexual' : 'asexual',
+            });
             made++;
         }
         this.pendingBirths = 0;
@@ -10995,8 +11078,8 @@ class World {
         return this.traceLog;
     }
     /** Detached numeric boundary records; never exposes mutable engine state. */
-    chemistryBoundaryTrace(kind) {
-        return this.boundaryLog?.snapshot(kind) ?? null;
+    chemistryBoundaryTrace(kind, sinceCount) {
+        return this.boundaryLog?.snapshot(kind, sinceCount) ?? null;
     }
     /** Whether event tracing is active on this world. */
     get tracing() {
@@ -11146,6 +11229,7 @@ class World {
         cc.energyScale = cfg.chemistryEnergyScale ?? 1;
         cc.assimilationEfficiency = cfg.chemistryAssimilationEfficiency ?? DEFAULT_CHEM_CONFIG.assimilationEfficiency;
         cc.reproNutrientDemand = cfg.chemistryReproNutrientDemand ?? DEFAULT_CHEM_CONFIG.reproNutrientDemand;
+        cc.reactionOmit = cfg.chemistryReactionOmit ?? null;
         cc.noChemosynthesis = cfg.chemistryNoChemosynthesis === true;
         cc.noAnaerobic = cfg.chemistryNoAnaerobic === true;
         cc.noNitrogenCycle = cfg.chemistryNoNitrogenCycle === true;

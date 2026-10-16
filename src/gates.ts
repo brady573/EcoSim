@@ -46,6 +46,7 @@ import {
 import { Chemistry, DEFAULT_CHEMISTRY, POOL, POOL_RT } from './world/chemistry.js';
 import { REPRO_GATE, type ReproProbe } from './trace/reproprobe.js';
 import { chemicalGrowthCases, chemicalReproductionCases, chemicalLiveGrowthCases } from './chem-correctness.js';
+import { reactionOmissionCases } from './reaction-omission-checks.js';
 
 interface GateResult {
   id: string;
@@ -3301,6 +3302,7 @@ function main(): void {
     ['G48', 'D1 growth preserves every element at the limiting carbon quantity', chemicalGrowthCases],
     ['G49', 'D2 N/P demand is linear; carbon/cofactor boundaries stay explicit', chemicalReproductionCases],
     ['G50', 'D1 live tissue/store/energy charges agree with realized growth', chemicalLiveGrowthCases],
+    ['G51', 'research omissions isolate reactions without disabling organism uptake', reactionOmissionCases],
   ] as const) {
     try {
       const cases = test();

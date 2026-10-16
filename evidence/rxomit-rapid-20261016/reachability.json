@@ -1,0 +1,38 @@
+[
+  {
+    "seed": 41001,
+    "target": "nitrification",
+    "controlExtent": 1138.7640258767012,
+    "status": "measured"
+  },
+  {
+    "seed": 41001,
+    "target": "iron oxidation",
+    "controlExtent": 52.46370709721878,
+    "status": "measured"
+  },
+  {
+    "seed": 41001,
+    "target": "iron uptake",
+    "controlExtent": 15.560051086828258,
+    "status": "measured"
+  },
+  {
+    "seed": 41002,
+    "target": "nitrification",
+    "controlExtent": 1143.008771842573,
+    "status": "measured"
+  },
+  {
+    "seed": 41002,
+    "target": "iron oxidation",
+    "controlExtent": 55.79320876554563,
+    "status": "measured"
+  },
+  {
+    "seed": 41002,
+    "target": "iron uptake",
+    "controlExtent": 10.740393875574702,
+    "status": "measured"
+  }
+]

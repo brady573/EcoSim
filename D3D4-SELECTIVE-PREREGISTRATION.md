@@ -1,9 +1,11 @@
 # D3/D4 selective controls — preregistration for review
 
-Status: **PROPOSED FOR SCOPED DESIGN REVIEW; NOT IMPLEMENTED OR RUN.**
-Owner directions are accepted in PR #14 comment 6193809477, but this document
-does not accept its own implementation gate, choose permanent physiology or
-authorize O1/O2. D1/D2 qualification (`CHEM-078-CORRECTIONS.md`) takes precedence.
+Status: **ACCEPTED FOR EXPERIMENT-ONLY IMPLEMENTATION** by PR #14 review
+5540863270, followed by the Owner's request for rapid trials. Permanent
+physiology and combined arms are NOT authorized by this acceptance. Original
+predeclaration is retained at source `939575c`; the predictions below are
+unchanged. Current implementation/evidence is tracked separately in
+`REACTION-OMISSION-TRIALS.md`. This is not an O3/O1/O2 promotion or merge gate.
 
 ## Fixed baseline and scope
 

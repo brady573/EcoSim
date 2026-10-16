@@ -127,6 +127,6 @@ writeFileSync(join(out, 'life-summaries.json'), JSON.stringify(summary, null, 2)
 writeFileSync(join(out, 'complete.json'), JSON.stringify({ seed, births: w.totalBirths,
   selectedFamiliesIndividuals: summary.length, counts: consumed, finalHash: w.hashState(),
   allKindCounts: w.chemistryBoundaryTrace('birthTransfer').counts,
-  retention: 'birthTransfer/offspringGate/death drained losslessly each tick; chemistry kind intentionally undrained and not part of family histories',
+  retention: 'birthTransfer/offspringGate/death drained losslessly each tick; other kinds intentionally undrained and not part of these family histories',
   parity: 'exact ordinary every tick, broad at protocol checkpoints' }));
 console.log(`COMPLETE seed=${seed} births=${w.totalBirths} selectedIndividuals=${summary.length}`);

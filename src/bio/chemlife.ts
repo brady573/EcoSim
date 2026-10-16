@@ -28,7 +28,7 @@ import {
   E, biomassDemand, newElemVec, sumElems, MACRONUTRIENTS, TRACE_ELEMENTS,
 } from './elements.js';
 import {
-  CAP, CAP_COUNT, REACTIONS, RX_COUNT, reactionExtent, type Reaction,
+  CAP, CAP_COUNT, REACTIONS, RX_COUNT, reactionExtent, type Reaction, type ReactionOmission,
 } from './metabolism.js';
 import { POOL, type Chemistry } from '../world/chemistry.js';
 
@@ -121,6 +121,7 @@ export interface ChemConfig {
   energyScale: number;
   assimilationEfficiency: number;
   reproNutrientDemand: number;
+  reactionOmit: ReactionOmission | null;
   noChemosynthesis: boolean;
   noAnaerobic: boolean;
   noNitrogenCycle: boolean;
@@ -181,6 +182,7 @@ export const DEFAULT_CHEM_CONFIG: ChemConfig = {
   energyScale: 1,
   assimilationEfficiency: 0.62,
   reproNutrientDemand: 1,
+  reactionOmit: null,
   noChemosynthesis: false,
   noAnaerobic: false,
   noNitrogenCycle: false,
@@ -359,6 +361,7 @@ export function runMetabolism(
 
 /** Ablations must actually gate execution, not merely be recorded. */
 function isAblated(r: Reaction, cfg: ChemConfig): boolean {
+  if (cfg.reactionOmit != null && r.name === cfg.reactionOmit) return true;
   if (cfg.noChemosynthesis
     && (r.cap === CAP.SULF_OXIDIZE || r.cap === CAP.FE_CHEMO)) return true;
   if (cfg.noAnaerobic

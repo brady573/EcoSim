@@ -40,7 +40,7 @@ writeFileSync(join(out, 'protocol.json'), JSON.stringify({
 }, null, 2));
 const samples = new Set([0, 1, 32, 120, 300, 600, registered.ticks]);
 for (const seed of seeds) for (const arm of ['legacy', 'advanced']) {
-  const config = JSON.parse(readFileSync(join(source, `${arm}-${seed}-config.json`), 'utf8'));
+  const config = { ...JSON.parse(readFileSync(join(source, `${arm}-${seed}-config.json`), 'utf8')), chemistryReactionOmit: null };
   const prior = old.find((r) => r.seed === seed && r.arm === arm);
   assert.ok(prior);
   assert.equal(config.chemistryReproNutrientDemand, null);

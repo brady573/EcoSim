@@ -4,12 +4,12 @@ import { createHash } from 'node:crypto';
  * Excludes only the trace and measured wall-clock timings. Diagnostic only:
  * this does not replace the versioned run hash or redefine historical evidence.
  */
-export function boundaryStateDigest(world) {
+export function boundaryStateDigest(world, ignoredConfigKeys = []) {
   const h = createHash('sha256');
   const seen = new Map();
   const excluded = new Set(['boundaryLog', 'traceLog', 'repro', 'traceIdLineage',
     'timings', 'totals', 'phenotypeMs', 'lineageMs']);
-  function visit(value, root = false) {
+  function visit(value, root = false, config = false) {
     if (value === null || typeof value !== 'object') {
       h.update(`${typeof value}:${String(value)};`); return;
     }
@@ -29,7 +29,8 @@ export function boundaryStateDigest(world) {
     }
     for (const key of Object.keys(value).sort()) {
       if (root && excluded.has(key)) continue;
-      h.update(`${key.length}:${key};`); visit(value[key]);
+      if (config && ignoredConfigKeys.includes(key)) continue;
+      h.update(`${key.length}:${key};`); visit(value[key], false, root && (key === 'config' || key === 'chemCfg'));
     }
     h.update('end;');
   }

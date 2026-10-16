@@ -5,6 +5,9 @@ https://github.com/brady573/EcoSim/pull/14#issuecomment-6193809477 .
 D1/D2 are authorized correctness repairs NOW; implementation/validation is
 tracked in `CHEM-078-CORRECTIONS.md`. This is not merge approval or a claim
 to have identified the cause of population loss.
+Subsequent research-only selector acceptance (review 5540863270) and isolated
+trials are documented in `RXOMIT-RAPID-RESULTS.md`; this does not accept new
+permanent physiology, founder frequencies or provisioning allocations.
 The accepted browser work remains separate. See `MECHANISM-AUDIT-STATUS.md`,
 helper raw evidence and `MECHANISM-FOUR-ARM-RESULTS.md` for completed scope.
 

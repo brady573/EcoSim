@@ -111,10 +111,15 @@ export const CHEMISTRY_ENGINE_VERSION = 'chem/0.7.8';
  * pinned one, and is reported as such. Evidence produced under either string
  * cannot be silently compared against the other, because the strings differ.
  */
-export function runIdentity(chemistryEnabled: boolean): string {
-  return chemistryEnabled
-    ? `${WORLD_ENGINE_VERSION}+${CHEMISTRY_ENGINE_VERSION}`
-    : WORLD_ENGINE_VERSION;
+export function runIdentity(config: boolean | { chemistry?: boolean | null; chemistryReactionOmit?: string | null }): string {
+  const chemistryEnabled = typeof config === 'boolean' ? config : config.chemistry === true;
+  const omission = typeof config === 'boolean' ? null : config.chemistryReactionOmit;
+  const base = chemistryEnabled ? `${WORLD_ENGINE_VERSION}+${CHEMISTRY_ENGINE_VERSION}` : WORLD_ENGINE_VERSION;
+  if (omission == null) return base;
+  if (!chemistryEnabled || !['nitrification', 'iron oxidation', 'iron uptake'].includes(omission)) {
+    throw new Error('invalid research omission identity');
+  }
+  return `${base}+rxomit/1/${omission.replaceAll(' ', '-')}`;
 }
 
 /** Identifier for the credibility-check suite that accompanies this version. */
@@ -129,4 +134,4 @@ export function runIdentity(chemistryEnabled: boolean): string {
  * cross-organism shared-budget control.
  */
 // Combined chemistry and main validation suite, including G41-G47.
-export const GATE_SUITE_VERSION = 'gates/0.8.1';
+export const GATE_SUITE_VERSION = 'gates/0.8.2';

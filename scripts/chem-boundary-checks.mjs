@@ -12,6 +12,10 @@ const ring = new ChemBoundaryLog(2);
 for (let id = 0; id < 5; id++) ring.record({ kind: 'death', id, tick: id, parentId: -1, age: id, guild: 0, maturityAge: 1 });
 assert.deepEqual(ring.snapshot().events.map((e) => e.id), [3, 4]);
 assert.equal(ring.snapshot().dropped, 3);
+assert.equal(ring.snapshot('death', 0).unreadLost, 3);
+assert.deepEqual(ring.snapshot('death', 4).events.map((e) => e.id), [4]);
+assert.equal(ring.snapshot('death', 5).returned, 0);
+assert.throws(() => ring.snapshot('death', 6), /sinceCount/);
 
 for (const seed of [517, 24601]) for (const chemistry of [null, true]) for (const genomeV2 of [null, true]) {
   const config = { seed, founders: 400, chemistry, genomeV2 };
@@ -31,7 +35,7 @@ for (const seed of [517, 24601]) for (const chemistry of [null, true]) for (cons
   }
   const log = traced.chemistryBoundaryTrace();
   assert.deepEqual(log, repeat.chemistryBoundaryTrace(), 'repeat trace byte-equivalent values');
-  assert.ok(log.events.length <= 4 * 128);
+  assert.ok(log.events.length <= 5 * 128);
   assert.equal(log.total - log.events.length, log.dropped);
   if (chemistry) {
     assert.ok(log.counts.chemistry > 0 && log.counts.offspringGate > 0);
