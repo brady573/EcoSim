@@ -8173,18 +8173,29 @@ instrumentation, not a reliance verdict; O1/O2 are conditionally Owner-authorize
 (after accepted Gate 1 / Gate 2 respectively) but not implemented and not
 eligible to start until the prior gate is accepted.
 
-### O1 phenotype-class suppression (0.6.4, Owner Stage 2, issue #15)
+### O1 phenotype-class suppression (0.6.5, Owner Stage 2, issue #15)
 
 New null-default knob `phenoMineralReturn: {carrionOnly, recalcOnly, dual} |
-null` (each a return fraction in [0, 1]; bad values throw at construction).
+null` (each a return fraction in [0, 1]; closed key set; bad values throw at
+construction).
 When set, `mineraliseThroughCeiling` scales the OFFERED return for the named
 expressed class; feeding takes, energy, presence and all other behavior are
 untouched. `neither` always passes through and is reported. The scaled offer
 drives `mineralisedCell`/`bioticMineralised`, so cyclic-regen/broadcast
-coupling is measured distinctly via existing abiotic books. G34 asserts the
-deficit identity (named class accepted == 0 exactly, others continue),
-null-restores-declared digests, 5/5 rejections, twin determinism and retained
-populations. Gates 0.6.0 → 0.7.0; engine stays 0.6.4 (null = no change).
+coupling is measured distinctly via existing abiotic books. A suppressed zero
+offer touches nothing (no clamp, no eviction — G34 over-cap regression);
+natural zero offers keep the legacy clamp exactly. The UNSCALED would-be offer
+is booked per (class, pool, source) into shadow books through identical clamp
+math against live headroom (no field writes); shadow == actual per cell on
+null runs (G34 asserts), so the suppressed-run `shadow − actual` difference is
+the pool/source/class-local forgone return. Cumulative with bounded memory:
+pool/source-local O2 dosing IS specifiable from these books; cell/time-exact
+replacement is NOT (that would need an unbounded event log) — stated here so
+no null-world cumulative total is ever silently used as a rescue schedule.
+G34 asserts the deficit identity (named class accepted == 0 exactly, others continue),
+null-restores-declared digests, 6/6 rejections, twin determinism and retained
+populations. Gates 0.6.0 → 0.7.0; engine 0.6.4 → 0.6.5 (unset runs bit-identical;
+knob-set runs carry the new behavior identity).
 Evidence: `evidence/o1-knockout-20261015/` (viability 500t: recalc deficits
 1302.8 / 2730.7 to exactly zero; abioticRegen feedback recorded separately;
 suppression is not extinction). No reliance verdict; O2 needs Gate 2 + an

@@ -629,6 +629,7 @@ export class World {
     excretionReturns: ReturnBooks<number[][]>;
     bioticMineralization: ReturnBooks<number[][][]>;
     bioticMineralizationByPheno: ReturnBooks<number[][][][]>;
+    bioticMineralizationShadow: ReturnBooks<number[][][][]>;
     abioticRegen: number[];
     abioticMineralization: number[][];
   } {
@@ -642,6 +643,12 @@ export class World {
     // O3: per-event attribution by expressed donor class [class][guild][pool][source].
     // Partitions bioticMineralization: old[g][p][src] == sum over classes. See G33.
     const bioticMineralizationByPheno: ReturnBooks<number[][][][]> = {
+      attempted: [], accepted: [], capLoss: [], eviction: [],
+    };
+    // O1 shadow: UNSCALED would-be offers, same shape. Equals the pheno family
+    // per cell on null/unset runs (G34 asserts); the suppressed-run difference
+    // is the pool/source/class-local forgone return. See G34.
+    const bioticMineralizationShadow: ReturnBooks<number[][][][]> = {
       attempted: [], accepted: [], capLoss: [], eviction: [],
     };
     for (let g = 0; g < TROPHIC_COUNT; g++) {
@@ -700,7 +707,11 @@ export class World {
     this.fillPhenoBook(bioticMineralizationByPheno.accepted, this.bioticPhenoAcceptedClassGuildPoolSource);
     this.fillPhenoBook(bioticMineralizationByPheno.capLoss, this.bioticPhenoCapLossClassGuildPoolSource);
     this.fillPhenoBook(bioticMineralizationByPheno.eviction, this.bioticPhenoEvictionClassGuildPoolSource);
-    return { photoUptake, excretionReturns, bioticMineralization, bioticMineralizationByPheno, abioticRegen, abioticMineralization };
+    this.fillPhenoBook(bioticMineralizationShadow.attempted, this.bioticShadowAttemptedClassGuildPoolSource);
+    this.fillPhenoBook(bioticMineralizationShadow.accepted, this.bioticShadowAcceptedClassGuildPoolSource);
+    this.fillPhenoBook(bioticMineralizationShadow.capLoss, this.bioticShadowCapLossClassGuildPoolSource);
+    this.fillPhenoBook(bioticMineralizationShadow.eviction, this.bioticShadowEvictionClassGuildPoolSource);
+    return { photoUptake, excretionReturns, bioticMineralization, bioticMineralizationByPheno, bioticMineralizationShadow, abioticRegen, abioticMineralization };
   }
 
   /**
@@ -848,6 +859,8 @@ export class World {
   //     source: 0=sediment, 1=detritus, 2=litter
   //   bioticPheno{Attempted,Accepted,CapLoss,Eviction}[class * TROPHIC_COUNT * NUTRIENT_COUNT * 3 + guild * NUTRIENT_COUNT * 3 + pool * 3 + source]
   //     class: 0=carrionOnly, 1=recalcOnly, 2=dual, 3=neither (see classifyMineralPheno)
+  //   bioticShadow{Attempted,Accepted,CapLoss,Eviction}[same stride as bioticPheno]
+  //     would-be UNSCALED offer booked against live headroom, no field writes
   //   abioticRegen[pool]
   //   abioticMineralization[pool * 3 + source]  source: 0=detritus, 1=sediment, 2=litter
   private photoUptakeGuildPool = new Float64Array(TROPHIC_COUNT * NUTRIENT_COUNT);
@@ -897,6 +910,21 @@ export class World {
   private bioticPhenoAttemptedClassGuildPoolSource = new Float64Array(MINERAL_PHENO_CLASS_COUNT * TROPHIC_COUNT * NUTRIENT_COUNT * 3);
   private bioticPhenoCapLossClassGuildPoolSource = new Float64Array(MINERAL_PHENO_CLASS_COUNT * TROPHIC_COUNT * NUTRIENT_COUNT * 3);
   private bioticPhenoEvictionClassGuildPoolSource = new Float64Array(MINERAL_PHENO_CLASS_COUNT * TROPHIC_COUNT * NUTRIENT_COUNT * 3);
+  /**
+   * Shadow books: the UNSCALED (would-be) offer run through the same clamp
+   * math against live cell headroom, WITHOUT writing fields (O1 Gate-2 P2).
+   * On null/unset runs shadow == actual per cell (G34 asserts this, pinning
+   * the duplicated math against the single-arithmetic-site original). On
+   * suppressed runs the per-cell `shadow - actual` difference is the
+   * pool/source/class-local forgone return an O2 dose would need to replace.
+   * Cumulative per (class, pool, source): pool/source-local dosing IS
+   * specifiable; cell/time-exact replacement is NOT with bounded memory (see
+   * the O2 dosing note in REPORT.md). Pure observation like the pheno books.
+   */
+  private bioticShadowAttemptedClassGuildPoolSource = new Float64Array(MINERAL_PHENO_CLASS_COUNT * TROPHIC_COUNT * NUTRIENT_COUNT * 3);
+  private bioticShadowAcceptedClassGuildPoolSource = new Float64Array(MINERAL_PHENO_CLASS_COUNT * TROPHIC_COUNT * NUTRIENT_COUNT * 3);
+  private bioticShadowCapLossClassGuildPoolSource = new Float64Array(MINERAL_PHENO_CLASS_COUNT * TROPHIC_COUNT * NUTRIENT_COUNT * 3);
+  private bioticShadowEvictionClassGuildPoolSource = new Float64Array(MINERAL_PHENO_CLASS_COUNT * TROPHIC_COUNT * NUTRIENT_COUNT * 3);
   private abioticRegenPool = new Float64Array(NUTRIENT_COUNT);
   private abioticMineralizationPoolSource = new Float64Array(NUTRIENT_COUNT * 3);
 
@@ -1638,6 +1666,24 @@ export class World {
    * `data` is passed rather than re-read so the caller's local alias and the
    * written array cannot diverge, and it is mutated in place.
    */
+  /**
+   * One ceiling interaction, pure: the clamp arithmetic both the real return
+   * path and the O1 shadow booking share. Single math site on purpose — the
+   * shadow duplicates NOTHING; G34 pins shadow==actual per cell on null runs,
+   * so any drift between the two readers fails loudly. Operation order
+   * matches the pre-extraction body exactly.
+   */
+  private static ceilingOutcome(cap: number, before: number, amount: number): { after: number; acceptedAmt: number; evictAmt: number } {
+    const after = Math.min(cap, before + amount);
+    // Zero when the cell was already over its ceiling: the incoming amount is
+    // then refused in full and the clamp removes pre-existing excess instead.
+    return {
+      after,
+      acceptedAmt: after > before ? after - before : 0,
+      evictAmt: before > after ? before - after : 0,
+    };
+  }
+
   private returnThroughCeiling(
     data: Float32Array,
     nIdx: number,
@@ -1650,8 +1696,10 @@ export class World {
     eviction: Float64Array,
     // Optional phenotype mirror (O3). Excretion callers omit it and behave
     // byte-identically to before. One holder object per mineralization EVENT
-    // (not per pool call) keeps the hot path allocation-free apart from that
-    // single short-lived object; the booked values are the same locals.
+    // (not per pool call); with the shadow/scratch locals nearby, per-event
+    // short-lived objects total a handful — negligible GC pressure at
+    // measured horizons (peak engine RSS ~149 MB). The booked values are the
+    // same clamp locals either way.
     pheno: {
       accepted: Float64Array; attempted: Float64Array;
       capLoss: Float64Array; eviction: Float64Array; off: number;
@@ -1659,20 +1707,17 @@ export class World {
   ): void {
     const cap = this.nutrientCapAt(nIdx, ci);
     const before = data[ci];
-    const after = Math.min(cap, before + amount);
-    data[ci] = after;
-    // Zero when the cell was already over its ceiling: the incoming amount is
-    // then refused in full and the clamp removes pre-existing excess instead.
-    const acceptedAmt = after > before ? after - before : 0;
+    const o = World.ceilingOutcome(cap, before, amount);
+    data[ci] = o.after;
     attempted[off] += amount;
-    accepted[off] += acceptedAmt;
-    capLoss[off] += amount - acceptedAmt;
-    eviction[off] += before > after ? before - after : 0;
+    accepted[off] += o.acceptedAmt;
+    capLoss[off] += amount - o.acceptedAmt;
+    eviction[off] += o.evictAmt;
     if (pheno !== null) {
       pheno.attempted[pheno.off] += amount;
-      pheno.accepted[pheno.off] += acceptedAmt;
-      pheno.capLoss[pheno.off] += amount - acceptedAmt;
-      pheno.eviction[pheno.off] += before > after ? before - after : 0;
+      pheno.accepted[pheno.off] += o.acceptedAmt;
+      pheno.capLoss[pheno.off] += amount - o.acceptedAmt;
+      pheno.eviction[pheno.off] += o.evictAmt;
     }
   }
 
@@ -1723,6 +1768,33 @@ export class World {
       scale = cls === 0 ? pmr.carrionOnly : cls === 1 ? pmr.recalcOnly : pmr.dual;
     }
     const offered = scale === 1 ? returned : returned * scale;
+    // Suppressed to zero: touch NOTHING (Gate-2 P1a). Passing a zero offer
+    // through the ceiling would clamp an already-over-cap cell down and book
+    // eviction — a second intervention deleting standing nutrient the event
+    // was supposed to leave alone. Natural zero offers (returned == 0 with
+    // scale 1) keep the legacy path exactly, preserving null/unset baseline.
+    const suppressedToZero = offered === 0 && scale === 0;
+    // Shadow (reads live headroom, writes only shadow arrays): the UNSCALED
+    // would-be offer through identical clamp math. On null runs this must
+    // equal the actual books per cell (G34 asserts it). Scalar locals keep
+    // this read path allocation-light; the per-event objects below (one pheno
+    // holder plus ceilingOutcome results) are short-lived and negligible at
+    // measured horizons.
+    const shAtt = this.bioticShadowAttemptedClassGuildPoolSource;
+    const shAcc = this.bioticShadowAcceptedClassGuildPoolSource;
+    const shCap = this.bioticShadowCapLossClassGuildPoolSource;
+    const shEvi = this.bioticShadowEvictionClassGuildPoolSource;
+    for (let p = 0; p < NUTRIENT_COUNT; p++) {
+      const nut = p === 0 ? nutA : p === 1 ? nutB : nutC;
+      const so = phenoBase + p * 3;
+      const perFull = returned / NUTRIENT_COUNT;
+      const o = World.ceilingOutcome(this.nutrientCapAt(p, ci), nut[ci], perFull);
+      shAtt[so] += perFull;
+      shAcc[so] += o.acceptedAmt;
+      shCap[so] += perFull - o.acceptedAmt;
+      shEvi[so] += o.evictAmt;
+    }
+    if (suppressedToZero) return;
     const perPool = offered / NUTRIENT_COUNT;
     const pheno = {
       accepted: this.bioticPhenoAcceptedClassGuildPoolSource,

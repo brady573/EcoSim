@@ -2589,6 +2589,131 @@ function gate34(): void {
   const abioNull = abio(wNull);
   const abioSup = abio(wSup);
 
+  // (vii) Shadow==actual on null runs per cell (pins the shared clamp math).
+  const shNull = wNull.getFluxSnapshot().bioticMineralizationShadow;
+  const acNull = wNull.getFluxSnapshot().bioticMineralizationByPheno;
+  let shadowMismatchNull = 0;
+  for (let c = 0; c < MINERAL_PHENO_CLASS_COUNT; c++) {
+    for (let g = 0; g < TROPHIC_COUNT; g++) {
+      for (let p = 0; p < NUTRIENT_COUNT; p++) {
+        for (let src = 0; src < 3; src++) {
+          for (const book of ['attempted', 'accepted', 'capLoss', 'eviction'] as const) {
+            if (shNull[book][c][g][p][src] !== acNull[book][c][g][p][src]) shadowMismatchNull++;
+          }
+        }
+      }
+    }
+  }
+
+  // (viii) Suppressed arm: shadow records the forgone flow the actual books
+  // omit. Untargeted classes must still match shadow exactly (scale 1 there);
+  // only the targeted class may differ, and its shadow must be non-zero
+  // (a dose exists to replace) while its actual is zero (proven above).
+  const shSupFam = wSup.getFluxSnapshot().bioticMineralizationShadow;
+  const acSupFam = wSup.getFluxSnapshot().bioticMineralizationByPheno;
+  let shadowMismatchUntargeted = 0;
+  let shadowRecalcAccepted = 0;
+  for (let c = 0; c < MINERAL_PHENO_CLASS_COUNT; c++) {
+    for (let g = 0; g < TROPHIC_COUNT; g++) {
+      for (let p = 0; p < NUTRIENT_COUNT; p++) {
+        for (let src = 0; src < 3; src++) {
+          for (const book of ['attempted', 'accepted', 'capLoss', 'eviction'] as const) {
+            if (c !== MINERAL_PHENO.RECALC_ONLY && shSupFam[book][c][g][p][src] !== acSupFam[book][c][g][p][src]) shadowMismatchUntargeted++;
+          }
+          shadowRecalcAccepted += shSupFam.accepted[c][g][p][src] * (c === MINERAL_PHENO.RECALC_ONLY ? 1 : 0);
+        }
+      }
+    }
+  }
+
+  // (ix) P1a white-box over-cap regression: a suppressed zero offer must not
+  // clamp or evict, while a natural zero offer keeps the legacy clamp.
+  // White-box private call is deliberate: only direct invocation isolates the
+  // mechanism deterministically (ecosystem stepping cannot aim an event at a
+  // chosen over-cap cell). Fixed seed/config make slot selection stable.
+  type MineraliseFn = {
+    mineraliseThroughCeiling(slot: number, ci: number, nutA: Float32Array, nutB: Float32Array, nutC: Float32Array, returned: number, source: 0 | 1 | 2): void;
+  };
+  const findRecalcSlot = (w: World): number => {
+    for (let i = 0; i < w.store.count; i++) {
+      if (!w.aliveAt(i) || !w.roleOf(i).bioticMineraliser) continue;
+      const cls = classifyMineralPheno(
+        w.store.trait(i, TRAIT.PHOTOSYNTHETIC_RATE),
+        w.store.trait(i, TRAIT.CARRION_AFFINITY),
+        w.store.trait(i, TRAIT.RECALCITRANT_DIGESTION),
+        w.store.trait(i, TRAIT.SPEED));
+      if (cls === MINERAL_PHENO.RECALC_ONLY) return i;
+    }
+    return -1;
+  };
+  const wOver = new World({ config: { ...base, label: 'gates34-overcap', phenoMineralReturn: { carrionOnly: 1, recalcOnly: 0, dual: 1 } } });
+  const ciOver = 0;
+  const fert0 = wOver.habitat.fertility.data[ciOver];
+  for (let p = 0; p < NUTRIENT_COUNT; p++) {
+    const cap = wOver.config.nutrientPerCell * fert0 * wOver.config.nutrientCapacity[p];
+    wOver.nutrients[p].data[ciOver] = cap * 2;
+  }
+  const slotOver = findRecalcSlot(wOver);
+  const fieldBefore = [0, 1, 2].map((p) => wOver.nutrients[p].data[ciOver]);
+  const evBefore = (() => {
+    let s = 0;
+    const f = wOver.getFluxSnapshot().bioticMineralization.eviction;
+    for (let g = 0; g < TROPHIC_COUNT; g++) for (let p = 0; p < NUTRIENT_COUNT; p++) for (let src = 0; src < 3; src++) s += f[g][p][src];
+    return s;
+  })();
+  const attBefore = (() => {
+    let s = 0;
+    const f = wOver.getFluxSnapshot().bioticMineralizationByPheno.attempted;
+    for (let g = 0; g < TROPHIC_COUNT; g++) for (let p = 0; p < NUTRIENT_COUNT; p++) for (let src = 0; src < 3; src++) s += f[1][g][p][src];
+    return s;
+  })();
+  let overcapOk = false;
+  let overcapDetail = 'no recalcOnly mineralizer slot found';
+  if (slotOver >= 0) {
+    (wOver as unknown as MineraliseFn).mineraliseThroughCeiling(
+      slotOver, ciOver, wOver.nutrients[0].data, wOver.nutrients[1].data, wOver.nutrients[2].data, 5, 1);
+    const fieldAfter = [0, 1, 2].map((p) => wOver.nutrients[p].data[ciOver]);
+    const evAfter = (() => {
+      let s = 0;
+      const f = wOver.getFluxSnapshot().bioticMineralization.eviction;
+      for (let g = 0; g < TROPHIC_COUNT; g++) for (let p = 0; p < NUTRIENT_COUNT; p++) for (let src = 0; src < 3; src++) s += f[g][p][src];
+      return s;
+    })();
+    const attAfter = (() => {
+      let s = 0;
+      const f = wOver.getFluxSnapshot().bioticMineralizationByPheno.attempted;
+      for (let g = 0; g < TROPHIC_COUNT; g++) for (let p = 0; p < NUTRIENT_COUNT; p++) for (let src = 0; src < 3; src++) s += f[1][g][p][src];
+      return s;
+    })();
+    overcapOk = fieldAfter.every((v, p) => v === fieldBefore[p]) && evAfter === evBefore && attAfter === attBefore;
+    overcapDetail = `field ${overcapOk ? 'untouched' : 'MOVED'}, eviction delta ${(evAfter - evBefore).toExponential(2)} (must be 0), class-1 attempted delta ${(attAfter - attBefore).toExponential(2)} (must be 0)`;
+  }
+  // Control: null-knob natural zero offer keeps the legacy clamp (eviction > 0).
+  const wLegacy = new World({ config: { ...base, label: 'gates34-legacy' } });
+  for (let p = 0; p < NUTRIENT_COUNT; p++) {
+    const cap = wLegacy.config.nutrientPerCell * wLegacy.habitat.fertility.data[ciOver] * wLegacy.config.nutrientCapacity[p];
+    wLegacy.nutrients[p].data[ciOver] = cap * 2;
+  }
+  const slotLegacy = findRecalcSlot(wLegacy);
+  let legacyOk = false;
+  if (slotLegacy >= 0) {
+    const ev0 = (() => {
+      let s = 0;
+      const f = wLegacy.getFluxSnapshot().bioticMineralization.eviction;
+      for (let g = 0; g < TROPHIC_COUNT; g++) for (let p = 0; p < NUTRIENT_COUNT; p++) for (let src = 0; src < 3; src++) s += f[g][p][src];
+      return s;
+    })();
+    (wLegacy as unknown as MineraliseFn).mineraliseThroughCeiling(
+      slotLegacy, ciOver, wLegacy.nutrients[0].data, wLegacy.nutrients[1].data, wLegacy.nutrients[2].data, 0, 1);
+    const ev1 = (() => {
+      let s = 0;
+      const f = wLegacy.getFluxSnapshot().bioticMineralization.eviction;
+      for (let g = 0; g < TROPHIC_COUNT; g++) for (let p = 0; p < NUTRIENT_COUNT; p++) for (let src = 0; src < 3; src++) s += f[g][p][src];
+      return s;
+    })();
+    legacyOk = ev1 - ev0 > 0;
+  }
+
   // Organisms retained: suppression must not be extinction by construction.
   let aliveNull = 0, aliveSup = 0;
   for (let i = 0; i < wNull.store.count; i++) if (wNull.aliveAt(i)) aliveNull++;
@@ -2596,7 +2721,9 @@ function gate34(): void {
 
   record('G34', 'phenotype-class suppression zeroes the named class return only',
     targetedZero && untargetedContinue && nullRestores && dualZero && gvOthersContinue
-    && throws === badKnobs.length && twinsEqual && aliveSup > 0,
+    && throws === badKnobs.length && twinsEqual && aliveSup > 0
+    && shadowMismatchNull === 0 && shadowMismatchUntargeted === 0 && shadowRecalcAccepted > 0
+    && overcapOk && legacyOk,
     `saturation arm, ${TICKS} ticks, suppress recalcOnly=0: recalc accepted ` +
     `${accSup[1].toFixed(3)} (must be exactly 0) vs null-arm ` +
     `${accNull[1].toFixed(3)} (deficit ${deficit.toFixed(3)}); carrionOnly ` +
@@ -2611,7 +2738,12 @@ function gate34(): void {
     `Cyclic feedback (reported, trajectory-mediated here — coupling measured ` +
     `in the viability demonstration): abioticRegen null-arm ${abioNull.toFixed(3)} vs ` +
     `suppressed-arm ${abioSup.toFixed(3)} — recorded distinctly, no direction asserted. Alive: null-arm ${aliveNull}, ` +
-    `suppressed-arm ${aliveSup} (> 0 required — suppression is not extinction).`);
+    `suppressed-arm ${aliveSup} (> 0 required — suppression is not extinction). ` +
+    `Shadow==actual null-arm mismatches ${shadowMismatchNull} (must be 0); ` +
+    `suppressed-arm untargeted mismatches ${shadowMismatchUntargeted} (must be 0), ` +
+    `shadow recalc accepted ${shadowRecalcAccepted.toFixed(3)} (> 0 required — a ` +
+    `dose exists to replace). Over-cap: ${overcapDetail}; legacy zero-offer ` +
+    `clamp ${legacyOk ? 'preserved (eviction > 0)' : 'LOST'}.`);
 }
 
 function main(): void {

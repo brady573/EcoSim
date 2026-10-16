@@ -12,7 +12,8 @@
  *    (abioticRegen totals), populations retained (alive counts), twin
  *    determinism incl. new books + digest equality, null-knob == unset digest.
  *
- * Engine: ts-evo-poc/0.6.4 (O1 knob null-default; no version change).
+ * Engine: ts-evo-poc/0.6.5 (O1 knob null-default; knob-set runs carry the 0.6.5
+ * behavior identity).
  * Compiled build used; never tsx for horizons. Observations only, no verdict.
  */
 import { World } from '../../build/world/world.js';
@@ -37,12 +38,13 @@ const TICKS = 500;
 const build = (seed, knob) => new World({
   config: { ...VIABILITY, seed, ...(knob === undefined ? {} : { phenoMineralReturn: knob }) },
 });
-const classAccepted = (w) => {
-  const ph = w.getFluxSnapshot().bioticMineralizationByPheno.accepted;
+const classTotals = (fam) => {
   const tot = [0, 0, 0, 0];
-  for (let c = 0; c < 4; c++) for (let g = 0; g < 3; g++) for (let p = 0; p < 3; p++) for (let s = 0; s < 3; s++) tot[c] += ph[c][g][p][s];
+  for (let c = 0; c < 4; c++) for (let g = 0; g < 3; g++) for (let p = 0; p < 3; p++) for (let s = 0; s < 3; s++) tot[c] += fam[c][g][p][s];
   return tot;
 };
+const classAccepted = (w) => classTotals(w.getFluxSnapshot().bioticMineralizationByPheno.accepted);
+const classShadow = (w) => classTotals(w.getFluxSnapshot().bioticMineralizationShadow.accepted);
 const alive = (w) => {
   let n = 0, P = 0, C = 0, D = 0;
   for (let i = 0; i < w.store.count; i++) {
@@ -60,6 +62,8 @@ for (const seed of [517, 41001]) {
   const wSup = build(seed, SUPPRESS);
   for (let t = 0; t < TICKS; t++) wSup.step();
   const aN = classAccepted(wNull), aS = classAccepted(wSup);
+  const shS = classShadow(wSup);
+  const forgone = aN.map((_, c) => c === 1 ? shS[c] - aS[c] : 0);
   const abN = wNull.getFluxSnapshot().abioticRegen.reduce((x, y) => x + y, 0);
   const abS = wSup.getFluxSnapshot().abioticRegen.reduce((x, y) => x + y, 0);
   const lN = alive(wNull), lS = alive(wSup);
@@ -75,4 +79,5 @@ for (const seed of [517, 41001]) {
   console.log(`seed ${seed} NULL accepted [${aN.map((v) => v.toFixed(1)).join(',')}] abio=${abN.toFixed(2)} alive=P${lN.P}/C${lN.C}/D${lN.D}`);
   console.log(`seed ${seed} SUPP accepted [${aS.map((v) => v.toFixed(1)).join(',')}] abio=${abS.toFixed(2)} alive=P${lS.P}/C${lS.C}/D${lS.D}`);
   console.log(`seed ${seed} recalcDeficit=${(aN[1] - aS[1]).toFixed(1)} recalcSuppressedToZero=${aS[1] === 0} nullRestores=${wNullKnob.hashState() === wNull.hashState()} twins=${mm === 0 && wSup.hashState() === wSup2.hashState() ? 'equal' : 'DIFFER'}`);
+  console.log(`seed ${seed} shadowForgone recalc=${forgone[1].toFixed(1)} (pool/source-local dose basis; cumulative, not cell/time-exact)`);
 }
