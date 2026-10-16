@@ -1,5 +1,4 @@
 baseline-SHA=2f4c2b205650520c262f5f15eb338bdc4f2534d6
-candidate-SHA=b8d9abe579f1ab5dafb793587c70035037870d7c
-note: baseline is O3 Gate-1-accepted source; candidate adds only the O1 knob,
-G34, REPORT entry and this evidence dir (engine behavior otherwise identical;
-verify with git diff <baseline> <candidate> --stat).
+candidate-SHA=23d02831c3ea3832b854f8db7b068a0582cad4e2
+note: baseline is O3 Gate-1-accepted source; candidate adds the O1 knob,
+G34, shadow books and this evidence dir (verify: git diff <baseline> <candidate> --stat).
