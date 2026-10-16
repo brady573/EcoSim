@@ -8200,3 +8200,24 @@ Evidence: `evidence/o1-knockout-20261015/` (viability 500t: recalc deficits
 1302.8 / 2730.7 to exactly zero; abioticRegen feedback recorded separately;
 suppression is not extinction). No reliance verdict; O2 needs Gate 2 + an
 interpretable deficit.
+
+### O2 exogenous replacement (0.6.6, Owner Stage 3, issue #15)
+
+New null-default knob `phenoMineralRescue: {carrionOnly, recalcOnly, dual} |
+boolean` (closed key set; non-booleans throw). At each suppressed event the
+forgone accepted remainder (shadow minus actual per pool, event-local) is
+injected from an exogenous donor at the same cell/tick/pool and booked ONLY
+into `exogenousReplacement[4][3][3][3]` (class/guild/pool/source of the
+replaced event). Zero remainders skip; unrescued classes and null knob book
+exactly zero. Rescue never touches biotic/abiotic/ledger/cyclic/broadcast
+inputs (it does write nutrient fields — it is real nutrient). Per-book-cell
+identity actual.accepted + exogenous.accepted == shadow.accepted holds within
+float summation (G35 asserts the bound; cap shortfall stays at dust level on
+the fixed arm because S <= cap-H by clamp construction, so H+A0+R == H+S <=
+cap up to float re-addition rounding per event). G35 also asserts the
+exogenous partition, null-rescue digest parity, 4/4 rejections, twins and
+retained populations. Gates 0.7.0 → 0.8.0; engine 0.6.5 → 0.6.6 (unset runs
+bit-identical; rescue runs carry the new behavior identity). Evidence:
+`evidence/o2-rescue-20261016/` (viability A/B/C mediation observation with
+direct-vs-cyclic separation, reported without direction claims). Delivery
+exactness only — no rescue-efficacy verdict.

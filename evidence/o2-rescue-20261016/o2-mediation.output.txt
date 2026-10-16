@@ -1,0 +1,10 @@
+seed 517 A photo[3230.6,3083.4,2906.4] abio=7.1 pools=[59089,46307,37083] P267/C102/D88
+seed 517 B photo[3295.9,3072.4,3046.0] abio=0.8 pools=[58583,45877,36504] P278/C85/D70
+seed 517 C photo[3330.3,3023.3,2996.1] exo=1175.8 abio=1.5 pools=[59016,46392,37020] P278/C82/D78
+seed 517 C-twins exoMismatch=0 digests=equal
+seed 517 nullRescueParity=equal (must be equal)
+seed 41001 A photo[2733.1,2671.7,2769.8] abio=11.3 pools=[60299,47373,37830] P189/C201/D122
+seed 41001 B photo[2797.8,2792.6,2915.3] abio=1.0 pools=[59351,46371,36804] P203/C150/D104
+seed 41001 C photo[2835.1,2718.3,2945.4] exo=2897.9 abio=0.9 pools=[60258,47387,37718] P210/C242/D144
+seed 41001 C-twins exoMismatch=0 digests=equal
+seed 41001 nullRescueParity=equal (must be equal)
