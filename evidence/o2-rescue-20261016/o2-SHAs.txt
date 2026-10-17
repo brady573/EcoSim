@@ -1,0 +1,4 @@
+baseline-SHA=a1564909fe1e1e176b500a8c58b2b5b29244c63a
+candidate-SHA=5c4bf35daaa80da806d672014cf4bd46f9191ef3
+note: baseline is O1 Gate-2-accepted source; candidate adds the O2 knob,
+G35, shadow-exactness docs and this evidence dir (verify: git diff <baseline> <candidate> --stat).

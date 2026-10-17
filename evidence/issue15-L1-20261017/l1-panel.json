@@ -1,0 +1,3563 @@
+{
+ "prereg": "docs/issue15-L1-preregistration.md",
+ "engine": "ts-evo-poc/0.6.6",
+ "candidate": {
+  "producerCaptureScale": 1,
+  "nutrientRegen": 0,
+  "nutrientFloor": 0
+ },
+ "seeds": {
+  "517": {
+   "A": [
+    {
+     "t": 0,
+     "census": {
+      "P": 300,
+      "C": 50,
+      "D": 50
+     },
+     "producerEnergy": 9306.856986,
+     "producerDisplayedUptake": [
+      0,
+      0,
+      0
+     ],
+     "allGuildUptake": [
+      0,
+      0,
+      0
+     ],
+     "pools": [
+      61776.107699,
+      48188.925297,
+      38308.569558
+     ],
+     "capUtil": [
+      0.547794,
+      0.547834,
+      0.547899
+     ],
+     "localLimitation": {
+      "producers": 300,
+      "limitedProducers": 0,
+      "limitedFrac": 0,
+      "emptyByPool": [
+       0,
+       0,
+       0
+      ],
+      "meanHeadroomByPool": [
+       0.552672,
+       0.555976,
+       0.559279
+      ]
+     },
+     "birthsByGuildPath": [
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ]
+     ],
+     "deathsByGuildCause": [
+      [
+       0,
+       0,
+       0
+      ],
+      [
+       0,
+       0,
+       0
+      ],
+      [
+       0,
+       0,
+       0
+      ]
+     ],
+     "exogenous": {
+      "attempted": 0,
+      "accepted": 0,
+      "capLoss": 0,
+      "eviction": 0
+     },
+     "bioticBySourceAccepted": {
+      "recalcOnly": {
+       "byPool": [
+        0,
+        0,
+        0
+       ],
+       "bySource": [
+        0,
+        0,
+        0
+       ],
+       "bySourceName": [
+        "sediment=0",
+        "detritus=0",
+        "litter=0"
+       ],
+       "total": 0
+      },
+      "carrionOnly": {
+       "byPool": [
+        0,
+        0,
+        0
+       ],
+       "bySource": [
+        0,
+        0,
+        0
+       ],
+       "bySourceName": [
+        "sediment=0",
+        "detritus=0",
+        "litter=0"
+       ],
+       "total": 0
+      },
+      "dual": {
+       "byPool": [
+        0,
+        0,
+        0
+       ],
+       "bySource": [
+        0,
+        0,
+        0
+       ],
+       "bySourceName": [
+        "sediment=0",
+        "detritus=0",
+        "litter=0"
+       ],
+       "total": 0
+      }
+     },
+     "abioticRegen": [
+      0,
+      0,
+      0
+     ],
+     "lostRecalcAcceptedByPool": [
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "t": 100,
+     "census": {
+      "P": 304,
+      "C": 50,
+      "D": 50
+     },
+     "producerEnergy": 8140.921354,
+     "producerDisplayedUptake": [
+      1669.83192,
+      1582.200462,
+      1568.883447
+     ],
+     "allGuildUptake": [
+      1669.83192,
+      1582.200462,
+      1568.883447
+     ],
+     "pools": [
+      60733.834913,
+      47369.055089,
+      37600.271375
+     ],
+     "capUtil": [
+      0.538551,
+      0.538513,
+      0.537769
+     ],
+     "localLimitation": {
+      "producers": 304,
+      "limitedProducers": 0,
+      "limitedFrac": 0,
+      "emptyByPool": [
+       0,
+       0,
+       0
+      ],
+      "meanHeadroomByPool": [
+       0.536472,
+       0.535493,
+       0.533935
+      ]
+     },
+     "birthsByGuildPath": [
+      [
+       4,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ]
+     ],
+     "deathsByGuildCause": [
+      [
+       0,
+       0,
+       0
+      ],
+      [
+       0,
+       0,
+       0
+      ],
+      [
+       0,
+       0,
+       0
+      ]
+     ],
+     "exogenous": {
+      "attempted": 0,
+      "accepted": 0,
+      "capLoss": 0,
+      "eviction": 0
+     },
+     "bioticBySourceAccepted": {
+      "recalcOnly": {
+       "byPool": [
+        110.32224,
+        110.32224,
+        110.32224
+       ],
+       "bySource": [
+        271.315188,
+        20.190135,
+        39.461399
+       ],
+       "bySourceName": [
+        "sediment=271.315188",
+        "detritus=20.190135",
+        "litter=39.461399"
+       ],
+       "total": 330.966721
+      },
+      "carrionOnly": {
+       "byPool": [
+        4.816382,
+        4.816382,
+        4.816382
+       ],
+       "bySource": [
+        12.701802,
+        1.071741,
+        0.675602
+       ],
+       "bySourceName": [
+        "sediment=12.701802",
+        "detritus=1.071741",
+        "litter=0.675602"
+       ],
+       "total": 14.449145
+      },
+      "dual": {
+       "byPool": [
+        14.318423,
+        14.318423,
+        14.318423
+       ],
+       "bySource": [
+        31.984852,
+        5.217296,
+        5.753122
+       ],
+       "bySourceName": [
+        "sediment=31.984852",
+        "detritus=5.217296",
+        "litter=5.753122"
+       ],
+       "total": 42.95527
+      }
+     },
+     "abioticRegen": [
+      0,
+      0,
+      0
+     ],
+     "lostRecalcAcceptedByPool": [
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "t": 250,
+     "census": {
+      "P": 404,
+      "C": 77,
+      "D": 49
+     },
+     "producerEnergy": 8140.243521,
+     "producerDisplayedUptake": [
+      4904.496059,
+      4684.574943,
+      4576.89487
+     ],
+     "allGuildUptake": [
+      4904.496059,
+      4684.574943,
+      4576.89487
+     ],
+     "pools": [
+      58025.225989,
+      44990.694558,
+      35461.244303
+     ],
+     "capUtil": [
+      0.514533,
+      0.511475,
+      0.507176
+     ],
+     "localLimitation": {
+      "producers": 404,
+      "limitedProducers": 0,
+      "limitedFrac": 0,
+      "emptyByPool": [
+       0,
+       0,
+       0
+      ],
+      "meanHeadroomByPool": [
+       0.489084,
+       0.476804,
+       0.468112
+      ]
+     },
+     "birthsByGuildPath": [
+      [
+       157,
+       0
+      ],
+      [
+       30,
+       0
+      ],
+      [
+       0,
+       0
+      ]
+     ],
+     "deathsByGuildCause": [
+      [
+       52,
+       0,
+       1
+      ],
+      [
+       2,
+       1,
+       0
+      ],
+      [
+       0,
+       0,
+       1
+      ]
+     ],
+     "exogenous": {
+      "attempted": 0,
+      "accepted": 0,
+      "capLoss": 0,
+      "eviction": 0
+     },
+     "bioticBySourceAccepted": {
+      "recalcOnly": {
+       "byPool": [
+        200.600495,
+        200.600495,
+        200.600495
+       ],
+       "bySource": [
+        431.319671,
+        98.108944,
+        72.372869
+       ],
+       "bySourceName": [
+        "sediment=431.319671",
+        "detritus=98.108944",
+        "litter=72.372869"
+       ],
+       "total": 601.801484
+      },
+      "carrionOnly": {
+       "byPool": [
+        6.290621,
+        6.290621,
+        6.290621
+       ],
+       "bySource": [
+        14.092281,
+        4.103979,
+        0.675602
+       ],
+       "bySourceName": [
+        "sediment=14.092281",
+        "detritus=4.103979",
+        "litter=0.675602"
+       ],
+       "total": 18.871862
+      },
+      "dual": {
+       "byPool": [
+        24.943525,
+        24.943525,
+        24.943525
+       ],
+       "bySource": [
+        49.23822,
+        15.918264,
+        9.67409
+       ],
+       "bySourceName": [
+        "sediment=49.23822",
+        "detritus=15.918264",
+        "litter=9.67409"
+       ],
+       "total": 74.830574
+      }
+     },
+     "abioticRegen": [
+      0,
+      0,
+      0
+     ],
+     "lostRecalcAcceptedByPool": [
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "t": 500,
+     "census": {
+      "P": 922,
+      "C": 79,
+      "D": 92
+     },
+     "producerEnergy": 12290.179217,
+     "producerDisplayedUptake": [
+      18646.55054,
+      17458.52239,
+      16534.141852
+     ],
+     "allGuildUptake": [
+      18646.55054,
+      17458.52239,
+      16534.141852
+     ],
+     "pools": [
+      45185.797755,
+      33432.4095,
+      24946.815223
+     ],
+     "capUtil": [
+      0.400681,
+      0.380075,
+      0.356796
+     ],
+     "localLimitation": {
+      "producers": 922,
+      "limitedProducers": 180,
+      "limitedFrac": 0.195228,
+      "emptyByPool": [
+       25,
+       76,
+       79
+      ],
+      "meanHeadroomByPool": [
+       0.309561,
+       0.272588,
+       0.243859
+      ]
+     },
+     "birthsByGuildPath": [
+      [
+       766,
+       14
+      ],
+      [
+       98,
+       0
+      ],
+      [
+       47,
+       0
+      ]
+     ],
+     "deathsByGuildCause": [
+      [
+       147,
+       8,
+       3
+      ],
+      [
+       61,
+       3,
+       5
+      ],
+      [
+       2,
+       2,
+       1
+      ]
+     ],
+     "exogenous": {
+      "attempted": 0,
+      "accepted": 0,
+      "capLoss": 0,
+      "eviction": 0
+     },
+     "bioticBySourceAccepted": {
+      "recalcOnly": {
+       "byPool": [
+        430.641099,
+        430.641099,
+        430.641099
+       ],
+       "bySource": [
+        744.713138,
+        400.973785,
+        146.236373
+       ],
+       "bySourceName": [
+        "sediment=744.713138",
+        "detritus=400.973785",
+        "litter=146.236373"
+       ],
+       "total": 1291.923297
+      },
+      "carrionOnly": {
+       "byPool": [
+        64.158866,
+        64.158866,
+        64.158866
+       ],
+       "bySource": [
+        104.903703,
+        72.944964,
+        14.627931
+       ],
+       "bySourceName": [
+        "sediment=104.903703",
+        "detritus=72.944964",
+        "litter=14.627931"
+       ],
+       "total": 192.476598
+      },
+      "dual": {
+       "byPool": [
+        52.17646,
+        52.17646,
+        52.17646
+       ],
+       "bySource": [
+        82.85057,
+        54.971176,
+        18.707633
+       ],
+       "bySourceName": [
+        "sediment=82.85057",
+        "detritus=54.971176",
+        "litter=18.707633"
+       ],
+       "total": 156.529379
+      }
+     },
+     "abioticRegen": [
+      0,
+      0,
+      0
+     ],
+     "lostRecalcAcceptedByPool": [
+      0,
+      0,
+      0
+     ]
+    }
+   ],
+   "B": [
+    {
+     "t": 0,
+     "census": {
+      "P": 300,
+      "C": 50,
+      "D": 50
+     },
+     "producerEnergy": 9306.856986,
+     "producerDisplayedUptake": [
+      0,
+      0,
+      0
+     ],
+     "allGuildUptake": [
+      0,
+      0,
+      0
+     ],
+     "pools": [
+      61776.107699,
+      48188.925297,
+      38308.569558
+     ],
+     "capUtil": [
+      0.547794,
+      0.547834,
+      0.547899
+     ],
+     "localLimitation": {
+      "producers": 300,
+      "limitedProducers": 0,
+      "limitedFrac": 0,
+      "emptyByPool": [
+       0,
+       0,
+       0
+      ],
+      "meanHeadroomByPool": [
+       0.552672,
+       0.555976,
+       0.559279
+      ]
+     },
+     "birthsByGuildPath": [
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ]
+     ],
+     "deathsByGuildCause": [
+      [
+       0,
+       0,
+       0
+      ],
+      [
+       0,
+       0,
+       0
+      ],
+      [
+       0,
+       0,
+       0
+      ]
+     ],
+     "exogenous": {
+      "attempted": 0,
+      "accepted": 0,
+      "capLoss": 0,
+      "eviction": 0
+     },
+     "bioticBySourceAccepted": {
+      "recalcOnly": {
+       "byPool": [
+        0,
+        0,
+        0
+       ],
+       "bySource": [
+        0,
+        0,
+        0
+       ],
+       "bySourceName": [
+        "sediment=0",
+        "detritus=0",
+        "litter=0"
+       ],
+       "total": 0
+      },
+      "carrionOnly": {
+       "byPool": [
+        0,
+        0,
+        0
+       ],
+       "bySource": [
+        0,
+        0,
+        0
+       ],
+       "bySourceName": [
+        "sediment=0",
+        "detritus=0",
+        "litter=0"
+       ],
+       "total": 0
+      },
+      "dual": {
+       "byPool": [
+        0,
+        0,
+        0
+       ],
+       "bySource": [
+        0,
+        0,
+        0
+       ],
+       "bySourceName": [
+        "sediment=0",
+        "detritus=0",
+        "litter=0"
+       ],
+       "total": 0
+      }
+     },
+     "abioticRegen": [
+      0,
+      0,
+      0
+     ],
+     "lostRecalcAcceptedByPool": [
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "t": 100,
+     "census": {
+      "P": 304,
+      "C": 50,
+      "D": 50
+     },
+     "producerEnergy": 8076.8873,
+     "producerDisplayedUptake": [
+      1672.178699,
+      1582.083944,
+      1569.924484
+     ],
+     "allGuildUptake": [
+      1672.178699,
+      1582.083944,
+      1569.924484
+     ],
+     "pools": [
+      60619.474182,
+      47257.16037,
+      37487.21692
+     ],
+     "capUtil": [
+      0.537537,
+      0.537241,
+      0.536152
+     ],
+     "localLimitation": {
+      "producers": 304,
+      "limitedProducers": 0,
+      "limitedFrac": 0,
+      "emptyByPool": [
+       0,
+       0,
+       0
+      ],
+      "meanHeadroomByPool": [
+       0.534798,
+       0.534396,
+       0.531804
+      ]
+     },
+     "birthsByGuildPath": [
+      [
+       4,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ]
+     ],
+     "deathsByGuildCause": [
+      [
+       0,
+       0,
+       0
+      ],
+      [
+       0,
+       0,
+       0
+      ],
+      [
+       0,
+       0,
+       0
+      ]
+     ],
+     "exogenous": {
+      "attempted": 0,
+      "accepted": 0,
+      "capLoss": 0,
+      "eviction": 0
+     },
+     "bioticBySourceAccepted": {
+      "recalcOnly": {
+       "byPool": [
+        0,
+        0,
+        0
+       ],
+       "bySource": [
+        0,
+        0,
+        0
+       ],
+       "bySourceName": [
+        "sediment=0",
+        "detritus=0",
+        "litter=0"
+       ],
+       "total": 0
+      },
+      "carrionOnly": {
+       "byPool": [
+        4.286054,
+        4.286054,
+        4.286054
+       ],
+       "bySource": [
+        11.296682,
+        1.02445,
+        0.537031
+       ],
+       "bySourceName": [
+        "sediment=11.296682",
+        "detritus=1.02445",
+        "litter=0.537031"
+       ],
+       "total": 12.858162
+      },
+      "dual": {
+       "byPool": [
+        11.910157,
+        11.910157,
+        11.910157
+       ],
+       "bySource": [
+        28.366032,
+        3.416586,
+        3.947852
+       ],
+       "bySourceName": [
+        "sediment=28.366032",
+        "detritus=3.416586",
+        "litter=3.947852"
+       ],
+       "total": 35.730471
+      }
+     },
+     "abioticRegen": [
+      0,
+      0,
+      0
+     ],
+     "lostRecalcAcceptedByPool": [
+      113.413687,
+      113.413687,
+      113.413687
+     ]
+    },
+    {
+     "t": 250,
+     "census": {
+      "P": 413,
+      "C": 82,
+      "D": 51
+     },
+     "producerEnergy": 7778.223325,
+     "producerDisplayedUptake": [
+      5114.559809,
+      4884.906228,
+      4781.213739
+     ],
+     "allGuildUptake": [
+      5114.559809,
+      4884.906228,
+      4781.213739
+     ],
+     "pools": [
+      57649.304334,
+      44624.688807,
+      35091.46026
+     ],
+     "capUtil": [
+      0.5112,
+      0.507314,
+      0.501887
+     ],
+     "localLimitation": {
+      "producers": 413,
+      "limitedProducers": 9,
+      "limitedFrac": 0.021792,
+      "emptyByPool": [
+       0,
+       0,
+       9
+      ],
+      "meanHeadroomByPool": [
+       0.481235,
+       0.464215,
+       0.452989
+      ]
+     },
+     "birthsByGuildPath": [
+      [
+       165,
+       0
+      ],
+      [
+       36,
+       0
+      ],
+      [
+       2,
+       0
+      ]
+     ],
+     "deathsByGuildCause": [
+      [
+       50,
+       0,
+       2
+      ],
+      [
+       3,
+       1,
+       0
+      ],
+      [
+       1,
+       0,
+       0
+      ]
+     ],
+     "exogenous": {
+      "attempted": 0,
+      "accepted": 0,
+      "capLoss": 0,
+      "eviction": 0
+     },
+     "bioticBySourceAccepted": {
+      "recalcOnly": {
+       "byPool": [
+        0,
+        0,
+        0
+       ],
+       "bySource": [
+        0,
+        0,
+        0
+       ],
+       "bySourceName": [
+        "sediment=0",
+        "detritus=0",
+        "litter=0"
+       ],
+       "total": 0
+      },
+      "carrionOnly": {
+       "byPool": [
+        8.040131,
+        8.040131,
+        8.040131
+       ],
+       "bySource": [
+        19.086851,
+        4.195866,
+        0.837676
+       ],
+       "bySourceName": [
+        "sediment=19.086851",
+        "detritus=4.195866",
+        "litter=0.837676"
+       ],
+       "total": 24.120393
+      },
+      "dual": {
+       "byPool": [
+        28.047808,
+        28.047808,
+        28.047808
+       ],
+       "bySource": [
+        59.390162,
+        15.607872,
+        9.14539
+       ],
+       "bySourceName": [
+        "sediment=59.390162",
+        "detritus=15.607872",
+        "litter=9.14539"
+       ],
+       "total": 84.143424
+      }
+     },
+     "abioticRegen": [
+      0,
+      0,
+      0
+     ],
+     "lostRecalcAcceptedByPool": [
+      189.502908,
+      189.502908,
+      189.502908
+     ]
+    },
+    {
+     "t": 500,
+     "census": {
+      "P": 907,
+      "C": 69,
+      "D": 78
+     },
+     "producerEnergy": 12357.92259,
+     "producerDisplayedUptake": [
+      18995.752421,
+      17699.468141,
+      16387.356503
+     ],
+     "allGuildUptake": [
+      18995.752421,
+      17699.468141,
+      16387.356503
+     ],
+     "pools": [
+      44326.390856,
+      32680.218406,
+      24579.625711
+     ],
+     "capUtil": [
+      0.39306,
+      0.371524,
+      0.351544
+     ],
+     "localLimitation": {
+      "producers": 907,
+      "limitedProducers": 165,
+      "limitedFrac": 0.181918,
+      "emptyByPool": [
+       31,
+       69,
+       65
+      ],
+      "meanHeadroomByPool": [
+       0.295301,
+       0.258229,
+       0.239932
+      ]
+     },
+     "birthsByGuildPath": [
+      [
+       748,
+       18
+      ],
+      [
+       104,
+       0
+      ],
+      [
+       31,
+       0
+      ]
+     ],
+     "deathsByGuildCause": [
+      [
+       148,
+       8,
+       3
+      ],
+      [
+       80,
+       3,
+       2
+      ],
+      [
+       1,
+       2,
+       0
+      ]
+     ],
+     "exogenous": {
+      "attempted": 0,
+      "accepted": 0,
+      "capLoss": 0,
+      "eviction": 0
+     },
+     "bioticBySourceAccepted": {
+      "recalcOnly": {
+       "byPool": [
+        0,
+        0,
+        0
+       ],
+       "bySource": [
+        0,
+        0,
+        0
+       ],
+       "bySourceName": [
+        "sediment=0",
+        "detritus=0",
+        "litter=0"
+       ],
+       "total": 0
+      },
+      "carrionOnly": {
+       "byPool": [
+        53.472704,
+        53.472704,
+        53.472704
+       ],
+       "bySource": [
+        92.199035,
+        58.315498,
+        9.903581
+       ],
+       "bySourceName": [
+        "sediment=92.199035",
+        "detritus=58.315498",
+        "litter=9.903581"
+       ],
+       "total": 160.418113
+      },
+      "dual": {
+       "byPool": [
+        46.655192,
+        46.655192,
+        46.655192
+       ],
+       "bySource": [
+        77.529292,
+        46.9358,
+        15.500483
+       ],
+       "bySourceName": [
+        "sediment=77.529292",
+        "detritus=46.9358",
+        "litter=15.500483"
+       ],
+       "total": 139.965575
+      }
+     },
+     "abioticRegen": [
+      0,
+      0,
+      0
+     ],
+     "lostRecalcAcceptedByPool": [
+      368.400212,
+      368.400212,
+      368.400212
+     ]
+    }
+   ],
+   "C": [
+    {
+     "t": 0,
+     "census": {
+      "P": 300,
+      "C": 50,
+      "D": 50
+     },
+     "producerEnergy": 9306.856986,
+     "producerDisplayedUptake": [
+      0,
+      0,
+      0
+     ],
+     "allGuildUptake": [
+      0,
+      0,
+      0
+     ],
+     "pools": [
+      61776.107699,
+      48188.925297,
+      38308.569558
+     ],
+     "capUtil": [
+      0.547794,
+      0.547834,
+      0.547899
+     ],
+     "localLimitation": {
+      "producers": 300,
+      "limitedProducers": 0,
+      "limitedFrac": 0,
+      "emptyByPool": [
+       0,
+       0,
+       0
+      ],
+      "meanHeadroomByPool": [
+       0.552672,
+       0.555976,
+       0.559279
+      ]
+     },
+     "birthsByGuildPath": [
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ]
+     ],
+     "deathsByGuildCause": [
+      [
+       0,
+       0,
+       0
+      ],
+      [
+       0,
+       0,
+       0
+      ],
+      [
+       0,
+       0,
+       0
+      ]
+     ],
+     "exogenous": {
+      "attempted": 0,
+      "accepted": 0,
+      "capLoss": 0,
+      "eviction": 0
+     },
+     "bioticBySourceAccepted": {
+      "recalcOnly": {
+       "byPool": [
+        0,
+        0,
+        0
+       ],
+       "bySource": [
+        0,
+        0,
+        0
+       ],
+       "bySourceName": [
+        "sediment=0",
+        "detritus=0",
+        "litter=0"
+       ],
+       "total": 0
+      },
+      "carrionOnly": {
+       "byPool": [
+        0,
+        0,
+        0
+       ],
+       "bySource": [
+        0,
+        0,
+        0
+       ],
+       "bySourceName": [
+        "sediment=0",
+        "detritus=0",
+        "litter=0"
+       ],
+       "total": 0
+      },
+      "dual": {
+       "byPool": [
+        0,
+        0,
+        0
+       ],
+       "bySource": [
+        0,
+        0,
+        0
+       ],
+       "bySourceName": [
+        "sediment=0",
+        "detritus=0",
+        "litter=0"
+       ],
+       "total": 0
+      }
+     },
+     "abioticRegen": [
+      0,
+      0,
+      0
+     ],
+     "lostRecalcAcceptedByPool": [
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "t": 100,
+     "census": {
+      "P": 304,
+      "C": 50,
+      "D": 50
+     },
+     "producerEnergy": 8140.921354,
+     "producerDisplayedUptake": [
+      1669.83192,
+      1582.200462,
+      1568.883447
+     ],
+     "allGuildUptake": [
+      1669.83192,
+      1582.200462,
+      1568.883447
+     ],
+     "pools": [
+      60733.834913,
+      47369.055089,
+      37600.271375
+     ],
+     "capUtil": [
+      0.538551,
+      0.538513,
+      0.537769
+     ],
+     "localLimitation": {
+      "producers": 304,
+      "limitedProducers": 0,
+      "limitedFrac": 0,
+      "emptyByPool": [
+       0,
+       0,
+       0
+      ],
+      "meanHeadroomByPool": [
+       0.536472,
+       0.535493,
+       0.533935
+      ]
+     },
+     "birthsByGuildPath": [
+      [
+       4,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ]
+     ],
+     "deathsByGuildCause": [
+      [
+       0,
+       0,
+       0
+      ],
+      [
+       0,
+       0,
+       0
+      ],
+      [
+       0,
+       0,
+       0
+      ]
+     ],
+     "exogenous": {
+      "attempted": 330.966721,
+      "accepted": 330.966721,
+      "capLoss": 0,
+      "eviction": 0
+     },
+     "bioticBySourceAccepted": {
+      "recalcOnly": {
+       "byPool": [
+        0,
+        0,
+        0
+       ],
+       "bySource": [
+        0,
+        0,
+        0
+       ],
+       "bySourceName": [
+        "sediment=0",
+        "detritus=0",
+        "litter=0"
+       ],
+       "total": 0
+      },
+      "carrionOnly": {
+       "byPool": [
+        4.816382,
+        4.816382,
+        4.816382
+       ],
+       "bySource": [
+        12.701802,
+        1.071741,
+        0.675602
+       ],
+       "bySourceName": [
+        "sediment=12.701802",
+        "detritus=1.071741",
+        "litter=0.675602"
+       ],
+       "total": 14.449145
+      },
+      "dual": {
+       "byPool": [
+        14.318423,
+        14.318423,
+        14.318423
+       ],
+       "bySource": [
+        31.984852,
+        5.217296,
+        5.753122
+       ],
+       "bySourceName": [
+        "sediment=31.984852",
+        "detritus=5.217296",
+        "litter=5.753122"
+       ],
+       "total": 42.95527
+      }
+     },
+     "abioticRegen": [
+      0,
+      0,
+      0
+     ],
+     "lostRecalcAcceptedByPool": [
+      110.32224,
+      110.32224,
+      110.32224
+     ]
+    },
+    {
+     "t": 250,
+     "census": {
+      "P": 404,
+      "C": 77,
+      "D": 49
+     },
+     "producerEnergy": 8140.243521,
+     "producerDisplayedUptake": [
+      4904.496059,
+      4684.574943,
+      4576.89487
+     ],
+     "allGuildUptake": [
+      4904.496059,
+      4684.574943,
+      4576.89487
+     ],
+     "pools": [
+      58025.225989,
+      44990.694558,
+      35461.244303
+     ],
+     "capUtil": [
+      0.514533,
+      0.511475,
+      0.507176
+     ],
+     "localLimitation": {
+      "producers": 404,
+      "limitedProducers": 0,
+      "limitedFrac": 0,
+      "emptyByPool": [
+       0,
+       0,
+       0
+      ],
+      "meanHeadroomByPool": [
+       0.489084,
+       0.476804,
+       0.468112
+      ]
+     },
+     "birthsByGuildPath": [
+      [
+       157,
+       0
+      ],
+      [
+       30,
+       0
+      ],
+      [
+       0,
+       0
+      ]
+     ],
+     "deathsByGuildCause": [
+      [
+       52,
+       0,
+       1
+      ],
+      [
+       2,
+       1,
+       0
+      ],
+      [
+       0,
+       0,
+       1
+      ]
+     ],
+     "exogenous": {
+      "attempted": 601.801484,
+      "accepted": 601.801484,
+      "capLoss": 0,
+      "eviction": 0
+     },
+     "bioticBySourceAccepted": {
+      "recalcOnly": {
+       "byPool": [
+        0,
+        0,
+        0
+       ],
+       "bySource": [
+        0,
+        0,
+        0
+       ],
+       "bySourceName": [
+        "sediment=0",
+        "detritus=0",
+        "litter=0"
+       ],
+       "total": 0
+      },
+      "carrionOnly": {
+       "byPool": [
+        6.290621,
+        6.290621,
+        6.290621
+       ],
+       "bySource": [
+        14.092281,
+        4.103979,
+        0.675602
+       ],
+       "bySourceName": [
+        "sediment=14.092281",
+        "detritus=4.103979",
+        "litter=0.675602"
+       ],
+       "total": 18.871862
+      },
+      "dual": {
+       "byPool": [
+        24.943525,
+        24.943525,
+        24.943525
+       ],
+       "bySource": [
+        49.23822,
+        15.918264,
+        9.67409
+       ],
+       "bySourceName": [
+        "sediment=49.23822",
+        "detritus=15.918264",
+        "litter=9.67409"
+       ],
+       "total": 74.830574
+      }
+     },
+     "abioticRegen": [
+      0,
+      0,
+      0
+     ],
+     "lostRecalcAcceptedByPool": [
+      200.600495,
+      200.600495,
+      200.600495
+     ]
+    },
+    {
+     "t": 500,
+     "census": {
+      "P": 922,
+      "C": 79,
+      "D": 92
+     },
+     "producerEnergy": 12290.179217,
+     "producerDisplayedUptake": [
+      18646.55054,
+      17458.52239,
+      16534.141852
+     ],
+     "allGuildUptake": [
+      18646.55054,
+      17458.52239,
+      16534.141852
+     ],
+     "pools": [
+      45185.797755,
+      33432.4095,
+      24946.815223
+     ],
+     "capUtil": [
+      0.400681,
+      0.380075,
+      0.356796
+     ],
+     "localLimitation": {
+      "producers": 922,
+      "limitedProducers": 180,
+      "limitedFrac": 0.195228,
+      "emptyByPool": [
+       25,
+       76,
+       79
+      ],
+      "meanHeadroomByPool": [
+       0.309561,
+       0.272588,
+       0.243859
+      ]
+     },
+     "birthsByGuildPath": [
+      [
+       766,
+       14
+      ],
+      [
+       98,
+       0
+      ],
+      [
+       47,
+       0
+      ]
+     ],
+     "deathsByGuildCause": [
+      [
+       147,
+       8,
+       3
+      ],
+      [
+       61,
+       3,
+       5
+      ],
+      [
+       2,
+       2,
+       1
+      ]
+     ],
+     "exogenous": {
+      "attempted": 1291.923297,
+      "accepted": 1291.923297,
+      "capLoss": 0,
+      "eviction": 0
+     },
+     "bioticBySourceAccepted": {
+      "recalcOnly": {
+       "byPool": [
+        0,
+        0,
+        0
+       ],
+       "bySource": [
+        0,
+        0,
+        0
+       ],
+       "bySourceName": [
+        "sediment=0",
+        "detritus=0",
+        "litter=0"
+       ],
+       "total": 0
+      },
+      "carrionOnly": {
+       "byPool": [
+        64.158866,
+        64.158866,
+        64.158866
+       ],
+       "bySource": [
+        104.903703,
+        72.944964,
+        14.627931
+       ],
+       "bySourceName": [
+        "sediment=104.903703",
+        "detritus=72.944964",
+        "litter=14.627931"
+       ],
+       "total": 192.476598
+      },
+      "dual": {
+       "byPool": [
+        52.17646,
+        52.17646,
+        52.17646
+       ],
+       "bySource": [
+        82.85057,
+        54.971176,
+        18.707633
+       ],
+       "bySourceName": [
+        "sediment=82.85057",
+        "detritus=54.971176",
+        "litter=18.707633"
+       ],
+       "total": 156.529379
+      }
+     },
+     "abioticRegen": [
+      0,
+      0,
+      0
+     ],
+     "lostRecalcAcceptedByPool": [
+      430.641099,
+      430.641099,
+      430.641099
+     ]
+    }
+   ]
+  },
+  "41001": {
+   "A": [
+    {
+     "t": 0,
+     "census": {
+      "P": 285,
+      "C": 69,
+      "D": 46
+     },
+     "producerEnergy": 9116.404938,
+     "producerDisplayedUptake": [
+      0,
+      0,
+      0
+     ],
+     "allGuildUptake": [
+      0,
+      0,
+      0
+     ],
+     "pools": [
+      62077.16351,
+      48427.062193,
+      38496.068099
+     ],
+     "capUtil": [
+      0.547784,
+      0.547862,
+      0.547901
+     ],
+     "localLimitation": {
+      "producers": 285,
+      "limitedProducers": 0,
+      "limitedFrac": 0,
+      "emptyByPool": [
+       0,
+       0,
+       0
+      ],
+      "meanHeadroomByPool": [
+       0.550643,
+       0.54588,
+       0.545517
+      ]
+     },
+     "birthsByGuildPath": [
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ]
+     ],
+     "deathsByGuildCause": [
+      [
+       0,
+       0,
+       0
+      ],
+      [
+       0,
+       0,
+       0
+      ],
+      [
+       0,
+       0,
+       0
+      ]
+     ],
+     "exogenous": {
+      "attempted": 0,
+      "accepted": 0,
+      "capLoss": 0,
+      "eviction": 0
+     },
+     "bioticBySourceAccepted": {
+      "recalcOnly": {
+       "byPool": [
+        0,
+        0,
+        0
+       ],
+       "bySource": [
+        0,
+        0,
+        0
+       ],
+       "bySourceName": [
+        "sediment=0",
+        "detritus=0",
+        "litter=0"
+       ],
+       "total": 0
+      },
+      "carrionOnly": {
+       "byPool": [
+        0,
+        0,
+        0
+       ],
+       "bySource": [
+        0,
+        0,
+        0
+       ],
+       "bySourceName": [
+        "sediment=0",
+        "detritus=0",
+        "litter=0"
+       ],
+       "total": 0
+      },
+      "dual": {
+       "byPool": [
+        0,
+        0,
+        0
+       ],
+       "bySource": [
+        0,
+        0,
+        0
+       ],
+       "bySourceName": [
+        "sediment=0",
+        "detritus=0",
+        "litter=0"
+       ],
+       "total": 0
+      }
+     },
+     "abioticRegen": [
+      0,
+      0,
+      0
+     ],
+     "lostRecalcAcceptedByPool": [
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "t": 100,
+     "census": {
+      "P": 284,
+      "C": 76,
+      "D": 46
+     },
+     "producerEnergy": 7691.648361,
+     "producerDisplayedUptake": [
+      1469.561354,
+      1445.583794,
+      1500.241096
+     ],
+     "allGuildUptake": [
+      1469.561354,
+      1445.583794,
+      1500.241096
+     ],
+     "pools": [
+      61302.622397,
+      47812.203596,
+      37925.644094
+     ],
+     "capUtil": [
+      0.54095,
+      0.540906,
+      0.539783
+     ],
+     "localLimitation": {
+      "producers": 284,
+      "limitedProducers": 0,
+      "limitedFrac": 0,
+      "emptyByPool": [
+       0,
+       0,
+       0
+      ],
+      "meanHeadroomByPool": [
+       0.540366,
+       0.539729,
+       0.537088
+      ]
+     },
+     "birthsByGuildPath": [
+      [
+       0,
+       0
+      ],
+      [
+       7,
+       0
+      ],
+      [
+       0,
+       0
+      ]
+     ],
+     "deathsByGuildCause": [
+      [
+       0,
+       0,
+       1
+      ],
+      [
+       0,
+       0,
+       0
+      ],
+      [
+       0,
+       0,
+       0
+      ]
+     ],
+     "exogenous": {
+      "attempted": 0,
+      "accepted": 0,
+      "capLoss": 0,
+      "eviction": 0
+     },
+     "bioticBySourceAccepted": {
+      "recalcOnly": {
+       "byPool": [
+        139.585102,
+        139.585102,
+        139.585102
+       ],
+       "bySource": [
+        342.507836,
+        28.654107,
+        47.593362
+       ],
+       "bySourceName": [
+        "sediment=342.507836",
+        "detritus=28.654107",
+        "litter=47.593362"
+       ],
+       "total": 418.755305
+      },
+      "carrionOnly": {
+       "byPool": [
+        5.86163,
+        5.86163,
+        5.86163
+       ],
+       "bySource": [
+        16.785169,
+        0.799722,
+        0
+       ],
+       "bySourceName": [
+        "sediment=16.785169",
+        "detritus=0.799722",
+        "litter=0"
+       ],
+       "total": 17.58489
+      },
+      "dual": {
+       "byPool": [
+        9.201888,
+        9.201888,
+        9.201888
+       ],
+       "bySource": [
+        21.978866,
+        1.800599,
+        3.826199
+       ],
+       "bySourceName": [
+        "sediment=21.978866",
+        "detritus=1.800599",
+        "litter=3.826199"
+       ],
+       "total": 27.605664
+      }
+     },
+     "abioticRegen": [
+      0,
+      0,
+      0
+     ],
+     "lostRecalcAcceptedByPool": [
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "t": 250,
+     "census": {
+      "P": 343,
+      "C": 131,
+      "D": 60
+     },
+     "producerEnergy": 7806.18838,
+     "producerDisplayedUptake": [
+      4448.399949,
+      4129.574348,
+      4561.471829
+     ],
+     "allGuildUptake": [
+      4448.399949,
+      4129.574348,
+      4561.471829
+     ],
+     "pools": [
+      58834.667681,
+      45838.371006,
+      35723.881879
+     ],
+     "capUtil": [
+      0.519172,
+      0.518576,
+      0.508446
+     ],
+     "localLimitation": {
+      "producers": 343,
+      "limitedProducers": 0,
+      "limitedFrac": 0,
+      "emptyByPool": [
+       0,
+       0,
+       0
+      ],
+      "meanHeadroomByPool": [
+       0.490881,
+       0.484383,
+       0.458717
+      ]
+     },
+     "birthsByGuildPath": [
+      [
+       119,
+       0
+      ],
+      [
+       64,
+       0
+      ],
+      [
+       15,
+       0
+      ]
+     ],
+     "deathsByGuildCause": [
+      [
+       58,
+       1,
+       2
+      ],
+      [
+       2,
+       0,
+       0
+      ],
+      [
+       0,
+       1,
+       0
+      ]
+     ],
+     "exogenous": {
+      "attempted": 0,
+      "accepted": 0,
+      "capLoss": 0,
+      "eviction": 0
+     },
+     "bioticBySourceAccepted": {
+      "recalcOnly": {
+       "byPool": [
+        262.916531,
+        262.916531,
+        262.916531
+       ],
+       "bySource": [
+        562.772401,
+        136.839249,
+        89.137944
+       ],
+       "bySourceName": [
+        "sediment=562.772401",
+        "detritus=136.839249",
+        "litter=89.137944"
+       ],
+       "total": 788.749594
+      },
+      "carrionOnly": {
+       "byPool": [
+        8.526275,
+        8.526275,
+        8.526275
+       ],
+       "bySource": [
+        21.858594,
+        3.720233,
+        0
+       ],
+       "bySourceName": [
+        "sediment=21.858594",
+        "detritus=3.720233",
+        "litter=0"
+       ],
+       "total": 25.578826
+      },
+      "dual": {
+       "byPool": [
+        29.338096,
+        29.338096,
+        29.338096
+       ],
+       "bySource": [
+        63.61814,
+        13.98339,
+        10.412759
+       ],
+       "bySourceName": [
+        "sediment=63.61814",
+        "detritus=13.98339",
+        "litter=10.412759"
+       ],
+       "total": 88.014289
+      }
+     },
+     "abioticRegen": [
+      0,
+      0,
+      0
+     ],
+     "lostRecalcAcceptedByPool": [
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "t": 500,
+     "census": {
+      "P": 704,
+      "C": 198,
+      "D": 124
+     },
+     "producerEnergy": 9342.911506,
+     "producerDisplayedUptake": [
+      16161.641338,
+      13889.166133,
+      16509.756111
+     ],
+     "allGuildUptake": [
+      16161.641338,
+      13889.166133,
+      16509.756111
+     ],
+     "pools": [
+      47741.179152,
+      37000.91352,
+      24968.064084
+     ],
+     "capUtil": [
+      0.42128,
+      0.418597,
+      0.355362
+     ],
+     "localLimitation": {
+      "producers": 704,
+      "limitedProducers": 224,
+      "limitedFrac": 0.318182,
+      "emptyByPool": [
+       0,
+       36,
+       188
+      ],
+      "meanHeadroomByPool": [
+       0.323718,
+       0.352296,
+       0.195336
+      ]
+     },
+     "birthsByGuildPath": [
+      [
+       543,
+       14
+      ],
+      [
+       184,
+       0
+      ],
+      [
+       80,
+       0
+      ]
+     ],
+     "deathsByGuildCause": [
+      [
+       124,
+       8,
+       6
+      ],
+      [
+       51,
+       2,
+       2
+      ],
+      [
+       1,
+       1,
+       0
+      ]
+     ],
+     "exogenous": {
+      "attempted": 0,
+      "accepted": 0,
+      "capLoss": 0,
+      "eviction": 0
+     },
+     "bioticBySourceAccepted": {
+      "recalcOnly": {
+       "byPool": [
+        672.182797,
+        672.182797,
+        672.182797
+       ],
+       "bySource": [
+        1151.754294,
+        662.793546,
+        202.00055
+       ],
+       "bySourceName": [
+        "sediment=1151.754294",
+        "detritus=662.793546",
+        "litter=202.00055"
+       ],
+       "total": 2016.54839
+      },
+      "carrionOnly": {
+       "byPool": [
+        10.92533,
+        10.92533,
+        10.92533
+       ],
+       "bySource": [
+        25.15944,
+        7.616552,
+        0
+       ],
+       "bySourceName": [
+        "sediment=25.15944",
+        "detritus=7.616552",
+        "litter=0"
+       ],
+       "total": 32.775991
+      },
+      "dual": {
+       "byPool": [
+        50.481559,
+        50.481559,
+        50.481559
+       ],
+       "bySource": [
+        92.688931,
+        43.514555,
+        15.241191
+       ],
+       "bySourceName": [
+        "sediment=92.688931",
+        "detritus=43.514555",
+        "litter=15.241191"
+       ],
+       "total": 151.444677
+      }
+     },
+     "abioticRegen": [
+      0,
+      0,
+      0
+     ],
+     "lostRecalcAcceptedByPool": [
+      0,
+      0,
+      0
+     ]
+    }
+   ],
+   "B": [
+    {
+     "t": 0,
+     "census": {
+      "P": 285,
+      "C": 69,
+      "D": 46
+     },
+     "producerEnergy": 9116.404938,
+     "producerDisplayedUptake": [
+      0,
+      0,
+      0
+     ],
+     "allGuildUptake": [
+      0,
+      0,
+      0
+     ],
+     "pools": [
+      62077.16351,
+      48427.062193,
+      38496.068099
+     ],
+     "capUtil": [
+      0.547784,
+      0.547862,
+      0.547901
+     ],
+     "localLimitation": {
+      "producers": 285,
+      "limitedProducers": 0,
+      "limitedFrac": 0,
+      "emptyByPool": [
+       0,
+       0,
+       0
+      ],
+      "meanHeadroomByPool": [
+       0.550643,
+       0.54588,
+       0.545517
+      ]
+     },
+     "birthsByGuildPath": [
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ]
+     ],
+     "deathsByGuildCause": [
+      [
+       0,
+       0,
+       0
+      ],
+      [
+       0,
+       0,
+       0
+      ],
+      [
+       0,
+       0,
+       0
+      ]
+     ],
+     "exogenous": {
+      "attempted": 0,
+      "accepted": 0,
+      "capLoss": 0,
+      "eviction": 0
+     },
+     "bioticBySourceAccepted": {
+      "recalcOnly": {
+       "byPool": [
+        0,
+        0,
+        0
+       ],
+       "bySource": [
+        0,
+        0,
+        0
+       ],
+       "bySourceName": [
+        "sediment=0",
+        "detritus=0",
+        "litter=0"
+       ],
+       "total": 0
+      },
+      "carrionOnly": {
+       "byPool": [
+        0,
+        0,
+        0
+       ],
+       "bySource": [
+        0,
+        0,
+        0
+       ],
+       "bySourceName": [
+        "sediment=0",
+        "detritus=0",
+        "litter=0"
+       ],
+       "total": 0
+      },
+      "dual": {
+       "byPool": [
+        0,
+        0,
+        0
+       ],
+       "bySource": [
+        0,
+        0,
+        0
+       ],
+       "bySourceName": [
+        "sediment=0",
+        "detritus=0",
+        "litter=0"
+       ],
+       "total": 0
+      }
+     },
+     "abioticRegen": [
+      0,
+      0,
+      0
+     ],
+     "lostRecalcAcceptedByPool": [
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "t": 100,
+     "census": {
+      "P": 288,
+      "C": 75,
+      "D": 46
+     },
+     "producerEnergy": 7714.177629,
+     "producerDisplayedUptake": [
+      1469.729032,
+      1443.575516,
+      1500.189574
+     ],
+     "allGuildUptake": [
+      1469.729032,
+      1443.575516,
+      1500.189574
+     ],
+     "pools": [
+      61164.427411,
+      47676.179664,
+      37787.666415
+     ],
+     "capUtil": [
+      0.53973,
+      0.539367,
+      0.537819
+     ],
+     "localLimitation": {
+      "producers": 288,
+      "limitedProducers": 0,
+      "limitedFrac": 0,
+      "emptyByPool": [
+       0,
+       0,
+       0
+      ],
+      "meanHeadroomByPool": [
+       0.539348,
+       0.538689,
+       0.535587
+      ]
+     },
+     "birthsByGuildPath": [
+      [
+       3,
+       0
+      ],
+      [
+       6,
+       0
+      ],
+      [
+       0,
+       0
+      ]
+     ],
+     "deathsByGuildCause": [
+      [
+       0,
+       0,
+       0
+      ],
+      [
+       0,
+       0,
+       0
+      ],
+      [
+       0,
+       0,
+       0
+      ]
+     ],
+     "exogenous": {
+      "attempted": 0,
+      "accepted": 0,
+      "capLoss": 0,
+      "eviction": 0
+     },
+     "bioticBySourceAccepted": {
+      "recalcOnly": {
+       "byPool": [
+        0,
+        0,
+        0
+       ],
+       "bySource": [
+        0,
+        0,
+        0
+       ],
+       "bySourceName": [
+        "sediment=0",
+        "detritus=0",
+        "litter=0"
+       ],
+       "total": 0
+      },
+      "carrionOnly": {
+       "byPool": [
+        6.475445,
+        6.475445,
+        6.475445
+       ],
+       "bySource": [
+        18.414265,
+        1.012069,
+        0
+       ],
+       "bySourceName": [
+        "sediment=18.414265",
+        "detritus=1.012069",
+        "litter=0"
+       ],
+       "total": 19.426334
+      },
+      "dual": {
+       "byPool": [
+        9.471037,
+        9.471037,
+        9.471037
+       ],
+       "bySource": [
+        23.012347,
+        1.892653,
+        3.508112
+       ],
+       "bySourceName": [
+        "sediment=23.012347",
+        "detritus=1.892653",
+        "litter=3.508112"
+       ],
+       "total": 28.413112
+      }
+     },
+     "abioticRegen": [
+      0,
+      0,
+      0
+     ],
+     "lostRecalcAcceptedByPool": [
+      148.402476,
+      148.402476,
+      148.402476
+     ]
+    },
+    {
+     "t": 250,
+     "census": {
+      "P": 370,
+      "C": 134,
+      "D": 69
+     },
+     "producerEnergy": 7766.769968,
+     "producerDisplayedUptake": [
+      4517.438896,
+      4138.287061,
+      4544.80779
+     ],
+     "allGuildUptake": [
+      4517.438896,
+      4138.287061,
+      4544.80779
+     ],
+     "pools": [
+      58538.123357,
+      45601.83301,
+      35512.56205
+     ],
+     "capUtil": [
+      0.516555,
+      0.5159,
+      0.505438
+     ],
+     "localLimitation": {
+      "producers": 370,
+      "limitedProducers": 0,
+      "limitedFrac": 0,
+      "emptyByPool": [
+       0,
+       0,
+       0
+      ],
+      "meanHeadroomByPool": [
+       0.481717,
+       0.474963,
+       0.447949
+      ]
+     },
+     "birthsByGuildPath": [
+      [
+       141,
+       0
+      ],
+      [
+       69,
+       0
+      ],
+      [
+       24,
+       0
+      ]
+     ],
+     "deathsByGuildCause": [
+      [
+       55,
+       1,
+       0
+      ],
+      [
+       4,
+       0,
+       0
+      ],
+      [
+       0,
+       1,
+       0
+      ]
+     ],
+     "exogenous": {
+      "attempted": 0,
+      "accepted": 0,
+      "capLoss": 0,
+      "eviction": 0
+     },
+     "bioticBySourceAccepted": {
+      "recalcOnly": {
+       "byPool": [
+        0,
+        0,
+        0
+       ],
+       "bySource": [
+        0,
+        0,
+        0
+       ],
+       "bySourceName": [
+        "sediment=0",
+        "detritus=0",
+        "litter=0"
+       ],
+       "total": 0
+      },
+      "carrionOnly": {
+       "byPool": [
+        9.225825,
+        9.225825,
+        9.225825
+       ],
+       "bySource": [
+        23.495364,
+        4.182113,
+        0
+       ],
+       "bySourceName": [
+        "sediment=23.495364",
+        "detritus=4.182113",
+        "litter=0"
+       ],
+       "total": 27.677476
+      },
+      "dual": {
+       "byPool": [
+        29.352972,
+        29.352972,
+        29.352972
+       ],
+       "bySource": [
+        60.147087,
+        16.049168,
+        11.862663
+       ],
+       "bySourceName": [
+        "sediment=60.147087",
+        "detritus=16.049168",
+        "litter=11.862663"
+       ],
+       "total": 88.058917
+      }
+     },
+     "abioticRegen": [
+      0,
+      0,
+      0
+     ],
+     "lostRecalcAcceptedByPool": [
+      351.535184,
+      351.535184,
+      351.535184
+     ]
+    },
+    {
+     "t": 500,
+     "census": {
+      "P": 668,
+      "C": 177,
+      "D": 114
+     },
+     "producerEnergy": 10458.87926,
+     "producerDisplayedUptake": [
+      16173.851735,
+      14403.497005,
+      16026.514794
+     ],
+     "allGuildUptake": [
+      16173.851735,
+      14403.497005,
+      16026.514794
+     ],
+     "pools": [
+      47114.864075,
+      35872.219588,
+      24829.183819
+     ],
+     "capUtil": [
+      0.415753,
+      0.405827,
+      0.353385
+     ],
+     "localLimitation": {
+      "producers": 668,
+      "limitedProducers": 114,
+      "limitedFrac": 0.170659,
+      "emptyByPool": [
+       0,
+       43,
+       71
+      ],
+      "meanHeadroomByPool": [
+       0.345251,
+       0.328799,
+       0.226946
+      ]
+     },
+     "birthsByGuildPath": [
+      [
+       504,
+       16
+      ],
+      [
+       194,
+       0
+      ],
+      [
+       70,
+       0
+      ]
+     ],
+     "deathsByGuildCause": [
+      [
+       122,
+       8,
+       7
+      ],
+      [
+       83,
+       1,
+       2
+      ],
+      [
+       1,
+       1,
+       0
+      ]
+     ],
+     "exogenous": {
+      "attempted": 0,
+      "accepted": 0,
+      "capLoss": 0,
+      "eviction": 0
+     },
+     "bioticBySourceAccepted": {
+      "recalcOnly": {
+       "byPool": [
+        0,
+        0,
+        0
+       ],
+       "bySource": [
+        0,
+        0,
+        0
+       ],
+       "bySourceName": [
+        "sediment=0",
+        "detritus=0",
+        "litter=0"
+       ],
+       "total": 0
+      },
+      "carrionOnly": {
+       "byPool": [
+        11.409969,
+        11.409969,
+        11.409969
+       ],
+       "bySource": [
+        26.821121,
+        7.408785,
+        0
+       ],
+       "bySourceName": [
+        "sediment=26.821121",
+        "detritus=7.408785",
+        "litter=0"
+       ],
+       "total": 34.229906
+      },
+      "dual": {
+       "byPool": [
+        52.817593,
+        52.817593,
+        52.817593
+       ],
+       "bySource": [
+        88.155869,
+        51.937846,
+        18.359064
+       ],
+       "bySourceName": [
+        "sediment=88.155869",
+        "detritus=51.937846",
+        "litter=18.359064"
+       ],
+       "total": 158.452779
+      }
+     },
+     "abioticRegen": [
+      0,
+      0,
+      0
+     ],
+     "lostRecalcAcceptedByPool": [
+      875.304081,
+      875.304081,
+      875.304081
+     ]
+    }
+   ],
+   "C": [
+    {
+     "t": 0,
+     "census": {
+      "P": 285,
+      "C": 69,
+      "D": 46
+     },
+     "producerEnergy": 9116.404938,
+     "producerDisplayedUptake": [
+      0,
+      0,
+      0
+     ],
+     "allGuildUptake": [
+      0,
+      0,
+      0
+     ],
+     "pools": [
+      62077.16351,
+      48427.062193,
+      38496.068099
+     ],
+     "capUtil": [
+      0.547784,
+      0.547862,
+      0.547901
+     ],
+     "localLimitation": {
+      "producers": 285,
+      "limitedProducers": 0,
+      "limitedFrac": 0,
+      "emptyByPool": [
+       0,
+       0,
+       0
+      ],
+      "meanHeadroomByPool": [
+       0.550643,
+       0.54588,
+       0.545517
+      ]
+     },
+     "birthsByGuildPath": [
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ]
+     ],
+     "deathsByGuildCause": [
+      [
+       0,
+       0,
+       0
+      ],
+      [
+       0,
+       0,
+       0
+      ],
+      [
+       0,
+       0,
+       0
+      ]
+     ],
+     "exogenous": {
+      "attempted": 0,
+      "accepted": 0,
+      "capLoss": 0,
+      "eviction": 0
+     },
+     "bioticBySourceAccepted": {
+      "recalcOnly": {
+       "byPool": [
+        0,
+        0,
+        0
+       ],
+       "bySource": [
+        0,
+        0,
+        0
+       ],
+       "bySourceName": [
+        "sediment=0",
+        "detritus=0",
+        "litter=0"
+       ],
+       "total": 0
+      },
+      "carrionOnly": {
+       "byPool": [
+        0,
+        0,
+        0
+       ],
+       "bySource": [
+        0,
+        0,
+        0
+       ],
+       "bySourceName": [
+        "sediment=0",
+        "detritus=0",
+        "litter=0"
+       ],
+       "total": 0
+      },
+      "dual": {
+       "byPool": [
+        0,
+        0,
+        0
+       ],
+       "bySource": [
+        0,
+        0,
+        0
+       ],
+       "bySourceName": [
+        "sediment=0",
+        "detritus=0",
+        "litter=0"
+       ],
+       "total": 0
+      }
+     },
+     "abioticRegen": [
+      0,
+      0,
+      0
+     ],
+     "lostRecalcAcceptedByPool": [
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "t": 100,
+     "census": {
+      "P": 284,
+      "C": 76,
+      "D": 46
+     },
+     "producerEnergy": 7691.648361,
+     "producerDisplayedUptake": [
+      1469.561354,
+      1445.583794,
+      1500.241096
+     ],
+     "allGuildUptake": [
+      1469.561354,
+      1445.583794,
+      1500.241096
+     ],
+     "pools": [
+      61302.622397,
+      47812.203596,
+      37925.644094
+     ],
+     "capUtil": [
+      0.54095,
+      0.540906,
+      0.539783
+     ],
+     "localLimitation": {
+      "producers": 284,
+      "limitedProducers": 0,
+      "limitedFrac": 0,
+      "emptyByPool": [
+       0,
+       0,
+       0
+      ],
+      "meanHeadroomByPool": [
+       0.540366,
+       0.539729,
+       0.537088
+      ]
+     },
+     "birthsByGuildPath": [
+      [
+       0,
+       0
+      ],
+      [
+       7,
+       0
+      ],
+      [
+       0,
+       0
+      ]
+     ],
+     "deathsByGuildCause": [
+      [
+       0,
+       0,
+       1
+      ],
+      [
+       0,
+       0,
+       0
+      ],
+      [
+       0,
+       0,
+       0
+      ]
+     ],
+     "exogenous": {
+      "attempted": 418.755305,
+      "accepted": 418.755305,
+      "capLoss": 0,
+      "eviction": 0
+     },
+     "bioticBySourceAccepted": {
+      "recalcOnly": {
+       "byPool": [
+        0,
+        0,
+        0
+       ],
+       "bySource": [
+        0,
+        0,
+        0
+       ],
+       "bySourceName": [
+        "sediment=0",
+        "detritus=0",
+        "litter=0"
+       ],
+       "total": 0
+      },
+      "carrionOnly": {
+       "byPool": [
+        5.86163,
+        5.86163,
+        5.86163
+       ],
+       "bySource": [
+        16.785169,
+        0.799722,
+        0
+       ],
+       "bySourceName": [
+        "sediment=16.785169",
+        "detritus=0.799722",
+        "litter=0"
+       ],
+       "total": 17.58489
+      },
+      "dual": {
+       "byPool": [
+        9.201888,
+        9.201888,
+        9.201888
+       ],
+       "bySource": [
+        21.978866,
+        1.800599,
+        3.826199
+       ],
+       "bySourceName": [
+        "sediment=21.978866",
+        "detritus=1.800599",
+        "litter=3.826199"
+       ],
+       "total": 27.605664
+      }
+     },
+     "abioticRegen": [
+      0,
+      0,
+      0
+     ],
+     "lostRecalcAcceptedByPool": [
+      139.585102,
+      139.585102,
+      139.585102
+     ]
+    },
+    {
+     "t": 250,
+     "census": {
+      "P": 343,
+      "C": 131,
+      "D": 60
+     },
+     "producerEnergy": 7806.18838,
+     "producerDisplayedUptake": [
+      4448.399949,
+      4129.574348,
+      4561.471829
+     ],
+     "allGuildUptake": [
+      4448.399949,
+      4129.574348,
+      4561.471829
+     ],
+     "pools": [
+      58834.667681,
+      45838.371006,
+      35723.881879
+     ],
+     "capUtil": [
+      0.519172,
+      0.518576,
+      0.508446
+     ],
+     "localLimitation": {
+      "producers": 343,
+      "limitedProducers": 0,
+      "limitedFrac": 0,
+      "emptyByPool": [
+       0,
+       0,
+       0
+      ],
+      "meanHeadroomByPool": [
+       0.490881,
+       0.484383,
+       0.458717
+      ]
+     },
+     "birthsByGuildPath": [
+      [
+       119,
+       0
+      ],
+      [
+       64,
+       0
+      ],
+      [
+       15,
+       0
+      ]
+     ],
+     "deathsByGuildCause": [
+      [
+       58,
+       1,
+       2
+      ],
+      [
+       2,
+       0,
+       0
+      ],
+      [
+       0,
+       1,
+       0
+      ]
+     ],
+     "exogenous": {
+      "attempted": 788.749594,
+      "accepted": 788.749594,
+      "capLoss": 0,
+      "eviction": 0
+     },
+     "bioticBySourceAccepted": {
+      "recalcOnly": {
+       "byPool": [
+        0,
+        0,
+        0
+       ],
+       "bySource": [
+        0,
+        0,
+        0
+       ],
+       "bySourceName": [
+        "sediment=0",
+        "detritus=0",
+        "litter=0"
+       ],
+       "total": 0
+      },
+      "carrionOnly": {
+       "byPool": [
+        8.526275,
+        8.526275,
+        8.526275
+       ],
+       "bySource": [
+        21.858594,
+        3.720233,
+        0
+       ],
+       "bySourceName": [
+        "sediment=21.858594",
+        "detritus=3.720233",
+        "litter=0"
+       ],
+       "total": 25.578826
+      },
+      "dual": {
+       "byPool": [
+        29.338096,
+        29.338096,
+        29.338096
+       ],
+       "bySource": [
+        63.61814,
+        13.98339,
+        10.412759
+       ],
+       "bySourceName": [
+        "sediment=63.61814",
+        "detritus=13.98339",
+        "litter=10.412759"
+       ],
+       "total": 88.014289
+      }
+     },
+     "abioticRegen": [
+      0,
+      0,
+      0
+     ],
+     "lostRecalcAcceptedByPool": [
+      262.916531,
+      262.916531,
+      262.916531
+     ]
+    },
+    {
+     "t": 500,
+     "census": {
+      "P": 704,
+      "C": 198,
+      "D": 124
+     },
+     "producerEnergy": 9342.911506,
+     "producerDisplayedUptake": [
+      16161.641338,
+      13889.166133,
+      16509.756111
+     ],
+     "allGuildUptake": [
+      16161.641338,
+      13889.166133,
+      16509.756111
+     ],
+     "pools": [
+      47741.179152,
+      37000.91352,
+      24968.064084
+     ],
+     "capUtil": [
+      0.42128,
+      0.418597,
+      0.355362
+     ],
+     "localLimitation": {
+      "producers": 704,
+      "limitedProducers": 224,
+      "limitedFrac": 0.318182,
+      "emptyByPool": [
+       0,
+       36,
+       188
+      ],
+      "meanHeadroomByPool": [
+       0.323718,
+       0.352296,
+       0.195336
+      ]
+     },
+     "birthsByGuildPath": [
+      [
+       543,
+       14
+      ],
+      [
+       184,
+       0
+      ],
+      [
+       80,
+       0
+      ]
+     ],
+     "deathsByGuildCause": [
+      [
+       124,
+       8,
+       6
+      ],
+      [
+       51,
+       2,
+       2
+      ],
+      [
+       1,
+       1,
+       0
+      ]
+     ],
+     "exogenous": {
+      "attempted": 2016.54839,
+      "accepted": 2016.54839,
+      "capLoss": 0,
+      "eviction": 0
+     },
+     "bioticBySourceAccepted": {
+      "recalcOnly": {
+       "byPool": [
+        0,
+        0,
+        0
+       ],
+       "bySource": [
+        0,
+        0,
+        0
+       ],
+       "bySourceName": [
+        "sediment=0",
+        "detritus=0",
+        "litter=0"
+       ],
+       "total": 0
+      },
+      "carrionOnly": {
+       "byPool": [
+        10.92533,
+        10.92533,
+        10.92533
+       ],
+       "bySource": [
+        25.15944,
+        7.616552,
+        0
+       ],
+       "bySourceName": [
+        "sediment=25.15944",
+        "detritus=7.616552",
+        "litter=0"
+       ],
+       "total": 32.775991
+      },
+      "dual": {
+       "byPool": [
+        50.481559,
+        50.481559,
+        50.481559
+       ],
+       "bySource": [
+        92.688931,
+        43.514555,
+        15.241191
+       ],
+       "bySourceName": [
+        "sediment=92.688931",
+        "detritus=43.514555",
+        "litter=15.241191"
+       ],
+       "total": 151.444677
+      }
+     },
+     "abioticRegen": [
+      0,
+      0,
+      0
+     ],
+     "lostRecalcAcceptedByPool": [
+      672.182797,
+      672.182797,
+      672.182797
+     ]
+    }
+   ]
+  }
+ },
+ "twins": {
+  "517": {
+   "cDigestEqual": true
+  },
+  "41001": {
+   "cDigestEqual": true
+  }
+ }
+}

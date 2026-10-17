@@ -16,8 +16,8 @@ This file governs repository practice only.
 
 `ts-evolution-poc` — a disposable, evidence-driven experiment in whole-ecosystem
 evolutionary simulation. Single TypeScript tree. Engine version
-`ts-evo-poc/0.6.5` (0.6.4 plus the O1 phenotype-class suppression knob;
-same parity pins when unset).
+`ts-evo-poc/0.6.6` (0.6.5 plus the O2 exogenous-replacement instrument;
+same parity pins when unconfigured).
 
 - **STATUS: EXPERIMENTAL. NOT PRODUCTION CODE.**
 - Judged on **reproducibility, honest accounting, emergence without forcing,
@@ -104,9 +104,13 @@ Required before a change is considered done:
 2. **Gates pass** (`src/gates.ts`).
 3. **Knobs-unset parity exact** against pinned values — currently seed 517 →
    `P882 C170 D65` and 24601 → `P563 C279 D90` at 500 ticks, engine
-   `ts-evo-poc/0.6.5` (same pair as 0.6.4/0.6.3/0.6.2; no re-pin). A change that alters these with no knob set has changed
+   `ts-evo-poc/0.6.6` (same pair as 0.6.5/0.6.4/0.6.3/0.6.2; no re-pin). A change that alters these with no knob set has changed
    declared behaviour.
 
+   The exogenous-replacement instrument (O2, G35, gates/0.8.0) landed under
+   0.6.6: knob-unset runs are bit-identical to 0.6.5 (C1 pins prove it), while
+   rescue-configured runs are a new behavior under their own identity. 0.6.5
+   figures describe suppression-only runs, not rescue arms.
    The phenotype-class suppression knob (O1, G34, gates/0.7.0) landed under
    0.6.5: knob-unset runs are bit-identical to 0.6.4 (C1 pins prove it), while
    knob-set runs are a new configured behavior under their own identity — a

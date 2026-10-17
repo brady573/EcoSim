@@ -2466,7 +2466,7 @@ function gate33(): void {
     negOk && partitionOk && nonVacuous && detMismatch === 0 && hashEqual
     && fixtureBad === 0 && xcheckBad === 0 && liveCoverageOk && gvPartitionOk && gvDual > 0,
     `saturation arm (G32 verbatim + phenotype mirror), ${TICKS} ticks: ` +
-    `per-cell guild==sum(classes) worst residual ${worstResidual.toExponential(2)}, ` +
+    `per book-cell guild==sum(classes) worst residual ${worstResidual.toExponential(2)}, ` +
     `limit 1e-6 x max(1, attempted=${attempted.toFixed(1)}). ` +
     `Worst negative pheno cell: ${worstNegWhere} (limit -1e-12 x max(1, attempted)). ` +
     `Non-neither accepted ${acceptedNonNeither.toFixed(3)} (> 0 required); ` +
@@ -2589,7 +2589,7 @@ function gate34(): void {
   const abioNull = abio(wNull);
   const abioSup = abio(wSup);
 
-  // (vii) Shadow==actual on null runs per cell (pins the shared clamp math).
+  // (vii) Shadow==actual on null runs per book cell (pins the shared clamp math).
   const shNull = wNull.getFluxSnapshot().bioticMineralizationShadow;
   const acNull = wNull.getFluxSnapshot().bioticMineralizationByPheno;
   let shadowMismatchNull = 0;
@@ -2746,6 +2746,160 @@ function gate34(): void {
     `clamp ${legacyOk ? 'preserved (eviction > 0)' : 'LOST'}.`);
 }
 
+// G35 — O2 exogenous replacement (Owner Stage 3, issue #15).
+//
+// Fixed seeds, no cohort. With recalcOnly suppressed to zero AND rescued,
+// every suppressed event's forgone accepted remainder must reappear as
+// exogenous accepted at the same book cell: actual.accepted + exogenous
+// accepted == shadow.accepted ("book cell" = one (class, guild, pool, source)
+// ledger address, not a spatial field cell). Cap/eviction shortfall books
+// truthfully and stays bounded; unrescued classes and null-rescue runs book
+// exactly zero exogenous flow. Bad rescue knobs throw. Twins agree.
+// Downstream mediation (uptake/energy/births, cyclic response) is NOT asserted
+// here — it is observed in the viability evidence script and reported without
+// a direction claim. A green G35 proves delivery exactness, never rescue
+// efficacy.
+function gate35(): void {
+  const TICKS = 120;
+  const base = {
+    founders: 300, worldW: 800, worldH: 800, seed: 4242, label: 'gates35',
+    nutrientRegen: 0.5, nutrientCyclic: false, nutrientFloor: 0,
+    producerCaptureScale: 0,
+    excretionRate: 0.06, bioticMineralisation: 1.0, basalFoodPerCell: 0.5,
+    recyclingRate: 0.02,
+  };
+  const SUP = { carrionOnly: 1, recalcOnly: 0, dual: 1 };
+  const RESC = { carrionOnly: false, recalcOnly: true, dual: false };
+  const run = (
+    sup: { carrionOnly: number; recalcOnly: number; dual: number } | null | undefined,
+    resc: { carrionOnly: boolean; recalcOnly: boolean; dual: boolean } | null | undefined,
+  ): World => {
+    const w = new World({
+      config: {
+        ...base,
+        ...(sup === undefined ? {} : { phenoMineralReturn: sup }),
+        ...(resc === undefined ? {} : { phenoMineralRescue: resc }),
+      },
+    });
+    for (let t = 0; t < TICKS; t++) w.step();
+    return w;
+  };
+  const wSup = run(SUP, undefined);
+  const wResc = run(SUP, RESC);
+  const wResc2 = run(SUP, RESC);
+  const fR = wResc.getFluxSnapshot();
+  const ex = fR.exogenousReplacement;
+  const sh = fR.bioticMineralizationShadow;
+  const ac = fR.bioticMineralizationByPheno;
+
+  let attempted = 0;
+  let worstResidual = 0;
+  let worstNeg: number | null = null;
+  let exoNonRescued = 0;
+  let exoCapEvict = 0;
+  for (let c = 0; c < MINERAL_PHENO_CLASS_COUNT; c++) {
+    const rescued = c === MINERAL_PHENO.RECALC_ONLY;
+    for (let g = 0; g < TROPHIC_COUNT; g++) {
+      for (let p = 0; p < NUTRIENT_COUNT; p++) {
+        for (let src = 0; src < 3; src++) {
+          const a = ex.attempted[c][g][p][src];
+          const e = ex.accepted[c][g][p][src];
+          const l = ex.capLoss[c][g][p][src];
+          const v = ex.eviction[c][g][p][src];
+          attempted += a;
+          const r = Math.abs(a - (e + l));
+          if (r > worstResidual) worstResidual = r;
+          for (const x of [a, e, l, v]) if (x < 0 && (worstNeg === null || x < worstNeg)) worstNeg = x;
+          if (!rescued && (a !== 0 || e !== 0 || l !== 0 || v !== 0)) exoNonRescued++;
+          exoCapEvict += l + v;
+          // Delivery exactness on the rescued class: actual + exogenous == shadow.
+          const s = sh.accepted[c][g][p][src];
+          const t = ac.accepted[c][g][p][src];
+          if (rescued) {
+            const d = Math.abs(t + e - s);
+            if (d > worstResidual) worstResidual = d;
+          }
+        }
+      }
+    }
+  }
+  const partitionOk = worstResidual <= 1e-6 * Math.max(1, attempted);
+  const negOk = worstNeg === null || worstNeg >= -1e-12 * Math.max(1, attempted);
+  const rescuedDelivered = attempted > 0;
+  // On this arm H+A0+R == H+S <= cap holds per event (S fit the headroom by
+  // construction), so no cap shortfall is expected: float dust only.
+  const shortfallOk = exoCapEvict <= 1e-9 * Math.max(1, attempted);
+
+  // Null rescue knob: digests equal the rescue-absent run, exogenous all zero.
+  const wNullResc = run(SUP, null);
+  const nullParity = wNullResc.hashState() === wSup.hashState();
+  const fN = wNullResc.getFluxSnapshot().exogenousReplacement;
+  let nullExoTotal = 0;
+  for (let c = 0; c < MINERAL_PHENO_CLASS_COUNT; c++) {
+    for (let g = 0; g < TROPHIC_COUNT; g++) {
+      for (let p = 0; p < NUTRIENT_COUNT; p++) {
+        for (let src = 0; src < 3; src++) {
+          nullExoTotal += fN.attempted[c][g][p][src] + fN.accepted[c][g][p][src]
+            + fN.capLoss[c][g][p][src] + fN.eviction[c][g][p][src];
+        }
+      }
+    }
+  }
+
+  // Rejected rescue inputs throw at construction.
+  const badKnobs: unknown[] = [
+    { carrionOnly: 1, recalcOnly: true, dual: false },
+    { carrionOnly: false, recalcOnly: true } as unknown,
+    { carrionOnly: false, recalcOnly: true, dual: false, neither: true } as unknown,
+    'on' as unknown,
+  ];
+  let throws = 0;
+  for (const bad of badKnobs) {
+    try {
+      new World({ config: { ...base, phenoMineralRescue: bad as never } });
+    } catch {
+      throws++;
+    }
+  }
+
+  // Twins determinism with rescue on (exogenous books + digests).
+  const fR2 = wResc2.getFluxSnapshot().exogenousReplacement;
+  let detMismatch = 0;
+  for (let c = 0; c < MINERAL_PHENO_CLASS_COUNT; c++) {
+    for (let g = 0; g < TROPHIC_COUNT; g++) {
+      for (let p = 0; p < NUTRIENT_COUNT; p++) {
+        for (let src = 0; src < 3; src++) {
+          if (ex.accepted[c][g][p][src] !== fR2.accepted[c][g][p][src]) detMismatch++;
+        }
+      }
+    }
+  }
+  const twinsEqual = detMismatch === 0 && wResc.hashState() === wResc2.hashState();
+
+  let aliveResc = 0;
+  for (let i = 0; i < wResc.store.count; i++) if (wResc.aliveAt(i)) aliveResc++;
+
+  record('G35', 'exogenous replacement matches forgone accepted flow per book cell',
+    partitionOk && negOk && rescuedDelivered && exoNonRescued === 0 && nullParity
+    && nullExoTotal === 0 && throws === badKnobs.length && twinsEqual && aliveResc > 0
+    && shortfallOk,
+    `saturation arm + recalcOnly suppression + rescue, ${TICKS} ticks: ` +
+    `exogenous attempted==accepted+capLoss worst residual ` +
+    `${worstResidual.toExponential(2)} (limit 1e-6 x max(1, attempted)), ` +
+    `actual+exogenous==shadow on rescued class inside the same bound; ` +
+    `worst negative exogenous cell ${worstNeg === null ? 'none' : worstNeg.toExponential(2)}; ` +
+    `exogenous capLoss+eviction total ${exoCapEvict.toExponential(2)} (limit ` +
+    `1e-9 x max(1, attempted) — H+A0+R==H+S<=cap per event, so only float ` +
+    `dust is possible here). Non-rescued-class nonzero cells ` +
+    `${exoNonRescued} (must be 0). Null-rescue digest ` +
+    `${nullParity ? 'equals' : 'DIFFERS FROM'} rescue-absent (must equal), ` +
+    `null exogenous total ${nullExoTotal} (must be 0). Bad knobs threw ` +
+    `${throws}/${badKnobs.length}. Twins: accepted mismatches ${detMismatch}, ` +
+    `digests ${wResc.hashState() === wResc2.hashState() ? 'equal' : 'DIFFER'}. ` +
+    `Alive on rescue arm ${aliveResc} (> 0 required). Delivery exactness only — ` +
+    `no mediation claim.`);
+}
+
 function main(): void {
   console.log(`=== credibility gates :: ${WORLD_ENGINE_VERSION} ===`);
   console.log(`scenario: founders=${SMALL.founders} world=${SMALL.worldW}x${SMALL.worldH} ticks=${TICKS} seed=${SMALL.seed}\n`);
@@ -2781,6 +2935,7 @@ function main(): void {
   gate31();
   gate33();
   gate34();
+  gate35();
 
   const failed = results.filter((r) => !r.pass);
   console.log(`\n${results.length - failed.length}/${results.length} checks passed`);
