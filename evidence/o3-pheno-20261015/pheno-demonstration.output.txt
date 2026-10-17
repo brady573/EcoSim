@@ -1,0 +1,8 @@
+seed 517 presence+shape bioticMineralizationByPheno[4][3][3][3]: OK
+seed 517 accepted-by-class carrionOnly=124.9 recalcOnly=1302.8 dual=128.8 neither=0.0 total=1556.6
+seed 517 reconcile guild==sum(classes) worst residual 1.99e-13 (G32 bound 1e-6 x max(1,1556.6)); neither share 0.00%
+seed 517 twin determinism mismatches=0 digests=equal
+seed 41001 presence+shape bioticMineralizationByPheno[4][3][3][3]: OK
+seed 41001 accepted-by-class carrionOnly=42.7 recalcOnly=2730.7 dual=193.1 neither=0.0 total=2966.4
+seed 41001 reconcile guild==sum(classes) worst residual 3.41e-13 (G32 bound 1e-6 x max(1,2966.4)); neither share 0.00%
+seed 41001 twin determinism mismatches=0 digests=equal

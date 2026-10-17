@@ -8155,3 +8155,20 @@ W9-observer without creating a World or making CI run an ecological cohort.
 The original `4cc865f` opportunity stdout/repeats remain archived under their
 source hash; new TRAJECTORY lines/footer change current stdout format, not those
 historical measurements. Current-format comparison evidence is stored separately.
+
+### O3 phenotype-book mirror (0.6.4, Owner Stage 1, issue #15)
+
+`getFluxSnapshot()` gains `bioticMineralizationByPheno[4][3][3][3]`, partitioning
+every biotic-mineralization book by expressed donor class (0=carrionOnly,
+1=recalcOnly, 2=dual, 3=neither; `classifyMineralPheno` in `src/bio/role.ts`).
+Written from the same clamp locals through one optional mirror branch
+(excretion callers omit it); no RNG draw, no field-write change, excluded from
+`hashState`. G33 asserts per-cell `guild == sum(classes)` for all four books
+plus twin-run new-book determinism; `neither` is reported, not asserted.
+Measurement-only re-base 0.6.3 → 0.6.4 (same parity pair, no re-pin; gates
+0.5.0 → 0.6.0). Evidence: `evidence/o3-pheno-20261015/` (2-seed viability
+demonstration: viability 500t recalc-branch event flux ≈ 92% seed 517 —
+CONSUMER-displayed share was 42.5%, a different instrument). This is
+instrumentation, not a reliance verdict; O1/O2 are conditionally Owner-authorized
+(after accepted Gate 1 / Gate 2 respectively) but not implemented and not
+eligible to start until the prior gate is accepted.

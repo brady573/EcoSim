@@ -65,6 +65,48 @@ export const TROPHIC_NAME: Record<number, string> = {
 export const TROPHIC_COUNT = 3;
 
 /**
+ * Disjoint mineralizer donor classes for per-event flux attribution (O3).
+ *
+ * These partition the `bioticMineraliser` predicate in `deriveRole` below:
+ * the two qualifying branches (carrion path needs `speed < 2.4`, recalc path
+ * does not) can overlap WITHIN one organism, so the classes — not the raw
+ * branches — are what flux is booked by. Substrate writers
+ * (sediment/detritus/litter) are a SEPARATE axis, never a "path" here.
+ */
+export const MINERAL_PHENO = {
+  /** Carrion branch only: `photo < 0.34 && carrion > 0.55 && speed < 2.4`, recalc branch false. */
+  CARRION_ONLY: 0,
+  /** Recalc branch only: `photo < 0.34 && recalc > 0.5`, carrion branch false. */
+  RECALC_ONLY: 1,
+  /** Both branches true. Suppression targets this class, never half of it. */
+  DUAL: 2,
+  /** Flag true but neither branch true at event time (stale cache / trait drift — see G33). */
+  NEITHER: 3,
+} as const;
+
+/** Number of mineralizer donor classes. Exported so array strides derive from it. */
+export const MINERAL_PHENO_CLASS_COUNT = 4;
+
+/**
+ * Classify one mineralization event by the organism's LIVE expressed traits.
+ *
+ * Pure function: four float reads in, one class out. No RNG, no writes.
+ * Operators replicate `deriveRole`'s predicate exactly (`<`, `>` strict).
+ * `NEITHER` covers both `photo >= 0.34` and gated-but-no-path; a mineralizing
+ * slot classifying NEITHER means the cached flag and live traits disagree
+ * (refresh lag or post-birth trait drift), which G33 reports rather than asserts.
+ */
+export function classifyMineralPheno(photo: number, carrion: number, recalc: number, speed: number): 0 | 1 | 2 | 3 {
+  const gated = photo < 0.34;
+  const c = gated && carrion > 0.55 && speed < 2.4;
+  const r = gated && recalc > 0.5;
+  if (c && !r) return MINERAL_PHENO.CARRION_ONLY;
+  if (r && !c) return MINERAL_PHENO.RECALC_ONLY;
+  if (c && r) return MINERAL_PHENO.DUAL;
+  return MINERAL_PHENO.NEITHER;
+}
+
+/**
  * Motility class.
  *
  * `reach` is the interaction reach in world units, separate from locomotion:

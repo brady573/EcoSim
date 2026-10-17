@@ -14,6 +14,25 @@
 /**
  * Bump on any behavioural change to the simulation.
  *
+ * 0.6.4 is a MEASUREMENT re-base, not a behavioural change. Engine semantics,
+ * seed parity and reproducibility are untouched: the pools themselves, the
+ * writer paths, and every default are the same, and the pinned pair 517 ->
+ * 882/170/65, 24601 -> 563/279/90 (500 ticks) still holds — no new
+ * retirement-chain entry, no re-pin.
+ *
+ * What this release changes is the instrumentation the probes read:
+ *   - `getFluxSnapshot()` exposes a fifth family,
+ *     `bioticMineralizationByPheno`, partitioning every biotic-mineralization
+ *     book by expressed donor class (0=carrionOnly, 1=recalcOnly, 2=dual,
+ *     3=neither; see `classifyMineralPheno` in `src/bio/role.ts` and G33).
+ *     The existing four families are byte-identical: the pheno books are
+ *     written from the same clamp locals through one optional mirror branch
+ *     (excretion callers omit it), add no RNG draw, change no field write,
+ *     and are excluded from `hashState`. The partition identity
+ *     `old[g][p][src] == sum over classes` is asserted per cell by G33.
+ *     A living-organism census is not an event-flux measurement; the census
+ *     denominators and these books are deliberately different instruments.
+ *
  * 0.6.3 is a MEASUREMENT re-base, not a behavioural change. Engine semantics,
  * seed parity and reproducibility are untouched: the pools themselves, the
  * writer paths, and every default are the same, and the pinned pair 517 ->
@@ -82,11 +101,12 @@
  * All figures recorded under 0.4.1 describe the DEFECTIVE semantics and are
  * provenance only. See REPORT.md.
  */
-export const WORLD_ENGINE_VERSION = 'ts-evo-poc/0.6.3';
+export const WORLD_ENGINE_VERSION = 'ts-evo-poc/0.6.4';
 
 /**
  * Identifier for the credibility-check suite. G30 (per-pool nutrient cap on
- * return paths) shipped with gates/0.4.0; only G31 and G32 (the book-level
- * checks) were added in this release.
+ * return paths) shipped with gates/0.4.0; G31 and G32 (the book-level checks)
+ * with gates/0.5.0; G33 (phenotype-partitioned mineralization books) with
+ * gates/0.6.0.
  */
-export const GATE_SUITE_VERSION = 'gates/0.5.0';
+export const GATE_SUITE_VERSION = 'gates/0.6.0';

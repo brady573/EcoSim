@@ -31,7 +31,7 @@ import {
   expressModules, inheritModules, recombineModules, seedFounderModules,
 } from './bio/modgenome.js';
 import { OrganismStore, NUTRIENT_COUNT } from './core/soa.js';
-import { TROPHIC_COUNT } from './bio/role.js';
+import { TROPHIC_COUNT, MINERAL_PHENO_CLASS_COUNT, MINERAL_PHENO, deriveRole, classifyMineralPheno } from './bio/role.js';
 import type { Phenotype } from './bio/phenotype.js';
 import { Rng } from './core/rng.js';
 import { INTENT } from './world/world.js';
@@ -2270,6 +2270,223 @@ function gate31(): void {
     `identity was only tested on its trivial branch.`);
 }
 
+// G33 — phenotype-partitioned mineralization books (O3, Owner decision 2026-10-15).
+//
+// The new `bioticMineralizationByPheno` family must partition the existing
+// guild books exactly: for every (guild, pool, source) and every one of the
+// four books, `guild book == sum over the 4 donor classes`. Per-cell, like
+// G32: aggregates would let misbooked classes cancel. `neither` is REPORTED,
+// not asserted zero: the cached mineralizer flag and live expressed traits
+// refresh on different cadences (plus post-birth trait drift under genomeV2),
+// so a stale-flag event can legitimately classify NEITHER. Asserting zero
+// would couple the gate to refresh cadence. New-books determinism is checked
+// by twin runs with elementwise snapshot equality (books are excluded from
+// `hashState` by design, so nothing else covers them).
+function gate33(): void {
+  const TICKS = 120;
+  const cfg = {
+    founders: 300, worldW: 800, worldH: 800, seed: 4242, label: 'gates33',
+    nutrientRegen: 0.5, nutrientCyclic: false, nutrientFloor: 0,
+    producerCaptureScale: 0,
+    excretionRate: 0.06, bioticMineralisation: 1.0, basalFoodPerCell: 0.5,
+    recyclingRate: 0.02,
+  };
+  const run = (): World => {
+    const w = new World({ config: { ...cfg } });
+    for (let t = 0; t < TICKS; t++) w.step();
+    return w;
+  };
+  const a = run();
+  const fa = a.getFluxSnapshot();
+  const ph = fa.bioticMineralizationByPheno;
+  const old = fa.bioticMineralization;
+
+  let attempted = 0;
+  let worstResidual = 0;
+  let worstNegValue: number | null = null;
+  let worstNegWhere = 'none';
+  let acceptedNonNeither = 0;
+  let neitherAccepted = 0;
+  let phenoEviction = 0;
+  const bookOf = (fam: { attempted: number[][][][]; accepted: number[][][][]; capLoss: number[][][][]; eviction: number[][][][] }, book: 'attempted' | 'accepted' | 'capLoss' | 'eviction') => fam[book];
+  for (let g = 0; g < TROPHIC_COUNT; g++) {
+    for (let p = 0; p < NUTRIENT_COUNT; p++) {
+      for (let src = 0; src < 3; src++) {
+        const cells: Array<[book: 'attempted' | 'accepted' | 'capLoss' | 'eviction', guildVal: number]> = [
+          ['attempted', old.attempted[g][p][src]],
+          ['accepted', old.accepted[g][p][src]],
+          ['capLoss', old.capLoss[g][p][src]],
+          ['eviction', old.eviction[g][p][src]],
+        ];
+        for (const [book, guildVal] of cells) {
+          let s = 0;
+          for (let c = 0; c < MINERAL_PHENO_CLASS_COUNT; c++) {
+            const v: number = bookOf(ph, book)[c][g][p][src];
+            s += v;
+            attempted += book === 'attempted' ? v : 0;
+            if (v < 0 && (worstNegValue === null || v < worstNegValue)) {
+              worstNegValue = v;
+              worstNegWhere = `pheno.${book}[class ${c}][guild ${g}][pool ${p}][source ${src}] = ${v}`;
+            }
+            if (book === 'accepted') {
+              if (c === 3) neitherAccepted += v;
+              else acceptedNonNeither += v;
+            }
+            if (book === 'eviction') phenoEviction += v;
+          }
+          const r = Math.abs(guildVal - s);
+          if (r > worstResidual) worstResidual = r;
+        }
+      }
+    }
+  }
+  const partitionOk = worstResidual <= 1e-6 * Math.max(1, attempted);
+  const negOk = worstNegValue === null || worstNegValue >= -1e-12 * Math.max(1, attempted);
+  const nonVacuous = attempted > 0 && acceptedNonNeither > 0 && phenoEviction > 0;
+
+  // Twin-run determinism over the NEW family (elementwise ===).
+  const b = run();
+  const fb = b.getFluxSnapshot();
+  const pb = fb.bioticMineralizationByPheno;
+  let detMismatch = 0;
+  for (let c = 0; c < MINERAL_PHENO_CLASS_COUNT; c++) {
+    for (let g = 0; g < TROPHIC_COUNT; g++) {
+      for (let p = 0; p < NUTRIENT_COUNT; p++) {
+        for (let src = 0; src < 3; src++) {
+          if (bookOf(ph, 'attempted')[c][g][p][src] !== bookOf(pb, 'attempted')[c][g][p][src]) detMismatch++;
+          if (bookOf(ph, 'accepted')[c][g][p][src] !== bookOf(pb, 'accepted')[c][g][p][src]) detMismatch++;
+          if (bookOf(ph, 'capLoss')[c][g][p][src] !== bookOf(pb, 'capLoss')[c][g][p][src]) detMismatch++;
+          if (bookOf(ph, 'eviction')[c][g][p][src] !== bookOf(pb, 'eviction')[c][g][p][src]) detMismatch++;
+        }
+      }
+    }
+  }
+  const hashEqual = a.hashState() === b.hashState();
+  const neitherShare = acceptedNonNeither + neitherAccepted > 0
+    ? neitherAccepted / (acceptedNonNeither + neitherAccepted) : 0;
+
+  // ---- G33b: classification fixtures (deterministic, no stochastic sweep) --
+  // The partition above passes even if every event landed in one class, so the
+  // classifier itself gets direct branch/boundary fixtures plus a cross-check
+  // against deriveRole's live mineralizer predicate on identical inputs.
+  // Fixture inputs pass through Float32 rounding first: the engine classifies
+  // Float32 expressed traits against float64 thresholds, so e.g. literal 0.55
+  // becomes 0.5500000119 and satisfies `> 0.55`. Testing float64 literals
+  // would assert a boundary semantic the engine never observes.
+  const f32 = (n: number): number => new Float32Array([n])[0];
+  const FX: Array<[photo: number, carrion: number, recalc: number, speed: number, want: 0 | 1 | 2 | 3]> = [
+    [0.0, 0.9, 0.0, 1.0, 0],   // carrionOnly
+    [0.0, 0.0, 0.9, 7.0, 1],   // recalcOnly (fast: carrion path false regardless)
+    [0.0, 0.9, 0.9, 1.0, 2],   // dual
+    [0.5, 0.9, 0.9, 1.0, 3],   // neither: photo gate shut
+    [0.0, 0.1, 0.1, 1.0, 3],   // neither: gated but no path
+    [0.34, 0.9, 0.9, 1.0, 3],  // boundary: 0.34f32 >= 0.34 -> gate shut
+    [0.0, 0.55, 0.0, 1.0, 0],  // boundary: 0.55f32 = 0.5500000119 > 0.55 -> carrionOnly (representation, documented)
+    [0.0, 0.0, 0.5, 1.0, 3],   // boundary: 0.5 exact in both precisions
+    [0.0, 0.9, 0.0, 2.4, 3],   // boundary: 2.4f32 > 2.4 -> carrion path shut
+    [0.339, 0.551, 0.501, 2.399, 2], // just inside every threshold -> dual
+  ];
+  let fixtureBad = 0;
+  let xcheckBad = 0;
+  for (const [photo0, carrion0, recalc0, speed0, want] of FX) {
+    const photo = f32(photo0), carrion = f32(carrion0), recalc = f32(recalc0), speed = f32(speed0);
+    const got = classifyMineralPheno(photo, carrion, recalc, speed);
+    if (got !== want) fixtureBad++;
+    // Cross-check: deriveRole on a synthetic trait block must agree that the
+    // organism mineralizes iff the class is not NEITHER.
+    const block = new Float32Array(TRAIT_COUNT);
+    block[TRAIT.PHOTOSYNTHETIC_RATE] = photo;
+    block[TRAIT.CARRION_AFFINITY] = carrion;
+    block[TRAIT.RECALCITRANT_DIGESTION] = recalc;
+    block[TRAIT.SPEED] = speed;
+    const mineralizes = deriveRole(block, 0, 10).bioticMineraliser;
+    if (mineralizes !== (want !== MINERAL_PHENO.NEITHER)) xcheckBad++;
+  }
+
+  // ---- G33c: live writer-source + class coverage (fixed seeds, no hunt) ----
+  // Base arm: which classes/sources actually fired through real writer calls.
+  const classAttempted = [0, 0, 0, 0];
+  const srcAttempted = [0, 0, 0];
+  for (let c = 0; c < MINERAL_PHENO_CLASS_COUNT; c++) {
+    for (let g = 0; g < TROPHIC_COUNT; g++) {
+      for (let p = 0; p < NUTRIENT_COUNT; p++) {
+        for (let src = 0; src < 3; src++) {
+          const v: number = bookOf(ph, 'attempted')[c][g][p][src];
+          classAttempted[c] += v;
+          srcAttempted[src] += v;
+        }
+      }
+    }
+  }
+  const liveCoverageOk = classAttempted[0] > 0 && classAttempted[1] > 0
+    && srcAttempted[0] > 0 && srcAttempted[1] > 0 && srcAttempted[2] > 0;
+
+  // genomeV2 arm: trait drift can push mineralizers into DUAL through the real
+  // path (fixed seed 4242, same saturation config). Partition must hold there
+  // too; neither share is reported, not asserted.
+  const gv = new World({ config: { ...cfg, label: 'gates33-genomeV2', genomeV2: true } });
+  for (let t = 0; t < TICKS; t++) gv.step();
+  const gvFlux = gv.getFluxSnapshot();
+  const gvPh = gvFlux.bioticMineralizationByPheno;
+  const gvOld = gvFlux.bioticMineralization;
+  let gvWorst = 0;
+  let gvDual = 0;
+  let gvNeither = 0;
+  let gvNonNeither = 0;
+  for (let g = 0; g < TROPHIC_COUNT; g++) {
+    for (let p = 0; p < NUTRIENT_COUNT; p++) {
+      for (let src = 0; src < 3; src++) {
+        for (const book of ['attempted', 'accepted', 'capLoss', 'eviction'] as const) {
+          let s = 0;
+          for (let c = 0; c < MINERAL_PHENO_CLASS_COUNT; c++) s += gvPh[book][c][g][p][src];
+          const r = Math.abs(gvOld[book][g][p][src] - s);
+          if (r > gvWorst) gvWorst = r;
+        }
+        gvDual += gvPh.attempted[2][g][p][src];
+        gvNeither += gvPh.accepted[3][g][p][src];
+        gvNonNeither += gvPh.accepted[0][g][p][src] + gvPh.accepted[1][g][p][src] + gvPh.accepted[2][g][p][src];
+      }
+    }
+  }
+  const gvAttempted = (() => {
+    let s = 0;
+    for (let c = 0; c < MINERAL_PHENO_CLASS_COUNT; c++) {
+      for (let g = 0; g < TROPHIC_COUNT; g++) {
+        for (let p = 0; p < NUTRIENT_COUNT; p++) {
+          for (let src = 0; src < 3; src++) s += gvPh.attempted[c][g][p][src];
+        }
+      }
+    }
+    return s;
+  })();
+  const gvPartitionOk = gvWorst <= 1e-6 * Math.max(1, gvAttempted);
+  const gvNeitherShare = gvNonNeither + gvNeither > 0 ? gvNeither / (gvNonNeither + gvNeither) : 0;
+
+  record('G33', 'phenotype books partition guild books at every (class, guild, pool, source)',
+    negOk && partitionOk && nonVacuous && detMismatch === 0 && hashEqual
+    && fixtureBad === 0 && xcheckBad === 0 && liveCoverageOk && gvPartitionOk && gvDual > 0,
+    `saturation arm (G32 verbatim + phenotype mirror), ${TICKS} ticks: ` +
+    `per-cell guild==sum(classes) worst residual ${worstResidual.toExponential(2)}, ` +
+    `limit 1e-6 x max(1, attempted=${attempted.toFixed(1)}). ` +
+    `Worst negative pheno cell: ${worstNegWhere} (limit -1e-12 x max(1, attempted)). ` +
+    `Non-neither accepted ${acceptedNonNeither.toFixed(3)} (> 0 required); ` +
+    `neither accepted ${neitherAccepted.toFixed(3)} ` +
+    `(share ${(neitherShare * 100).toFixed(2)}%, REPORTED not asserted — stale ` +
+    `flag / trait-drift events classify here). Pheno eviction total ` +
+    `${phenoEviction.toExponential(3)} (> 0 required, ceiling bit). Twin-run new-book ` +
+    `mismatches ${detMismatch} (must be 0); trajectory digests ` +
+    `${hashEqual ? 'equal' : 'DIFFER'} (must be equal). ` +
+    `Classifier fixtures ${FX.length - fixtureBad}/${FX.length} exact (strict ` +
+    `thresholds + boundaries); deriveRole cross-check mismatches ${xcheckBad} ` +
+    `(must be 0). Live coverage: class attempted ` +
+    `[${classAttempted.map((v) => v.toFixed(1)).join(', ')}], source attempted ` +
+    `[${srcAttempted.map((v) => v.toFixed(1)).join(', ')}] (classes 0+1 and all ` +
+    `3 writers must fire). genomeV2 arm: partition worst ` +
+    `${gvWorst.toExponential(2)} (must close), dual attempted ` +
+    `${gvDual.toFixed(2)} (> 0 required — drift reaches DUAL through the real ` +
+    `path), neither share ${(gvNeitherShare * 100).toFixed(2)}% reported.`);
+}
+
 function main(): void {
   console.log(`=== credibility gates :: ${WORLD_ENGINE_VERSION} ===`);
   console.log(`scenario: founders=${SMALL.founders} world=${SMALL.worldW}x${SMALL.worldH} ticks=${TICKS} seed=${SMALL.seed}\n`);
@@ -2303,6 +2520,7 @@ function main(): void {
   gate29();
   gate30();
   gate31();
+  gate33();
 
   const failed = results.filter((r) => !r.pass);
   console.log(`\n${results.length - failed.length}/${results.length} checks passed`);

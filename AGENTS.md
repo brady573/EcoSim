@@ -16,7 +16,7 @@ This file governs repository practice only.
 
 `ts-evolution-poc` — a disposable, evidence-driven experiment in whole-ecosystem
 evolutionary simulation. Single TypeScript tree. Engine version
-`ts-evo-poc/0.6.3`.
+`ts-evo-poc/0.6.4` (0.6.3 plus the O3 phenotype-book mirror; same parity pins).
 
 - **STATUS: EXPERIMENTAL. NOT PRODUCTION CODE.**
 - Judged on **reproducibility, honest accounting, emergence without forcing,
@@ -103,9 +103,12 @@ Required before a change is considered done:
 2. **Gates pass** (`src/gates.ts`).
 3. **Knobs-unset parity exact** against pinned values — currently seed 517 →
    `P882 C170 D65` and 24601 → `P563 C279 D90` at 500 ticks, engine
-   `ts-evo-poc/0.6.3` (same pair as 0.6.2; no re-pin). A change that alters these with no knob set has changed
+   `ts-evo-poc/0.6.4` (same pair as 0.6.3/0.6.2; no re-pin). A change that alters these with no knob set has changed
    declared behaviour.
 
+   The phenotype-book mirror (O3, G33, gates/0.6.0) landed under 0.6.4 as a
+   measurement-only re-base: per-event attribution by expressed donor class,
+   written from the same clamp locals, no RNG draw, no field-write change.
    The per-pool return-cap fix landed in `e484b3f` while still labelled 0.6.2;
    G30 was pinned in `d0fdd57`. Earlier flat-cap and later corrected 0.6.2
    saturation logs must be distinguished by source snapshot, not version alone.
