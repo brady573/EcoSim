@@ -3479,6 +3479,8 @@ const DEFAULT_CONFIG = {
     nutrientCyclic: null,
     // Modular genome v2 (see field comment). null = declared behaviour, exactly.
     genomeV2: null,
+    // O1 phenotype-class return fractions (see field comment). null = declared.
+    phenoMineralReturn: null,
     nutrientFloor: 0,
     sporeDispersal: null,
     dormantSenescence: null,
@@ -4393,6 +4395,16 @@ __def("world/version.js", function(require, exports, module){/**
 /**
  * Bump on any behavioural change to the simulation.
  *
+ * 0.6.5 adds O1 behaviour WHEN ITS KNOB IS SET: `phenoMineralReturn` scales
+ * the offered mineralization return per expressed donor class, changing
+ * nutrient flow and downstream populations in that configured arm. Knob-unset
+ * runs are bit-identical to 0.6.4 (C1 pins prove it), so the pair 517 ->
+ * 882/170/65, 24601 -> 563/279/90 (500 ticks) still holds — no new
+ * retirement-chain entry, no re-pin. A versioned configured experimental
+ * world is therefore distinguishable from the 0.6.4 O3 measurement identity:
+ * 0.6.4 observations describe O3-books-only runs; any `phenoMineralReturn`
+ * figure belongs to 0.6.5 and must be source-qualified as such.
+ *
  * 0.6.4 is a MEASUREMENT re-base, not a behavioural change. Engine semantics,
  * seed parity and reproducibility are untouched: the pools themselves, the
  * writer paths, and every default are the same, and the pinned pair 517 ->
@@ -4480,14 +4492,14 @@ __def("world/version.js", function(require, exports, module){/**
  * All figures recorded under 0.4.1 describe the DEFECTIVE semantics and are
  * provenance only. See REPORT.md.
  */
-const WORLD_ENGINE_VERSION = 'ts-evo-poc/0.6.4';
+const WORLD_ENGINE_VERSION = 'ts-evo-poc/0.6.5';
 /**
  * Identifier for the credibility-check suite. G30 (per-pool nutrient cap on
  * return paths) shipped with gates/0.4.0; G31 and G32 (the book-level checks)
  * with gates/0.5.0; G33 (phenotype-partitioned mineralization books) with
- * gates/0.6.0.
+ * gates/0.6.0; G34 (O1 phenotype-class suppression) with gates/0.7.0.
  */
-const GATE_SUITE_VERSION = 'gates/0.6.0';
+const GATE_SUITE_VERSION = 'gates/0.7.0';
 
 exports.WORLD_ENGINE_VERSION = WORLD_ENGINE_VERSION;
 exports.GATE_SUITE_VERSION = GATE_SUITE_VERSION;
@@ -5024,6 +5036,12 @@ class World {
         const bioticMineralizationByPheno = {
             attempted: [], accepted: [], capLoss: [], eviction: [],
         };
+        // O1 shadow: UNSCALED would-be offers, same shape. Equals the pheno family
+        // per cell on null/unset runs (G34 asserts); the suppressed-run difference
+        // is the pool/source/class-local forgone return. See G34.
+        const bioticMineralizationShadow = {
+            attempted: [], accepted: [], capLoss: [], eviction: [],
+        };
         for (let g = 0; g < TROPHIC_COUNT; g++) {
             photoUptake[g] = [];
             excretionReturns.attempted[g] = [];
@@ -5080,7 +5098,11 @@ class World {
         this.fillPhenoBook(bioticMineralizationByPheno.accepted, this.bioticPhenoAcceptedClassGuildPoolSource);
         this.fillPhenoBook(bioticMineralizationByPheno.capLoss, this.bioticPhenoCapLossClassGuildPoolSource);
         this.fillPhenoBook(bioticMineralizationByPheno.eviction, this.bioticPhenoEvictionClassGuildPoolSource);
-        return { photoUptake, excretionReturns, bioticMineralization, bioticMineralizationByPheno, abioticRegen, abioticMineralization };
+        this.fillPhenoBook(bioticMineralizationShadow.attempted, this.bioticShadowAttemptedClassGuildPoolSource);
+        this.fillPhenoBook(bioticMineralizationShadow.accepted, this.bioticShadowAcceptedClassGuildPoolSource);
+        this.fillPhenoBook(bioticMineralizationShadow.capLoss, this.bioticShadowCapLossClassGuildPoolSource);
+        this.fillPhenoBook(bioticMineralizationShadow.eviction, this.bioticShadowEvictionClassGuildPoolSource);
+        return { photoUptake, excretionReturns, bioticMineralization, bioticMineralizationByPheno, bioticMineralizationShadow, abioticRegen, abioticMineralization };
     }
     /**
      * Fill one `bioticMineralizationByPheno` book from its flat array.
@@ -5222,6 +5244,8 @@ class World {
     //     source: 0=sediment, 1=detritus, 2=litter
     //   bioticPheno{Attempted,Accepted,CapLoss,Eviction}[class * TROPHIC_COUNT * NUTRIENT_COUNT * 3 + guild * NUTRIENT_COUNT * 3 + pool * 3 + source]
     //     class: 0=carrionOnly, 1=recalcOnly, 2=dual, 3=neither (see classifyMineralPheno)
+    //   bioticShadow{Attempted,Accepted,CapLoss,Eviction}[same stride as bioticPheno]
+    //     would-be UNSCALED offer booked against live headroom, no field writes
     //   abioticRegen[pool]
     //   abioticMineralization[pool * 3 + source]  source: 0=detritus, 1=sediment, 2=litter
     photoUptakeGuildPool = new Float64Array(TROPHIC_COUNT * NUTRIENT_COUNT);
@@ -5271,6 +5295,21 @@ class World {
     bioticPhenoAttemptedClassGuildPoolSource = new Float64Array(MINERAL_PHENO_CLASS_COUNT * TROPHIC_COUNT * NUTRIENT_COUNT * 3);
     bioticPhenoCapLossClassGuildPoolSource = new Float64Array(MINERAL_PHENO_CLASS_COUNT * TROPHIC_COUNT * NUTRIENT_COUNT * 3);
     bioticPhenoEvictionClassGuildPoolSource = new Float64Array(MINERAL_PHENO_CLASS_COUNT * TROPHIC_COUNT * NUTRIENT_COUNT * 3);
+    /**
+     * Shadow books: the UNSCALED (would-be) offer run through the same clamp
+     * math against live cell headroom, WITHOUT writing fields (O1 Gate-2 P2).
+     * On null/unset runs shadow == actual per cell (G34 asserts this, pinning
+     * the duplicated math against the single-arithmetic-site original). On
+     * suppressed runs the per-cell `shadow - actual` difference is the
+     * pool/source/class-local forgone return an O2 dose would need to replace.
+     * Cumulative per (class, pool, source): pool/source-local dosing IS
+     * specifiable; cell/time-exact replacement is NOT with bounded memory (see
+     * the O2 dosing note in REPORT.md). Pure observation like the pheno books.
+     */
+    bioticShadowAttemptedClassGuildPoolSource = new Float64Array(MINERAL_PHENO_CLASS_COUNT * TROPHIC_COUNT * NUTRIENT_COUNT * 3);
+    bioticShadowAcceptedClassGuildPoolSource = new Float64Array(MINERAL_PHENO_CLASS_COUNT * TROPHIC_COUNT * NUTRIENT_COUNT * 3);
+    bioticShadowCapLossClassGuildPoolSource = new Float64Array(MINERAL_PHENO_CLASS_COUNT * TROPHIC_COUNT * NUTRIENT_COUNT * 3);
+    bioticShadowEvictionClassGuildPoolSource = new Float64Array(MINERAL_PHENO_CLASS_COUNT * TROPHIC_COUNT * NUTRIENT_COUNT * 3);
     abioticRegenPool = new Float64Array(NUTRIENT_COUNT);
     abioticMineralizationPoolSource = new Float64Array(NUTRIENT_COUNT * 3);
     /** Diagnostic counters: graze takes split from predation (the ledger merges
@@ -5522,6 +5561,28 @@ class World {
             }
             if (!Number.isFinite(pb.discount) || pb.discount < 0 || pb.discount > 1) {
                 throw new Error(`bad pioneerBonus discount: ${JSON.stringify(pb.discount)}`);
+            }
+        }
+        // O1 phenotype-class return fractions: validated at construction, never
+        // mid-run. null/undefined = declared full return. Each named fraction
+        // must be finite in [0, 1]; anything else throws rather than silently
+        // scaling into a different experiment. The key SET is closed too: an
+        // unknown key (e.g. `neither`, which structurally cannot be suppressed,
+        // or a typo) throws rather than being silently ignored while the user
+        // believes it applies. `neither` is not configurable and always passes
+        // through (see mineraliseThroughCeiling).
+        const pmr = cfg.phenoMineralReturn;
+        if (pmr !== null && pmr !== undefined) {
+            for (const k of ['carrionOnly', 'recalcOnly', 'dual']) {
+                const v = pmr[k];
+                if (typeof v !== 'number' || !Number.isFinite(v) || v < 0 || v > 1) {
+                    throw new Error(`bad phenoMineralReturn.${k}: ${JSON.stringify(v)} (want finite number in [0, 1]; the whole knob may be null for declared behaviour)`);
+                }
+            }
+            for (const k of Object.keys(pmr)) {
+                if (k !== 'carrionOnly' && k !== 'recalcOnly' && k !== 'dual') {
+                    throw new Error(`unknown phenoMineralReturn key: ${JSON.stringify(k)} (want exactly carrionOnly/recalcOnly/dual)`);
+                }
             }
         }
         this.reproSurplus = resolveReproSurplusTicks(cfg);
@@ -5952,28 +6013,44 @@ class World {
      * `data` is passed rather than re-read so the caller's local alias and the
      * written array cannot diverge, and it is mutated in place.
      */
+    /**
+     * One ceiling interaction, pure: the clamp arithmetic both the real return
+     * path and the O1 shadow booking share. Single math site on purpose — the
+     * shadow duplicates NOTHING; G34 pins shadow==actual per cell on null runs,
+     * so any drift between the two readers fails loudly. Operation order
+     * matches the pre-extraction body exactly.
+     */
+    static ceilingOutcome(cap, before, amount) {
+        const after = Math.min(cap, before + amount);
+        // Zero when the cell was already over its ceiling: the incoming amount is
+        // then refused in full and the clamp removes pre-existing excess instead.
+        return {
+            after,
+            acceptedAmt: after > before ? after - before : 0,
+            evictAmt: before > after ? before - after : 0,
+        };
+    }
     returnThroughCeiling(data, nIdx, ci, amount, off, accepted, attempted, capLoss, eviction, 
     // Optional phenotype mirror (O3). Excretion callers omit it and behave
     // byte-identically to before. One holder object per mineralization EVENT
-    // (not per pool call) keeps the hot path allocation-free apart from that
-    // single short-lived object; the booked values are the same locals.
+    // (not per pool call); with the shadow/scratch locals nearby, per-event
+    // short-lived objects total a handful — negligible GC pressure at
+    // measured horizons (peak engine RSS ~149 MB). The booked values are the
+    // same clamp locals either way.
     pheno = null) {
         const cap = this.nutrientCapAt(nIdx, ci);
         const before = data[ci];
-        const after = Math.min(cap, before + amount);
-        data[ci] = after;
-        // Zero when the cell was already over its ceiling: the incoming amount is
-        // then refused in full and the clamp removes pre-existing excess instead.
-        const acceptedAmt = after > before ? after - before : 0;
+        const o = World.ceilingOutcome(cap, before, amount);
+        data[ci] = o.after;
         attempted[off] += amount;
-        accepted[off] += acceptedAmt;
-        capLoss[off] += amount - acceptedAmt;
-        eviction[off] += before > after ? before - after : 0;
+        accepted[off] += o.acceptedAmt;
+        capLoss[off] += amount - o.acceptedAmt;
+        eviction[off] += o.evictAmt;
         if (pheno !== null) {
             pheno.attempted[pheno.off] += amount;
-            pheno.accepted[pheno.off] += acceptedAmt;
-            pheno.capLoss[pheno.off] += amount - acceptedAmt;
-            pheno.eviction[pheno.off] += before > after ? before - after : 0;
+            pheno.accepted[pheno.off] += o.acceptedAmt;
+            pheno.capLoss[pheno.off] += amount - o.acceptedAmt;
+            pheno.eviction[pheno.off] += o.evictAmt;
         }
     }
     /**
@@ -5989,7 +6066,6 @@ class World {
      * `source`: 0=sediment, 1=detritus, 2=litter.
      */
     mineraliseThroughCeiling(slot, ci, nutA, nutB, nutC, returned, source) {
-        const perPool = returned / NUTRIENT_COUNT;
         const g = this.roleOf(slot).trophic;
         const base = (g * NUTRIENT_COUNT * 3 + source);
         // Donor class from LIVE expressed traits at event time (O3). Computed once
@@ -5998,6 +6074,49 @@ class World {
         const s = this.store;
         const cls = classifyMineralPheno(s.trait(slot, TRAIT.PHOTOSYNTHETIC_RATE), s.trait(slot, TRAIT.CARRION_AFFINITY), s.trait(slot, TRAIT.RECALCITRANT_DIGESTION), s.trait(slot, TRAIT.SPEED));
         const phenoBase = cls * TROPHIC_COUNT * NUTRIENT_COUNT * 3 + base;
+        // O1 suppression (Owner Stage 2): shrink the OFFERED return for the named
+        // class. Feeding takes already happened upstream; only this offer, the
+        // book entries below, and the coupled mineralisedCell/bioticMineralised
+        // feedback move. `scale === 1` (and null knob) uses `returned` directly so
+        // declared behaviour is bit-identical; `returned * scale` is exact for
+        // scale 1 anyway, but the branch makes the guarantee structural.
+        // `neither` (cls 3) always passes through: suppressing an anomaly class
+        // would hide stale-flag/trait-drift events instead of reporting them.
+        const pmr = this.config.phenoMineralReturn;
+        let scale = 1;
+        if (pmr !== null && pmr !== undefined && cls !== 3) {
+            scale = cls === 0 ? pmr.carrionOnly : cls === 1 ? pmr.recalcOnly : pmr.dual;
+        }
+        const offered = scale === 1 ? returned : returned * scale;
+        // Suppressed to zero: touch NOTHING (Gate-2 P1a). Passing a zero offer
+        // through the ceiling would clamp an already-over-cap cell down and book
+        // eviction — a second intervention deleting standing nutrient the event
+        // was supposed to leave alone. Natural zero offers (returned == 0 with
+        // scale 1) keep the legacy path exactly, preserving null/unset baseline.
+        const suppressedToZero = offered === 0 && scale === 0;
+        // Shadow (reads live headroom, writes only shadow arrays): the UNSCALED
+        // would-be offer through identical clamp math. On null runs this must
+        // equal the actual books per cell (G34 asserts it). Scalar locals keep
+        // this read path allocation-light; the per-event objects below (one pheno
+        // holder plus ceilingOutcome results) are short-lived and negligible at
+        // measured horizons.
+        const shAtt = this.bioticShadowAttemptedClassGuildPoolSource;
+        const shAcc = this.bioticShadowAcceptedClassGuildPoolSource;
+        const shCap = this.bioticShadowCapLossClassGuildPoolSource;
+        const shEvi = this.bioticShadowEvictionClassGuildPoolSource;
+        for (let p = 0; p < NUTRIENT_COUNT; p++) {
+            const nut = p === 0 ? nutA : p === 1 ? nutB : nutC;
+            const so = phenoBase + p * 3;
+            const perFull = returned / NUTRIENT_COUNT;
+            const o = World.ceilingOutcome(this.nutrientCapAt(p, ci), nut[ci], perFull);
+            shAtt[so] += perFull;
+            shAcc[so] += o.acceptedAmt;
+            shCap[so] += perFull - o.acceptedAmt;
+            shEvi[so] += o.evictAmt;
+        }
+        if (suppressedToZero)
+            return;
+        const perPool = offered / NUTRIENT_COUNT;
         const pheno = {
             accepted: this.bioticPhenoAcceptedClassGuildPoolSource,
             attempted: this.bioticPhenoAttemptedClassGuildPoolSource,
@@ -6012,8 +6131,12 @@ class World {
         this.returnThroughCeiling(nutB, 1, ci, perPool, base + 1 * 3, this.bioticMineralizationGuildPoolSource, this.bioticAttemptedGuildPoolSource, this.bioticCapLossGuildPoolSource, this.bioticEvictionGuildPoolSource, pheno);
         pheno.off = phenoBase + 2 * 3;
         this.returnThroughCeiling(nutC, 2, ci, perPool, base + 2 * 3, this.bioticMineralizationGuildPoolSource, this.bioticAttemptedGuildPoolSource, this.bioticCapLossGuildPoolSource, this.bioticEvictionGuildPoolSource, pheno);
-        this.bioticMineralised += returned;
-        this.mineralisedCell[ci] += returned;
+        // The SCALED offer drives the coupled feedback (cyclic regen reads
+        // mineralisedCell; broadcast reads bioticMineralised): suppression's
+        // downstream coupling is therefore measured distinctly through the
+        // existing abiotic books, never routed around.
+        this.bioticMineralised += offered;
+        this.mineralisedCell[ci] += offered;
     }
     writeRole(slot, r) {
         const rb = slot * ROLE_STRIDE;

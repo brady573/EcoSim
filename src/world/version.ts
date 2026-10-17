@@ -14,6 +14,16 @@
 /**
  * Bump on any behavioural change to the simulation.
  *
+ * 0.6.5 adds O1 behaviour WHEN ITS KNOB IS SET: `phenoMineralReturn` scales
+ * the offered mineralization return per expressed donor class, changing
+ * nutrient flow and downstream populations in that configured arm. Knob-unset
+ * runs are bit-identical to 0.6.4 (C1 pins prove it), so the pair 517 ->
+ * 882/170/65, 24601 -> 563/279/90 (500 ticks) still holds — no new
+ * retirement-chain entry, no re-pin. A versioned configured experimental
+ * world is therefore distinguishable from the 0.6.4 O3 measurement identity:
+ * 0.6.4 observations describe O3-books-only runs; any `phenoMineralReturn`
+ * figure belongs to 0.6.5 and must be source-qualified as such.
+ *
  * 0.6.4 is a MEASUREMENT re-base, not a behavioural change. Engine semantics,
  * seed parity and reproducibility are untouched: the pools themselves, the
  * writer paths, and every default are the same, and the pinned pair 517 ->
@@ -101,12 +111,12 @@
  * All figures recorded under 0.4.1 describe the DEFECTIVE semantics and are
  * provenance only. See REPORT.md.
  */
-export const WORLD_ENGINE_VERSION = 'ts-evo-poc/0.6.4';
+export const WORLD_ENGINE_VERSION = 'ts-evo-poc/0.6.5';
 
 /**
  * Identifier for the credibility-check suite. G30 (per-pool nutrient cap on
  * return paths) shipped with gates/0.4.0; G31 and G32 (the book-level checks)
  * with gates/0.5.0; G33 (phenotype-partitioned mineralization books) with
- * gates/0.6.0.
+ * gates/0.6.0; G34 (O1 phenotype-class suppression) with gates/0.7.0.
  */
-export const GATE_SUITE_VERSION = 'gates/0.6.0';
+export const GATE_SUITE_VERSION = 'gates/0.7.0';
