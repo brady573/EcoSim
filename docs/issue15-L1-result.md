@@ -98,6 +98,20 @@ the preregistered falsifier firing.
   refute *reachability* of local limitation, not dependence or reliance.
 - Partial limitation (`0 < lim < 1`) remains unobservable without the private
   `demand` chain; the detector sees only the strict `lim = 0` case (prereg s.1).
+- Detector precision: the engine runs the photosynthesis block only when
+  `photo > 0.02` (`src/world/world.ts:2795`), while the detector counts every
+  producer-displayed organism. A producer with `photo <= 0.02` standing on an
+  empty pool would therefore be over-counted as limited. Measured on seed 517
+  t500: 0 of 922 producer-displayed organisms fall in that class, so the
+  over-count is nil here. Note the direction: any such over-count inflates the
+  measured fraction, so it can only have made R1 EASIER to pass — the R1
+  negative stands a fortiori.
+- Self-verification (NOT independent): R1 recomputed from `l1-panel.json`
+  (conjunction satisfied by nothing) and C==A identity confirmed on both seeds
+  by direct field comparison. An independent `review` pass could not be
+  obtained: the review specialist's model was unavailable (two attempts,
+  infrastructure error). The Design Partner's GitHub review of this packet is
+  the independent check that this stage still owes.
 - The late-emerging limitation at t500 means the 500-tick horizon under-samples
   the constrained regime's duration.
 
