@@ -55,6 +55,32 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  browser-smoke:
+    name: Primary and portable browser smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: 'npm'
+      - run: npm ci --no-audit --no-fund
+      - name: Build primary viewer modules
+        run: npm run view:build
+      - name: Build portable viewer independently
+        run: npm run build:app
+      - name: Install Chromium in CI only
+        run: npx playwright install --with-deps --only-shell chromium
+      - name: Exercise real browser acceptance paths
+        run: node scripts/browser-smoke.mjs
+      - name: Browser evidence and screenshots
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: browser-smoke-evidence
+          path: build/browser-smoke/
+          if-no-files-found: warn
   ci:
     name: Typecheck, gates, contract
     runs-on: ubuntu-latest
@@ -85,6 +111,11 @@ jobs:
       # Run from compiled output — see the runtime note above.
       - name: Behavioural gates
         run: npm run gates:compiled
+
+      - name: Primary viewer advanced-path checks
+        run: node scripts/viewer-checks.mjs
+      - name: Passive chemistry boundary checks
+        run: node scripts/chem-boundary-checks.mjs
 
       # App bundle input. Deliberately a SEPARATE tsconfig from the CLI build:
       # tsconfig.app.json -> build/app/, tsconfig.build.json -> build/. Building

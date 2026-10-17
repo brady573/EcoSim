@@ -1,0 +1,19 @@
+IDENTITY: ts-evo-poc/0.7.0+chem/0.7.2 | seeds: 5 | ticks: 1000 
+
+base               pop med     6 [3..39]  births med     6  OC med    1935  DIC med     22694  legacyDetritus med     266
+H9 scale 3         pop med     7 [3..46]  births med     6  OC med    1917  DIC med     66700  legacyDetritus med     270
+H9 scale 10        pop med     8 [3..45]  births med     6  OC med    1924  DIC med    220696  legacyDetritus med     268
+H9 scale 30        pop med     8 [3..51]  births med     6  OC med    1919  DIC med    660695  legacyDetritus med     268
+H10 bridge         pop med     6 [3..10]  births med     6  OC med    1960  DIC med     22689  legacyDetritus med     546
+H11 both           pop med     7 [4..77]  births med     6  OC med    1903  DIC med    660696  legacyDetritus med     540
+ref freeNutrients  pop med    74 [41..286]  births med   241  OC med    1661  DIC med     22841  legacyDetritus med     231
+chemOff            pop med   788 [409..1011]  births med     0  OC med       0  DIC med         0  legacyDetritus med       0
+
+--- arms-differ check vs base (pop/OC/DIC signature) ---
+H9 scale 3         distinct
+H9 scale 10        distinct
+H9 scale 30        distinct
+H10 bridge         distinct
+H11 both           distinct
+ref freeNutrients  distinct
+chemOff            distinct

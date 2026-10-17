@@ -1,0 +1,312 @@
+[
+  {
+    "id": 79,
+    "parentId": -1,
+    "birthTick": 0,
+    "firstMatterAffordableTick": 241,
+    "firstMatureMatterAffordableTick": 241,
+    "firstActualOffspringTick": 241,
+    "deathTick": 953,
+    "gateObservations": 953
+  },
+  {
+    "id": 119,
+    "parentId": -1,
+    "birthTick": 0,
+    "firstMatterAffordableTick": 289,
+    "firstMatureMatterAffordableTick": 289,
+    "firstActualOffspringTick": 295,
+    "deathTick": 533,
+    "gateObservations": 533
+  },
+  {
+    "id": 200,
+    "parentId": -1,
+    "birthTick": 0,
+    "firstMatterAffordableTick": 225,
+    "firstMatureMatterAffordableTick": 225,
+    "firstActualOffspringTick": 267,
+    "deathTick": 403,
+    "gateObservations": 403
+  },
+  {
+    "id": 401,
+    "parentId": 79,
+    "birthTick": 241,
+    "firstMatterAffordableTick": null,
+    "firstMatureMatterAffordableTick": null,
+    "firstActualOffspringTick": null,
+    "deathTick": 248,
+    "gateObservations": 7
+  },
+  {
+    "id": 402,
+    "parentId": 79,
+    "birthTick": 241,
+    "firstMatterAffordableTick": null,
+    "firstMatureMatterAffordableTick": null,
+    "firstActualOffspringTick": null,
+    "deathTick": null,
+    "gateObservations": 759
+  },
+  {
+    "id": 403,
+    "parentId": 79,
+    "birthTick": 241,
+    "firstMatterAffordableTick": null,
+    "firstMatureMatterAffordableTick": null,
+    "firstActualOffspringTick": null,
+    "deathTick": 990,
+    "gateObservations": 749
+  },
+  {
+    "id": 404,
+    "parentId": 79,
+    "birthTick": 241,
+    "firstMatterAffordableTick": null,
+    "firstMatureMatterAffordableTick": null,
+    "firstActualOffspringTick": null,
+    "deathTick": 755,
+    "gateObservations": 514
+  },
+  {
+    "id": 405,
+    "parentId": 79,
+    "birthTick": 241,
+    "firstMatterAffordableTick": 663,
+    "firstMatureMatterAffordableTick": 663,
+    "firstActualOffspringTick": null,
+    "deathTick": null,
+    "gateObservations": 759
+  },
+  {
+    "id": 406,
+    "parentId": 79,
+    "birthTick": 241,
+    "firstMatterAffordableTick": null,
+    "firstMatureMatterAffordableTick": null,
+    "firstActualOffspringTick": null,
+    "deathTick": 550,
+    "gateObservations": 309
+  },
+  {
+    "id": 407,
+    "parentId": 200,
+    "birthTick": 267,
+    "firstMatterAffordableTick": null,
+    "firstMatureMatterAffordableTick": null,
+    "firstActualOffspringTick": null,
+    "deathTick": 486,
+    "gateObservations": 219
+  },
+  {
+    "id": 408,
+    "parentId": 200,
+    "birthTick": 267,
+    "firstMatterAffordableTick": null,
+    "firstMatureMatterAffordableTick": null,
+    "firstActualOffspringTick": null,
+    "deathTick": null,
+    "gateObservations": 733
+  },
+  {
+    "id": 409,
+    "parentId": 200,
+    "birthTick": 267,
+    "firstMatterAffordableTick": null,
+    "firstMatureMatterAffordableTick": null,
+    "firstActualOffspringTick": null,
+    "deathTick": 737,
+    "gateObservations": 470
+  },
+  {
+    "id": 410,
+    "parentId": 200,
+    "birthTick": 267,
+    "firstMatterAffordableTick": null,
+    "firstMatureMatterAffordableTick": null,
+    "firstActualOffspringTick": null,
+    "deathTick": 457,
+    "gateObservations": 190
+  },
+  {
+    "id": 411,
+    "parentId": 200,
+    "birthTick": 267,
+    "firstMatterAffordableTick": null,
+    "firstMatureMatterAffordableTick": null,
+    "firstActualOffspringTick": null,
+    "deathTick": 568,
+    "gateObservations": 301
+  },
+  {
+    "id": 412,
+    "parentId": 200,
+    "birthTick": 267,
+    "firstMatterAffordableTick": null,
+    "firstMatureMatterAffordableTick": null,
+    "firstActualOffspringTick": null,
+    "deathTick": 405,
+    "gateObservations": 138
+  },
+  {
+    "id": 413,
+    "parentId": 200,
+    "birthTick": 267,
+    "firstMatterAffordableTick": null,
+    "firstMatureMatterAffordableTick": null,
+    "firstActualOffspringTick": null,
+    "deathTick": 396,
+    "gateObservations": 129
+  },
+  {
+    "id": 414,
+    "parentId": 200,
+    "birthTick": 267,
+    "firstMatterAffordableTick": null,
+    "firstMatureMatterAffordableTick": null,
+    "firstActualOffspringTick": null,
+    "deathTick": 394,
+    "gateObservations": 127
+  },
+  {
+    "id": 415,
+    "parentId": 119,
+    "birthTick": 295,
+    "firstMatterAffordableTick": null,
+    "firstMatureMatterAffordableTick": null,
+    "firstActualOffspringTick": null,
+    "deathTick": 777,
+    "gateObservations": 482
+  },
+  {
+    "id": 416,
+    "parentId": 119,
+    "birthTick": 295,
+    "firstMatterAffordableTick": null,
+    "firstMatureMatterAffordableTick": null,
+    "firstActualOffspringTick": null,
+    "deathTick": 808,
+    "gateObservations": 513
+  },
+  {
+    "id": 417,
+    "parentId": 119,
+    "birthTick": 295,
+    "firstMatterAffordableTick": null,
+    "firstMatureMatterAffordableTick": null,
+    "firstActualOffspringTick": null,
+    "deathTick": 776,
+    "gateObservations": 481
+  },
+  {
+    "id": 418,
+    "parentId": 119,
+    "birthTick": 295,
+    "firstMatterAffordableTick": null,
+    "firstMatureMatterAffordableTick": null,
+    "firstActualOffspringTick": null,
+    "deathTick": 781,
+    "gateObservations": 486
+  },
+  {
+    "id": 419,
+    "parentId": 119,
+    "birthTick": 295,
+    "firstMatterAffordableTick": null,
+    "firstMatureMatterAffordableTick": null,
+    "firstActualOffspringTick": null,
+    "deathTick": 790,
+    "gateObservations": 495
+  },
+  {
+    "id": 420,
+    "parentId": 119,
+    "birthTick": 295,
+    "firstMatterAffordableTick": null,
+    "firstMatureMatterAffordableTick": null,
+    "firstActualOffspringTick": null,
+    "deathTick": 809,
+    "gateObservations": 514
+  },
+  {
+    "id": 421,
+    "parentId": 119,
+    "birthTick": 295,
+    "firstMatterAffordableTick": null,
+    "firstMatureMatterAffordableTick": null,
+    "firstActualOffspringTick": null,
+    "deathTick": null,
+    "gateObservations": 705
+  },
+  {
+    "id": 422,
+    "parentId": 79,
+    "birthTick": 430,
+    "firstMatterAffordableTick": 751,
+    "firstMatureMatterAffordableTick": 751,
+    "firstActualOffspringTick": null,
+    "deathTick": 939,
+    "gateObservations": 509
+  },
+  {
+    "id": 423,
+    "parentId": 79,
+    "birthTick": 430,
+    "firstMatterAffordableTick": 787,
+    "firstMatureMatterAffordableTick": 787,
+    "firstActualOffspringTick": null,
+    "deathTick": null,
+    "gateObservations": 570
+  },
+  {
+    "id": 424,
+    "parentId": 79,
+    "birthTick": 430,
+    "firstMatterAffordableTick": 775,
+    "firstMatureMatterAffordableTick": 775,
+    "firstActualOffspringTick": null,
+    "deathTick": 995,
+    "gateObservations": 565
+  },
+  {
+    "id": 425,
+    "parentId": 79,
+    "birthTick": 532,
+    "firstMatterAffordableTick": 860,
+    "firstMatureMatterAffordableTick": 860,
+    "firstActualOffspringTick": null,
+    "deathTick": null,
+    "gateObservations": 468
+  },
+  {
+    "id": 426,
+    "parentId": 79,
+    "birthTick": 532,
+    "firstMatterAffordableTick": 896,
+    "firstMatureMatterAffordableTick": 896,
+    "firstActualOffspringTick": null,
+    "deathTick": null,
+    "gateObservations": 468
+  },
+  {
+    "id": 427,
+    "parentId": 79,
+    "birthTick": 532,
+    "firstMatterAffordableTick": 941,
+    "firstMatureMatterAffordableTick": 941,
+    "firstActualOffspringTick": null,
+    "deathTick": null,
+    "gateObservations": 468
+  },
+  {
+    "id": 428,
+    "parentId": 79,
+    "birthTick": 532,
+    "firstMatterAffordableTick": 970,
+    "firstMatureMatterAffordableTick": 970,
+    "firstActualOffspringTick": null,
+    "deathTick": null,
+    "gateObservations": 468
+  }
+]

@@ -14,56 +14,8 @@
 /**
  * Bump on any behavioural change to the simulation.
  *
- * 0.6.3 is a MEASUREMENT re-base, not a behavioural change. Engine semantics,
- * seed parity and reproducibility are untouched: the pools themselves, the
- * writer paths, and every default are the same, and the pinned pair 517 ->
- * 882/170/65, 24601 -> 563/279/90 (500 ticks) still holds — no new
- * retirement-chain entry, no re-pin.
- *
- * What this release changes is the instrumentation the probes read:
- *   - `getFluxSnapshot()` exposes four books per return (attempted, accepted,
- *     capLoss, eviction) under one `ReturnBooks<T>` grouping, instead of a
- *     single signed "returns" number computed as `min(cap, before + in) -
- *     before`, which went NEGATIVE whenever a cell was already over its own
- *     cap when a return arrived — routine, because diffusion runs after the
- *     regeneration clamp — so ceiling deletion was being reported as
- *     biological recycling. The returned `accepted` quantity is the same
- *     `Math.min(cap, before + amount)` arithmetic as before; what moved is
- *     what is OBSERVED, not what is WRITTEN. The exact identities hold in
- *     the float64 clamp arithmetic:
- *         accepted - eviction == observed delta
- *         attempted == accepted + capLoss
- *     The pools are Float32Array, so field agreement carries float32 write
- *     rounding (~1e-8 relative, measured end-to-end by G31).
- *
- *   - ReproProbe accepts labelled sexual events for matingdiag. ReproProbeLog
- *     ignores these events, preserving its asexual-lottery metrics.
- *
- * Historical note: the per-pool RETURN cap (configuration multipliers [1.0, 0.78,
- * 0.62] instead of one flat `nutrientPerCell * fertility`) was corrected under
- * 0.6.2 and pinned by G30 at `gates/0.4.0`. 0.6.2 saturation figures are valid
- * provenance for that corrected engine. Earlier flat-cap measurements remain
- * evidence of the earlier source snapshot, not of the corrected paths.
- * No nutrient-write arithmetic changes relative to this PR's reviewed head;
- * existing corrected saturation runs do not require biological remeasurement.
- *
- * 0.6.2 corrects two behavioural defects found by independent review:
- *   - radiationMultiplier dormant coupling inverted intent: at 0 dormancy
- *     produced 0x mutation (should be 1x background). Fixed to couple only
- *     the excess over 1x, so 0 dormancy = 1x, full dormant share = full mult.
- *   - Mating logic: sensed mateTarget skipped asexual breeding even when no
- *     mutual mating occurred. Fixed to only skip asexual for slots with a
- *     confirmed successful mating this tick (surplus-checked, reciprocal).
- *     Asexual is now always available as fallback; mate-seeking genotypes
- *     breed slower asexually, creating a genuine trade-off.
- *   Parity re-pinned: 517 -> 882/170/65, 24601 -> 563/279/90.
- *
- * 0.6.1 grants fasting tolerance to starvation damage (Owner constraint
- * 2026-10-12: body reserves buffer brief deficits). Damage ramps 0 -> full
- * over STARVE_GRACE_TICKS consecutive-deficit ticks; sustained deficit still
- * kills at full rate. Parity is re-pinned below; all figures recorded under
- * 0.6.0 describe the instantaneous-damage semantics and are earlier-engine
- * evidence, not current behaviour.
+ * 0.7.0 corrects the legacy coarse-canopy lookup at the Owner's explicit
+ * authorisation and re-pins parity. See the version constant for detail.
  *
  * 0.6.0 closes the energy accounting defects found by independent review
  * (issue #2). Parity is re-pinned: 517 -> 808/159/58, 24601 -> 558/290/96.
@@ -82,11 +34,104 @@
  * All figures recorded under 0.4.1 describe the DEFECTIVE semantics and are
  * provenance only. See REPORT.md.
  */
-export const WORLD_ENGINE_VERSION = 'ts-evo-poc/0.6.3';
+/**
+ * 0.7.0 — OWNER-AUTHORISED CANOPY CORRECTION, 2026-10-13.
+ *
+ * The legacy photosynthesis path indexed the COARSE canopy array `shadeMass`
+ * (shadeCols x shadeRows, shadeGrain 4) with a FULL-RESOLUTION substrate cell.
+ * With the default grain that read an unrelated cell for 15/16 of the world and
+ * ran off the end of the array for the rest, so Beer-Lambert self-shading was
+ * effectively disabled in that path and producer income had no density
+ * dependence. Parity is re-pinned: 517 -> 492/136/74, 24601 -> 296/171/74.
+ *
+ * The retired 0.6.0 pins 808/159/58 and 558/290/96 were measured THROUGH the
+ * defect. Every figure recorded under 0.6.0 is provenance, not current
+ * behaviour.
+ *
+ * Two gates were exposed by the correction and changed to test what they name:
+ * G12 asserted a biotic flux on the FINAL tick, and the corrected ecosystem no
+ * longer sustains that loop by ~tick 100; G12 now asserts the read/clear
+ * ORDERING it exists to catch. G28 asserted NET standing tissue rises, and the
+ * corrected balance has deaths exceeding growth inside the window; G28 now
+ * asserts growth occurs, measured as the largest single-organism tissue gain.
+ * Neither weakening is cosmetic — both prior assertions were ecological claims
+ * the gates never made.
+ */
+// Reconciliation with main's 0.6.3: fasting tolerance, mating/radiation fixes,
+// per-pool nutrient caps and observers combined with the canopy correction.
+// Earlier 0.7.0 and 0.6.3 panels are provenance, not this engine's live pins.
+export const WORLD_ENGINE_VERSION = 'ts-evo-poc/0.8.0';
 
 /**
- * Identifier for the credibility-check suite. G30 (per-pool nutrient cap on
- * return paths) shipped with gates/0.4.0; only G31 and G32 (the book-level
- * checks) were added in this release.
+ * Semantics version for the chemistry-enabled model.
+ *
+ * SEPARATE FROM THE BASE VERSION ON PURPOSE. Every figure in the evidence base
+ * is recorded against `ts-evo-poc/0.6.0` with chemistry unset, and the chemistry
+ * subsystem is a null-default diagnostic precisely so it cannot perturb those
+ * pins. That isolation means one version string was covering TWO different sets
+ * of simulation semantics: a run with chemistry off and a run with chemistry on
+ * reported the same identity while differing in what a reaction does, how
+ * matter is booked, and what "growth" even means.
+ *
+ * That is the exact failure the pinned-version discipline exists to prevent.
+ * Under 0.5.0 this repository published an 89% carbon figure for an engine whose
+ * carbon was within 2%, because the defect changed the numbers without changing
+ * the name. A changed-semantics run sharing an identity with the old one is the
+ * same failure in a new place, and it would be invisible to any consumer that
+ * reads only the version.
+ *
+ * Bumped to 0.7.0 for the keyed accounting semantics (conservation accounting closed,
+ * photosynthesis gated on local light, detrital sulfur aligned to tissue stoichiometry).
+ *
+ * chem/0.7.1 adds the causal energy reconciliation, H/O death release,
+ * and the diagnostic bridge ledger booking. These are accounting-identity changes
+ * while preserving chemistry-off runs, so it is a chemistry-component bump.
  */
-export const GATE_SUITE_VERSION = 'gates/0.5.0';
+// Owner D1/D2, 2026-10-15: dimensionally valid limiting-element growth and
+// linear macronutrient offspring demand. All chem/0.7.7 panels are historical;
+// chemistry-unset base semantics and parity remain unchanged.
+export const CHEMISTRY_ENGINE_VERSION = 'chem/0.7.8';
+
+/**
+ * Whether the chemistry semantics themselves changed in the 0.7.0 correction.
+ *
+ * They did not. The chemistry light path already mapped substrate cells onto
+ * the coarse canopy grid correctly, so correcting the LEGACY lookup left the
+ * chemistry light term unchanged. What moved is the BASE component of the
+ * composite identity, so a chemistry-on run is now
+ * `ts-evo-poc/0.7.0+chem/0.7.0` — a different string, and therefore
+ * distinguishable from every pre-correction chemistry run, without claiming the
+ * chemistry subsystem itself changed.
+ */
+
+/**
+ * The identity a run actually has, given its resolved configuration.
+ *
+ * A chemistry-enabled run is a DIFFERENT MODEL, not a configuration of the
+ * pinned one, and is reported as such. Evidence produced under either string
+ * cannot be silently compared against the other, because the strings differ.
+ */
+export function runIdentity(config: boolean | { chemistry?: boolean | null; chemistryReactionOmit?: string | null }): string {
+  const chemistryEnabled = typeof config === 'boolean' ? config : config.chemistry === true;
+  const omission = typeof config === 'boolean' ? null : config.chemistryReactionOmit;
+  const base = chemistryEnabled ? `${WORLD_ENGINE_VERSION}+${CHEMISTRY_ENGINE_VERSION}` : WORLD_ENGINE_VERSION;
+  if (omission == null) return base;
+  if (!chemistryEnabled || !['nitrification', 'iron oxidation', 'iron uptake'].includes(omission)) {
+    throw new Error('invalid research omission identity');
+  }
+  return `${base}+rxomit/1/${omission.replaceAll(' ', '-')}`;
+}
+
+/** Identifier for the credibility-check suite that accompanies this version. */
+/**
+ * 0.5.0 — two gates changed what they assert (G12: ordering not a sustained
+ * cycle; G28: growth occurs, not net standing stock) and G34 was added for the
+ * Owner-authorised canopy correction. The suite's semantics changed, so a
+ * result recorded under gates/0.4.0 is not comparable without re-running.
+ *
+ * gates/0.7.6 covers the current suite through G40 with split conservation
+ * tolerances, a discriminating 1:1 H/O uptake control, and the three-arm
+ * cross-organism shared-budget control.
+ */
+// Combined chemistry and main validation suite, including G41-G47.
+export const GATE_SUITE_VERSION = 'gates/0.8.2';

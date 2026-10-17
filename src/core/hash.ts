@@ -108,6 +108,37 @@ export class RollingDigest {
     this.h = h >>> 0;
   }
 
+  /**
+   * Fold a float64 array, or a subarray view of one.
+   *
+   * Chemistry inventories are Float64 (ChemField and chemStores are), and
+   * feeding them through mixF32Array would either fail to typecheck or silently
+   * quantise them to float32 before hashing. Two runs whose iron inventories
+   * differ in the seventh decimal would then hash identically — which is the
+   * same class of failure as hashing a quantity that was never measured.
+   */
+  mixF64Array(a: Float64Array): void {
+    // Fold the IEEE-754 bits, not a scaled truncation.
+    //
+    // The first version did `(h ^ (v * 1e6) >>> 0)`, where the shift binds
+    // tighter than the xor, so each value collapsed to `ToUint32(v * 1e6)`.
+    // Every magnitude below 1e-6 hashed identically to zero, fractional
+    // differences under 1e-6 collided, and NaN and -0 aliased to zero — all of
+    // which the header of this file explicitly promises cannot happen. Two
+    // chemical states differing by less than a micromole would hash the same,
+    // which is the exact failure the spatial fix was made to remove.
+    const buf = new DataView(new ArrayBuffer(8));
+    let h = this.h;
+    for (let i = 0; i < a.length; i++) {
+      buf.setFloat64(0, a[i]);
+      h = (h ^ buf.getUint32(0)) >>> 0;
+      h = Math.imul(h, FNV_PRIME) >>> 0;
+      h = (h ^ buf.getUint32(4)) >>> 0;
+      h = Math.imul(h, FNV_PRIME) >>> 0;
+    }
+    this.h = h >>> 0;
+  }
+
   /** Fold a whole byte array, or a subarray view of one. */
   mixBytes(a: Uint8Array): void {
     let h = this.h;

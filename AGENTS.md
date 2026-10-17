@@ -16,9 +16,13 @@ This file governs repository practice only.
 
 `ts-evolution-poc` — a disposable, evidence-driven experiment in whole-ecosystem
 evolutionary simulation. Single TypeScript tree. Engine version
-`ts-evo-poc/0.6.3`.
+`ts-evo-poc/0.8.0` (main 0.6.3 reconciled with the canopy and chemistry branch).
 
 - **STATUS: EXPERIMENTAL. NOT PRODUCTION CODE.**
+- Current chemistry identity: `chem/0.7.8` (Owner-accepted D1/D2, 2026-10-15).
+  Chemistry-unset parity and base `ts-evo-poc/0.8.0` are unchanged. Chemistry
+  figures under `chem/0.7.7` below are historical, not current measurements;
+  use `CHEM-078-CORRECTIONS.md` for the new identity's qualified scope.
 - Judged on **reproducibility, honest accounting, emergence without forcing,
   and multi-seed method** — not on conformance to any product architecture.
 - The Project Owner is the sole product and design authority. The Coding Agent
@@ -102,18 +106,17 @@ Required before a change is considered done:
 1. **Typecheck clean.**
 2. **Gates pass** (`src/gates.ts`).
 3. **Knobs-unset parity exact** against pinned values — currently seed 517 →
-   `P882 C170 D65` and 24601 → `P563 C279 D90` at 500 ticks, engine
-   `ts-evo-poc/0.6.3` (same pair as 0.6.2; no re-pin). A change that alters these with no knob set has changed
+   `P503 C126 D69` and 24601 → `P337 C119 D95` at 500 ticks, engine
+   `ts-evo-poc/0.8.0`. The retired 0.7.0 pair was 492/136/74 and 296/171/74;
+   main's retired 0.6.3 pair was 882/170/65 and 563/279/90. Both describe
+   different semantics from this reconciliation. A change that alters these with no knob set has changed
    declared behaviour.
 
-   The per-pool return-cap fix landed in `e484b3f` while still labelled 0.6.2;
-   G30 was pinned in `d0fdd57`. Earlier flat-cap and later corrected 0.6.2
-   saturation logs must be distinguished by source snapshot, not version alone.
-   0.6.3 identifies the corrected cap plus repaired measurement contract.
-   Relative to `d0fdd57`, nutrient writes are unchanged; corrected saturation
-   evidence stays valid provenance. Do not re-run broad cohorts just to repin it.
+   **`scripts/contract-checks.mjs` is the single source of truth for the live
+   pins.** If this file and that script ever disagree, the script is correct
+   and this paragraph is stale.
 
-   These values were re-pinned **four times**. The chain of retired values is
+   These values were re-pinned **twice**. The chain of retired values is
    recorded in `scripts/contract-checks.mjs` beside the live ones:
    - `813/135/81`, `542/234/109` @ 0.6.1 — fasting tolerance (starvation damage
      ramps over consecutive-deficit ticks); producers/decomposers hold better,
@@ -122,6 +125,14 @@ Required before a change is considered done:
      ramps over 6 consecutive-deficit ticks); producers/decomposers hold
      better, consumers lower at unset defaults;
    - `881/187/73`, `658/280/98` @ 0.4.1 — three behavioural defects corrected;
+   - `808/159/58`, `558/290/96` @ 0.6.0 — **the Owner-authorised canopy
+     correction of 2026-10-13.** The legacy photosynthesis path indexed the
+     COARSE canopy array `shadeMass` with a full-resolution substrate cell, so
+     Beer-Lambert self-shading was effectively disabled there and producer
+     income had no density dependence. Every figure recorded under 0.6.0 —
+     parity, populations, guild composition, cohorts, performance — was
+     measured through that defect and is provenance, not current behaviour. See
+     `EVIDENCE-INVENTORY.md`;
    - `778/169/63`, `597/246/103` @ 0.5.0 — the mineralisation broadcast was
      inflating substrate by the cell count, which changed producer growth and
      therefore everything downstream;
@@ -150,6 +161,15 @@ Required before a change is considered done:
    any change to `tools/ladder/`, `tools/diagnostics/`, `scripts/`, or the
    workflows. Gates prove a *run* is sound; these prove the layer that reports
    the run cannot report a measurement it did not take.
+
+   W9 and W10 cover provenance specifically. W9 asserts the evidence inventory
+   has exactly one CURRENT chemistry identity, matching `version.ts`, with no
+   duplicate rows, and that every `evidence/` path it cites exists. W10 asserts
+   every declared verdict figure is present in the CURRENT raw panel *and* in
+   the document that quotes it. Stale figures lifted from a retired panel are
+   the recurring failure here, so they are checked mechanically rather than by
+   rereading. Adding a figure means adding a case to
+   `scripts/check-doc-figures.mjs`.
 
 ### The evidence layer is not the engine
 
@@ -233,6 +253,16 @@ troubleshooting shortcut.
 
 The repository has **no remote**. Creating one is an Owner decision.
 
+## Owner authorization (experimental branch)
+
+The Project Owner has granted blanket authorization for experimental implementation,
+parameter choice, sequencing, hypothesis re-runs, ablation work, and integration
+on this isolated branch. Routine experimental decisions are not Owner-gated during
+this phase.
+
+The only hard boundary remains: no merging and no integration into the
+maintained Digital Evolution product without explicit Owner approval.
+
 ## When to stop and ask
 
 Surface rather than guess when: a change would alter reproducibility semantics
@@ -282,6 +312,14 @@ tested the helper and not the world. Four more rules follow from that:
   Expressed traits rise with age and then FALL BACK as energy cannot sustain
   them. A begin/end comparison on one organism reads "unchanged" while
   development plainly happened in between (G21, G23).
+- **Quote the figure's panel, not the panel's predecessor.** A verdict table is
+  only current if the current raw panel measures that quantity. The
+  three-guild coexistence and generation-depth tables were carried across
+  several identities before being re-measured under `chem/0.7.7`, and the
+  chemistry-OFF decomposer figure moved from 6/10 to 2/10 when it finally was.
+  `scripts/chem-cohort.mjs` now emits per-guild births and generation depth so
+  the headline claims are measured, and W10 pins each of those figures to the
+  panel that produced it.
 - **A population difference between knob-set and knob-unset arms is not
   evidence of biology.** Enabling the knob draws extra randomness, so the arms
   diverge on the stochastic trajectory before anything is compared. This
@@ -301,3 +339,79 @@ tested the helper and not the world. Four more rules follow from that:
 - **Quote measured bytes, not derived ones.** This section published "80
   bytes/organism" for a buffer that is 256. The allocation is unconditional, so
   the cost is paid with the knob off.
+
+### Declared integration limits (chemistry ↔ legacy)
+
+These are **limits, not claims**. Each is stated so a reader does not have to
+infer integration that does not exist.  The energy-integration line below is
+guarded by G36, which enforces it two-sidedly (non-zero income/spend above the
+tolerance, matching flux, bridge arm fires and closes, unbooked energy breaks
+the identity).
+
+- **`freeNutrients` is an explicit exogenous subsidy.** H/O/N/P/S/Fe stores are
+  topped up to the physical assimilation target and the amount is booked in
+  `chemistry.flux.freeNutrientSubsidy`, so the elemental audit can balance it.
+  Carbon is NOT subsidised: it must still be assimilated from organic carbon.
+  The growth ceiling and offspring nutrient gate are no longer bypassed. G38
+  proves the subsidy is non-zero, produces real tissue, and conserves C/N/P/S/Fe.
+- **`freeEnergy` relaxes the growth DECISION, not the spend.** With the knob set,
+  the growth budget is exactly what the requested tissue costs, so growth depends
+  on matter alone as its contract states — but the cost is still charged against
+  `store.energy`, so maximal matter-permitted growth can still drive an organism
+  into legacy starvation. The contract is satisfied for the decision and not for
+  the organism; stated here because the original defect exploited exactly that
+  ambiguity.
+- **Chemistry reaction allocation uses one gross per-cell substrate budget for
+  the whole tick.** `reactionExtent()` books every realized substrate draw
+  through `chemistry.claimGross()`, which writes into the SAME `claimed`
+  reservation array assimilation uses — so reactions and uptake share a single
+  pre-tick snapshot budget across every organism in the cell. Products never
+  refill it. The FIELD still receives the net delta (a same-pool reaction's
+  returned fraction is real product); only the reservation is one-sided.
+  Fixed `REACTIONS` order is the declared deterministic priority rule.
+
+  G37 proves the budget binds in a live world and clamping stays within limit.
+  G40 is the discriminating control with O2 = 0 (anaerobic family, OC return
+  0.45), and non-vacuity is witnessed by realized reaction EXTENT rather than
+  energy because anaerobic decomposition is a zero-energy service reaction:
+  (A) tight two-organism/one-cell, aggregate gross draw equals the 0.02 start by
+  near-equality — 0.029 under a net-only budget; (B) roomy OC = 10 so the second
+  organism still realizes extent 0.0450, proving the budget is shared rather
+  than exclusive; (C) after a reaction reserves its draw, the OC visible to the
+  next organism's `assimilate()` is 0, so uptake cannot re-take the returned
+  fraction.
+- **H/O are tracked at the declared reservoir boundary, not molecularly.** Water
+  uptake credits H and O 1:1, aerobic respiration returns H2O as the inverse of
+  photosynthesis, and reservoir top-up/sink are booked as boundary fluxes. G39
+  asserts both a discriminating 1:1 uptake control and the live H/O books. No
+  claim is made about molecular water identity or speciation.
+- **Energy is reconciled through the legacy causal ledger when chemistry is on.** Chemical reaction income and chemical growth expenditure are booked as `chemicalIncome` and `chemicalSpent` against the identity G3 enforces (G36). G3 itself still runs chemistry unset. Historical `chem/0.7.7` chemical income was **9.646%** by G33's income-only measure (flux versus `ledger.capture`), recorded in `evidence/reconciliation-080-gates-20261014.txt`; neither that figure nor the earlier 8.388% figure is a current `chem/0.7.8` measurement. See `CHEM-078-CORRECTIONS.md` and its gate evidence for the qualified current scope. Growth cost is treated as dissipation. Chemical growth biomass remains matter, not `Ledger.biomass()` (which sums `store.energy`); this is not full trophic integration.
+- **Predation transfers energy but not matter.** The legacy predator/grazer
+  interaction moves `store.energy` from prey to consumer with **no parallel
+  elemental transfer** from prey tissue or stores. A chemical mass ledger that
+  balances does not demonstrate an abiotic → producer → consumer → death →
+  recycling cycle, because the consumer link is energy-only. The null-default
+  diagnostic `chemistryPredationMatter` can add a stoichiometric transfer when
+  explicitly enabled, but it is not declared default behaviour and no full food
+  web is claimed from it.
+- **Death reaches the two economies by different paths.** Legacy detritus is fed
+  from an organism's remaining energy; chemistry pools are fed from its tissue.
+  The two are coupled only through the organism, not through a shared pool, so
+  mass that recycles through chemistry does not automatically become food for
+  the legacy web. The `chemistryToLegacyDetritus` diagnostic bridges them and is
+  how that separation was measured.  Enabling it now converts the chemical
+  labile/litter pool into legacy detritus and books the same amount as
+  `recordOrganicInput`, i.e. as an **exogenous** organic import on the
+  legacy side. It does **not** debit any chemistry pool. That is deliberate: the
+  bridge is a diagnostic subsidy/parallel accounting path, not a conserved
+  transfer, and it must not be read as proof that matter has physically
+  crossed between economies. Arms differ on `injectOrganic`, which G36 verifies.
+- **Coarse-canopy status: SUPERSEDED.** The legacy
+  photosynthesis path's use of the coarse `shadeMass` array was corrected
+  under the Owner-authorized canopy correction, and parity pins were
+  re-pinned. Do not describe the defect as "surviving" as a current declared
+  limit; any historical reference to it is provenance evidence. See
+  `REPORT.md`/`EVIDENCE-INVENTORY.md` for the correction chain.
+- **Consequently**: this repository has NOT demonstrated a fully integrated
+  food web. It has demonstrated a balanced chemistry subsystem coupled to the
+  legacy ecosystem at the organism, not at the meal.

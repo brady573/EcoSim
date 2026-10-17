@@ -15,6 +15,9 @@ node_modules/
 # Built engine staged for the diagnostic kit; produced by npm run build:app.
 tools/diagnostics/evo-sim-poc.html
 
-# Stale compiler output beside sources. tsx resolves .js specifiers to .ts;
-# executing src/**/*.js directly would run a dead engine. See REPORT.
+# Stale TypeScript compiler output committed beside the sources.
+# These are NOT on the runtime import path (probes import from build/), but a
+# stale copy is a version of the code that looks healthy while being wrong:
+# src/world/world.js still contained the coarse-canopy defect for one commit
+# after it was corrected in world.ts.
 src/**/*.js

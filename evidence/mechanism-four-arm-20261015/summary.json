@@ -1,0 +1,34 @@
+[
+  {
+    "arm": "legacy",
+    "runs": 18,
+    "populationMean": 810.5555555555555,
+    "populationMedian": 764,
+    "totalBirths": 27985,
+    "extinctSeeds": []
+  },
+  {
+    "arm": "genome-only",
+    "runs": 18,
+    "populationMean": 204.38888888888889,
+    "populationMedian": 165,
+    "totalBirths": 8097,
+    "extinctSeeds": []
+  },
+  {
+    "arm": "chemistry-only",
+    "runs": 18,
+    "populationMean": 17.5,
+    "populationMedian": 17.5,
+    "totalBirths": 0,
+    "extinctSeeds": []
+  },
+  {
+    "arm": "advanced",
+    "runs": 18,
+    "populationMean": 12.666666666666666,
+    "populationMedian": 11.5,
+    "totalBirths": 317,
+    "extinctSeeds": []
+  }
+]

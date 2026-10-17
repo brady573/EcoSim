@@ -1,0 +1,28 @@
+=== follow-up validation 2026-10-14T22:20:32Z ===
+-- typecheck (tsc -p tsconfig.json --noEmit): clean (exit 0) --
+-- compiled build (tsc -p tsconfig.build.json): clean (exit 0) --
+-- scripts/viewer-checks.mjs --
+PASS chemistry=false GenomeV2=false: ts-evo-poc/0.8.0 | seed 517 | founders 400 | Genome V2 off | tick 120 (open-ended)
+PASS chemistry=false GenomeV2=true: ts-evo-poc/0.8.0 | seed 517 | founders 400 | Genome V2 on | tick 120 (open-ended)
+PASS chemistry=true GenomeV2=false: ts-evo-poc/0.8.0+chem/0.7.7 | seed 517 | founders 400 | Genome V2 off | tick 120 (open-ended)
+PASS chemistry=true GenomeV2=true: ts-evo-poc/0.8.0+chem/0.7.7 | seed 517 | founders 400 | Genome V2 on | tick 120 (open-ended)
+Primary-viewer construction/readout checks passed (not browser smoke).
+-- scripts/replay-matched18.mjs (36 runs, exact deterministic match) --
+36/36 exact replay matches; original evidence unchanged.
+-- gates/contracts/workflow --
+== gates ==
+[PASS] G47 return books partition exactly at every (guild, pool, source)
+         saturation arm with diffusion, 120 ticks: attempted 3494.244796 == accepted 1450.524700 + capLoss 2043.720096; worst per-cell residual 5.00e-12, limit 1e-6 x max(1, attempted). 3 negative cells, limit -1e-12 x max(1, attempted); worst: excretion.capLoss[guild 2][pool 0][source -1] = -8.223456637868054e-15. Eviction total 2051.323852 — the bounded over-cap event; it must be > 0 or the ceiling never bit and the identity was only tested on its trivial branch.
+
+55/55 checks passed
+ALL GATES PASS
+== contracts ==
+         identical across repeats
+
+probe invocations: 5 distinct worlds
+11/11 contract checks passed
+== workflow ==
+[PASS] W9-observer on/off evidence checker rejects corrupt/config/missing/duplicate frames
+         PASS: opportunity evidence fixtures (valid/config/digest/missing/duplicate)
+
+157/157 workflow checks passed

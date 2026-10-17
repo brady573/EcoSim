@@ -110,7 +110,8 @@ function probeArgs(over = {}) {
 }
 
 /**
- * Knobs-unset parity, live pin for engine ts-evo-poc/0.6.3.
+
+ * Knobs-unset parity, re-pinned for engine ts-evo-poc/0.7.0 after the Owner-
  *
  * Under 0.6.3 the live pair is UNCHANGED and was NOT re-pinned. Relative to
  * the reviewed head, nutrient-write arithmetic is unchanged; the four-book
@@ -155,10 +156,39 @@ function probeArgs(over = {}) {
  * per-pool-cap-corrected returns engine).
  */
 const PINNED = [
-  { seed: 517, want: [882, 170, 65], retired: '813/135/81 @ 0.6.1; 808/159/58 @ 0.6.0; 881/187/73 @ 0.4.1; 778/169/63 @ 0.5.0 pre-P0-1' },
-  { seed: 24601, want: [563, 279, 90], retired: '542/234/109 @ 0.6.1; 558/290/96 @ 0.6.0; 658/280/98 @ 0.4.1; 597/246/103 @ 0.5.0 pre-P0-1' },
+  {
+    seed: 517, want: [503, 126, 69],
+    retired: '492/136/74 @ branch 0.7.0; 882/170/65 @ main 0.6.3; '
+      + '881/187/73 @ 0.4.1; 778/169/63 @ 0.5.0 pre-P0-1; '
+      + '808/159/58 @ 0.6.0 — RETIRED BY THE OWNER-AUTHORISED CANOPY CORRECTION',
+  },
+  {
+    seed: 24601, want: [337, 119, 95],
+    retired: '296/171/74 @ branch 0.7.0; 563/279/90 @ main 0.6.3; '
+      + '658/280/98 @ 0.4.1; 597/246/103 @ 0.5.0 pre-P0-1; '
+      + '558/290/96 @ 0.6.0 — RETIRED BY THE OWNER-AUTHORISED CANOPY CORRECTION',
+  },
 ];
 
+// Provenance for the retired 0.6.0 pins, retained rather than deleted.
+//
+// 808/159/58 and 558/290/96 were measured through a DEFECTIVE canopy lookup:
+// `shadeMass` is a coarse shadeCols x shadeRows array (shadeGrain 4) but the
+// legacy photosynthesis path indexed it with a FULL-RESOLUTION substrate cell,
+// so it read an unrelated cell for 15/16 of the world and ran off the end for
+// the rest. Beer-Lambert self-shading was therefore effectively disabled and
+// producer income had no density dependence there.
+//
+// The Owner authorised the correction on 2026-10-13 together with the re-pinning
+// it requires. Every figure recorded under 0.6.0 — parity, populations, guild
+// composition, cohort comparisons, performance — describes the engine WITH the
+// defect and is provenance, not current behaviour.
+//
+// NOT RESTATED IN CURRENT UNITS. The 0.6.0 figures above are preserved exactly
+// as the contract recorded them. They are NOT converted, restated or compared
+// digit-for-digit against current figures, because this correction changes what
+// the guild populations are measured over; any apparent arithmetic relationship
+// between an old and a new triple would be invented rather than measured.
 if (!hasBuild) {
   check('C1', 'declared behaviour parity (knobs unset)', false,
     'no compiled probe at build/trace/senesprobe.js — run `npm run view:build` first');
@@ -167,8 +197,8 @@ if (!hasBuild) {
     const got = lastRow(runProbe(probeArgs({ seed: p.seed, ticks: 500 })));
     const ok = got !== null && got.prod === p.want[0] && got.cons === p.want[1] && got.dec === p.want[2];
     check('C1', `parity seed ${p.seed} (knobs unset)`, ok,
-      ok ? `P${got.prod}/C${got.cons}/D${got.dec} matches pinned (0.6.3: same pair as 0.6.2 — cap fix unreachable at declared defaults; retired ${p.retired})`
-         : `expected P${p.want.join('/C')}/D${p.want[2]} (0.6.3), got ${fmt(got)}`);
+      ok ? `P${got.prod}/C${got.cons}/D${got.dec} matches pinned (0.8.0; retired ${p.retired})`
+         : `expected P${p.want[0]}/C${p.want[1]}/D${p.want[2]} (0.8.0), got ${fmt(got)}`);
   }
 }
 
@@ -266,7 +296,7 @@ if (!existsSync(htmlPath)) {
   check('C5', 'built engine contains new config keys', false, 'no evidence/app/evo-sim-poc.html');
 } else {
   const html = readFileSync(htmlPath, 'utf8');
-  const required = ['reproSurplusTicks', 'mixotrophyCarbon', 'nutrientCyclic', 'nutrientFloor', 'dormantThreatBlind', 'pioneerBonus', 'decomposerPhotoScale'];
+  const required = ['reproSurplusTicks', 'mixotrophyCarbon', 'nutrientCyclic', 'nutrientFloor', 'dormantThreatBlind', 'pioneerBonus', 'decomposerPhotoScale', 'chemistryPredationMatter', 'chemistryToLegacyDetritus', 'chemistryReactionOmit'];
   const absent = required.filter((k) => !html.includes(k));
   check('C5', 'built engine contains new config keys', absent.length === 0,
     absent.length === 0 ? `all ${required.length} keys present` : `ABSENT: ${absent.join(', ')}`);

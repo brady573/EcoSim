@@ -1,0 +1,54 @@
+{
+  "identity": "ts-evo-poc/0.8.0+chem/0.7.7",
+  "runtime": "v24.21.0",
+  "seeds": [
+    41001,
+    41002,
+    41003,
+    41004,
+    41005,
+    41006,
+    41007,
+    41008,
+    41009,
+    41010,
+    41011,
+    41012,
+    41013,
+    41014,
+    41015,
+    41016,
+    41017,
+    41018
+  ],
+  "founders": 400,
+  "ticks": 1000,
+  "arms": [
+    {
+      "name": "legacy",
+      "chemistry": null,
+      "genomeV2": null
+    },
+    {
+      "name": "genome-only",
+      "chemistry": null,
+      "genomeV2": true
+    },
+    {
+      "name": "chemistry-only",
+      "chemistry": true,
+      "genomeV2": null
+    },
+    {
+      "name": "advanced",
+      "chemistry": true,
+      "genomeV2": true
+    }
+  ],
+  "source": "evidence/matched-18-1000-080-20261014",
+  "command": "node scripts/mechanism-four-arm.mjs --out evidence/mechanism-four-arm-20261015",
+  "method": "All resolved settings matched except chemistry/genomeV2. Fixed seed-first arm order.",
+  "outcome": "Descriptive terminal population, births/deaths, guilds, chemistry budgets and hashes; no ecological success threshold.",
+  "limitation": "Knobs alter RNG consumption. Factorial differences do not identify nutrient/reaction causal pathways. No intervention or changed biology.",
+  "integrity": "72 unique complete runs; existing legacy/advanced deterministic measurements must exactly replay on this runtime. No completion marker on mismatch."
+}

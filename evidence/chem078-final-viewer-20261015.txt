@@ -1,0 +1,5 @@
+PASS chemistry=false GenomeV2=false: ts-evo-poc/0.8.0 | seed 517 | founders 400 | Genome V2 off | tick 120 (open-ended)
+PASS chemistry=false GenomeV2=true: ts-evo-poc/0.8.0 | seed 517 | founders 400 | Genome V2 on | tick 120 (open-ended)
+PASS chemistry=true GenomeV2=false: ts-evo-poc/0.8.0+chem/0.7.8 | seed 517 | founders 400 | Genome V2 off | tick 120 (open-ended)
+PASS chemistry=true GenomeV2=true: ts-evo-poc/0.8.0+chem/0.7.8 | seed 517 | founders 400 | Genome V2 on | tick 120 (open-ended)
+Primary-viewer construction/readout checks passed (not browser smoke).

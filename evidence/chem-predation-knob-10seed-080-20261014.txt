@@ -1,0 +1,25 @@
+IDENTITY: ts-evo-poc/0.8.0+chem/0.7.7 seeds: 10 ticks: 1000
+--- base ---
+ seed 517: pop 35 births 40 (sex 2) matterC 0.0000 C residual 0.0002% clamp 0.060 gdMax 0 gdMean 0.000
+ seed 1013: pop 3 births 3 (sex 0) matterC 0.0000 C residual 0.0003% clamp 0.068 gdMax 0 gdMean 0.000
+ seed 24601: pop 7 births 12 (sex 4) matterC 0.0000 C residual 0.0002% clamp 0.063 gdMax 1 gdMean 0.286
+ seed 7: pop 11 births 7 (sex 0) matterC 0.0000 C residual 0.0002% clamp 0.056 gdMax 0 gdMean 0.000
+ seed 99: pop 5 births 9 (sex 0) matterC 0.0000 C residual 0.0002% clamp 0.064 gdMax 0 gdMean 0.000
+ seed 31337: pop 3 births 4 (sex 0) matterC 0.0000 C residual 0.0002% clamp 0.062 gdMax 0 gdMean 0.000
+ seed 4242: pop 3 births 7 (sex 0) matterC 0.0000 C residual 0.0002% clamp 0.062 gdMax 0 gdMean 0.000
+ seed 8080: pop 19 births 19 (sex 0) matterC 0.0000 C residual 0.0003% clamp 0.067 gdMax 0 gdMean 0.000
+ seed 555: pop 14 births 10 (sex 0) matterC 0.0000 C residual 0.0001% clamp 0.036 gdMax 0 gdMean 0.000
+ seed 12345: pop 29 births 42 (sex 0) matterC 0.0000 C residual 0.0002% clamp 0.059 gdMax 0 gdMean 0.000
+base: pop med 9 [3..35] | births med 10 (sex med 0) | matterC med 0.0000 | C residual med 0.0002% | gdMax 1 gdMean 0.029
+--- predationMatter ---
+ seed 517: pop 33 births 40 (sex 0) matterC 0.1312 C residual 0.0002% clamp 0.057 gdMax 0 gdMean 0.000
+ seed 1013: pop 3 births 6 (sex 0) matterC 9.2476 C residual 0.0003% clamp 0.068 gdMax 0 gdMean 0.000
+ seed 24601: pop 7 births 10 (sex 2) matterC 1.9785 C residual 0.0002% clamp 0.062 gdMax 1 gdMean 0.286
+ seed 7: pop 8 births 11 (sex 0) matterC 8.0923 C residual 0.0002% clamp 0.057 gdMax 0 gdMean 0.000
+ seed 99: pop 6 births 9 (sex 0) matterC 8.1218 C residual 0.0002% clamp 0.064 gdMax 0 gdMean 0.000
+ seed 31337: pop 3 births 4 (sex 0) matterC 13.9373 C residual 0.0002% clamp 0.063 gdMax 0 gdMean 0.000
+ seed 4242: pop 3 births 0 (sex 0) matterC 3.2188 C residual 0.0002% clamp 0.061 gdMax 0 gdMean 0.000
+ seed 8080: pop 13 births 8 (sex 2) matterC 13.9549 C residual 0.0002% clamp 0.062 gdMax 1 gdMean 0.154
+ seed 555: pop 16 births 15 (sex 0) matterC 8.9663 C residual 0.0001% clamp 0.037 gdMax 0 gdMean 0.000
+ seed 12345: pop 26 births 40 (sex 2) matterC 8.2812 C residual 0.0002% clamp 0.061 gdMax 1 gdMean 0.077
+predationMatter: pop med 8 [3..33] | births med 10 (sex med 0) | matterC med 8.2015 | C residual med 0.0002% | gdMax 1 gdMean 0.052

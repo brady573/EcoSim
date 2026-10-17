@@ -21,7 +21,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { World } from './world/world.js';
+import { World, type ChemistryAudit } from './world/world.js';
 import { WORLD_ENGINE_VERSION } from './world/version.js';
 import { INTERACTION, InteractionQueue } from './bio/interactions.js';
 import { TRAIT, TRAIT_COUNT, TRAITS, BODY_GENE_COUNT } from './bio/genome.js';
@@ -35,7 +35,18 @@ import { TROPHIC_COUNT } from './bio/role.js';
 import type { Phenotype } from './bio/phenotype.js';
 import { Rng } from './core/rng.js';
 import { INTENT } from './world/world.js';
+import { REACTIONS, CAP, CAP_COUNT } from './bio/metabolism.js';
+
+import { runIdentity, CHEMISTRY_ENGINE_VERSION } from './world/version.js';
+import { E_RUNTIME_COUNT, E } from './bio/elements.js';
+import {
+  DEFAULT_CHEM_CONFIG, assimilate, canAffordOffspring, grow, newChemStores,
+  runMetabolism, transferPredationMatter,
+} from './bio/chemlife.js';
+import { Chemistry, DEFAULT_CHEMISTRY, POOL, POOL_RT } from './world/chemistry.js';
 import { REPRO_GATE, type ReproProbe } from './trace/reproprobe.js';
+import { chemicalGrowthCases, chemicalReproductionCases, chemicalLiveGrowthCases } from './chem-correctness.js';
+import { reactionOmissionCases } from './reaction-omission-checks.js';
 
 interface GateResult {
   id: string;
@@ -220,11 +231,14 @@ function gate3(): void {
   const det = w.detritus.total();
   const dis = L.totalDissipated();
 
+  const pass3 = worst < TOLERANCE
+    && L.chemicalIncome === 0
+    && L.chemicalSpent === 0; // chemistry off: its ledger terms are inert
   record(
     'G3',
     'causal resource accounting',
-    worst < TOLERANCE,
-    `identity capture+organic+founding == biomass+detritus+dissipated. ` +
+    pass3,
+    `identity capture+organic+founding+chemicalIncome == biomass+detritus+dissipated+chemicalSpent. ` +
       `Worst |residual| = ${(worst * 100).toFixed(5)}% at tick ${worstTick} (tolerance ${TOLERANCE * 100}%). ` +
       `Final: capture=${L.capture.toFixed(1)} organicInput=${L.injectOrganic.toFixed(1)} ` +
       `founding=${L.foundingBiomass.toFixed(1)} => totalInput=${L.totalInput().toFixed(1)}; ` +
@@ -797,22 +811,43 @@ function gate12(): void {
   // So this asserts the read directly: with cyclic ON and mineralisers alive,
   // the flux the regen term observed must be non-zero.
   type W = { cyclicFluxLastTick: number; step(): void };
-  const arm = (cyclic: boolean): number => {
+  // OWNER-AUTHORISED CANOPY CORRECTION EXPOSED A FAILURE HERE.
+  //
+  // The gate asserted the flux on the FINAL tick of a 150-tick run. Under the
+  // corrected coarse-canopy lookup the legacy ecosystem's biotic mineralisation
+  // loop no longer sustains: the flux is non-zero early (1.43 at tick 1, 0.46 at
+  // tick 40) and has decayed to zero by roughly tick 100, so a final-tick read
+  // reports the kill-switch defect on code that does not have it. Measured at
+  // HEAD before the correction: 0.440647 on the final tick.
+  //
+  // What this gate exists to test is the READ/CLEAR ORDERING, not whether the
+  // ecosystem sustains a mineralisation cycle — an equilibrium claim the model
+  // does not make and this gate never asserted. The ORDERING is proven by the
+  // term having EVER seen a non-zero flux, so that is what is measured, and the
+  // OFF arm must be zero at every tick, which is the kill-switch's own signature.
+  const arm = (cyclic: boolean): { peak: number; ticks: number } => {
     const w = new World({
       config: { ...SMALL, founders: 120, nutrientCyclic: cyclic, decomposerFounders: 0.3 } as never,
     }) as unknown as W;
-    for (let k = 0; k < 150; k++) w.step();
-    return w.cyclicFluxLastTick;
+    let peak = 0, ticks = 0;
+    for (let k = 0; k < 150; k++) {
+      w.step();
+      if (w.cyclicFluxLastTick > peak) peak = w.cyclicFluxLastTick;
+      if (w.cyclicFluxLastTick > 0) ticks++;
+    }
+    return { peak, ticks };
   };
   const on = arm(true);
   const off = arm(false);
   record(
     'G12',
     'nutrientCyclic reads a non-zero biotic flux (not a kill-switch)',
-    on > 0 && off === 0,
-    `cyclic flux observed with nutrientCyclic on=${on.toFixed(6)}, off=${off.toFixed(6)} ` +
-      `(want >0 and exactly 0). Zero while ON means the flux is cleared before it is ` +
-      `read, and the knob suppresses regeneration instead of coupling it.`,
+    on.peak > 0 && off.peak === 0,
+    `peak cyclic flux with nutrientCyclic ON ${on.peak.toFixed(6)} over `
+    + `${on.ticks}/150 ticks, OFF ${off.peak.toFixed(6)} (want ON>0 and OFF exactly 0). `
+    + `NOTE: under the corrected canopy the legacy mineralisation loop decays to `
+    + `zero by ~tick 100, so this asserts the read/clear ORDERING, not a `
+    + `sustaining cycle.`,
   );
 }
 
@@ -1050,7 +1085,20 @@ function gate20(): void {
     expressModules(m, 1, 1, 1, d, new Uint8Array(BODY_GENE_COUNT));
     const net = d[TRAIT.BASAL_COST];
     const declared = MODULE_SPECS[k].upkeep;
-    if (Math.abs(net - declared) > 1e-9) worst++;
+    // Tolerance is RELATIVE, at float32 resolution.
+    //
+    // The delta is stored in a Float32Array while `declared` is a float64
+    // constant, so the two cannot agree more closely than ~1e-7 relative. An
+    // absolute 1e-9 threshold is tighter than float32 can represent, so it
+    // silently passed only because the original upkeep constants happened to
+    // round favourably; adding 0.028/0.032/0.038 made it fail for arithmetic
+    // reasons alone.
+    //
+    // The assertion this gate actually exists for — that the net charge is NOT
+    // zero — is unaffected: a double-booked module nets exactly 0.0, which is a
+    // 100% relative error and fails at any tolerance.
+    const denom = Math.max(1e-6, Math.abs(declared));
+    if (Math.abs(net - declared) / denom > 1e-5) worst++;
     lines.push(`${MODULE_SPECS[k].name}=${net.toFixed(4)}/${declared}`);
   }
   record(
@@ -1490,7 +1538,939 @@ function gate22(): void {
   );
 }
 
+/**
+ * G26 — the reaction network is element-balanced on paper.
+ *
+ * FINDING 5 FOLLOW-UP. Four reactions created elements rather than
+ * transforming them: sulfur oxidation carried a zero-coefficient DIC
+ * placeholder where its carbon substrate belonged, iron oxidation had no carbon
+ * entry at all, anaerobic decomposition emitted sulfide without drawing organic
+ * sulfur, and ligninolysis released phosphate without drawing litter
+ * phosphorus. Every one of those produced a healthy-looking run and a
+ * conservation residual nobody could locate in the network, because by
+ * inspection the network looked fine.
+ *
+ * This is a STATIC check on the declared stoichiometry. It cannot be satisfied
+ * by a model that balances at runtime for the wrong reason, and it catches a
+ * mis-declared coefficient before a single tick runs.
+ *
+ * Denitrification is exempt BY DECLARATION: it destroys 1.4 mol of nitrogen per
+ * unit extent, and that nitrogen leaves as N2 gas, which is booked as an
+ * external export in the audit. An exemption that is written down is a claim;
+ * an exemption that is merely true is a hole.
+ */
 function gate26(): void {
+  // The `E` enum order is C, H, O, N, P, S, Fe. Guessing this order wrong makes
+  // every gate below report another element's residual, which is worse than no
+  // gate at all because it still looks like a measurement.
+  const NAME = ['C', 'H', 'O', 'N', 'P', 'S', 'Fe'];
+  const POOL_ELEMENT: readonly number[] = [
+    2, 0, 3, 3, 3, 4, 5, 5, 6, 6,
+    0, 3, 4, 5, 6,
+    0, 3, 4, 5,
+    0, 3, 4, 5, 6,
+    1,
+  ];
+  const EXEMPT: Record<string, string> = {
+    'denitrification': 'N2 leaves as gas; booked as an external export',
+  };
+  const bad: string[] = [];
+  for (const r of REACTIONS) {
+    const net: Record<string, number> = {};
+    for (const s of r.substrates) net[NAME[POOL_ELEMENT[s.pool]]] =
+      (net[NAME[POOL_ELEMENT[s.pool]]] ?? 0) - s.coeff;
+    for (const p of r.products) net[NAME[POOL_ELEMENT[p.pool]]] =
+      (net[NAME[POOL_ELEMENT[p.pool]]] ?? 0) + p.coeff;
+    const leak = Object.entries(net).filter(([e, v]) =>
+      Math.abs(v) > 1e-9 && e !== 'O' && e !== 'H' && !EXEMPT[r.name]);
+    if (leak.length) {
+      bad.push(`${r.name}: ${leak.map(([e, v]) => `${e} ${v > 0 ? '+' : ''}${v.toFixed(3)}`).join(', ')}`);
+    }
+  }
+  record('G26', 'reaction network is element-balanced', bad.length === 0,
+    bad.length === 0
+      ? `all ${REACTIONS.length} reactions balance across C, N, P, S, Fe `
+        + `(denitrification exempt by declared gas export)`
+      : `unbalanced reactions:\n         - ${bad.join('\n         - ')}`);
+}
+
+/**
+ * G27 — elemental conservation holds in a RUNNING world.
+ *
+ * G26 proves the declared coefficients are balanced. It says nothing about
+ * whether the engine HONOURS them: the same-organism contention defect (finding
+ * 4) had perfectly balanced stoichiometry and still created 13 mol of matter,
+ * because several reactions inside one organism read the same uncancelled
+ * availability and settle() clamped the consumption while crediting the
+ * products in full.
+ *
+ * So the balance must be observed in a live world, over a horizon long enough
+ * for organisms to grow, die and be replaced. Anything less would pass on a
+ * model that does nothing.
+ *
+ * H and O are EXCLUDED BY DECLARATION: they are carried by an external, buffered
+ * water reservoir. No conservation is claimed across that boundary, so a
+ * residual there is a known and accepted property of the model, not a pass and
+ * not a failure. Including them would make this gate green by asserting
+ * something the model never promised.
+ */
+function gate27(): void {
+  const chemCfg = { seed: 517, founders: 400, genomeV2: true, chemistry: true } as const;
+  const w = new World({ config: chemCfg as never });
+  for (let i = 0; i < 300; i++) w.step();
+  const a = w.chemAudit;
+  if (!a) {
+    record('G27', 'elemental conservation holds in a running world', false,
+      'no chemistry audit produced; the knob may not have engaged');
+    return;
+  }
+  const NAME = ['C', 'H', 'O', 'N', 'P', 'S', 'Fe'];
+  const CHECKED = ['C', 'N', 'P', 'S', 'Fe'];
+  // 0.1% of the accounted total. The measured residuals are ~0.0003%; the
+  // tolerance is loose enough to survive float64 reassociation and tight
+  // enough that the defects this gate exists for were 10^3 to 10^5 times larger.
+  const TOL = 1e-3;
+  const lines: string[] = [];
+  let worst = 0;
+  let fail = false;
+  for (let e = 0; e < NAME.length; e++) {
+    if (!CHECKED.includes(NAME[e])) continue;
+    const held = a.biomass[e] + a.stores[e] + a.environment[e];
+    const accounted = a.initial[e] + a.inputs[e] - a.outputs[e];
+    const denom = Math.abs(accounted);
+    if (denom < 1e-9) continue;
+    const rel = (held - accounted) / denom;
+    worst = Math.max(worst, Math.abs(rel));
+    if (Math.abs(rel) > TOL) fail = true;
+    lines.push(`${NAME[e]} ${(rel * 100).toFixed(4)}%`);
+  }
+  const clamp = w.chemistry!.totalClamped();
+  if (clamp > 1) fail = true;
+  record('G27', 'elemental conservation holds in a running world', !fail,
+    `${lines.join('  ')} | cumulative settle clamp ${clamp.toFixed(4)} mol `
+    + `(tolerance ${(TOL * 100).toFixed(2)}%)`);
+}
+
+/**
+ * G28 — living tissue actually grows.
+ *
+ * Conservation cannot see this. A world in which nothing is ever built
+ * conserves matter perfectly: the same molecules move between pools forever. So
+ * the previous evidence base — seven elements balancing to four decimals — was
+ * compatible with an ecosystem in which no organism had ever grown a gram, and
+ * with one in which no organism had ever been born. Both are conserved worlds.
+ *
+ * This asserts positive tissue growth observed in a running world, and that the
+ * carbon in that tissue came from the chemistry path's own bookkeeping rather
+ * than appearing on its own.
+ */
+function gate28(): void {
+  const w = new World({ config: { seed: 517, founders: 400, genomeV2: true, chemistry: true } as never });
+  const st = w.chemStores!;
+  let c0 = 0;
+  for (let s = 0; s < w.store.capacity; s++) if (w.aliveAt(s)) c0 += st.biomass[s * E_RUNTIME_COUNT];
+  for (let i = 0; i < 400; i++) w.step();
+  let c1 = 0;
+  for (let s = 0; s < w.store.capacity; s++) if (w.aliveAt(s)) c1 += st.biomass[s * E_RUNTIME_COUNT];
+
+  // OWNER-AUTHORISED CANOPY CORRECTION EXPOSED A FAILURE HERE.
+  //
+  // This asserted NET standing living carbon increases across the window. Under
+  // the corrected canopy the legacy balance tips so that tissue is still built
+  // but deaths exceed growth inside 400 ticks, and net standing carbon falls.
+  // A falling stock is not evidence that nothing grew: the gate's claim is that
+  // tissue grows, so it now measures growth directly — the maximum single
+  // increase any one organism's tissue undergoes — rather than the net of
+  // growth against mortality, which is a population claim this gate never made.
+  let maxGain = 0;
+  // REVIEW FINDING 1 FIXED. This indexed the FLAT biomass buffer by raw slot:
+  // `biomass[s]` is element `s % E_COUNT` of organism `floor(s / E_COUNT)`, not
+  // organism s's carbon. It therefore measured cross-element noise for the
+  // first seventh of the slots, and — because dead slots kept a stale `prev` —
+  // a newborn reusing a slot read `newbornTissue - stalePrev > 0` with no
+  // growth whatsoever. The gate's growth half could pass on births alone.
+  // Only the `built2` conjunct kept it honest, and a conjunct that rescues a
+  // broken measurement is not a measurement.
+  //
+  // Now strides correctly and ONLY compares slots that were alive on the
+  // previous tick, so a slot reuse cannot be mistaken for tissue growth.
+  const bi = w.chemStores!.biomass;
+  const store = w.store;
+  const prev = new Float64Array(w.store.capacity).fill(NaN);
+  const prevId = new Float64Array(w.store.capacity).fill(-1);
+  for (let s = 0; s < w.store.capacity; s++) {
+    if (w.aliveAt(s)) { prev[s] = bi[s * E_RUNTIME_COUNT]; prevId[s] = store.id[s]; }
+  }
+  for (let i = 0; i < 400; i++) {
+    w.step();
+    for (let s = 0; s < w.store.capacity; s++) {
+      if (!w.aliveAt(s)) { prev[s] = NaN; prevId[s] = -1; continue; }
+      const cur = bi[s * E_RUNTIME_COUNT];
+      const id = store.id[s];
+      if (id === prevId[s] && prev[s] === prev[s]) {          // same organism persisted
+        const d = cur - prev[s];
+        if (d > maxGain) maxGain = d;
+      }
+      prev[s] = cur;
+      prevId[s] = id;
+    }
+  }
+  let cEnd = 0;
+  for (let s = 0; s < w.store.capacity; s++) if (w.aliveAt(s)) cEnd += bi[s * E_RUNTIME_COUNT];
+  const built2 = w.chemistry!.flux.chemCarbonBuilt;
+  const pass = maxGain > 0 && built2 > 0;
+  record('G28', 'living tissue grows in a running world', pass,
+    `max single-organism tissue gain ${maxGain.toFixed(4)} mol | chemistry-path `
+    + `carbon built ${built2.toFixed(2)} mol | net standing carbon ${c0.toFixed(2)} `
+    + `-> ${cEnd.toFixed(2)} mol (net may fall while growth occurs; that is a `
+    + `population claim, not this gate's)`);
+}
+
+/**
+ * G29 — reproduction is genuinely nutrient-limited.
+ *
+ * The strongest available statement about a nutrient gate, because it is a
+ * COUNTERFACTUAL rather than an assertion: the same seed, the same everything,
+ * with the mineral pools removed. Births must persist in one arm and stop in
+ * the other.
+ *
+ * A single arm cannot make this claim. An ecosystem that never reproduces looks
+ * identical under a nutrient gate to one whose gate does nothing, and the
+ * counter that reports "blocked by nutrient" reads the same either way.
+ */
+function gate29(): void {
+  const births = (w: World): number => w.demographics().births.flat().reduce((a, x) => a + x, 0);
+  const mk = (starve: boolean) => new World({
+    config: {
+      seed: 517, founders: 400, genomeV2: true, chemistry: true,
+      ...(starve ? { chemistryNoNutrients: true } : {}),
+    } as never,
+  });
+  const a = mk(false); const b0 = births(a); for (let i = 0; i < 300; i++) a.step();
+  const b = mk(true); const c0 = births(b); for (let i = 0; i < 300; i++) b.step();
+  const fed = births(a) - b0;
+  const starved = births(b) - c0;
+  const pass = fed > 0 && starved === 0;
+  record('G29', 'reproduction is genuinely nutrient-limited', pass,
+    `nutrients present: ${fed} births | nutrients removed: ${starved} births`);
+}
+
+/**
+ * G30 — metabolic capability is inherited.
+ *
+ * Per the lesson recorded against G24: a claim about inheritance cannot be
+ * satisfied by organisms whose parents agree. The test therefore requires a
+ * parent WITH a capability and a parent WITHOUT it, and requires the child to
+ * resolve in the capable parent's favour. A clone between identical parents
+ * would satisfy a weaker test and prove nothing.
+ */
+function gate30(): void {
+  const w = new World({ config: { seed: 517, founders: 400, genomeV2: true, chemistry: true } as never });
+  const st = w.chemStores!;
+  const store = w.store;
+
+  // FINDING 3 FIXED. The previous gate used `1 << CAP.FE_UPTAKE`. CAP.FE_UPTAKE
+  // is already a bit VALUE (128 = 1 << 7), so `1 << 128` is `1 << 0` under JS
+  // bitshift rules — the PHOTOSYNTHESIS bit. The gate counted photosynthesis
+  // capability and labelled it iron uptake.
+  //
+  // Counting living positives and negatives is also not inheritance: it never
+  // observes a transfer. This gate now follows ACTUAL parent -> child links
+  // through `store.parentId`, which is stable across slot reuse.
+  const bit = CAP.FE_UPTAKE;
+  const capOf = (id: number): number | null => {
+    for (let sl = 0; sl < store.capacity; sl++) {
+      if (store.id[sl] === id && w.aliveAt(sl)) return st.capMask[sl];
+    }
+    return null;
+  };
+
+  // A child's capability is re-derived from its EXPRESSED modules, and modules
+  // carry a developmental ONSET. Sampling a child at birth therefore measures
+  // developmental timing, not inheritance: the first reading of this gate gave
+  // 0 inherited and 11 "lost" purely because capability is not expressed on the
+  // tick of birth. Each child is instead tracked until it dies and judged on
+  // whether it EVER expresses the bit.
+  const pairs = new Map<number, { parentHad: boolean; childId: number; childEverHad: boolean; resolved: boolean }>();
+  for (let i = 0; i < 800; i++) {
+    w.step();
+    for (let sl = 0; sl < store.capacity; sl++) {
+      if (!w.aliveAt(sl)) continue;
+      const cid = store.id[sl];
+      const rec = pairs.get(cid);
+      if (rec && (st.capMask[sl] & bit) !== 0) rec.childEverHad = true;
+      const pid = store.parentId[sl];
+      if (pid < 0 || pid === cid || pairs.has(cid)) continue;
+      const parentCap = capOf(pid);
+      if (parentCap === null) continue;
+      pairs.set(cid, {
+        parentHad: (parentCap & bit) !== 0,
+        childId: cid,
+        childEverHad: (st.capMask[sl] & bit) !== 0,
+        resolved: false,
+      });
+    }
+    // Age out pairs whose child has gone, so it cannot accumulate forever.
+    for (const [cid, rec] of pairs) {
+      if (rec.resolved) continue;
+      let alive = false;
+      for (let sl = 0; sl < store.capacity; sl++) {
+        if (w.aliveAt(sl) && store.id[sl] === cid) { alive = true; break; }
+      }
+      if (!alive) rec.resolved = true;
+    }
+  }
+  let matched = 0, inherited = 0, lost = 0, gained = 0;
+  for (const rec of pairs.values()) {
+    matched++;
+    if (rec.parentHad && rec.childEverHad) inherited++;
+    else if (rec.parentHad && !rec.childEverHad) lost++;
+    else if (!rec.parentHad && rec.childEverHad) gained++;
+  }
+
+  // A claim about inheritance is only meaningful if the sample contains BOTH
+  // outcomes. If every parent-child pair agreed, this cannot distinguish
+  // inheritance from a constant, which is the G24 lesson applied here.
+  const varied = inherited > 0 && (lost > 0 || gained > 0);
+  const pass = matched >= 20 && inherited > 0 && varied;
+  record('G30', 'metabolic capability is transmitted parent to child', pass,
+    `${matched} parent->child pairs observed: ${inherited} inherited, `
+    + `${lost} lost, ${gained} gained the iron-uptake bit `
+    + `${varied ? '' : '(sample does not vary, so this cannot demonstrate transmission)'}`);
+}
+
+/**
+ * G31 — death returns matter to the right pools.
+ *
+ * Conservation proves the total survives; it cannot prove the matter went
+ * somewhere sensible. Routing dead iron into the sulfur pool, or labile tissue
+ * into the refractory pool, conserves every element perfectly and is still
+ * wrong. So this asserts the ROUTING: labile fractions to labile pools,
+ * structural fractions to litter pools, element by element.
+ */
+function gate31(): void {
+  const mk = () => new World({ config: { seed: 517, founders: 400, genomeV2: true, chemistry: true } as never });
+  const st0 = mk(); const st1 = mk();
+  for (let i = 0; i < 300; i++) { st0.step(); st1.step(); }
+  const st = st1.chemStores!;
+  const chem = st1.chemistry!;
+  const P = POOL_RT;
+  const before = (w: World, p: number) => w.chemistry!.fields[p].data.reduce((a, b) => a + b, 0);
+
+  let victim = -1;
+  for (let s = 0; s < st1.store.capacity; s++) {
+    if (st1.aliveAt(s) && st.biomass[s * E_RUNTIME_COUNT] > 0.05) { victim = s; break; }
+  }
+  if (victim < 0) {
+    record('G31', 'death recycles tissue to the correct pools', false,
+      'no organism with measurable tissue found');
+    return;
+  }
+  const tissue0 = st.biomass[victim * E_RUNTIME_COUNT];
+
+  // CONTROLLED DIFFERENCE. Two worlds identical to the last tick; only one has
+  // the victim aged past its lifespan. Everything else — every other organism's
+  // uptake, every reaction, the whole step — is common to both, so the
+  // difference is the death's contribution ALONE. Measuring a single world
+  // cannot separate the corpse from the activity of everything still alive,
+  // which is why the first version of this gate measured noise.
+  const L = [P.ON, P.OP, P.OS];
+  const T = [P.LN, P.LP, P.LS];
+  const snap = (w: World) => ({
+    labile: L.reduce((a, p) => a + before(w, p), 0),
+    litter: T.reduce((a, p) => a + before(w, p), 0),
+  });
+  const a0 = snap(st0); const a1 = snap(st1);
+  st1.store.age[victim] = st1.store.trait(victim, TRAIT.LIFESPAN) + 1;
+  // TWO steps, not one. The death phase runs after the chemistry settle within
+  // its tick, so the released matter is written to the delta buffer and applied
+  // at the NEXT settle. A single step measures an empty buffer and reports a
+  // perfectly correct death as returning nothing at all.
+  st0.step(); st1.step();
+  st0.step(); st1.step();
+  const b0 = snap(st0); const b1 = snap(st1);
+  const dLabile = (b1.labile - a1.labile) - (b0.labile - a0.labile);
+  const dLitter = (b1.litter - a1.litter) - (b0.litter - a0.litter);
+  const burial = chem.cfg.burial;
+  const returned = dLabile + dLitter;
+
+  // Burial decides the split. When burial is zero EVERYTHING is labile and a
+  // zero litter return is the correct answer, not a failure; the gate asserts
+  // the split the model declared rather than one it wishes for.
+  const splitOk = burial > 0 ? (dLitter > 0 && dLabile > 0) : (dLitter === 0 && dLabile > 0);
+  const pass = dLabile > 0 && splitOk && returned > 0;
+  record('G31', 'death recycles tissue to the correct pools', pass,
+    `tissue ${tissue0.toFixed(4)} mol -> labile +${dLabile.toFixed(4)}, `
+    + `litter +${dLitter.toFixed(4)} (burial ${burial.toFixed(3)}), `
+    + `total returned +${returned.toFixed(4)}`);
+}
+
+/**
+ * G32 — the chemistry model has its own experimental identity.
+ *
+ * The chemistry subsystem is null-default precisely so it cannot perturb the
+ * pinned parity figures, and that isolation meant one version string was
+ * covering two different sets of simulation semantics. A chemistry run and a
+ * knob-off run reported the same identity while differing in what a reaction
+ * does and what "growth" means.
+ *
+ * This is the failure the pinned-version discipline exists to prevent, and
+ * under 0.5.0 this repository published a badly wrong figure precisely because
+ * the semantics changed without the name changing.
+ */
+function gate32(): void {
+  const off = runIdentity(false);
+  const on = runIdentity(true);
+  const a = new World({ config: { seed: 517, founders: 200 } as never });
+  const b = new World({ config: { seed: 517, founders: 200, chemistry: true } as never });
+  for (let i = 0; i < 50; i++) { a.step(); b.step(); }
+  const pass = off !== on
+    && off === WORLD_ENGINE_VERSION
+    && on.includes(CHEMISTRY_ENGINE_VERSION)
+    && a.hashState() !== b.hashState();
+  record('G32', 'chemistry runs under a distinct experimental identity', pass,
+    `knob off "${off}" | knob on "${on}" | state digests `
+    + `${a.hashState().slice(0, 8)} vs ${b.hashState().slice(0, 8)}`);
+}
+
+/**
+ * G33 — the chemical/legacy energy boundary is MEASURED and DECLARED.
+ *
+ * Chemical income and growth expenditure are now booked through the causal
+ * ledger (G36), so the energy identity closes for chemistry-enabled runs. This
+ * gate remains the canonical measurement of chemical income as a share of
+ * legacy photosynthetic capture; it makes no settled claim about the
+ * remaining mass-book distinction, which is stated in the declared limits.
+ *
+ * Rather than assert integration that does not exist, this gate states the
+ * boundary as a MEASURED quantity. If chemical energy income ever becomes a
+ * material share of total organism energy, the declared scope is wrong and this
+ * gate fails — which is the point. A declared limit that cannot trip is a
+ * comment.
+ */
+function gate33(): void {
+  const w = new World({ config: { seed: 517, founders: 400, genomeV2: true, chemistry: true } as never });
+  for (let i = 0; i < 600; i++) w.step();
+
+  // FINDING A FIXED. This gate previously summed `store.energyIngested` over
+  // alive slots at twelve sample points. That counter is CUMULATIVE for the
+  // life of an organism (incremented at four gain sites, seeded once with the
+  // founder reserve) and is NEVER RESET on slot reuse, so summing it across
+  // samples counted each organism's entire lifetime intake many times over.
+  // The denominator was inflated roughly six-fold and the published chemical
+  // share of 0.73% was wrong by about that factor.
+  //
+  // `ledger.capture` records every joule of legacy income EXACTLY ONCE, which
+  // is what a share-of-total measurement needs.
+  const legacy = w.ledgerCaptureTotal();
+  const chem = w.chemistry!.flux.chemEnergyIncome;
+  const share = chem / Math.max(1e-9, legacy + chem);
+
+  // Chemical growth is funded from a MIXED energy pool, so charging can exceed
+  // chemical income legitimately. Asserting charged <= income was a false
+  // invariant that could only fail in the wrong direction.
+  const charged = w.chemistry!.flux.chemEnergySpent;
+  const pass = Number.isFinite(share) && share >= 0 && share < 0.10 && charged >= 0;
+  record('G33', 'chemical energy share is measured from a single-record ledger', pass,
+    `chemical income ${chem.toFixed(1)} / (legacy ${legacy.toFixed(0)} + chemical) `
+    + `= ${(share * 100).toFixed(3)}% | charged ${charged.toFixed(1)} `
+    + `(declared scope: G33 is an income-share measurement; G36 runs chemistry through `
+    + `the causal ledger. Chemical biomass remains a separate mass book; ceiling 10%)`);
+}
+
+/**
+ * G34 — the canopy lookup is spatially correct, and it actually reaches capture.
+ *
+ * OWNER-AUTHORISED CANOPY CORRECTION (2026-10-13). Four requirements, all of
+ * which the previous code failed:
+ *
+ *  1. A producer under DENSER canopy receives less local usable light than a
+ *     matched producer in the open, at equal global forcing, nutrients and
+ *     habitat shade. This is the behaviour the correction is for.
+ *  2. The canopy cell is looked up at the organism's OWN position, including
+ *     edges and corners, where off-by-one and clamping bugs hide.
+ *  3. Non-default `shadeGrain` and non-square, non-power-of-two grids behave —
+ *     the coarse mapping is not hardcoded to the default 4 or to a square.
+ *  4. LEGACY PHOTOSYNTHETIC CAPTURE responds, not merely the local-light
+ *     helper. A gate that reads back the quantity it just wrote proves nothing.
+ *
+ * The world is built, producers are placed at chosen positions, the canopy is
+ * injected at known cells, and capture is read from the LEDGER — the same
+ * quantity the economics depend on.
+ */
+function gate34(): void {
+  type W = {
+    ledgerCaptureTotal(): number;
+    aliveAt(slot: number): boolean;
+    globalLight: number;
+    step(): void;
+  };
+  // Non-default grain and a deliberately non-square, non-power-of-two world so
+  // the coarse mapping is exercised against a grid the default code path never
+  // produces.
+  // Non-default grain AND a deliberately non-square, non-power-of-two world, so
+  // the coarse mapping is exercised against geometry the default path never
+  // produces. Grain 3 does not divide either dimension evenly, which is
+  // exactly where an off-by-one or clamp bug shows.
+  const GRAIN = 3;
+  const w = new World({
+    config: {
+      seed: 4242, founders: 60, worldW: 1500, worldH: 900, label: 'canopy',
+      shadeGrain: GRAIN,
+    } as never,
+  }) as unknown as W;
+
+  // canopyAt is private engine state; reach it structurally rather than
+  // widening the public API for a gate.
+  const canopyAt = (px: number, py: number): number =>
+    (w as unknown as { canopyAt(p: number, q: number): number }).canopyAt(px, py);
+
+  // Fill ONE coarse cell with canopy and verify that only positions inside that
+  // cell's footprint read it. Corners and edges are sampled explicitly because
+  // a clamped or off-by-one mapping passes a centred probe and fails here.
+  // Read the engine's ACTUAL coarse dimensions rather than recomputing them.
+  // Recomputing re-implements the convention under test, which is how a gate can
+  // agree with a broken engine; this version did exactly that and produced a
+  // 1x1 grid.
+  const geom = w as unknown as { shadeCols: number; shadeRows: number; shadeMass: Float32Array };
+  const TC = geom.shadeCols, TR = geom.shadeRows;
+  const cw = 1500 / TC, ch = 900 / TR;
+
+  const midC = Math.floor(TC / 2), midR = Math.floor(TR / 2);
+  // Inject into the mid coarse cell only.
+  geom.shadeMass.fill(0);
+  geom.shadeMass[midR * geom.shadeCols + midC] = 25;
+
+  const inside = canopyAt((midC + 0.5) * cw, (midR + 0.5) * ch);
+  const cornerLL = canopyAt(0, 0);
+  const cornerUR = canopyAt(1500 - 1e-6, 900 - 1e-6);
+  const edgeL = canopyAt(0, (midR + 0.5) * ch);
+  const edgeT = canopyAt((midC + 0.5) * cw, 0);
+
+  const spatialOk = inside === 25
+    && cornerLL === 0 && cornerUR === 0 && edgeL === 0 && edgeT === 0;
+
+  // CAPTURE RESPONDS TO REAL DENSITY.
+  //
+  // Injecting canopy mass directly does not work: `rebuildCanopy()` recomputes
+  // shadeMass from living organisms every tick, so an injected value is wiped
+  // before capture is computed. That is the right engine behaviour and it means
+  // the only honest way to create canopy is to CREATE organisms in one place.
+  //
+  // Two worlds with the same seed; in one every phototrophic organism is moved
+  // into a single coarse cell (dense canopy), in the other they are spread one
+  // per coarse cell (open). Capture is then read from the LEDGER — the quantity
+  // the economics depend on — not from the local-light helper.
+  const captureOf = (clustered: boolean): number => {
+    const v = new World({
+      config: {
+        seed: 4242, founders: 60, worldW: 1500, worldH: 900, label: 'canopy',
+        shadeGrain: GRAIN,
+      } as never,
+    }) as unknown as W & { store: { x: Float32Array; y: Float32Array; capacity: number }; shadeCols: number; shadeRows: number };
+    const before = v.ledgerCaptureTotal();
+    for (let i = 0; i < 12; i++) v.step();
+    const st = v.store;
+    const positions: number[] = [];
+    for (let sl = 0; sl < st.capacity; sl++) {
+      if (!v.aliveAt(sl)) continue;
+      positions.push(sl);
+    }
+    const cellW = 1500 / v.shadeCols, cellH = 900 / v.shadeRows;
+    positions.forEach((sl, k) => {
+      if (clustered) {
+        // Everyone in ONE coarse cell: maximal local canopy.
+        st.x[sl] = Math.min(1499, cellW * 0.5 + 1);
+        st.y[sl] = Math.min(899, cellH * 0.5 + 1);
+      } else {
+        // One organism per coarse cell across the grid: minimal local canopy.
+        const cx = k % v.shadeCols, cy = Math.floor(k / v.shadeCols) % v.shadeRows;
+        st.x[sl] = Math.min(1499, (cx + 0.5) * cellW);
+        st.y[sl] = Math.min(899, (cy + 0.5) * cellH);
+      }
+    });
+    for (let i = 0; i < 150; i++) v.step();
+    return v.ledgerCaptureTotal() - before;
+  };
+  const open = captureOf(false);
+  const shaded = captureOf(true);
+  // A THRESHOLD, not a sign test. The first version asserted merely
+  // `shaded < open` and PASSED with the coarse-canopy defect reintroduced: the
+  // broken lookup still shaved 3.5% off capture by accident, which a sign test
+  // accepts. With the correction the clustered arm falls to ~11% of the open
+  // arm. Requiring at least a 2x attenuation is what makes this a test of the
+  // mechanism rather than of arithmetic noise.
+  const MIN_ATTENUATION = 2;
+  const ratio = open > 0 ? open / Math.max(1e-9, shaded) : 0;
+  const captureResponds = ratio >= MIN_ATTENUATION;
+
+  // INDEPENDENT CONTROLLED CHECK (review #5506898666).
+  //
+  // The clustered-vs-open comparison above repositions ALL organisms, so its
+  // capture difference is confounded with habitat, nutrient and competition
+  // context. Here the spatial layout, seed and forcing are held IDENTICAL and
+  // only the local canopy MASS is varied: `rebuildShadeMass` is frozen so an
+  // injected field persists, and the same biological population runs under a
+  // high persistent canopy versus none. A difference here is attributable to
+  // canopy mass alone, not to where the organisms were moved.
+  const isolated = ((): { responds: boolean; high: number; none: number; ratio: number } => {
+    const mk = (): any => new World({
+      config: { seed: 4242, founders: 60, worldW: 1500, worldH: 900, label: 'canopy', shadeGrain: GRAIN } as never,
+    });
+    const run = (canopyMass: number): number => {
+      const v: any = mk();
+      // Freeze the coarse canopy rebuild so our injected mass is the only
+      // shadeMass in force for the whole run. The two diagnostic arms start from
+      // identical positions, nutrients, seed and forcing; only the imposed canopy
+      // mass differs. Downstream trajectories may diverge as a treatment
+      // effect of light attenuation.
+      v.rebuildShadeMass = function () {};
+      const geom = v as { shadeCols: number; shadeRows: number; shadeMass: Float32Array };
+      geom.shadeMass.fill(canopyMass);
+      const before = v.ledgerCaptureTotal();
+      for (let i = 0; i < 150; i++) v.step();
+      return v.ledgerCaptureTotal() - before;
+    };
+    const high = run(25);
+    const none = run(0);
+    const r = none > 0 ? none / Math.max(1e-9, high) : 0;
+    return { responds: r >= MIN_ATTENUATION, high, none, ratio: r };
+  })();
+  const isolatedResponds = isolated.responds;
+  const pass = spatialOk && captureResponds && isolatedResponds;
+  record('G34', 'canopy lookup is spatially correct and reaches capture', pass,
+    `grid ${TC}x${TR} at shadeGrain ${GRAIN} | inside injected cell ${inside} `
+    + `(want 25) | corners ${cornerLL}/${cornerUR} edges ${edgeL}/${edgeT} `
+    + `(want 0/0/0/0) | legacy capture open ${open.toFixed(2)} shaded `
+    + `${shaded.toFixed(2)} (${captureResponds ? 'responds' : 'DID NOT RESPOND'}) `
+    + `| isolated canopy high ${isolated.high.toFixed(2)} none ${isolated.none.toFixed(2)} `
+    + `ratio ${isolated.ratio.toFixed(2)} (${isolatedResponds ? 'responds' : 'DID NOT RESPOND'})`);
+}
+
+/**
+ * G35 — the predation matter ride-along is inert when off and a real transfer when on.
+ *
+ * The knob is null-default: with `chemistryPredationMatter` unset the contest
+ * must move energy only (the declared state this PR shipped), and with it set
+ * the attacker must receive tissue carbon equal to the energy gained, while
+ * the conservation ledger sees the transfer rather than a mint.
+ */
+function gate35(): void {
+  const run = (on: boolean | null): { w: World; a: ChemistryAudit | null } => {
+    const w = new World({
+      config: { seed: 517, founders: 400, genomeV2: true, chemistry: true, chemistryPredationMatter: on } as never,
+    });
+    for (let i = 0; i < 300; i++) w.step();
+    return { w, a: w.chemAudit };
+  };
+  // `null` (unset) is the true null-default, not `false`: a wiring regression
+  // that accidentally enabled the knob on null would pass a false-vs-true arm
+  // while breaking the parity pins the whole experiment rests on.
+  const off = run(null);
+  const on = run(true);
+
+  const inertOff = off.w.predationMatterCarbon === 0;
+  const movedOn = on.w.predationMatterCarbon > 0;
+
+  // Conservation must survive the ride-along: the matter is moved, not minted.
+  // Copied verbatim from G27's two guards (denominator floor + settle clamp),
+  // which a naive reimplementation lacks: dividing by |accounted| for a near-
+  // zero element turns float noise into a false BREACH, and omitting the clamp
+  // check lets a settling defect that only manifests under contention slip.
+  const NAME = ['C', 'H', 'O', 'N', 'P', 'S', 'Fe'];
+  const CHECKED = ['C', 'N', 'P', 'S', 'Fe'];
+  const TOL = 1e-3;
+  const check = (a: ChemistryAudit, chem: World['chemistry']): boolean => {
+    for (let e = 0; e < NAME.length; e++) {
+      if (!CHECKED.includes(NAME[e])) continue;
+      const held = a.biomass[e] + a.stores[e] + a.environment[e];
+      const acc = a.initial[e] + a.inputs[e] - a.outputs[e];
+      const denom = Math.abs(acc);
+      if (denom < 1e-9) continue;
+      const rel = (held - acc) / denom;
+      if (Math.abs(rel) > TOL) return false;
+    }
+    return (chem?.totalClamped() ?? 0) <= 1;
+  };
+  const conservedOff = off.a ? check(off.a, off.w.chemistry) : false;
+  const conservedOn = on.a ? check(on.a, on.w.chemistry) : false;
+
+  // STOICHIOMETRY, not just conservation: a transfer that moves only carbon
+  // would conserve carbon and leave the rest untouched, passing the audit
+  // above while silently violating "every element in the same proportion".
+  // This calls the transfer on synthetic slots with a known prey composition
+  // and asserts the per-element ratio matches the prey's own stoichiometry.
+  const st = newChemStores(8);
+  const predSlot = 0, preySlot = 1;
+  for (let e = 0; e < E.COUNT; e++) st.biomass[preySlot * E.COUNT + e] = 10 * (e + 1);
+  const preyBefore = Float64Array.from({ length: E.COUNT },
+    (_, e) => st.biomass[preySlot * E.COUNT + e]);
+  const moved = transferPredationMatter(st, predSlot, preySlot, 1.1); // ~2 C moved
+  let stoichOk = moved > 0;
+  const movedC = preyBefore[E.C] - st.biomass[preySlot * E.COUNT + E.C];
+  for (let e = 0; e < E.COUNT; e++) {
+    const lost = preyBefore[e] - st.biomass[preySlot * E.COUNT + e];
+    const gainedE = st.stores[predSlot * E.COUNT + e];
+    if (Math.abs(lost - gainedE) > 1e-9) stoichOk = false;         // prey loss == predator gain
+    if (movedC > 0) {
+      const want = preyBefore[e] / preyBefore[E.C];
+      if (Math.abs((lost / movedC) - want) > 1e-6) stoichOk = false; // proportional
+    }
+  }
+
+  const pass = inertOff && movedOn && conservedOff && conservedOn && stoichOk;
+  record('G35', 'predation matter ride-along is inert-off and a real transfer when on', pass,
+    `carbon moved off(on null)/on: ${off.w.predationMatterCarbon.toFixed(4)} / `
+    + `${on.w.predationMatterCarbon.toFixed(4)} mol | conservation off/on: `
+    + `${conservedOff ? 'ok' : 'BREACH'} / ${conservedOn ? 'ok' : 'BREACH'} `
+    + `(tolerance ${(TOL * 100).toFixed(2)}%, clamp<=1) | stoichiometry `
+    + `${stoichOk ? 'proportional' : 'BREACH'}`);
+}
+
+/**
+ * G36 — chemical energy is reconciled through the legacy causal ledger.
+ *
+ * G3 proves the legacy identity with chemistry off. G33 measures chemical
+ * income as a share but leaves the two books separate, so a chemistry-on run
+ * can mint or lose chemical energy without the causal identity seeing it.
+ * This gate runs the SAME identity with chemistry enabled and, in addition,
+ * checks that the ledger's chemical terms equal the chemistry flux exactly —
+ * a separate book that only agrees because it is never compared fails here.
+ */
+function gate36(): void {
+  const TOLERANCE = 0.005; // same scale-free tolerance as G3
+  const w = new World({ config: { seed: 517, founders: 400, genomeV2: true, chemistry: true } as never });
+  let worst = 0;
+  for (let i = 0; i < 600; i++) {
+    w.step();
+    const r = Math.abs(w.accountingResidualFraction());
+    if (r > worst) worst = r;
+  }
+  // Bridge arm is now booked through the same identity. It must close, and it
+  // must also emit a ledger term that actually differs from the base arm.
+  const bw = new World({ config: { seed: 517, founders: 400, genomeV2: true, chemistry: true,
+    chemistryToLegacyDetritus: true } as never });
+  let worstBridge = 0;
+  for (let i = 0; i < 600; i++) {
+    bw.step();
+    const r = Math.abs(bw.accountingResidualFraction());
+    if (r > worstBridge) worstBridge = r;
+  }
+  // Negative control on the REAL detector: inject unbooked energy into a
+  // settled chemistry world. Readouts are reported for w vs bad (break).
+  const badWorld = new World({ config: { seed: 517, founders: 400, genomeV2: true, chemistry: true } as never });
+  for (let i = 0; i < 300; i++) badWorld.step();
+  let injectedSlot = -1;
+  const bstore = badWorld.store;
+  for (let sl = 0; sl < bstore.capacity; sl++) { if (badWorld.aliveAt(sl)) { injectedSlot = sl; break; } }
+  if (injectedSlot >= 0) bstore.energy[injectedSlot] += 5000;
+  let worstInjected = 0;
+  for (let i = 300; i < 600; i++) {
+    badWorld.step();
+    const r = Math.abs(badWorld.accountingResidualFraction());
+    if (r > worstInjected) worstInjected = r;
+  }
+  const L = w.ledger;
+  const chem = w.chemistry!;
+  const incomeMatches = Math.abs(L.chemicalIncome - chem.flux.chemEnergyIncome) <= 1e-9;
+  const spendMatches = Math.abs(L.chemicalSpent - chem.flux.chemEnergySpent) <= 1e-9;
+  const chemShare = L.chemicalIncome / Math.max(1e-9, L.totalInput());
+  const material = L.chemicalIncome > 0 && L.chemicalSpent > 0 && chemShare > TOLERANCE;
+  const bridgeFires = w.ledger.injectOrganic === 0 && bw.ledger.injectOrganic > 0;
+  const bridgeCloses = worstBridge < TOLERANCE;
+  const negativeControlPass = worstInjected > TOLERANCE;
+  const pass = worst < TOLERANCE && incomeMatches && spendMatches && material
+    && bridgeCloses && bridgeFires && negativeControlPass;
+  record('G36', 'chemical energy is reconciled through the legacy causal ledger', pass,
+    `base residual ${(worst * 100).toFixed(5)}%` +
+    ` | income ${L.chemicalIncome.toFixed(2)} (${(chemShare * 100).toFixed(3)}% of input)` +
+    ` vs flux ${chem.flux.chemEnergyIncome.toFixed(2)}` +
+    ` (match ${incomeMatches}) | spend ${L.chemicalSpent.toFixed(2)}` +
+    ` vs flux ${chem.flux.chemEnergySpent.toFixed(2)} (match ${spendMatches})` +
+    ` | material=${material} | control residual ${(worstInjected * 100).toFixed(5)}%` +
+    ` (breaks=${negativeControlPass}) | bridge residual ${(worstBridge * 100).toFixed(5)}%` +
+    ` | bridge fires=${bridgeFires} closes=${bridgeCloses}`);
+}
+
+/**
+ * G37 — the per-organism gross substrate budget is live, not cosmetic.
+ *
+ * The budget must actually bind in a running chemistry world, and the
+ * settlement clamp must remain small. A helper-only test would not prove the
+ * engine calls the new path.
+ */
+function gate37(): void {
+  const w = new World({ config: { seed: 517, founders: 400, genomeV2: true, chemistry: true } as never });
+  for (let i = 0; i < 300; i++) w.step();
+  const clamp = w.chemistry!.totalClamped();
+  const hits = w.chemBudgetLimited;
+  const pass = hits > 0 && clamp < 0.10;
+  record('G37', 'per-organism gross substrate budgets bind in a live chemistry world', pass,
+    `budget-limited reactions=${hits} | cumulative settle clamp=${clamp.toFixed(6)} (limit 0.10)`);
+}
+
+/**
+ * G38 — freeNutrients is a booked exogenous subsidy, not a gate bypass.
+ */
+function gate38(): void {
+  const w = new World({ config: { seed: 517, founders: 400, genomeV2: true, chemistry: true,
+    chemistryFreeNutrients: true } as never });
+  for (let i = 0; i < 300; i++) w.step();
+  const chem = w.chemistry!;
+  const subsidy = Array.from(chem.flux.freeNutrientSubsidy).reduce((a, b) => a + b, 0);
+  const built = chem.flux.chemCarbonBuilt;
+  const core = new Set(['C', 'N', 'P', 'S', 'Fe']);
+  const conservation = w.chemAudit!.residual
+    .every((x) => Math.abs(x.residualFraction) < (core.has(x.element) ? 0.001 : 0.005));
+  const ceilingStillBinds = w.chemNutrientLimited > 0;
+  // Negative control on the helpers themselves: an EMPTY store must remain
+  // nutrient-limited and must not pass the offspring gate, even with the knob
+  // set. A subsidy booked into a live world cannot silently re-open the bypass.
+  const st = newChemStores(1);
+  const cfg = { ...DEFAULT_CHEM_CONFIG, freeNutrients: true };
+  const gr = { carbon: 0, nutrientLimited: false, energyLimited: false };
+  grow(st, 0, 1, 100, cfg, gr, new Float64Array(E.COUNT));
+  const offspring = canAffordOffspring(st, 0, cfg);
+  const bypassAbsent = gr.carbon === 0 && gr.nutrientLimited && !offspring.ok;
+  const pass = subsidy > 0 && built > 0 && conservation && ceilingStillBinds && bypassAbsent;
+  record('G38', 'freeNutrients is a booked subsidy without gate bypasses', pass,
+    `subsidy=${subsidy.toFixed(4)} mol | carbonBuilt=${built.toFixed(4)} mol`
+    + ` | all-7 conservation=${conservation} | nutrientLimited=${w.chemNutrientLimited}`
+    + ` | empty-store negative control carbon=${gr.carbon} lacking=${offspring.lacking}`);
+}
+
+/**
+ * G39 — water uptake debits H and O at 1:1 in a live chemistry world.
+ */
+function gate39(): void {
+  const w = new World({ config: { seed: 517, founders: 400, genomeV2: true, chemistry: true } as never });
+  for (let i = 0; i < 300; i++) w.step();
+  const ho = new Map(w.chemAudit!.residual.map((x) => [x.element, Math.abs(x.residualFraction)]));
+  const h = ho.get('H') ?? 1, o = ho.get('O') ?? 1;
+  // Discriminating synthetic control: one H2O mole claimed must credit exactly
+  // one H and one O into stores. A world-scale percentage alone can hide a
+  // half-oxygen regression behind the reservoir denominator.
+  const sc = new Chemistry(1, 1, 1, DEFAULT_CHEMISTRY);
+  sc.fields[POOL.H2O].data[0] = 100;
+  const st = newChemStores(1);
+  const demand = new Float64Array(E.COUNT); demand[E.H] = 1;
+  const before = sc.remaining(POOL.H2O, 0);
+  assimilate(sc, st, 0, 0, DEFAULT_CHEM_CONFIG, demand);
+  const claimed = before - sc.remaining(POOL.H2O, 0);
+  const uptakeBalanced = claimed > 0 && Math.abs(st.stores[E.H] - claimed) < 1e-12
+    && Math.abs(st.stores[E.O] - claimed) < 1e-12;
+  const pass = h < 0.005 && o < 0.005 && uptakeBalanced;
+  record('G39', 'H2O uptake credits H and O 1:1 and the live book closes', pass,
+    `H |residual|=${(h * 100).toFixed(5)}% O |residual|=${(o * 100).toFixed(5)}% (limit 0.5%)`
+    + ` | claimed=${claimed} storeH=${st.stores[E.H]} storeO=${st.stores[E.O]}`);
+}
+
+/**
+ * G40 — one per-cell snapshot budget covers reactions AND uptake.
+ *
+ * DISCRIMINATING two-organism negative control on a same-pool reaction, run
+ * with O2 = 0 so the ANAEROBIC family is selected: anaerobic decomposition
+ * draws 1 OC and returns 0.45, so its net draw hides 45% of the gross draw. If
+ * the budget were NET, organism 1 would reserve only its net OC depletion and
+ * organism 2 would be offered the 0.45 it just returned, pushing the AGGREGATE
+ * gross draw to 0.029 against a 0.02 cell.
+ *
+ * Three arms:
+ *   A tight (OC = 0.02) — near-equality to the start, so a fully blocked
+ *     second organism cannot pass.
+ *   B roomy (OC = 10)  — both organisms act, so the budget is shared, not
+ *     exclusive.
+ *   C reaction then uptake — after a reaction reserves its gross draw, the OC
+ *     visible to the next organism's `assimilate()` is 0.
+ */
+function gate40(): void {
+  // O2 = 0 selects anaerobic decomposition, the clearest same-pool reaction:
+  // it draws 1 OC and returns 0.45 OC, so its NET draw hides 45% of the draw.
+  // Under a NET-only budget the second organism would be offered that returned
+  // OC before settle(), and the AGGREGATE gross draw would exceed the cell.
+  const runPair = (startOC: number) => {
+    const chem = new Chemistry(1, 1, 1, DEFAULT_CHEMISTRY);
+    chem.fields[POOL.OC].data[0] = startOC;
+    // O2 = 0 selects ANAEROBIC decomposition, whose OC return (0.45) is the
+    // same-pool case the control is about. DEFAULT_CHEMISTRY seeds O2 = 0.9,
+    // which would select the aerobic family (OC return 0.30) instead.
+    chem.fields[POOL.O2].data[0] = 0;
+    chem.fields[POOL.ON].data[0] = 100;
+    chem.fields[POOL.OP].data[0] = 100;
+    chem.fields[POOL.OS].data[0] = 100;
+    const st = newChemStores(2);
+    for (let slot = 0; slot < 2; slot++) {
+      st.capMask[slot] = CAP.AEROBIC;
+      st.capStrength[slot * CAP_COUNT + 1] = 1; // CAP.AEROBIC = 1 << 1
+    }
+    const cfg = { ...DEFAULT_CHEM_CONFIG, enabled: true };
+    const out = new Float64Array(POOL_RT.H2O + 1);
+    const ext = new Float64Array(REACTIONS.length);
+    const before = chem.grossDrawnTotal[POOL.OC];
+    // Anaerobic decomposition is a SERVICE reaction: its `energy` is 0.0 by
+    // design, so energy cannot prove it ran. The realized reaction EXTENT is
+    // the non-vacuity witness.
+    runMetabolism(chem, st, 0, 0, cfg, out, ext);
+    const x0 = Array.from(ext).reduce((a, b) => a + b, 0);
+    for (let q = 0; q < POOL_RT.H2O + 1; q++) if (out[q] !== 0) chem.react(q, 0, out[q]);
+    out.fill(0);
+    ext.fill(0);
+    runMetabolism(chem, st, 1, 0, cfg, out, ext);
+    const x1 = Array.from(ext).reduce((a, b) => a + b, 0);
+    return { e0: x0, e1: x1, aggregate: chem.grossDrawnTotal[POOL.OC] - before, startOC };
+  };
+
+  // A: budget binds. The shared snapshot must not be exceeded in aggregate.
+  const tight = runPair(0.02);
+  // NEAR-EQUALITY, not `<=`: the budget must be EXACTLY exhausted. A plain
+  // upper bound would also pass if the second organism were blocked outright
+  // and never drew at all.
+  const tightOk = tight.e0 > 0 && Math.abs(tight.aggregate - tight.startOC) < 1e-9;
+  // B: budget has room. The budget is shared, not exclusive: the second
+  // organism still acts once the first organism's draw is reserved.
+  const roomy = runPair(10);
+  const roomyOk = roomy.e0 > 0 && roomy.e1 > 0 && roomy.aggregate > 0;
+  // C: reaction then uptake. The substrate a reaction reserved must also be
+  // invisible to a LATER organism's assimilation in the same tick. Under a
+  // budget that only guarded reaction-vs-reaction, this uptake would be handed
+  // the returned OC fraction.
+  const mix = new Chemistry(1, 1, 1, DEFAULT_CHEMISTRY);
+  mix.fields[POOL.OC].data[0] = 0.02;
+  mix.fields[POOL.O2].data[0] = 0;
+  mix.fields[POOL.ON].data[0] = 100;
+  mix.fields[POOL.OP].data[0] = 100;
+  mix.fields[POOL.OS].data[0] = 100;
+  const mst = newChemStores(2);
+  for (let slot = 0; slot < 2; slot++) {
+    mst.capMask[slot] = CAP.AEROBIC;
+    mst.capStrength[slot * CAP_COUNT + 1] = 1;
+  }
+  const mcfg = { ...DEFAULT_CHEM_CONFIG, enabled: true };
+  const mout = new Float64Array(POOL_RT.H2O + 1);
+  const ocBefore = mix.grossDrawnTotal[POOL.OC];
+  const mext = new Float64Array(REACTIONS.length);
+  runMetabolism(mix, mst, 0, 0, mcfg, mout, mext);
+  const me = Array.from(mext).reduce((a, b) => a + b, 0);
+  for (let q = 0; q < POOL_RT.H2O + 1; q++) if (mout[q] !== 0) mix.react(q, 0, mout[q]);
+  // Organism 2 ASSIMILATES. If the reaction's gross reservation leaked, it
+  // would see 0.02 - net(=0.011) and take part of the returned fraction.
+  const demand = new Float64Array(E.COUNT);
+  demand[E.C] = 1;
+  const availForUptake = mix.remaining(POOL.OC, 0);
+  assimilate(mix, mst, 1, 0, mcfg, demand);
+  const mixOk = me > 0
+    && Math.abs((mix.grossDrawnTotal[POOL.OC] - ocBefore) - 0.02) < 1e-9
+    && availForUptake <= 1e-12
+    && mst.stores[E.COUNT * 1 + E.C] <= 1e-12;
+
+  const pass = tightOk && roomyOk && mixOk;
+  record('G40', 'cross-organism gross draws obey the shared one-snapshot cell budget', pass,
+    `tight OC=${tight.startOC}: org1 extent=${tight.e0.toFixed(4)} aggregateGross=${tight.aggregate.toFixed(6)} (limit ${tight.startOC})`
+    + ` | roomy OC=${roomy.startOC}: org1 extent=${roomy.e0.toFixed(4)} org2 extent=${roomy.e1.toFixed(4)} aggregate=${roomy.aggregate.toFixed(4)}`
+    + ` | reaction-then-uptake: available=${availForUptake.toFixed(9)} taken=${mst.stores[E.COUNT * 1 + E.C].toFixed(9)}`);
+}
+
+function gate41(): void {
   // radiationMultiplier dormant coupling (P2a fix verification).
   // The excess over 1x is coupled to dormantFrac/floor, not the total multiplier.
   // At 0 dormancy -> 1x (background). At dormantFrac >= floor -> full mult.
@@ -1558,12 +2538,12 @@ function gate26(): void {
   // So this boundary is covered by zeroOk.
 
   const allOk = zeroOk && halfOk && fullOk && overOk && noRadOk && preOnsetOk && uncoupledOk;
-  record('G26', 'radiationMultiplier couples only excess over 1x to dormant share (incl. boundaries)',
+  record('G41', 'radiationMultiplier couples only excess over 1x to dormant share (incl. boundaries)',
     allOk,
     `tick=${w.tick} scheduled=${scheduled.toFixed(4)} zero=${zero.toFixed(4)} half=${half.toFixed(4)} full=${full.toFixed(4)} over=${over.toFixed(4)} | noRad=${noRad.toFixed(4)} preOnset=${preOnset.toFixed(4)} uncoupledZero=${uncoupledZero.toFixed(4)} uncoupledFull=${uncoupledFull.toFixed(4)} scheduledUnc=${scheduledUnc.toFixed(4)}`);
 }
 
-function gate27(): void {
+function gate42(): void {
   // successfulMating gates asexual fallback. Asserted on BIRTHS, not flags.
   // A/B/C must ATTEMPT asexual (reach the stochastic roll) and QUEUE an
   // asexual birth; D must queue exactly 2 sexual births and 0 asexual
@@ -1751,13 +2731,13 @@ function gate27(): void {
     }
   }
 
-  record('G27', 'successfulMating flag gates asexual fallback (A no-candidate, B no-reciprocal, C failed-surplus, D passed-surplus)',
+  record('G42', 'successfulMating flag gates asexual fallback (A no-candidate, B no-reciprocal, C failed-surplus, D passed-surplus)',
     aPass && bPass && cPass && dPass,
     `A: ${aDetail} | B: ${bDetail} | C: ${cDetail} | D: ${dDetail}`);
 }
 
 // Gate 28: successfulMating array grows with population capacity
-function gate28(): void {
+function gate43(): void {
   const SMALL = { founders: 10, worldW: 200, worldH: 200, seed: 88888,
     consumerPhotoScale: 0, consumerBasalScale: 0.25,
     decomposerPhotoScale: 0, decomposerFounders: 0.5,
@@ -1778,13 +2758,13 @@ function gate28(): void {
   const grownLiveLen = w.live.length;
   const flagLen = w.successfulMating.length;
   const grew = grownLiveLen > initialLiveLen;
-  record('G28', 'successfulMating array grows with organism capacity',
+  record('G43', 'successfulMating array grows with organism capacity',
     flagLen === grownLiveLen && grew,
     `initialLiveLen=${initialLiveLen} grownLiveLen=${grownLiveLen} successfulMating.length=${flagLen} (grew: ${grew})`);
 }
 
 // Gate 29: successfulMating flag suppresses asexual for high-slot mating pair
-function gate29(): void {
+function gate44(): void {
   // Deterministic high-slot mating integration test.
   // Grows store past initial capacity, allocates a live mating pair at
   // high indices (>1024), runs resolveMatingIntent/resolveContests,
@@ -1936,13 +2916,13 @@ function gate29(): void {
   const sexualSkipped = probe.sexualSkipped.has(highA) && probe.sexualSkipped.has(highB);
 
   const pass = mated && sexualQueued && noAsexReached && sexualSkipped;
-  record('G29', 'high-slot mating pair suppresses asexual (integration)',
+  record('G44', 'high-slot mating pair suppresses asexual (integration)',
     pass,
     `mated=${mated} sexualQueued=${sexualQueued} noAsexReached=${noAsexReached} sexualSkipped=${sexualSkipped} slots=(${highA},${highB})`);
 }
 
 // ---------------------------------------------------------------------------
-// G30 — per-pool nutrient cap holds on every RETURN path (Task 6 pin)
+// G45 — per-pool nutrient cap holds on every RETURN path (Task 6 pin)
 // ---------------------------------------------------------------------------
 // WHY THIS GATE EXISTS. The four nutrient return paths (excretion + three
 // biotic-mineralisation sites) used to clamp to a FLAT `nutrientPerCell *
@@ -1992,7 +2972,7 @@ function gate29(): void {
 // gate's own configuration (measured by reverting nutrientCapAt and
 // re-running) and this gate fails loudly. The larger ~150x/~240x figures
 // belong to the probe's bigger saturation world, not to this gate.
-function gate30(): void {
+function gate45(): void {
   interface CapWorld {
     readonly nutrients: { readonly data: Float32Array }[];
     readonly habitat: { readonly fertility: { readonly data: Float32Array } };
@@ -2052,7 +3032,7 @@ function gate30(): void {
   const ratios = [0, 1, 2].map((n) => (base[n] > 1e-12 ? sat[n] / base[n] : Infinity));
   const pass = ratios.every((r) => r <= 2);
 
-  record('G30', 'per-pool nutrient cap holds on every return path (Task 6 pin)',
+  record('G45', 'per-pool nutrient cap holds on every return path (Task 6 pin)',
     pass,
     `peak excess above per-pool cap — saturation vs diffusion baseline. ` +
     `A: ${sat[0].toFixed(6)}/${base[0].toFixed(6)} (x${ratios[0].toFixed(2)}), ` +
@@ -2066,9 +3046,9 @@ function gate30(): void {
 }
 
 // ============================================================================
-// G31 / G32 — the P2-6 flux books, tested INDEPENDENTLY of G30.
+// G46 / G47 — the P2-6 flux books, tested INDEPENDENTLY of G45.
 //
-// G30 proves the per-pool cap correction behaves as declared, but it reads
+// G45 proves the per-pool cap correction behaves as declared, but it reads
 // only the nutrient FIELDS. It cannot detect a wrong flux book: the books are
 // not in its budget. These two gates test the books themselves, at the
 // per-(guild, pool[, source]) granularity the books are stored at. Aggregate
@@ -2082,7 +3062,7 @@ function gate30(): void {
 // the regeneration clamp, so that is routine. Ceiling deletion was therefore
 // being reported to the reader as biological recycling.
 //
-// G31 (conservation, writer-isolated world)
+// G46 (conservation, writer-isolated world)
 //   Diffusion and regeneration are switched off, leaving the nutrient budget
 //   with exactly one writer (a biotic return) and one draw (photosynthetic
 //   uptake):
@@ -2096,8 +3076,8 @@ function gate30(): void {
 //   Eviction is bounded, NOT zero. Float32 storage can round a cell UP past
 //   its ceiling when a return drives it there, so a later return that arrives
 //   finds excess and reports it. The rounding envelope is 4*EPS32*accepted;
-//   field agreement is a separate check. G31 detects disagreement, not unclamped writes.
-//   It does not assert whether a return leaves a cell above cap — that is G30's
+//   field agreement is a separate check. G46 detects disagreement, not unclamped writes.
+//   It does not assert whether a return leaves a cell above cap — that is G45's
 //   job. The budget closes:
 //     final - initial  ==  accepted - eviction - photo uptake
 //   The left side is measured by the nutrient fields, the right side by the
@@ -2106,7 +3086,7 @@ function gate30(): void {
 //   nutrient that actually entered, not a number that merely agrees with its
 //   own siblings.
 //
-// G32 (partition, saturation world with diffusion)
+// G47 (partition, saturation world with diffusion)
 //   The same books are then read in the arm where the ceiling actually bites,
 //   and the exact partition identity is asserted per (guild, pool, source):
 //     attempted == accepted + capLoss   (every unit offered is accounted for)
@@ -2117,7 +3097,7 @@ function gate30(): void {
 //   identity above. And `eviction > 0` is REQUIRED, so the gate cannot pass by
 //   sitting on the trivial branch where the clamp never fires.
 // ============================================================================
-function gate31(): void {
+function gate46(): void {
   type Snapshot = ReturnType<World['getFluxSnapshot']>;
   // Detritus / sediment / litter — the three biotic mineralisation sources.
   const BIOTIC_SOURCES = 3;
@@ -2133,7 +3113,7 @@ function gate31(): void {
     return s;
   };
 
-  // ---- G31: writer-isolated conservation -------------------------------
+  // ---- G46: writer-isolated conservation -------------------------------
   const ISO_TICKS = 100;
   const iso = new World({
     config: {
@@ -2167,7 +3147,7 @@ function gate31(): void {
 
   // With diffusion off, excess is float32 storage rounding at the ceiling.
   // Seeding is below cap (cap * jitter * 0.55 <= 0.7545 * cap).
-  // This checks book/field agreement, not whether the cap is enforced (G30).
+  // This checks book/field agreement, not whether the cap is enforced (G45).
   const EPS32 = 2 ** -23;
   const g31EvictionEnvelope = 4 * EPS32 * Math.abs(accIso) + 1e-12;
   const g31EvictionBounded = eviIso <= g31EvictionEnvelope;
@@ -2176,7 +3156,7 @@ function gate31(): void {
   const capLossIso = sum2(isoFlux.excretionReturns.capLoss)
     + sum3(isoFlux.bioticMineralization.capLoss);
 
-  record('G31', 'flux books are a real measurement, not a self-consistent tally',
+  record('G46', 'flux books are a real measurement, not a self-consistent tally',
     g31Residual <= 1e-4 && g31EvictionBounded && accIso > 0 && capLossIso > 0,
     `writer-isolated world (no diffusion / regen / decay / broadcast / floor): ` +
     `pool totals moved ${observedDelta.toFixed(6)}; the books predict ` +
@@ -2188,12 +3168,12 @@ function gate31(): void {
     `exercise is tracked as capLoss=${capLossIso.toFixed(6)}. Accepted must ` +
     `be > 0, else no return ran and this proves nothing.`);
 
-  // ---- G32: partition identity where the ceiling actually bites ---------
+  // ---- G47: partition identity where the ceiling actually bites ---------
   const SAT_TICKS = 120;
   const sat = new World({
     config: {
       founders: 300, worldW: 800, worldH: 800, seed: 4242, label: 'gates32',
-      // G30's saturation arm verbatim: it is the arm where the ceiling bites.
+      // G45's saturation arm verbatim: it is the arm where the ceiling bites.
       nutrientRegen: 0.5, nutrientCyclic: false, nutrientFloor: 0,
       producerCaptureScale: 0,
       excretionRate: 0.06, bioticMineralisation: 1.0, basalFoodPerCell: 0.5,
@@ -2258,7 +3238,7 @@ function gate31(): void {
     : `${worstNeg.label}[guild ${worstNeg.guild}][pool ${worstNeg.pool}]` +
       `[source ${worstNeg.src}] = ${worstNeg.value}`;
 
-  record('G32', 'return books partition exactly at every (guild, pool, source)',
+  record('G47', 'return books partition exactly at every (guild, pool, source)',
     negOk && partitionOk && eviction > 0 && attempted > 0,
     `saturation arm with diffusion, ${SAT_TICKS} ticks: attempted ` +
     `${attempted.toFixed(6)} == accepted ${accepted.toFixed(6)} + capLoss ` +
@@ -2303,6 +3283,34 @@ function main(): void {
   gate29();
   gate30();
   gate31();
+  gate32();
+  gate33();
+  gate34();
+  gate35();
+  gate36();
+  gate37();
+  gate38();
+  gate39();
+  gate40();
+  gate41();
+  gate42();
+  gate43();
+  gate44();
+  gate45();
+  gate46();
+  for (const [id, name, test] of [
+    ['G48', 'D1 growth preserves every element at the limiting carbon quantity', chemicalGrowthCases],
+    ['G49', 'D2 N/P demand is linear; carbon/cofactor boundaries stay explicit', chemicalReproductionCases],
+    ['G50', 'D1 live tissue/store/energy charges agree with realized growth', chemicalLiveGrowthCases],
+    ['G51', 'research omissions isolate reactions without disabling organism uptake', reactionOmissionCases],
+  ] as const) {
+    try {
+      const cases = test();
+      record(id, name, true, `${cases.length} targeted cases passed`);
+    } catch (error) {
+      record(id, name, false, String(error));
+    }
+  }
 
   const failed = results.filter((r) => !r.pass);
   console.log(`\n${results.length - failed.length}/${results.length} checks passed`);

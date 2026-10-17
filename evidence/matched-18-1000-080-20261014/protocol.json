@@ -1,0 +1,31 @@
+{
+  "seeds": [
+    41001,
+    41002,
+    41003,
+    41004,
+    41005,
+    41006,
+    41007,
+    41008,
+    41009,
+    41010,
+    41011,
+    41012,
+    41013,
+    41014,
+    41015,
+    41016,
+    41017,
+    41018
+  ],
+  "ticks": 1000,
+  "founders": 400,
+  "arms": [
+    "legacy: chemistry=null, genomeV2=null",
+    "advanced: chemistry=true, genomeV2=true"
+  ],
+  "purpose": "Descriptive paired comparison, no preregistered ecological verdict.",
+  "confound": "Chemistry and Genome V2 change together; not a chemistry-only intervention.",
+  "command": "node /tmp/opencode/matched-18-1000.mjs"
+}

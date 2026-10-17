@@ -1,3 +1,5 @@
+import type { ReactionOmission } from '../bio/metabolism.js';
+
 /**
  * World configuration for the experimental evolution engine.
  *
@@ -563,6 +565,52 @@ export interface WorldConfig {
    */
   genomeV2: boolean | null;
   /**
+   * Integrated multi-element biogeochemistry.
+   *
+   * null = declared behaviour, exactly. When true, organisms derive energy from
+   * a modelled metabolic network, carry biologically meaningful elemental
+   * stores, and those stores gate reproduction independently of energy. The
+   * abstract nutrient fields remain for the pre-existing capture path; the
+   * chemical pools are the substrate and are conserved separately.
+   */
+  chemistry: boolean | null;
+  /** Charge that chemical reactions credit as usable energy, globally scaled. */
+  chemistryEnergyScale: number | null;
+  /** Fraction of an assimilated element that is retained vs excreted. */
+  chemistryAssimilationEfficiency: number | null;
+  /** Linear finite non-negative demand scale for offspring C/N/P and trace reserve; null = 1. */
+  chemistryReproNutrientDemand: number | null;
+  /** Research only: omit exactly one named reaction, preserving uptake/capabilities. */
+  chemistryReactionOmit: ReactionOmission | null;
+  /**
+   * Ablations. Each must be REVERSIBLE and actually wired into biological
+   * execution — a knob that parses and prints but changes nothing is the dead
+   * knob class this repository has already had to correct.
+   */
+  /** Disable all chemosynthesis (sulfur + iron oxidation). */
+  chemistryNoChemosynthesis: boolean | null;
+  /** Disable anaerobic pathways (fermentation, denitrification, sulfate reduction). */
+  chemistryNoAnaerobic: boolean | null;
+  /** Disable nitrogen transformations (nitrification, denitrification). */
+  chemistryNoNitrogenCycle: boolean | null;
+  /** Ablation: remove mineral nutrients. Diagnostic only. */
+  chemistryNoNutrients: boolean | null;
+  /** H9 intervention: scale CO2 weathering. null = declared behaviour. */
+  chemistryCo2WeatheringScale: number | null;
+  /** H10 intervention: bridge chemistry death to the legacy detritus field. */
+  chemistryToLegacyDetritus: boolean | null;
+  /**
+   * Transfer elemental matter along with energy in predation/graze contests.
+   * null = declared behaviour (energy-only transfer). When true, the attacker
+   * also assimilates the matching tissue carbon and the prey loses exactly
+   * that tissue; conservation ledger sees the transfer.
+   */
+  chemistryPredationMatter: boolean | null;
+  /** Make energy free: growth then depends on matter ALONE. */
+  chemistryFreeEnergy: boolean | null;
+  /** Make nutrients free: growth then depends on energy ALONE. */
+  chemistryFreeNutrients: boolean | null;
+  /**
    * Diagnostic: abiotic nutrient floor as a FRACTION of capacity (0..1,
    * default 0 = off).
    *
@@ -824,6 +872,20 @@ export const DEFAULT_CONFIG: WorldConfig = {
   nutrientCyclic: null,
   // Modular genome v2 (see field comment). null = declared behaviour, exactly.
   genomeV2: null,
+  chemistry: null,
+  chemistryEnergyScale: null,
+  chemistryAssimilationEfficiency: null,
+  chemistryReproNutrientDemand: null,
+  chemistryReactionOmit: null,
+  chemistryNoChemosynthesis: null,
+  chemistryNoAnaerobic: null,
+  chemistryNoNitrogenCycle: null,
+  chemistryNoNutrients: null,
+  chemistryCo2WeatheringScale: null,
+  chemistryToLegacyDetritus: null,
+  chemistryPredationMatter: null,
+  chemistryFreeEnergy: null,
+  chemistryFreeNutrients: null,
   nutrientFloor: 0,
   sporeDispersal: null,
   dormantSenescence: null,
