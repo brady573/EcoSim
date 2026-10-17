@@ -14,7 +14,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gunzipSync } from 'node:zlib';
 import assert from 'node:assert/strict';
-import { checkReactionEvidence } from './check-rxomit-evidence.mjs';
+import { checkReactionEvidence, checkDescendantEvidence } from './check-rxomit-evidence.mjs';
 import { reactionEvidenceFixtures } from './rxomit-evidence-fixtures.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -316,7 +316,7 @@ for (const [docKey, rawKey, label, inRaw, inDoc] of CASES) {
 
 console.log(`\n${CASES.length - failed}/${CASES.length} doc figures match their current raw evidence`);
 console.log(`historical figures preserved at ${reconciledIdentity}; live identity ${expectedIdentity} checked separately`);
-await checkReactionEvidence(root);
+checkDescendantEvidence(root, await checkReactionEvidence(root));
 await reactionEvidenceFixtures(root);
 process.exit(failed > 0 || process.exitCode ? 1 : 0);
 

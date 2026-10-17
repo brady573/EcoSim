@@ -48,6 +48,11 @@ Every arm ended below its founding population, although none ended at zero.
 
 ## Raw measurement and trust boundaries
 
+Review follow-up: `RXOMIT-DESCENDANT-SCOREBOARD.md` derives actual descendant
+births and cohort proposal-gate counts from these retained archives, without
+new simulations. The demographic integrity guard accepts both extinction and
+growth; historical table pins check quoted figures, not desirable outcomes.
+
 Per-arm `*-events.jsonl.gz` files retain every reached reproductive decision,
 queue/admission outcome, the fixed chemical samples and first-divergence
 chemical witnesses. Unreached gates are not passes. Pair-level mating

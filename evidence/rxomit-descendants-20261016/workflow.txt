@@ -1,0 +1,342 @@
+[PASS] W8a-horizon horizon declares exactly 15 positional probe settings
+         argvRest length=15
+[PASS] W8aX-horizon horizon trailing argvExtra, if any, is a short string array
+         argvExtra=null
+[PASS] W8a-flatline flatline declares exactly 15 positional probe settings
+         argvRest length=15
+[PASS] W8aX-flatline flatline trailing argvExtra, if any, is a short string array
+         argvExtra=null
+[PASS] W8a-consumer-yield consumer-yield declares exactly 15 positional probe settings
+         argvRest length=15
+[PASS] W8aX-consumer-yield consumer-yield trailing argvExtra, if any, is a short string array
+         argvExtra=null
+[PASS] W8a-prospective-guilds prospective-guilds declares exactly 15 positional probe settings
+         argvRest length=15
+[PASS] W8aX-prospective-guilds prospective-guilds trailing argvExtra, if any, is a short string array
+         argvExtra=null
+[PASS] W8a-graze-link graze-link declares exactly 15 positional probe settings
+         argvRest length=15
+[PASS] W8aX-graze-link graze-link trailing argvExtra, if any, is a short string array
+         argvExtra=null
+[PASS] W8a-graze-subsidy05 graze-subsidy05 declares exactly 15 positional probe settings
+         argvRest length=15
+[PASS] W8aX-graze-subsidy05 graze-subsidy05 trailing argvExtra, if any, is a short string array
+         argvExtra=null
+[PASS] W8a-graze-subsidy01 graze-subsidy01 declares exactly 15 positional probe settings
+         argvRest length=15
+[PASS] W8aX-graze-subsidy01 graze-subsidy01 trailing argvExtra, if any, is a short string array
+         argvExtra=null
+[PASS] W8a-graze-nutcyc graze-nutcyc declares exactly 15 positional probe settings
+         argvRest length=15
+[PASS] W8aX-graze-nutcyc graze-nutcyc trailing argvExtra, if any, is a short string array
+         argvExtra=null
+[PASS] W8a-graze-nutcyc-sat2 graze-nutcyc-sat2 declares exactly 15 positional probe settings
+         argvRest length=15
+[PASS] W8aX-graze-nutcyc-sat2 graze-nutcyc-sat2 trailing argvExtra, if any, is a short string array
+         argvExtra=null
+[PASS] W8a-graze-nutregen graze-nutregen declares exactly 15 positional probe settings
+         argvRest length=15
+[PASS] W8aX-graze-nutregen graze-nutregen trailing argvExtra, if any, is a short string array
+         argvExtra=null
+[PASS] W8a-graze-viability graze-viability declares exactly 15 positional probe settings
+         argvRest length=15
+[PASS] W8aX-graze-viability graze-viability trailing argvExtra, if any, is a short string array
+         argvExtra=null
+[PASS] W8a-producer-alone producer-alone declares exactly 15 positional probe settings
+         argvRest length=15
+[PASS] W8aX-producer-alone producer-alone trailing argvExtra, if any, is a short string array
+         argvExtra=["0"]
+[PASS] W8a-producers-with-loop-floor0 producers-with-loop-floor0 declares exactly 15 positional probe settings
+         argvRest length=15
+[PASS] W8aX-producers-with-loop-floor0 producers-with-loop-floor0 trailing argvExtra, if any, is a short string array
+         argvExtra=null
+[PASS] W8a-producer-alone-floor0 producer-alone-floor0 declares exactly 15 positional probe settings
+         argvRest length=15
+[PASS] W8aX-producer-alone-floor0 producer-alone-floor0 trailing argvExtra, if any, is a short string array
+         argvExtra=["0"]
+[PASS] W8a-viability-061 viability-061 declares exactly 15 positional probe settings
+         argvRest length=15
+[PASS] W8aX-viability-061 viability-061 trailing argvExtra, if any, is a short string array
+         argvExtra=null
+[PASS] W8a-cheap-upkeep cheap-upkeep declares exactly 15 positional probe settings
+         argvRest length=15
+[PASS] W8aX-cheap-upkeep cheap-upkeep trailing argvExtra, if any, is a short string array
+         argvExtra=null
+[PASS] W8a-excretion-return excretion-return declares exactly 15 positional probe settings
+         argvRest length=15
+[PASS] W8aX-excretion-return excretion-return trailing argvExtra, if any, is a short string array
+         argvExtra=null
+[PASS] W8a-cheap-excretion-combo cheap-excretion-combo declares exactly 15 positional probe settings
+         argvRest length=15
+[PASS] W8aX-cheap-excretion-combo cheap-excretion-combo trailing argvExtra, if any, is a short string array
+         argvExtra=null
+[PASS] W8a-balance-diagnostic-control balance-diagnostic-control declares exactly 15 positional probe settings
+         argvRest length=15
+[PASS] W8aX-balance-diagnostic-control balance-diagnostic-control trailing argvExtra, if any, is a short string array
+         argvExtra=null
+[PASS] W8a-balance-diagnostic-share1 balance-diagnostic-share1 declares exactly 15 positional probe settings
+         argvRest length=15
+[PASS] W8aX-balance-diagnostic-share1 balance-diagnostic-share1 trailing argvExtra, if any, is a short string array
+         argvExtra=null
+[PASS] W8aY a header carrying a trailing dfound= token still parses identity
+         dfound=0 (probe config)
+[PASS] W8aZ-match echoed dfound=0 satisfies a founders-0 declaration
+         mismatches=0
+[PASS] W8aZ-stale a missing echo fails closed (stale probe cannot pass)
+         absent echo must mismatch, got 1
+[PASS] W8aZ-mismatch echoed default trips a founders-0 declaration
+         mismatches=1
+[PASS] W8aZ-null explicit null extra resolves to the 0.25 default
+         mismatches=0
+[PASS] W8aZ-default-ok echoed default satisfies an arm with no founders slot
+         mismatches=0
+[PASS] W8aZ-empty-closed a missing echo fails a founders-0 declaration (empty is not zero)
+         mismatches=1
+[PASS] W8s a matching senescence setting passes the emitted-header check
+         setting=share:1
+[PASS] W8t a different senescence setting is a header mismatch
+         declared=off emitted=share:1
+[PASS] W8u a missing senescence setting is not accepted as a match
+         setting=missing
+[PASS] W8v a colon-bearing senescence setting remains intact when parsed
+         parsed=share:1
+[PASS] W1a missing LEDGER line is reported as MISSING, not as a pass
+         status=missing class=measurement-missing — probe emitted no LEDGER line; conservation was never measured
+[PASS] W1b LEDGER line with no residual is INVALID, not silently accepted
+         status=malformed ledger=null — LEDGER line is missing required field(s): residualPct
+[PASS] W1c residualPct=NaN is rejected as NONFINITE
+         status=nonfinite — LEDGER field 'residualPct' is not finite: 'NaN'
+[PASS] W1d residualPct with an invalid token is rejected as MALFORMED
+         status=malformed — LEDGER field 'residualPct' is not a number: 'abc'
+[PASS] W1e non-finite totalInput is rejected
+         status=nonfinite — LEDGER field 'totalInput' is not finite: 'Infinity'
+[PASS] W1f a numerically-shaped but unparseable value is rejected
+         status=malformed — LEDGER field 'dissipated' is not a number: '200.5.6'
+[PASS] W1g a valid in-tolerance residual is VALID and passes
+         status=ok residual 0.01% within 0.5% tolerance
+[PASS] W1h a finite residual over 0.5% is an ACCOUNTING VIOLATION
+         parse=ok (the value IS a measurement) tolerance=false — accounting residual 0.9% exceeds 0.5% tolerance — energy conservation is violated on this seed
+[PASS] W1i capture disagreeing with the per-guild breakdown is CONTRADICTORY
+         status=contradictory — ledger identity failed: capture == sum(captureByGuild) (200 vs 150, diff 50.000 > 0.5)
+[PASS] W1j totalInput != founding+capture+organic is CONTRADICTORY
+         status=contradictory — ledger identity failed: totalInput == founding + capture + organic (300 vs 250, diff 50.000 > 0.5)
+[PASS] W1k a negative biomass is CONTRADICTORY, not a measurement
+         status=contradictory — LEDGER field 'biomass' is negative (-1); that quantity cannot be | ledger identity failed: accounted == biomass + detritus + dissipated (300 vs 199, diff 101.000 > 0.5)
+[PASS] W1l printed sinks exceeding totalInput is CONTRADICTORY
+         status=contradictory — accounted (500) exceeds totalInput (300); the printed sinks exceed every source, which cannot happen
+[PASS] W1m captureByGuild with the wrong arity is rejected
+         status=malformed — captureByGuild must carry exactly 3 guild values, got 1: '200'
+[PASS] W2a a clean no-lift zero arm PASSES the capture policy
+         ledger=ok, capture policy pass=true — capture by guild producer=0 consumer=0 decomposer=0 (no capture lift declared)
+[PASS] W2b positive decomposer capture fails a zero arm EVEN AT ZERO RESIDUAL
+         ledger=ok residual=0 — capture policy pass=false — producer captured 150 under --zero with no sanctioned lift (permitted lifts for this guild: producerCaptureScale); decomposer captured 50 under --zero with no sanctioned lift (permitted lifts for this guild: decomposerPhotoScale)
+[PASS] W2c a lifted producer capture scale permits producer capture
+         pass=true — capture by guild producer=200 consumer=0 decomposer=0 (permitted: producerCaptureScale)
+[PASS] W2d a producer lift does NOT permit decomposer capture
+         pass=false — decomposer captured 50 under --zero with no sanctioned lift (permitted lifts for this guild: decomposerPhotoScale)
+[PASS] W2e a basalFoodPerCell lift books organic and does NOT sanction capture
+         permitted=[false,false,false] — organic=50 and no guild is licensed: capture by guild producer=0 consumer=0 decomposer=0 (no capture lift declared)
+[PASS] W2f zero capture by a guild that never existed is recorded as VACUOUS, not failed
+         pass=true vacuous=["consumer was empty at every checkpoint, so its zero capture proves nothing"]
+[PASS] W2j a vacuous guild does not MASK a real capture violation
+         pass=false vacuous=1 — producer captured 100 under --zero with no sanctioned lift (permitted lifts for this guild: producerCaptureScale); decomposer captured 100 under --zero with no sanctioned lift (permitted lifts for this guild: decomposerPhotoScale); consumer was empty at every checkpoint, so its zero capture proves nothing
+[PASS] W2k a ZERO-valued lift grants no capture permission
+         permitted=[false,false,false] — a lift of 0 lifts nothing, so no guild is licensed: capture by guild producer=0 consumer=0 decomposer=0 (no capture lift declared)
+[PASS] W2g capture policy refuses to pass without a validated ledger
+         pass=false — no validated ledger; capture policy cannot be enforced
+[PASS] W2h a non-zero arm is not subject to the capture prohibition
+         pass=true applicable=false — arm is not a --zero arm; no capture prohibition declared
+[PASS] W2i per-guild presence is detected across checkpoints, not just the last row
+         rows=3 final.decomp=4 everNonZero={"producer":true,"consumer":true,"decomposer":true}
+[PASS] W3-diagnostics no dispatch input is interpolated into a diagnostics run: body
+         no inputs.* interpolation appears in any run: body (block or inline form)
+[PASS] W3-ladder no dispatch input is interpolated into a ladder run: body
+         no inputs.* interpolation appears in any run: body (block or inline form)
+[PASS] W3-self-inline the scanner DETECTS an inline `run:` interpolation
+         found 1: [{"line":4,"tok":"${{ inputs.seeds }}"}]
+[PASS] W3-self-scope the scanner scopes a block body to its own step
+         found 1 offender(s): ["${{ inputs.ticks }}"] (1 = the block body only, neither the env nor the following step)
+[PASS] W3-self-env an `env:` binding of dispatch input is the ALLOWED pattern
+         found 0 offender(s) — env: is exactly how input should reach the shell
+[PASS] W3-self-compound the scanner DETECTS compound/filtered input expressions
+         found 2 of 2 expected: ["${{ inputs.ticks || '6000' }}","${{ fromJSON(inputs.matrix) }}"]
+[PASS] W4a a range expands to its members
+         "1:10" -> 10 seeds [1,2,3,4,5,6,7,8,9,10]
+[PASS] W4b "1:10" across 4 legs covers seeds 1-10 exactly once
+         4 nonempty shards: [1,5,9] [2,6,10] [3,7] [4,8]
+[PASS] W4c an equivalent comma list yields the identical allocation
+         range  -> [[1,5,9],[2,6,10],[3,7],[4,8]]
+         commas -> [[1,5,9],[2,6,10],[3,7],[4,8]]
+[PASS] W4d a mixed range/list panel of 36 seeds shards without loss
+         6 shards, 36 seeds, 36 distinct
+[PASS] W4e a reversed range is rejected
+         expandSeeds('10:1') -> reversed seed range '10:1'
+[PASS] W4f an adversarial dispatch string is rejected as DATA, never evaluated
+         expandSeeds('$(id)') -> unparseable seed '$(id)' (want an integer or "lo:hi")
+[PASS] W4g an oversized panel is rejected rather than launched
+         expandSeeds('1:100000') -> seed range '1:100000' yields 100000 seeds, over the 256 limit
+[PASS] W4h a non-integer leg count is rejected
+         parseLegs('4; rm -rf /') -> legs must be a positive integer, got '4; rm -rf /'
+[PASS] W4i a leading-zero leg count is rejected before it reaches shell arithmetic
+         parseLegs('08') -> legs must not have a leading zero, got '08' (write 8)
+[PASS] W4j plain leg counts are unaffected by the leading-zero guard
+         parseLegs('1')=1, parseLegs('10')=10, parseLegs('0') rejected=true
+[PASS] W5a a factorial-core manifest summarises via switches.length
+         ok=true units=4 — "leg leg0: seeds=[1,2], switches=4, runs=16"
+[PASS] W5b a target/config manifest summarises via targets.length
+         ok=true units=2 skipped=1 — "leg leg1: seeds=[1], targets=2, runs=7, unsweepable=1"
+[PASS] W5c a manifest with neither field degrades instead of throwing
+         ok=false — "leg leg2: seeds=[1], runs=3, manifest carries neither `switches` nor `targets`; cannot report the panel size"
+[PASS] W5d an unreadable manifest is reported, not thrown from the summariser
+         returned a result object
+[PASS] W6a a complete, disjoint, single-engine panel PASSES
+         pass=true class=supported — Evidence intact across 4/4 seeds.
+
+Measured against the pre-registration — populated 4/4.
+[PASS] W6b a MISSING seed fails the cohort even though the leg succeeded
+         pass=false — missing seed(s): 3, 4
+[PASS] W6c a DUPLICATE seed fails the cohort
+         pass=false — duplicate measurement for seed(s) 2 — a seed measured twice is not two observations
+[PASS] W6d MIXED engine versions across legs fail the cohort
+         pass=false — legs disagree on engine: ts-evo-poc/0.6.0 vs ts-evo-poc/0.5.0 — a cohort spanning two engines is not one experiment
+[PASS] W6g per-leg FAILURES are inherited; a contaminated seed cannot pass the cohort
+         pass=false — leg 0 recorded a failure on seed 1 [capture-policy-violation]: decomposer captured 50 under --zero
+[PASS] W6h per-leg header MISMATCHES are inherited too
+         pass=false — leg 0 recorded a header/declaration mismatch on seed 1: {"seed":1,"want":{"finalTick":12000},"got":{"finalTick":6000}}
+[PASS] W6i a leg manifest with no `failures` array is itself invalid
+         pass=false — 1 of 1 leg(s) do not record commit — NO leg recorded it, so this cohort cannot be verified at all; 1 of 1 leg(s) do not record armSpecHash — NO leg recorded it, so this cohort cannot be verified at all; 1 of 1 leg(s) do not record ticks — NO leg recorded it, so this cohort cannot be verified at all; 1 of 1 leg(s) do not record declaredTicks — NO leg recorded it, so this cohort cannot be verified at all; leg 0 records no `failures` array; a manifest that cannot say what went wrong cannot be trusted
+[PASS] W6j legs run at DIFFERENT horizons are not one experiment
+         pass=false — legs disagree on ticks: 12000 vs 6000 — a cohort spanning two tickss is not one experiment
+[PASS] W6k a criterion with an UNKNOWN metric is an integrity failure, not a silent skip
+         pass=false class=not measured — criterion 'typo' names unknown metric 'conss' (known: pop, prod, cons, dec, allGuildsNonZero, extinct, residualPct) — the prediction cannot be evaluated
+[PASS] W6m a DECLARED identity that disagrees with the measured one fails
+         pass=false — engine is 'ts-evo-poc/0.6.0' but this run declared 'ts-evo-poc/0.5.0' — the artifacts and the dispatch disagree
+[PASS] W6n a MATCHING declared identity does not fail
+         pass=true — evidence intact across 1/1 seeds, but the arm declares no machine-readable criteria; judge against its prose prediction
+[PASS] W6o a null entry in `runs` is an INVALID verdict, not a crash
+         pass=false — a leg manifest contains a non-object entry in `runs`: null
+[PASS] W6p a FALSIFIED verdict exits green and says so unmistakably
+         pass=true class=falsified
+[PASS] W6q the exit policy is carried on the verdict, not just printed
+         nonzero reserved for: ["evidence-integrity violation","execution failure"]
+[PASS] W6r an INVALID cohort reports no scientific verdict at all
+         class=not measured — **EVIDENCE INVALID — no verdict can be issued.** The integrity problems are listed below.
+[PASS] W6s-engine identity absent from ALL legs (engine) fails the cohort
+         pass=false — 2 of 2 leg(s) do not record engine — NO leg recorded it, so this cohort cannot be verified at all
+[PASS] W6s-commit identity absent from ALL legs (commit) fails the cohort
+         pass=false — 2 of 2 leg(s) do not record commit — NO leg recorded it, so this cohort cannot be verified at all
+[PASS] W6s-armSpecHash identity absent from ALL legs (armSpecHash) fails the cohort
+         pass=false — 2 of 2 leg(s) do not record armSpecHash — NO leg recorded it, so this cohort cannot be verified at all
+[PASS] W6t a declared identity no leg records is a failure, not a skip
+         pass=false — 1 of 1 leg(s) do not record engine — NO leg recorded it, so this cohort cannot be verified at all; 1 of 1 leg(s) do not record commit — NO leg recorded it, so this cohort cannot be verified at all; 1 of 1 leg(s) do not record armSpecHash — NO leg recorded it, so this cohort cannot be verified at all; 1 of 1 leg(s) do not record ticks — NO leg recorded it, so this cohort cannot be verified at all; this run declares engine = 'ts-evo-poc/0.6.0' but no leg recorded engine; the declaration cannot be verified
+[PASS] W6u an out-of-tolerance residual fails even with an EMPTY failures array
+         pass=false — seed 1: accounting residual 0.9% exceeds the 0.5% tolerance — energy conservation is violated on this seed
+[PASS] W6v a non-ok ledgerStatus fails even with an EMPTY failures array
+         pass=false — seed 1: ledger status is 'contradictory', not 'ok'
+[PASS] W6w a failed capturePolicyOk fails even with an EMPTY failures array
+         pass=false — seed 1: the declared capture policy did not hold on this seed
+[PASS] W6x an ABSENT ledgerStatus fails rather than passing by omission
+         pass=false — seed 1: manifest records no ledgerStatus; the measurement cannot be confirmed
+[PASS] W6y an ABSENT capturePolicyOk fails rather than passing by omission
+         pass=false — seed 1: manifest records no capturePolicyOk; the declared capture policy cannot be confirmed
+[PASS] W6z legs that internally agree but are a DIFFERENT ARM are rejected
+         pass=false — artifacts record arm 'consumer-yield' but arm 'flatline' was requested — a cohort for one arm cannot be measured against another arm's criteria
+[PASS] W7o a cohort driven by a DIFFERENT arms.json is rejected
+         pass=false — armSpecHash is 'a-different-hash' but this run declared 'the-supplied-hash' — the artifacts and the dispatch disagree; seed 1: final checkpoint is tick 12000 but this cohort ran to tick 6000 — the reported state is from an earlier horizon than the one verified; seed 2: final checkpoint is tick 12000 but this cohort ran to tick 6000 — the reported state is from an earlier horizon than the one verified; this cohort EXECUTED to tick 6000 but the arm is REGISTERED at tick 12000 — observations from a different horizon cannot test the registered criteria
+[PASS] W7p a matching arms.json hash passes
+         pass=true — evidence intact across 2/2 seeds, but the arm declares no machine-readable criteria; judge against its prose prediction
+[PASS] W7q a declared-horizon mismatch is rejected
+         pass=false — declaredTicks is '24000' but this run declared '6000' — the artifacts and the dispatch disagree; this cohort EXECUTED to tick 12000 but the arm is REGISTERED at tick 24000 — observations from a different horizon cannot test the registered criteria
+[PASS] W7r a finalTick earlier than the cohort horizon is rejected even with EMPTY headerMismatches
+         pass=false — seed 1: final checkpoint is tick 3000 but this cohort ran to tick 12000 — the reported state is from an earlier horizon than the one verified
+[PASS] W7s a finalTick equal to the cohort horizon passes
+         pass=true — evidence intact across 1/1 seeds, but the arm declares no machine-readable criteria; judge against its prose prediction
+[PASS] W7t ticks != declaredTicks fails even when ticksOverrideApplied is FALSE
+         pass=false — this cohort EXECUTED to tick 3000 but the arm is REGISTERED at tick 6000 — observations from a different horizon cannot test the registered criteria
+[PASS] W7u ticksOverrideApplied is still honoured independently of the value check
+         pass=false — 1/1 leg(s) ran with a HORIZON OVERRIDE (ticks=12000, declared 12000). The arm's criteria are pre-registered at the declared horizon, so this run does not test them
+[PASS] W7v preflight rejects seed 0, which the diagnostic kit rejects
+         expandSeeds('0') -> integer seed 0 must be in [1,4294967295] (avoid 32-bit aliases) — the diagnostic kit rejects these, so a screen would fail after preflight passed
+[PASS] W7w preflight rejects a seed above the kit 2^32-1 bound
+         expandSeeds('4294967296') -> integer seed 4294967296 must be in [1,4294967295] (avoid 32-bit aliases) — the diagnostic kit rejects these, so a screen would fail after preflight passed
+[PASS] W7x a seed at the kit boundary is still accepted
+         expandSeeds('4294967295') and expandSeeds('1') both accepted
+::error::ticks must be a positive safe integer, got '99999999999999999999'
+[PASS] W7y preflight rejects a non-safe-integer ticks, which strictlyPositiveInt rejects
+         exit=2 — ::error::ticks must be a positive safe integer, got '99999999999999999999'
+::error::integer seed 0 must be in [1,4294967295] (avoid 32-bit aliases) — the diagnostic kit rejects these, so a screen would fail after preflight passed
+[PASS] W7z the CLI preflight rejects seed 0 end to end
+         exit=2 — ::error::integer seed 0 must be in [1,4294967295] (avoid 32-bit aliases) — the diagnostic 
+[PASS] W6e an ABSENT ledger value fails the cohort
+         pass=false — seed 1: ledger residual was never measured
+[PASS] W6l a HORIZON OVERRIDE cannot report the pre-registered verdict
+         class=not measured — artifacts record arm 'flatline' but arm 'consumer-yield' was requested — a cohort for one arm cannot be measured against another arm's criteria; seed 1: final checkpoint is tick 12000 but this cohort ran to tick 200 — the reported state is from an earlier horizon than the one verified; 2/2 leg(s) ran with a HORIZON OVERRIDE (ticks=200, declared 6000). The arm's criteria are pre-registered at the declared horizon, so this run does not test them; this cohort EXECUTED to tick 200 but the arm is REGISTERED at tick 6000 — observations from a different horizon cannot test the registered criteria
+[PASS] W6f a FALSIFIED hypothesis is reported as falsified, not as a run failure
+         pass=true class=falsified — Evidence intact across 2/2 seeds.
+
+Measured against the pre-registration — surviving 1/2.
+
+NOT MET:
+  - surviving: 1/2 met 'pop >= 1 on >= 2/2 seeds' (needed >= 2)
+[PASS] W7a plan-legs.js <arm> <legs> succeeds (the ladder plan job call)
+         exit=0 — arm 'flatline' seeds=36 requested legs=6 -> 6: [0,1,2,3,4,5]
+(no GITHUB_OUTPUT set; would write matrix=[0,1,2,3,4,5] legs=6)
+::error::unknown arm 'bogus'. Declared: horizon, flatline, consumer-yield, prospective-guilds, graze-link, graze-subsidy05, graze-subsidy01, graze-nutcyc, graze-nutcyc-sat2, graze-nutregen, graze-viability, producer-alone, producers-with-loop-floor0, producer-alone-floor0, viability-061, cheap-upkeep, excretion-return, cheap-excretion-combo, balance-diagnostic-control, balance-diagnostic-share1
+[PASS] W7b plan-legs.js rejects an unknown arm
+         exit=2 — ::error::unknown arm 'bogus'. Declared: horizon, flatline, consumer-yield, prospective-gui
+[PASS] W7c plan-legs.js prereg <arm> prints the pre-registration
+         exit=0 — ### Pre-registration
+[PASS] W7d positional and subcommand invocations coexist
+         plan exit=0, prereg exit=0
+[PASS] W7e plan-seeds.mjs panel expands a range for the shell planner
+         exit=0 out="1,2,3,4,5,6,7,8,9,10"
+[PASS] W7f plan-seeds.mjs cli validates every dispatch input
+         exit=0 — seeds=10 requested_legs=4 (capped at 4 by seed count) ticks=1500 interval=100 mode=balanced suite=config-only target=nutrientRegen — validated
+::error::unparseable seed '$(id)' (want an integer or "lo:hi")
+[PASS] W7g plan-seeds.mjs refuses a shell-metacharacter panel
+         exit=2 — ::error::unparseable seed '$(id)' (want an integer or "lo:hi")
+::error::ticks must be a positive integer, got '$(id)'
+[PASS] W7h plan-seeds.mjs cli refuses a non-integer ticks CLEANLY
+         exit=2 — ::error::ticks must be a positive integer, got '$(id)'
+::error::unparseable seed '$(id)' (want an integer or "lo:hi")
+[PASS] W7i plan-seeds.mjs cli refuses a bad SEED panel cleanly
+         exit=2 — ::error::unparseable seed '$(id)' (want an integer or "lo:hi")
+::error::legs must be a positive integer, got '4; id'
+[PASS] W7j plan-seeds.mjs cli refuses a non-integer LEG count cleanly
+         exit=2 — ::error::legs must be a positive integer, got '4; id'
+[PASS] W7k plan-legs.js writes the GITHUB_OUTPUT matrix the ladder job reads
+         exit=0 wrote "matrix=[0,1,2]
+legs=3"
+[PASS] W7l a FALSIFIED cohort exits 0 and leads with the verdict
+         exit=0 — **PREDICTION FALSIFIED** — the pre-registered outcome did NOT occur. This run is trustworthy evidence and a negative result. The workflow is GREEN because the evidence is sound, NOT because anything was confirmed.
+[PASS] W7m an INVALID cohort exits NON-ZERO and issues no verdict
+         exit=1 — - evidence integrity: INVALID
+::error::could not read /root/EcoSim-issue5/build/wc-corrupt/manifest.json: Expected property name or '}' in JSON at position 2 (line 1 column 3)
+[PASS] W7n a CORRUPT manifest fails cleanly, not with a stack trace
+         exit=1 — ::error::could not read /root/EcoSim-issue5/build/wc-corrupt/manifest.json: Expected property name or '}' in JSON at pos
+[PASS] W8-diagnostics diagnostics concurrency QUEUES pending runs rather than cancelling them
+         declared block:
+concurrency:
+  group: diagnostics-${{ github.ref }}-${{ inputs.suite }}
+  cancel-in-progress: false
+  queue: max
+[PASS] W8-ladder ladder concurrency QUEUES pending runs rather than cancelling them
+         declared block:
+concurrency:
+  group: ladder-${{ github.ref }}-${{ inputs.arm }}
+  cancel-in-progress: false
+  queue: max
+[PASS] W8-diagnostics-valid diagnostics does not combine queue:max with cancel-in-progress:true
+         queue:max=true, cancel-in-progress:true=false
+[PASS] W8-ladder-valid ladder does not combine queue:max with cancel-in-progress:true
+         queue:max=true, cancel-in-progress:true=false
+[PASS] W9-identity inventory has exactly one CURRENT chemistry identity, no duplicate rows, matching version.ts
+         current=ts-evo-poc/0.8.0+chem/0.7.8 currentRows=1 unique=true 
+[PASS] W9-evidence-paths every evidence path cited by the inventory exists
+         7 referenced paths exist
+[PASS] W10-doc-figures verdict-doc figures match the current raw panel, and the panel carries the current identity
+         Reaction evidence negative fixtures: 4/4 corrupt/missing archives rejected.
+[PASS] W9-observer on/off evidence checker rejects corrupt/config/missing/duplicate frames
+         PASS: opportunity evidence fixtures (valid/config/digest/missing/duplicate)
+
+157/157 workflow checks passed

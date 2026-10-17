@@ -6,6 +6,7 @@ import { createInterface } from 'node:readline';
 import { pipeline } from 'node:stream/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { DescendantReadout, validateTrialDemographics } from './rxomit-descendant-readout.mjs';
 
 export async function checkReactionEvidence(root) {
   const dir = join(root, 'evidence/rxomit-rapid-20261016');
@@ -23,6 +24,7 @@ export async function checkReactionEvidence(root) {
   assert.equal(summary.length, 8);
   assert.equal(new Set(summary.map((r) => `${r.seed}:${r.omission}`)).size, 8);
   assert.equal(reachability.length, 6);
+  const descendantRows = [];
   for (const seed of protocol.seeds) {
     const controlConfig = read(`control-${seed}-config.json`);
     for (const omission of protocol.arms) {
@@ -30,7 +32,7 @@ export async function checkReactionEvidence(root) {
       const result = read(`${name}-${seed}-result.json`);
       assert.deepEqual(result, summary.find((r) => r.seed === seed && r.omission === omission));
       assert.equal(result.tick, protocol.ticks);
-      assert.ok(result.population > 0 && result.population < protocol.founders, 'quoted terminal outcome must match archived population range');
+      validateTrialDemographics(result, protocol.founders);
       assert.ok(doc.includes(`| ${seed} | ${omission ?? 'control'} | ${result.population} | ${result.births} | ${result.uptake[3].toFixed(3)} | ${result.uptake[6].toFixed(6)} |`), 'trial figure must match raw measured record');
       assert.equal(result.identity, 'ts-evo-poc/0.8.0+chem/0.7.8' + (omission === null ? '' : `+rxomit/1/${name}`));
       assert.deepEqual(read(`${name}-${seed}-config.json`), { ...controlConfig, chemistryReactionOmit: omission });
@@ -57,6 +59,7 @@ export async function checkReactionEvidence(root) {
       pumped.catch(() => {});
       const lines = createInterface({ input: gunzip, crlfDelay: Infinity });
       const counts = {};
+      const descendants = new DescendantReadout();
       const seenTicks = new Set(), chemicalTicks = new Set();
       const sampledExtents = protocol.reactions.map(() => 0);
       let decisions = 0, ticks = 0, requested = 0, admitted = 0, rejected = 0, divergences = 0;
@@ -67,6 +70,7 @@ export async function checkReactionEvidence(root) {
           seenTicks.add(row.tick);
           ticks++;
           for (const e of row.events) {
+            descendants.observe(e);
             assert.equal(e.tick, row.tick);
             assert.equal(e.kind, 'reproduction');
             assert.ok(typeof e.stage === 'string' && typeof e.outcome === 'string');
@@ -117,11 +121,43 @@ export async function checkReactionEvidence(root) {
       assert.equal(requested, admitted + rejected, 'every queued child has an admission outcome');
       assert.equal(admitted, result.births);
       assert.equal(divergences, result.firstDivergence === null ? 0 : 1);
+      descendantRows.push({ seed, omission, identity: result.identity, ...descendants.finish(result.births) });
     }
   }
   console.log('Rapid reaction evidence: 8 runs, retained reached decisions and sampled gross books verified.');
+  return descendantRows;
+}
+
+/** Reconcile the published readout with an independent raw archive stream. */
+export function checkDescendantEvidence(root, rows) {
+  const dir = join(root, 'evidence/rxomit-descendants-20261016');
+  const scoreboard = JSON.parse(readFileSync(join(dir, 'scoreboard.json'), 'utf8'));
+  const complete = JSON.parse(readFileSync(join(dir, 'complete.json'), 'utf8'));
+  const provenance = JSON.parse(readFileSync(join(dir, 'provenance.json'), 'utf8'));
+  assert.deepEqual(rows, scoreboard);
+  assert.equal(complete.runs, 8);
+  assert.equal(complete.primaryLineageComplete, true);
+  assert.equal(complete.totalBirthsReconciled, true);
+  assert.equal(complete.simulationRuns, 0);
+  assert.equal(provenance.sourceCommit, '77a82f4');
+  const doc = readFileSync(join(root, 'RXOMIT-DESCENDANT-SCOREBOARD.md'), 'utf8');
+  for (const r of rows) {
+    assert.equal(r.status, 'COMPLETE', JSON.stringify(r.dataGaps));
+    assert.equal(r.totalBirths, r.founderProducedChildren + r.offspringProducedChildren);
+    assert.equal(r.offspringProducedChildren, r.exactGrandchildren + r.laterDescendantBirths);
+    const first = r.firstGrandchildOrLaterTick ?? 'not observed';
+    assert.ok(doc.includes(`| ${r.seed} | ${r.omission ?? 'control'} | ${r.founderProducedChildren} | ${r.offspringProducedChildren} | ${r.exactGrandchildren} | ${r.laterDescendantBirths} | ${r.uniqueReproducingNonfounders} | ${first} |`));
+    for (const cohort of ['founders', 'offspring']) {
+      const top = Object.entries(r.firstFailedProposalGates[cohort]).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))
+        .slice(0, 3).map(([gate, count]) => `${gate} (${count})`).join('; ') || 'none observed';
+      const matureReached = r.reachedProposalGates[cohort].maturity ?? 0;
+      assert.ok(doc.includes(`| ${r.seed} | ${r.omission ?? 'control'} | ${cohort} | ${top} | ${matureReached} |`));
+    }
+  }
+  console.log('Descendant scoreboard: actual placed births reconcile; no simulation or generationDepth inference.');
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  await checkReactionEvidence(resolve(dirname(fileURLToPath(import.meta.url)), '..'));
+  const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+  checkDescendantEvidence(root, await checkReactionEvidence(root));
 }
