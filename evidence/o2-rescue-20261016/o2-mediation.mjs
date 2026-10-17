@@ -97,13 +97,14 @@ function producerEnergy(w) {
 function runArm(seed, name, sup, resc) {
   const { w, probe } = build(seed, sup, resc);
   const traj = [];
-  traj.push({ t: 0, census: census(w), energy: producerEnergy(w), placed: [0, 0, 0] });
+  traj.push({ t: 0, census: census(w), energy: producerEnergy(w), placed: [0, 0, 0], demog: w.demographics() });
   for (let t = 1; t <= TICKS; t++) {
     w.step();
     if (SAMPLES.includes(t)) {
       traj.push({
         t, census: census(w), energy: producerEnergy(w),
         placed: probe.placedCounts.map((g) => g[0] + g[1]),
+        demog: w.demographics(),
       });
     }
   }
@@ -114,7 +115,10 @@ function runArm(seed, name, sup, resc) {
   const exo = f.exogenousReplacement.accepted.flat(Infinity).reduce((x, y) => x + y, 0);
   const abio = [...f.abioticRegen];
   const pools = w.nutrients.map((n) => n.data.reduce((x, y) => x + y, 0));
-  return { w, probe, traj, prodPhoto, allGuildPhoto, exo, abio, pools, hash: w.hashState() };
+  return {
+    w, probe, traj, prodPhoto, allGuildPhoto, exo, abio, pools, hash: w.hashState(),
+    demogAt: (k) => traj[k].demog,
+  };
 }
 
 for (const seed of [517, 41001]) {
@@ -127,12 +131,20 @@ for (const seed of [517, 41001]) {
       const births = `birthsP/C/D=[${s.placed.join('/')}]`;
       console.log(`  t${s.t} censusP/C/D=[${s.census.join('/')}] prodEnergy=${f1(s.energy)} ${s.t === 0 ? '(initial; no births yet)' : births}`);
     }
-    // Deaths per interval: exact identity from measured census + placed.
+    // Deaths per interval: DIRECT engine counters (guild x cause
+    // starve/age/damage) from World.demographics(), plus the aggregate
+    // census-balance identity as a cross-check. The identity is NOT a
+    // per-guild death counter: it assumes no inter-guild role
+    // reclassification during the interval (possible when the cached role
+    // refreshes or traits re-express, e.g. under genomeV2).
     for (let k = 1; k < R.traj.length; k++) {
       const prev = R.traj[k - 1], now = R.traj[k];
       const placed = [0, 1, 2].map((g) => now.placed[g] - prev.placed[g]);
-      const deaths = [0, 1, 2].map((g) => prev.census[g] + placed[g] - now.census[g]);
-      console.log(`  deaths t${prev.t}->t${now.t} P/C/D=[${deaths.join('/')}] (identity: N(prev)+placed−N(now); no direct death probe exists)`);
+      const identity = [0, 1, 2].map((g) => prev.census[g] + placed[g] - now.census[g]);
+      const d0 = R.demogAt(k - 1), dd = R.demogAt(k);
+      const direct = [0, 1, 2].map((g) => dd.deaths[g].reduce((x, y) => x + y, 0) - d0.deaths[g].reduce((x, y) => x + y, 0));
+      const cause = [0, 1, 2].map((g) => dd.deaths[g].map((v, i) => v - d0.deaths[g][i]).join('/'));
+      console.log(`  deaths t${prev.t}->t${now.t} direct P/C/D=[${direct.join('/')}] byCause(starve/age/dmg) P=[${cause[0]}] C=[${cause[1]}] D=[${cause[2]}] | censusIdentity=[${identity.join('/')}] (aggregate; assumes no role reclassification)`);
     }
   }
   console.log(`seed ${seed} C exogenousAccepted=${f1(C.exo)} (delivery at suppressed cells/ticks/pools)`);

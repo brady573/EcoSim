@@ -38,9 +38,10 @@ estimated, and no post-hoc effect threshold is applied.
 - Realized births (placed, cumulative t500, P/C/D): 517 — A 161/123/42,
   B 166/92/24, C 170/86/32; 41001 — A 83/235/80, B 102/168/61,
   C 91/247/101. Census trajectories at t0/t100/t250/t500 plus deaths per
-  interval via the census+placed identity are in the raw output; no direct
-  death probe exists in the engine (minimal-instrumentation gap identified,
-  not filled by inference beyond the stated identity).
+  interval via the engine's DIRECT `World.demographics().deaths` counters by
+  guild and cause (starve/age/damage) are in the raw output, cross-checked
+  against the aggregate census+placed identity (they agree exactly here; the
+  identity would additionally assume no inter-guild role reclassification).
 - Demographics diverge markedly in places (41001 B P203/C150/D104 vs
   C P210/C242/D144) for reasons the code and reports do not establish.
 - abioticRegen moves with trajectories (confounded) — reported per pool,
