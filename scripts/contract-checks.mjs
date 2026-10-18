@@ -269,7 +269,7 @@ if (!existsSync(htmlPath)) {
   check('C5', 'built engine contains new config keys', false, 'no evidence/app/evo-sim-poc.html');
 } else {
   const html = readFileSync(htmlPath, 'utf8');
-  const required = ['reproSurplusTicks', 'mixotrophyCarbon', 'nutrientCyclic', 'nutrientFloor', 'dormantThreatBlind', 'pioneerBonus', 'decomposerPhotoScale', 'phenoMineralReturn', 'phenoMineralRescue'];
+  const required = ['reproSurplusTicks', 'mixotrophyCarbon', 'nutrientCyclic', 'nutrientFloor', 'dormantThreatBlind', 'pioneerBonus', 'decomposerPhotoScale', 'phenoMineralReturn', 'phenoMineralRescue', 'photoObserver'];
   const absent = required.filter((k) => !html.includes(k));
   check('C5', 'built engine contains new config keys', absent.length === 0,
     absent.length === 0 ? `all ${required.length} keys present` : `ABSENT: ${absent.join(', ')}`);
