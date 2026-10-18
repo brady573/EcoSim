@@ -41,8 +41,11 @@ export interface PhotoObserverEvent {
 export interface PhotoObserverGuildStats {
   eligibleEvents: number;
   limitedEvents: number;
+  zeroLimEvents: number;
+  partialLimEvents: number;
   sumLim: number;
   sumShortfall: number;
+  bindingByPool: [number, number, number];
   uniqueOrganisms: number;
   uniqueCells: number;
 }
@@ -110,7 +113,8 @@ export class PhotoObserver {
       _orgs: new Set<number>(),
       _cells: new Set<number>(),
       perGuild: [0, 1, 2].map((): GuildAcc => ({
-        eligibleEvents: 0, limitedEvents: 0, sumLim: 0, sumShortfall: 0,
+        eligibleEvents: 0, limitedEvents: 0, zeroLimEvents: 0, partialLimEvents: 0,
+        sumLim: 0, sumShortfall: 0, bindingByPool: [0, 0, 0],
         uniqueOrganisms: 0, uniqueCells: 0, _orgs: new Set<number>(), _cells: new Set<number>(),
       })),
     }));
@@ -151,9 +155,16 @@ export class PhotoObserver {
     if (g >= 0 && g <= 2) {
       const gs = st.perGuild[g];
       gs.eligibleEvents++;
-      if (ev.lim <= LIMIT_THRESHOLD) gs.limitedEvents++;
+      if (ev.lim <= LIMIT_THRESHOLD) {
+        gs.limitedEvents++;
+        if (ev.lim <= 0) gs.zeroLimEvents++;
+        else gs.partialLimEvents++;
+      }
       gs.sumLim += ev.lim;
       gs.sumShortfall += ev.shortfall;
+      for (let p = 0; p < 3; p++) {
+        if (ev.binding[p]) gs.bindingByPool[p]++;
+      }
       gs._orgs.add(ev.organismId);
       gs._cells.add(ev.cell);
       gs.uniqueOrganisms = gs._orgs.size;
@@ -214,8 +225,11 @@ export class PhotoObserver {
     return {
       eligibleEvents: g.eligibleEvents,
       limitedEvents: g.limitedEvents,
+      zeroLimEvents: g.zeroLimEvents,
+      partialLimEvents: g.partialLimEvents,
       sumLim: g.sumLim,
       sumShortfall: g.sumShortfall,
+      bindingByPool: [...g.bindingByPool] as [number, number, number],
       uniqueOrganisms: g.uniqueOrganisms,
       uniqueCells: g.uniqueCells,
     };
