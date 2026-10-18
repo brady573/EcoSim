@@ -1,0 +1,487 @@
+{
+  "seed": 41004,
+  "omission": null,
+  "identity": "ts-evo-poc/0.8.0+chem/0.7.8",
+  "population": 19,
+  "births": 25,
+  "deaths": 406,
+  "hash": "e0d4ec94",
+  "firstFailures": {
+    "H": 17,
+    "O": 17,
+    "C": 33
+  },
+  "uptake": [
+    1819.4078944106695,
+    77345.64000010856,
+    77345.64000010856,
+    134.43488314663193,
+    384.44176103851953,
+    157.38000000007025,
+    0.12783166528976136
+  ],
+  "extents": [
+    1831.8786222634349,
+    2186.50596464117,
+    0,
+    56.77446995386068,
+    0,
+    1203.8172890608612,
+    0,
+    0,
+    0,
+    55.52764481911338,
+    12.42993904560772,
+    1.3933070882811454,
+    0
+  ],
+  "clamps": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0.05128157362627779,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "audit": {
+    "tick": 1000,
+    "biomass": {
+      "0": 22.237359531288064,
+      "1": 40.02724715631854,
+      "2": 11.118679765644032,
+      "3": 3.557977525006092,
+      "4": 0.2001362357815926,
+      "5": 0.1334241571877285,
+      "6": 0.013342415718772845
+    },
+    "stores": {
+      "0": 127.57739174123104,
+      "1": 4584.97305622133,
+      "2": 4602.6436267282015,
+      "3": 9.61082822004359,
+      "4": 22.922271108341874,
+      "5": 7.934443520737465,
+      "6": 0.007785209752000433
+    },
+    "environment": {
+      "0": 26350.236530300957,
+      "1": 4000000,
+      "2": 4006742.76873556,
+      "3": 2282.8311942548717,
+      "4": 3498.2775926558616,
+      "5": 1495.5321323220676,
+      "6": 283.8388723745257
+    },
+    "inputs": {
+      "0": 22000,
+      "1": 77026.47539187406,
+      "2": 77026.47539187406,
+      "3": 2099.9999999999613,
+      "4": 3500,
+      "5": 1400.0000000000127,
+      "6": 279.99999999999864
+    },
+    "outputs": {
+      "0": 0,
+      "1": 73440.6396966234,
+      "2": 72931.87769350714,
+      "3": 0,
+      "4": 0,
+      "5": 0,
+      "6": 0
+    },
+    "initial": {
+      "0": 4499.999999999171,
+      "1": 4000719.9999999255,
+      "2": 4009199.9999990687,
+      "3": 196.00000000000384,
+      "4": 21.399999999998702,
+      "5": 103.60000000001439,
+      "6": 3.860000000000521
+    },
+    "residual": [
+      {
+        "element": "C",
+        "initial": 4499.999999999171,
+        "final": 26500.051281573476,
+        "inputs": 22000,
+        "outputs": 0,
+        "residual": 0.05128157430590363,
+        "residualFraction": 0.0000019351537473926503,
+        "ok": false
+      },
+      {
+        "element": "H",
+        "initial": 4000719.9999999255,
+        "final": 4004625.000303378,
+        "inputs": 77026.47539187406,
+        "outputs": 73440.6396966234,
+        "residual": 319.1646082014777,
+        "residualFraction": 0.00007688514137110374,
+        "ok": false
+      },
+      {
+        "element": "O",
+        "initial": 4009199.9999990687,
+        "final": 4011356.531042054,
+        "inputs": 77026.47539187406,
+        "outputs": 72931.87769350714,
+        "residual": -1938.0666553815827,
+        "residualFraction": -0.00046597568326397186,
+        "ok": false
+      },
+      {
+        "element": "N",
+        "initial": 196.00000000000384,
+        "final": 2295.9999999999213,
+        "inputs": 2099.9999999999613,
+        "outputs": 0,
+        "residual": -4.3655745685100555e-11,
+        "residualFraction": -1.9013826517901227e-14,
+        "ok": true
+      },
+      {
+        "element": "P",
+        "initial": 21.399999999998702,
+        "final": 3521.399999999985,
+        "inputs": 3500,
+        "outputs": 0,
+        "residual": -1.3642420526593924e-11,
+        "residualFraction": -3.874146795761325e-15,
+        "ok": true
+      },
+      {
+        "element": "S",
+        "initial": 103.60000000001439,
+        "final": 1503.5999999999929,
+        "inputs": 1400.0000000000127,
+        "outputs": 0,
+        "residual": -3.433342499192804e-11,
+        "residualFraction": -2.2834148039323902e-14,
+        "ok": true
+      },
+      {
+        "element": "Fe",
+        "initial": 3.860000000000521,
+        "final": 283.8599999999965,
+        "inputs": 279.99999999999864,
+        "outputs": 0,
+        "residual": -2.6716406864579767e-12,
+        "residualFraction": -9.411825147812248e-15,
+        "ok": true
+      }
+    ],
+    "hypoxicFraction": 0,
+    "oxicFraction": 1,
+    "clampedThisTick": 0,
+    "clampedTotal": 0.05128157362627768
+  },
+  "attribution": {
+    "reactionDefect": [
+      0,
+      319.16460813996173,
+      -1938.0666563318255,
+      0,
+      9.8488005865102e-17,
+      0,
+      0
+    ],
+    "clampCreation": [
+      0.05128157362627779,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "unexplained": [
+      6.796258417152146e-10,
+      6.151594789116643e-8,
+      9.502427928964607e-7,
+      -4.3655745685100555e-11,
+      -1.3642519014599789e-11,
+      -3.433342499192804e-11,
+      -2.6716406864579767e-12
+    ]
+  },
+  "descendants": {
+    "status": "COMPLETE",
+    "dataGaps": [],
+    "totalBirths": 25,
+    "founderProducedChildren": 15,
+    "offspringProducedChildren": 10,
+    "exactGrandchildren": 10,
+    "laterDescendantBirths": 0,
+    "uniqueReproducingNonfounders": 2,
+    "firstGrandchildOrLaterTick": 573,
+    "births": [
+      {
+        "tick": 191,
+        "producerId": 206,
+        "producerParentId": -1,
+        "childId": 401,
+        "cohort": "founders",
+        "childDepth": 1
+      },
+      {
+        "tick": 191,
+        "producerId": 206,
+        "producerParentId": -1,
+        "childId": 402,
+        "cohort": "founders",
+        "childDepth": 1
+      },
+      {
+        "tick": 191,
+        "producerId": 206,
+        "producerParentId": -1,
+        "childId": 403,
+        "cohort": "founders",
+        "childDepth": 1
+      },
+      {
+        "tick": 265,
+        "producerId": 294,
+        "producerParentId": -1,
+        "childId": 404,
+        "cohort": "founders",
+        "childDepth": 1
+      },
+      {
+        "tick": 265,
+        "producerId": 294,
+        "producerParentId": -1,
+        "childId": 405,
+        "cohort": "founders",
+        "childDepth": 1
+      },
+      {
+        "tick": 265,
+        "producerId": 294,
+        "producerParentId": -1,
+        "childId": 406,
+        "cohort": "founders",
+        "childDepth": 1
+      },
+      {
+        "tick": 290,
+        "producerId": 397,
+        "producerParentId": -1,
+        "childId": 407,
+        "cohort": "founders",
+        "childDepth": 1
+      },
+      {
+        "tick": 290,
+        "producerId": 397,
+        "producerParentId": -1,
+        "childId": 408,
+        "cohort": "founders",
+        "childDepth": 1
+      },
+      {
+        "tick": 290,
+        "producerId": 397,
+        "producerParentId": -1,
+        "childId": 409,
+        "cohort": "founders",
+        "childDepth": 1
+      },
+      {
+        "tick": 290,
+        "producerId": 397,
+        "producerParentId": -1,
+        "childId": 410,
+        "cohort": "founders",
+        "childDepth": 1
+      },
+      {
+        "tick": 290,
+        "producerId": 397,
+        "producerParentId": -1,
+        "childId": 411,
+        "cohort": "founders",
+        "childDepth": 1
+      },
+      {
+        "tick": 303,
+        "producerId": 179,
+        "producerParentId": -1,
+        "childId": 412,
+        "cohort": "founders",
+        "childDepth": 1
+      },
+      {
+        "tick": 303,
+        "producerId": 179,
+        "producerParentId": -1,
+        "childId": 413,
+        "cohort": "founders",
+        "childDepth": 1
+      },
+      {
+        "tick": 303,
+        "producerId": 179,
+        "producerParentId": -1,
+        "childId": 414,
+        "cohort": "founders",
+        "childDepth": 1
+      },
+      {
+        "tick": 303,
+        "producerId": 179,
+        "producerParentId": -1,
+        "childId": 415,
+        "cohort": "founders",
+        "childDepth": 1
+      },
+      {
+        "tick": 573,
+        "producerId": 404,
+        "producerParentId": 294,
+        "childId": 416,
+        "cohort": "offspring",
+        "childDepth": 2
+      },
+      {
+        "tick": 573,
+        "producerId": 404,
+        "producerParentId": 294,
+        "childId": 417,
+        "cohort": "offspring",
+        "childDepth": 2
+      },
+      {
+        "tick": 573,
+        "producerId": 404,
+        "producerParentId": 294,
+        "childId": 418,
+        "cohort": "offspring",
+        "childDepth": 2
+      },
+      {
+        "tick": 573,
+        "producerId": 404,
+        "producerParentId": 294,
+        "childId": 419,
+        "cohort": "offspring",
+        "childDepth": 2
+      },
+      {
+        "tick": 573,
+        "producerId": 404,
+        "producerParentId": 294,
+        "childId": 420,
+        "cohort": "offspring",
+        "childDepth": 2
+      },
+      {
+        "tick": 573,
+        "producerId": 404,
+        "producerParentId": 294,
+        "childId": 421,
+        "cohort": "offspring",
+        "childDepth": 2
+      },
+      {
+        "tick": 573,
+        "producerId": 404,
+        "producerParentId": 294,
+        "childId": 422,
+        "cohort": "offspring",
+        "childDepth": 2
+      },
+      {
+        "tick": 683,
+        "producerId": 414,
+        "producerParentId": 179,
+        "childId": 423,
+        "cohort": "offspring",
+        "childDepth": 2
+      },
+      {
+        "tick": 683,
+        "producerId": 414,
+        "producerParentId": 179,
+        "childId": 424,
+        "cohort": "offspring",
+        "childDepth": 2
+      },
+      {
+        "tick": 683,
+        "producerId": 414,
+        "producerParentId": 179,
+        "childId": 425,
+        "cohort": "offspring",
+        "childDepth": 2
+      }
+    ],
+    "reachedProposalGates": {
+      "founders": {
+        "dormancy": 202328,
+        "cooldown": 202328,
+        "energyFraction": 202272,
+        "matter": 53949,
+        "maturity": 863,
+        "damage": 651,
+        "surplus": 534,
+        "drive": 167,
+        "lottery": 71
+      },
+      "offspring": {
+        "dormancy": 12521,
+        "cooldown": 12521,
+        "energyFraction": 12486,
+        "matter": 2940,
+        "maturity": 78,
+        "damage": 78,
+        "surplus": 78,
+        "drive": 78,
+        "lottery": 78
+      },
+      "unknown": {}
+    },
+    "firstFailedProposalGates": {
+      "founders": {
+        "energyFraction": 148323,
+        "matter:nutrient": 53086,
+        "maturity": 212,
+        "cooldown": 56,
+        "drive": 96,
+        "lottery": 67,
+        "surplus": 367,
+        "damage": 117
+      },
+      "offspring": {
+        "energyFraction": 9546,
+        "matter:nutrient": 2184,
+        "matter:carbon": 678,
+        "lottery": 76,
+        "cooldown": 35
+      },
+      "unknown": {}
+    }
+  },
+  "observerExact": true,
+  "unreadLost": 0
+}

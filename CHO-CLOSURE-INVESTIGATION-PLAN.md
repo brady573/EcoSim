@@ -1,5 +1,9 @@
 # Inherited C/H/O closure — bounded plan, not a repair
 
+Executed follow-up: `CHO-ATTRIBUTION-ASSESSMENT.md` records the authorized
+attribution, diagnostic corrections and eight additional exploratory pairs.
+Biological repairs and conservation-valid confirmation remain separate gates.
+
 Keep this separate from the reaction omissions and their outcomes. Existing
 0.7.7 and 0.7.8 paired records already show strict global C/H/O `ok:false`;
 the other scoped gates do not certify these flags away. Do not assume clamping

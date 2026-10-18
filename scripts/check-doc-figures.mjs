@@ -318,6 +318,7 @@ console.log(`\n${CASES.length - failed}/${CASES.length} doc figures match their 
 console.log(`historical figures preserved at ${reconciledIdentity}; live identity ${expectedIdentity} checked separately`);
 checkDescendantEvidence(root, await checkReactionEvidence(root));
 await reactionEvidenceFixtures(root);
+await (await import('./check-cho-evidence.mjs')).checkChoEvidence(root);
 process.exit(failed > 0 || process.exitCode ? 1 : 0);
 
 function read(p) {

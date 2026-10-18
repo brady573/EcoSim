@@ -1,5 +1,10 @@
 # Nitrification omission — confirmation proposal, awaiting Owner acceptance
 
+Follow-up status: the Owner subsequently authorized bounded accounting
+attribution and up to eight exploratory matched pairs. Results and remaining
+repair decisions are in `CHO-ATTRIBUTION-ASSESSMENT.md`. This did not authorize
+the held-out confirmation panel or fill its still-open registration choices.
+
 One decision packet responding to PR #14 review 5555052030. **Not an accepted
 preregistration or permission to execute.** No new simulations, physiology,
 combined omissions, energy compensation or parameter changes are included.
