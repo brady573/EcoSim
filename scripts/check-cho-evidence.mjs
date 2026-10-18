@@ -7,16 +7,41 @@ import { createInterface } from 'node:readline';
 import { pathToFileURL } from 'node:url';
 import { conservationReport } from '../build/world/chemistry.js';
 import { REACTIONS } from '../build/bio/metabolism.js';
+import { ELEMENT_NAMES } from '../build/bio/elements.js';
 import { attributeResidual } from './chem-residual-attribution.mjs';
 import { reactionElementDefects } from './chem-residual-attribution.mjs';
 import { validateTrialDemographics } from './rxomit-descendant-readout.mjs';
 import { choAttributionCases } from './cho-attribution-checks.mjs';
 
-export function assertExplained(audit, attribution) {
-  const held = Float64Array.from(audit.residual, (r, e) => r.final - attribution.reactionDefect[e] - attribution.clampCreation[e]);
+function finiteVector(v, label) {
+  assert.ok(v && typeof v === 'object', `${label}: missing vector`);
+  assert.deepEqual(Object.keys(v), ELEMENT_NAMES.map((_, e) => String(e)), `${label}: incomplete vector`);
+  for (let e = 0; e < 7; e++) assert.ok(typeof v[e] === 'number' && Number.isFinite(v[e]), `${label}/${e}: missing or non-finite number`);
   // JSON roundtrips of typed arrays are keyed objects, not iterable arrays.
-  const values = (v) => Float64Array.from({ length: 7 }, (_, e) => v[e]);
-  const actual = conservationReport(values(audit.initial), held, values(audit.inputs), values(audit.outputs));
+  return Float64Array.from({ length: 7 }, (_, e) => v[e]);
+}
+
+export function validateRawAudit(audit) {
+  assert.ok(audit && typeof audit === 'object', 'missing raw audit');
+  assert.ok(Number.isSafeInteger(audit.tick) && audit.tick >= 0, 'invalid audit tick');
+  const vectors = Object.fromEntries(['initial', 'inputs', 'outputs', 'biomass', 'stores', 'environment']
+    .map(key => [key, finiteVector(audit[key], key)]));
+  const held = Float64Array.from({ length: 7 }, (_, e) => vectors.biomass[e] + vectors.stores[e] + vectors.environment[e]);
+  assert.ok(Array.isArray(audit.residual) && audit.residual.length === 7, 'missing strict reports');
+  const expected = conservationReport(vectors.initial, held, vectors.inputs, vectors.outputs);
+  assert.deepEqual(audit.residual, expected, 'stored strict audit must match actual compartment and boundary books');
+  return { ...vectors, held };
+}
+
+export function assertExplained(audit, attribution) {
+  const values = validateRawAudit(audit);
+  assert.ok(attribution && typeof attribution === 'object', 'missing attribution');
+  for (const key of ['reactionDefect', 'clampCreation', 'unexplained']) finiteVector(attribution[key], key);
+  const held = Float64Array.from(values.held, (n, e) => n - attribution.reactionDefect[e] - attribution.clampCreation[e]);
+  assert.deepEqual(attribution.unexplained,
+    audit.residual.map((r, e) => r.residual - attribution.reactionDefect[e] - attribution.clampCreation[e]),
+    'stored unexplained remainder must match raw residual');
+  const actual = conservationReport(values.initial, held, values.inputs, values.outputs);
   assert.ok(actual.every(r => r.ok), 'unexplained residual exceeds the existing strict criterion');
   return actual;
 }
@@ -80,10 +105,14 @@ export async function checkChoEvidence(root = '.') {
     let count = 0; const first = {};
     for await (const line of createInterface({ input: createReadStream(`${dir}/${name}-ticks.jsonl`), crlfDelay: Infinity })) {
       const t = JSON.parse(line); assert.equal(t.tick, ++count);
+      assert.equal(t.audit.tick, t.tick);
       const attribution = attributeResidual(t.extents, t.clamps, t.audit.residual.map(e => e.residual));
       assert.deepEqual(t.attribution, attribution); assertExplained(t.audit, attribution);
       for (const e of t.audit.residual) if (!e.ok && first[e.element] === undefined) first[e.element] = t.tick;
-      if (count === 1000) { assert.deepEqual(t.audit, r.audit); assert.equal(t.hash, r.hash); }
+      if (count === 1000) {
+        assert.deepEqual(t.audit, r.audit); assert.equal(t.hash, r.hash);
+        assert.deepEqual(t.attribution, r.attribution, 'terminal attribution must match reconstructed raw tick');
+      }
     }
     assert.equal(count, 1000); assert.deepEqual(first, r.firstFailures);
     const witnesses = read(`${name}-witnesses.json`);
@@ -91,9 +120,10 @@ export async function checkChoEvidence(root = '.') {
       const w = witnesses.find(w => w.element === element && w.tick === tick);
       assert.ok(w && w.chemistry.length, 'first failure requires nonempty live chemistry witness');
     }
-    // Negative: decomposition must not excuse an added unbooked carbon unit.
+    // Negative: reject an altered final inventory with an unchanged stored report.
+    // cho-evidence-fixtures also tests coherent books with unbooked carbon.
     const corrupt = structuredClone(r.audit); corrupt.residual[0].final += 1;
-    assert.throws(() => assertExplained(corrupt, r.attribution), /unexplained/);
+    assert.throws(() => assertExplained(corrupt, r.attribution), { code: 'ERR_ASSERTION' });
   }
   const newSeeds = protocol.newExploratorySeeds;
   for (const seed of newSeeds) {

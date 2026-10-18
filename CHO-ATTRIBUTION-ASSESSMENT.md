@@ -156,3 +156,15 @@ panel. The burial counterexample models the source-linked boundary operation;
 it is not a production-call-site regression test for a future repair. A repair
 must add that live-world gate, not mistake this attribution test for one.
 Exact-head CI and follow-up Design review are reported on PR #14 separately.
+
+## Continued self-audit and repair handoff
+
+`CHO-REPAIR-DECISION-PACKET.md` specifies the proposed carbon reservation fix
+and H/O alternatives without implementing them. The subsequent self-audit
+also found and corrected a verifier gap: null boundary values could coerce to
+zero, and stored strict-audit flags were not independently reconstructed.
+The corrected checker requires complete finite numeric books, recomputes held
+inventory from compartments and the exact strict reports, and checks attribution
+against its terminal raw tick. Missing/corrupt/false-green and coherent-but-
+unbooked records now have dedicated negative fixtures. This strengthens evidence
+integrity; it does not repair the biological discrepancies or change the panel.

@@ -319,6 +319,7 @@ console.log(`historical figures preserved at ${reconciledIdentity}; live identit
 checkDescendantEvidence(root, await checkReactionEvidence(root));
 await reactionEvidenceFixtures(root);
 await (await import('./check-cho-evidence.mjs')).checkChoEvidence(root);
+await (await import('./cho-evidence-fixtures.mjs')).choEvidenceFixtures(root);
 process.exit(failed > 0 || process.exitCode ? 1 : 0);
 
 function read(p) {
