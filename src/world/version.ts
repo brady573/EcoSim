@@ -90,7 +90,16 @@ export const WORLD_ENGINE_VERSION = 'ts-evo-poc/0.8.0';
 // Owner D1/D2, 2026-10-15: dimensionally valid limiting-element growth and
 // linear macronutrient offspring demand. All chem/0.7.7 panels are historical;
 // chemistry-unset base semantics and parity remain unchanged.
-export const CHEMISTRY_ENGINE_VERSION = 'chem/0.7.8';
+//
+// chem/0.8.0, 2026-10-18: the Owner-directed multielement C/H/O contract.
+// POOL_COMPOSITION becomes the authoritative inventory table (water is 2 H + 1
+// O, O2 is 2 O, bulk organic carbon carries its declared H/O ratio); burial
+// reserves its source through claim() instead of an unclaimed react(); eight
+// reaction stoichiometries are corrected, and nitrification's O2 becomes a
+// habitat gate rather than a booked substrate (a named correction — the
+// alternatives are documented in src/bio/metabolism.ts). Chemistry-UNSET
+// semantics and parity are unchanged; every chem/0.7.8 figure is historical.
+export const CHEMISTRY_ENGINE_VERSION = 'chem/0.8.0';
 
 /**
  * Whether the chemistry semantics themselves changed in the 0.7.0 correction.
@@ -132,6 +141,11 @@ export function runIdentity(config: boolean | { chemistry?: boolean | null; chem
  * gates/0.7.6 covers the current suite through G40 with split conservation
  * tolerances, a discriminating 1:1 H/O uptake control, and the three-arm
  * cross-organism shared-budget control.
+ *
+ * gates/0.8.3, 2026-10-18: G26/G27/G38/G39 were rewritten for the multielement
+ * C/H/O contract and G52 (burial reservation) and G53 (live reaction closure)
+ * were added. A result recorded under gates/0.8.2 is not comparable without
+ * re-running.
  */
 // Combined chemistry and main validation suite, including G41-G47.
-export const GATE_SUITE_VERSION = 'gates/0.8.2';
+export const GATE_SUITE_VERSION = 'gates/0.8.3';

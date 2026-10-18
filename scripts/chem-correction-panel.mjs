@@ -16,7 +16,8 @@ const out = resolve(args[1]);
 assert.ok(!existsSync(out), 'Refusing existing output');
 const source = join(root, 'evidence/mechanism-four-arm-20261015');
 assert.ok(!out.startsWith(source + '/'), 'Do not write into historical evidence');
-assert.equal(runIdentity(true), 'ts-evo-poc/0.8.0+chem/0.7.8');
+assert.equal(runIdentity(true), 'ts-evo-poc/0.8.0+chem/0.7.8',
+  'the chem/0.7.8 correction panel is immutable history: this generator refuses to run under a different identity');
 const registered = JSON.parse(readFileSync(join(source, 'protocol.json'), 'utf8'));
 const old = readFileSync(join(source, 'runs.jsonl'), 'utf8').trim().split('\n').map(JSON.parse);
 const seeds = registered.seeds.slice(0, 2);

@@ -2,7 +2,7 @@
 // Books every pool transfer and samples both ledgers per tick so each boundary
 // can be reconciled independently rather than only in aggregate.
 import { World } from '../build/world/world.js';
-import { POOL_RT as POOL, POOL_NAMES, POOL_COUNT } from '../build/world/chemistry.js';
+import { POOL_RT as POOL, POOL_COMPOSITION, POOL_COUNT } from '../build/world/chemistry.js';
 import { REACTIONS } from '../build/bio/metabolism.js';
 import { runIdentity } from '../build/world/version.js';
 
@@ -22,8 +22,16 @@ chem.react = (p, c, a) => { delta[p] += a; return oR(p, c, a); };
 chem.claim = (p, c, a) => { delta[p] -= a; return oC(p, c, a); };
 
 const poolSum = p => { let s = 0; const f = chem.fields[p].data; for (let i = 0; i < f.length; i++) s += f[i]; return s; };
+// Element totals read the DECLARED composition table. The retired inline map
+// here used the old flat conventions and mis-filed sulfide as phosphorus, so
+// its P row over-counted by every mole of H2S and its S row missed the same
+// amount. Every pool is now counted at its full declared content.
 const elInPools = () => { const v = new Float64Array(7);
-  for (let p = 0; p < POOL_COUNT; p++) v[[2,0,3,3,3,4,5,4,6,6,0,3,4,5,6,0,3,4,5,0,3,4,5,6,1][p]] += poolSum(p); return v; };
+  for (let p = 0; p < POOL_COUNT; p++) {
+    const s = poolSum(p);
+    for (let e = 0; e < 7; e++) v[e] += s * POOL_COMPOSITION[p * 7 + e];
+  }
+  return v; };
 const orgC = () => { let b = 0, s = 0;
   for (let sl = 0; sl < w.store.capacity; sl++) { if (!w.aliveAt(sl)) continue;
     b += st.biomass[sl * 7]; s += st.stores[sl * 7]; }
@@ -147,6 +155,13 @@ console.log(`  births ${birthsOf()}  net ${birthsOf() - (d.starve + d.age + d.da
 
 console.log('\n--- ALL-ELEMENT CONSERVATION ---');
 for (let k = 0; k < 7; k++) {
+  // H and O are NOT printed by this tracer. Its `accounted()` carries only the
+  // legacy per-element boundary terms (CO2, weathering); the water reservoir
+  // top-up, the two declared gas vents and the reservoir sink are not in it, so
+  // an H/O row here would report the tracer's gaps rather than the engine's.
+  // The world audit — elementTotal against the declared boundaries, G27 — is
+  // the H/O authority. For the printed elements the same caveat applies to the
+  // declared N2/H2 vents and ablation removals.
   if (NAMES[k] === 'H' || NAMES[k] === 'O') continue;
   const h = held(k), a = accounted(k);
   console.log(`  ${NAMES[k].padEnd(3)} held ${h.toFixed(2).padStart(10)}  accounted ${a.toFixed(2).padStart(10)}  residual ${((100 * (h - a)) / a).toFixed(4)}%`);

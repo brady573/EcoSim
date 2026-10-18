@@ -2423,21 +2423,24 @@ __def("world/chemistry.js", function(require, exports, module){/**
  * exactly one POOL in this file, and every transfer between pools is an
  * explicit movement of one ELEMENT (src/bio/elements.ts).
  *
- * WHAT IS MODELLED. Twenty-four compartments spanning inorganic dissolved
- * species, an immobile mineral sink, labile organic matter, structural litter
- * and sediment. C, N, P, S and Fe are cycled; H and O are tracked as biomass
- * components and as dissolved O2.
+ * WHAT IS MODELLED. Twenty-five compartments spanning inorganic dissolved
+ * species, an immobile mineral sink, labile organic matter, structural
+ * litter, sediment and a buffered water reservoir. All seven elements
+ * (C, H, O, N, P, S, Fe) are cycled under ONE declared multielement
+ * composition contract (POOL_COMPOSITION below): molecular H2O and O2, a
+ * carbon-carrier DIC, bulk organic matter [C 1, H 1.8, O 0.5] per carbon,
+ * and single-element nutrient carriers (with sulfide carrying its two H and
+ * ferric oxide its declared 1.5 O per Fe).
  *
  * WHAT IS NOT CLAIMED. There is no molecular chemistry here — no speciation
  * equilibria, no pH-dependent solubility, no enzyme kinetics, no atmospheric
  * column. Water is an EXTERNAL BUFFERED RESERVOIR: the water pool is not a
- * chemical species network, so no molecular water identity is claimed. H and O
- * ARE tracked at pool level: reservoir top-up (`waterInput`), reservoir sink
- * (`reservoirSink`) and 1:1 water uptake into organism stores are declared
- * boundary fluxes, and the H/O books are asserted to close at that declared
- * level (G39). C, N, P, S and Fe additionally close across the modelled
- * compartments with weathering, gas export and sediment export as explicit
- * boundaries (G27).
+ * chemical species network, and the reservoir top-up (`waterInput`) is a
+ * declared boundary input. H and O ARE inside the conservation claim: they
+ * close across the modelled compartments through the composition contract,
+ * with the water-buffer boundary, the freeNutrients subsidy and two declared
+ * gas exports (N2, H2) as the only exits (G39, G41). C, N, P, S and Fe close
+ * the same way, with weathering and sediment as explicit boundaries (G27).
  *
  * DETERMINISM. Transport is a pull-based 5-point stencil (see
  * ScalarField.step), which is order-independent by construction: every cell
@@ -2528,6 +2531,93 @@ const POOL_ELEMENT_RT = [
     E.C, E.N, E.P, E.S, E.FE, // 19-23 sediment
     E.H, // 24 water (H and O; tracked in both)
 ];
+/**
+ * DECLARED MULTIELEMENT COMPOSITION — the one contract every transfer uses.
+ *
+ * Per unit of pool AMOUNT, the moles of each element the pool contains, in E
+ * order [C, H, O, N, P, S, Fe]. This table is authoritative for the INVENTORY:
+ * `elementTotal()` multiplies each pool by its row, and every reaction,
+ * acquisition, death, burial, weathering and boundary flux was reconciled
+ * against it (see REPORT.md and CHEM-080-CONTRACT.md). `POOL_ELEMENT_RT` above
+ * remains the PRIMARY-element map used by ablations and diagnostics; for pools
+ * that carry more than one element it names the element an ablation removes.
+ *
+ * THE DECLARED CONVENTIONS, and why each is what it is:
+ *
+ *  - H2O = 2 H + 1 O and O2 = 2 O per unit. MOLECULAR. The reaction network
+ *    already derived its coefficients from these molecular forms (photosynthesis
+ *    is 1 DIC + 0.9 H2O -> 1 OC + 0.2 O2, which balances only under them); the
+ *    earlier inventory counted water as 1 H + 1 O and O2 as 1 O, which is what
+ *    made the H and O books disagree with the reactions.
+ *
+ *  - DIC = C only. DECLARED POC ABSTRACTION, not molecular CO2. Inorganic
+ *    carbon is tracked as the element; its oxygen is represented through the
+ *    O2 / H2O couple that the reactions carry explicitly. A CO2 inventory would
+ *    force every O2-free mineralisation to consume water to dispose of the
+ *    carbon's oxygen, which is not this model's chemistry.
+ *
+ *  - Organic carbon pools (OC, LC, SC) = [C 1, H 1.8, O 0.5] per C unit: the
+ *    bulk biomass formula, identical to BIOMASS_STOICH. Dead tissue, litter and
+ *    buried sediment represent the same bulk organic matter as living tissue,
+ *    so one unit of organic carbon always carries the same H and O. N, P, S and
+ *    Fe live in their OWN pools (ON, OP, OS, OFe and the litter/sediment
+ *    equivalents) and are NOT repeated inside the C pools — that is what keeps
+ *    the nutrient pools from being double-counted.
+ *
+ *  - N, P, S and Fe pools are single-element carriers, with two declared
+ *    exceptions that the reaction balances require and that are physical:
+ *      H2S carries its two H (sulfide is the reductant whose hydrogen is
+ *      partly incorporated into fixed organic carbon); Fe3 carries 1.5 O per Fe
+ *      (it is a ferric oxide mineral sink, declared as Fe2O3 content).
+ *
+ *  - Fe2, like the other dissolved nutrients, is a bare element carrier
+ *    (hydration is not inventoried; solubility is represented by CLASS).
+ *
+ * What this buys: with the table in place, matter closes WITHIN the modelled
+ * system for all seven elements, plus two declared gas exports (N2 from
+ * denitrification, H2 from O2-free mineralisation). H2O remains an external
+ * BUFFERED reservoir — the buffer top-up is still a declared boundary input —
+ * but H and O are no longer routed to the reservoir sink to hide an
+ * accounting mismatch: they stay in the pools their reactions put them in.
+ *
+ * Every row is asserted against every reaction by the element-contract gate;
+ * editing a row without re-deriving the reactions is a contract violation, not
+ * a parameter change.
+ */
+const COMPOSITION_ROWS = [
+    //   C    H    O    N    P    S   Fe
+    [0, 0, 2, 0, 0, 0, 0], // 0  O2   molecular oxygen
+    [1, 0, 0, 0, 0, 0, 0], // 1  DIC  carbon carrier (declared POC abstraction)
+    [0, 0, 0, 1, 0, 0, 0], // 2  NH4  nitrogen carrier
+    [0, 0, 0, 1, 0, 0, 0], // 3  NO2  nitrogen carrier
+    [0, 0, 0, 1, 0, 0, 0], // 4  NO3  nitrogen carrier
+    [0, 0, 0, 0, 1, 0, 0], // 5  PO4  phosphorus carrier
+    [0, 0, 0, 0, 0, 1, 0], // 6  SO4  sulfur carrier
+    [0, 2, 0, 0, 0, 1, 0], // 7  H2S  sulfide, carries its two H
+    [0, 0, 0, 0, 0, 0, 1], // 8  Fe2  iron carrier
+    [0, 0, 1.5, 0, 0, 0, 1], // 9  Fe3  ferric oxide (Fe2O3 per Fe)
+    [1, 1.8, 0.5, 0, 0, 0, 0], // 10 OC   bulk organic carbon
+    [0, 0, 0, 1, 0, 0, 0], // 11 ON   organic nitrogen
+    [0, 0, 0, 0, 1, 0, 0], // 12 OP   organic phosphorus
+    [0, 0, 0, 0, 0, 1, 0], // 13 OS   organic sulfur
+    [0, 0, 0, 0, 0, 0, 1], // 14 OFe  organic iron
+    [1, 1.8, 0.5, 0, 0, 0, 0], // 15 LC   litter carbon (bulk)
+    [0, 0, 0, 1, 0, 0, 0], // 16 LN   litter nitrogen
+    [0, 0, 0, 0, 1, 0, 0], // 17 LP   litter phosphorus
+    [0, 0, 0, 0, 0, 1, 0], // 18 LS   litter sulfur
+    [1, 1.8, 0.5, 0, 0, 0, 0], // 19 SC   sediment carbon (bulk)
+    [0, 0, 0, 1, 0, 0, 0], // 20 SN   sediment nitrogen
+    [0, 0, 0, 0, 1, 0, 0], // 21 SP   sediment phosphorus
+    [0, 0, 0, 0, 0, 1, 0], // 22 SS   sediment sulfur
+    [0, 0, 0, 0, 0, 0, 1], // 23 SFe  sediment iron
+    [0, 2, 1, 0, 0, 0, 0], // 24 H2O  molecular water (buffered reservoir)
+];
+// Flat [pool * E.COUNT + element] for the hot audit path.
+const POOL_COMPOSITION = COMPOSITION_ROWS.flat();
+/** Moles of element `e` carried per unit of pool `p`, by the declared contract. */
+function poolComposition(p, e) {
+    return POOL_COMPOSITION[p * E.COUNT + e];
+}
 /** Transport class: how a pool moves through the grid. */
 var CLASS;
 (function (CLASS) {
@@ -2620,6 +2710,18 @@ class ChemField {
         }
     }
 }
+/**
+ * Largest accepted boundary burial fraction.
+ *
+ * One fraction has TWO consumers: the per-tick boundary sink (OC -> SC, taken
+ * before organisms run) and the litter share of dead tissue, derived in the
+ * death path as `burial * 22`. Above 1/22 the death split would exceed 1 and
+ * release negative labile matter, so the accepted domain is
+ * [0, MAX_BURIAL_FRACTION]. Out-of-domain configuration is REJECTED at
+ * construction, never silently capped: a clamped fraction would be a different
+ * experiment wearing the configured value's name.
+ */
+const MAX_BURIAL_FRACTION = 1 / 22;
 const DEFAULT_CHEMISTRY = {
     diffusivity: 0.18,
     semiDiffusivity: 0.02,
@@ -2906,31 +3008,26 @@ class Chemistry {
     /**
      * Total inventory of one element across every modelled compartment, in moles.
      *
-     * This is the number conservation is checked against. It does NOT include
-     * atmospheric CO2, water, or anything outside the declared boundaries.
+     * This is the number conservation is checked against. Every pool is counted
+     * through POOL_COMPOSITION — the one declared multielement contract — so a
+     * pool that carries several elements (water, O2, the bulk organic carbons,
+     * H2S, Fe3) is counted for each of them at its full declared content. The
+     * boundaries that remain external BY DECLARATION are the atmospheric CO2
+     * source, the water reservoir buffer, weathering, the freeNutrients subsidy
+     * and the gas exports; each is booked as an input or output on the audit.
      */
     elementTotal(e) {
         const n = this.cols * this.rows;
         let sum = 0;
-        // Water is the one pool carrying TWO elements; it belongs in both books at
-        // its full molar amount, which is what makes photosynthesis' water draw
-        // balance against its products.
-        // Water is the one pool carrying TWO elements. It is counted ONCE here,
-        // explicitly, and excluded from the per-pool loop below — otherwise the
-        // generic POOL_ELEMENT mapping double-books it.
-        if (e === E.H || e === E.O) {
-            const w = this.fields[POOL.H2O].data;
-            for (let i = 0; i < n; i++)
-                sum += w[i];
-        }
         for (let p = 0; p < POOL_COUNT; p++) {
-            if (p === POOL.H2O)
-                continue;
-            if (POOL_ELEMENT_RT[p] !== e)
+            const c = POOL_COMPOSITION[p * E.COUNT + e];
+            if (c === 0)
                 continue;
             const f = this.fields[p].data;
+            let s = 0;
             for (let i = 0; i < n; i++)
-                sum += f[i];
+                s += f[i];
+            sum += s * c;
         }
         return sum * this.cellArea;
     }
@@ -2974,10 +3071,13 @@ exports.POOL = POOL;
 exports.POOL_COUNT = POOL_COUNT;
 exports.POOL_RT = POOL_RT;
 exports.POOL_ELEMENT_RT = POOL_ELEMENT_RT;
+exports.POOL_COMPOSITION = POOL_COMPOSITION;
+exports.poolComposition = poolComposition;
 exports.CLASS = CLASS;
 exports.POOL_NAMES = POOL_NAMES;
 exports.poolElement = poolElement;
 exports.ChemField = ChemField;
+exports.MAX_BURIAL_FRACTION = MAX_BURIAL_FRACTION;
 exports.DEFAULT_CHEMISTRY = DEFAULT_CHEMISTRY;
 exports.newBoundaryFluxes = newBoundaryFluxes;
 exports.Chemistry = Chemistry;
@@ -3013,8 +3113,15 @@ __def("bio/metabolism.js", function(require, exports, module){/**
  *    (denitrification to gas, sediment burial).
  *  - No pH. Sulfide is not rendered toxic and no acid production is modelled.
  *  - O2 is not tracked inside biomass; respiratory quotient is simplified.
+ *  - ONE declared multielement composition contract (POOL_COMPOSITION in
+ *    src/world/chemistry.ts) governs every pool, transfer and reaction in this
+ *    network. A reaction that does not close against it is a defect, and the
+ *    element-contract gate asserts that each one does. Two gas exports are
+ *    declared (N2 from denitrification, H2 from O2-free mineralisation); water
+ *    remains an external buffered reservoir.
  */
 const { CLASS, POOL } = require("../world/chemistry.js");
+const { E } = require("./elements.js");
 /**
  * Metabolic capabilities — the heritable half of metabolism.
  *
@@ -3052,10 +3159,10 @@ var CAP;
 })(CAP || (CAP = {}));
 const CAP_COUNT = 12;
 let nextRx = 0;
-function rx(name, cap, family, substrates, products, energy, vmax, limits, minO2, maxO2, note) {
+function rx(name, cap, family, substrates, products, energy, vmax, limits, minO2, maxO2, note, gas) {
     return {
         id: nextRx++, name, cap, family, substrates, products, energy, vmax,
-        limits, minO2, maxO2, note,
+        limits, minO2, maxO2, note, gas,
     };
 }
 const s = (pool, coeff) => ({ pool, coeff });
@@ -3096,9 +3203,19 @@ const REACTIONS = [
         + 'returned to the reservoir: the exact inverse of photosynthesis, which is '
         + 'why the two are stoichiometrically coupled rather than merely similar.'),
     // --- Family 3: O2-independent metabolism ---------------------------------
-    rx('fermentation', CAP.FERMENT, 'anaerobic', [s(POOL.OC, 1)], [s(POOL.DIC, 0.5), s(POOL.OC, 0.5)], 0.26, 0.030, [POOL.OC], 0, 0.03, 'Substrate-level metabolism. Works only where O2 has been depleted, and '
+    // 1 OC -> 0.5 DIC + 0.5 OC + 0.25 H2O + 0.2 H2 (gas). THE HYDROGEN AND
+    // OXYGEN MUST GO SOMEWHERE: a unit of organic carbon carries 1.8 H and
+    // 0.5 O, DIC is a pure carbon carrier, and the returned half-carbon carries
+    // only 0.9 H and 0.25 O. The remainder leaves as water (0.25, i.e. 0.5 H
+    // and 0.25 O) and as H2 gas (0.2, i.e. 0.4 H). The earlier form listed only
+    // DIC and OC, destroying 0.9 H and 0.25 O per unit extent — the measured H
+    // and O residuals of the attribution.
+    rx('fermentation', CAP.FERMENT, 'anaerobic', [s(POOL.OC, 1)], [s(POOL.DIC, 0.5), s(POOL.OC, 0.5), s(POOL.H2O, 0.25)], 0.26, 0.030, [POOL.OC], 0, 0.03, 'Substrate-level metabolism. Works only where O2 has been depleted, and '
         + 'yields far less per unit carbon than respiration. This is what makes '
-        + 'an anoxic niche worth occupying and what limits how large it can get.'),
+        + 'an anoxic niche worth occupying and what limits how large it can get. '
+        + 'The H2 it releases is a DECLARED gas export: no H2-consuming pathway '
+        + 'is modelled, so that hydrogen leaves the system rather than pretending '
+        + 'to return to a pool.', [{ element: E.H, coeff: 0.4 }]),
     // --- Family 4: decomposition and mineralisation --------------------------
     // Organic matter is stored as SEPARATE single-element pools (OC, ON, OP,
     // OS), so a reaction that breaks down carbon and MINERALISES nitrogen must
@@ -3111,8 +3228,12 @@ const REACTIONS = [
     // 0.3 is refractory and STAYS ORGANIC. The earlier form emitted 0.7 and
     // destroyed 0.3 outright, which is the carbon residual. Refractory carbon
     // returns to the organic pool, from which burial can eventually sequester it.
-    rx('aerobic decomposition', CAP.AEROBIC, 'decomposition', [s(POOL.OC, 1), s(POOL.ON, 0.16), s(POOL.OP, 0.009)], [s(POOL.DIC, 0.7), s(POOL.NH4, 0.05), s(POOL.PO4, 0.004),
-        s(POOL.ON, 0.11), s(POOL.OP, 0.005), s(POOL.OC, 0.3)], 0.0, 0.075, [POOL.OC], 0.02, 1e9, 'Mineralises labile organic matter and returns N and P to available '
+    // H AND O COMPLETE THE BALANCE. Only 0.3 of the carbon stays organic, so
+    // 0.54 of the 1.8 H and 0.15 of the 0.5 O are re-incorporated; the rest
+    // leaves as water (0.63 = 1.26 H + 0.63 O), and the oxygen to make it comes
+    // from O2 (0.14 = 0.28 O): H 1.8 = 0.54 + 1.26; O 0.5 + 0.28 = 0.15 + 0.63.
+    rx('aerobic decomposition', CAP.AEROBIC, 'decomposition', [s(POOL.OC, 1), s(POOL.ON, 0.16), s(POOL.OP, 0.009), s(POOL.O2, 0.14)], [s(POOL.DIC, 0.7), s(POOL.NH4, 0.05), s(POOL.PO4, 0.004),
+        s(POOL.ON, 0.11), s(POOL.OP, 0.005), s(POOL.OC, 0.3), s(POOL.H2O, 0.63)], 0.0, 0.075, [POOL.OC], 0.02, 1e9, 'Mineralises labile organic matter and returns N and P to available '
         + 'forms. No energy credit: this is a service performed by heterotrophs, '
         + 'funded by what they ingest, not a free lunch.'),
     // Anaerobic recovery is worse (0.55) and the remainder stays organic — which
@@ -3127,12 +3248,33 @@ const REACTIONS = [
     // declared detritus to be sulfur-enriched relative to living tissue without
     // saying so. Detritus and tissue now share one stoichiometry.
     [s(POOL.OC, 1), s(POOL.ON, 0.16), s(POOL.OP, 0.009), s(POOL.OS, 0.006)], [s(POOL.DIC, 0.55), s(POOL.NH4, 0.05), s(POOL.PO4, 0.004), s(POOL.H2S, 0.006),
-        s(POOL.ON, 0.11), s(POOL.OP, 0.005), s(POOL.OC, 0.45)], 0.0, 0.045, [POOL.OC], 0, 0.02, 'Same mineralisation without O2, but carbon is recovered less completely '
+        s(POOL.ON, 0.11), s(POOL.OP, 0.005), s(POOL.OC, 0.45), s(POOL.H2O, 0.275)], 0.0, 0.045, [POOL.OC], 0, 0.02, 'Same mineralisation without O2, but carbon is recovered less completely '
         + 'and REDUCED SULFUR IS PRODUCED. This is how an anoxic zone manufactures '
         + 'the substrate for sulfate reducers and sulfur oxidisers — the coupling '
-        + 'between families 3, 4 and 6.'),
+        + 'between families 3, 4 and 6. H and O close as water (0.275) and H2 gas '
+        + '(0.214 -> 0.428 H); sulfide brings its own two H.', [{ element: E.H, coeff: 0.428 }]),
     // --- Family 5: nitrogen ---------------------------------------------------
-    rx('nitrification', CAP.NITRIFY, 'nitrogen', [s(POOL.NH4, 1), s(POOL.O2, 1.8)], [s(POOL.NO3, 1)], // 1:1 in N; 0.98 silently destroyed 2% of every run
+    // THE ONE REACTION WHOSE O2 IS A GATE RATHER THAN A STOICHIOMETRIC SUBSTRATE.
+    //
+    // Under the composition contract, NH4 and NO3 are nitrogen carriers: no
+    // product of this reaction carries oxygen. A 1.8 O2 draw therefore cannot
+    // balance, and the two ways to make it balance are both worse than the
+    // correction taken here, because each breaks a mechanism with live
+    // dependants:
+    //   (a) NO3 = N + 3 O forces denitrification — its only consumer — to shed
+    //       that oxygen through organic carbon at 15 C per 2 NO3: an absurd
+    //       donor demand created by an accounting choice;
+    //   (b) NH4 = N + 4 H makes that hydrogen appear from nowhere in every
+    //       reaction that produces NH4 without a hydrogen source, sediment
+    //       release above all, which would manufacture H at every step.
+    // The correction: oxygen remains a REQUIREMENT — the minO2 gate below, and
+    // CAP.NITRIFY is only expressed where O2 is present — but it is no longer
+    // booked as matter this reaction consumes, because in this vocabulary no
+    // product can receive it. The attribution measured the uncorrectable draw
+    // directly: it was the single largest oxygen defect in the network (3.6 O
+    // per unit extent). Named correction, with its alternatives and evidence,
+    // in CHEM-080-CONTRACT.md.
+    rx('nitrification', CAP.NITRIFY, 'nitrogen', [s(POOL.NH4, 1)], [s(POOL.NO3, 1)], // 1:1 in N; 0.98 silently destroyed 2% of every run
     0.10, 0.040, [POOL.NH4], 0.02, 1e9, 'Oxidises ammonium to nitrate. Requires oxygen, so it happens at oxic '
         + 'interfaces. Nitrate is not directly usable by most of this '
         + 'ecosystem — it must be reduced again, which is what makes the '
@@ -3141,7 +3283,7 @@ const REACTIONS = [
     // must be booked, or the nitrogen books appear to leak.
     rx('denitrification', CAP.DENITRIFY, 'nitrogen', [s(POOL.NO3, 2)], [s(POOL.NH4, 0.6)], 0.12, 0.030, [POOL.NO3], 0, 0.015, 'NO3 -> N2 gas. The model\'s ONLY nitrogen export to atmosphere, and it '
         + 'requires anoxia. Nitrogen fixation is not modelled, so this is a real '
-        + 'leak that an ecosystem must replace from weathering.'),
+        + 'leak that an ecosystem must replace from weathering.', [{ element: E.N, coeff: 1.4 }]),
     // REMOVED as a separate reaction.
     //
     // Assimilation of inorganic N into an ORGANISM is `assimilate()` in
@@ -3154,15 +3296,33 @@ const REACTIONS = [
     // The capability bit (CAP.N_ASSIM) is retained and still gates assimilation;
     // only the duplicate pool-to-pool path is gone.
     // --- Family 6: sulfur ----------------------------------------------------
-    rx('sulfate reduction', CAP.SULF_REDUCE, 'sulfur', [s(POOL.SO4, 1)], [s(POOL.H2S, 1)], 0.08, 0.022, [POOL.SO4], 0, 0.02, 'Reduces sulfate to sulfide under anoxia, using organic carbon as the '
+    // THE DONOR IS NOW DRAWN. The note has always declared organic carbon as
+    // this reaction's electron donor, but no carbon substrate was listed: the
+    // reaction reduced sulfate and created sulfide's two hydrogen atoms from
+    // nothing (+2.0 H per unit extent, the sulfur family's share of the H
+    // residual). Sulfide carries its H (composition contract), so the reduction
+    // needs a reductant; 2.5 OC supplies it. The carbon leaves as DIC and the
+    // surplus H and O as water: S 1 -> 1; C 2.5 -> 2.5; H 4.5 = 2 + 2.5;
+    // O 1.25 = 1.25. The carbon cost is high because the donor is bulk organic
+    // matter and the acceptor is tracked as sulfur alone, not as the full
+    // SO4(2-) formula — a declared abstraction, not a kinetic claim.
+    rx('sulfate reduction', CAP.SULF_REDUCE, 'sulfur', [s(POOL.SO4, 1), s(POOL.OC, 2.5)], [s(POOL.H2S, 1), s(POOL.DIC, 2.5), s(POOL.H2O, 1.25)], 0.08, 0.022, [POOL.SO4], 0, 0.02, 'Reduces sulfate to sulfide under anoxia, using organic carbon as the '
         + 'electron donor. Sulfate is abundant and near-useless without this; '
-        + 'sulfide is the valuable product.'),
+        + 'sulfide is the valuable product. The donor is now a real substrate, so '
+        + 'a sulfate reducer competes for the same labile carbon as every other '
+        + 'heterotroph.'),
     rx('sulfur oxidation', CAP.SULF_OXIDIZE, 'sulfur', 
     // FINDING 5 FIXED. DIC was a zero-coefficient PRODUCT placeholder, so the
     // 0.42 mol of organic carbon this produces had no substrate. Chemolitho-
     // autotrophy fixes CO2 with the energy released by oxidising sulfide, so
     // DIC is now a substrate with a coefficient matching the carbon fixed.
-    [s(POOL.H2S, 1), s(POOL.O2, 1.1), s(POOL.DIC, 0.42)], [s(POOL.SO4, 1), s(POOL.OC, 0.42)], 0.74, 0.030, [POOL.H2S], 0.02, 1e9, 'CHIMOSYNTHESIS. Oxidises sulfide for energy and fixes DIC as carbon '
+    // H AND O RECONCILED. Sulfide brings 2 H; the 0.42 C fixed into organic
+    // matter carries 0.756 H and 0.21 O. The remainder leaves as water
+    // (0.622 = 1.244 H + 0.622 O), and the O2 draw follows from it:
+    //   2 = 0.756 + 1.244;  2b = 0.21 + 0.622 -> b = 0.416.
+    // The earlier 1.1 O2 draw was 0.684 O more than any product could hold —
+    // the largest single term in the oxygen residual.
+    [s(POOL.H2S, 1), s(POOL.O2, 0.416), s(POOL.DIC, 0.42)], [s(POOL.SO4, 1), s(POOL.OC, 0.42), s(POOL.H2O, 0.622)], 0.74, 0.030, [POOL.H2S], 0.02, 1e9, 'CHIMOSYNTHESIS. Oxidises sulfide for energy and fixes DIC as carbon '
         + 'using that energy, needing neither light nor organic food. Creates a '
         + 'producer that lives where photosynthesis cannot: at the oxic/anoxic '
         + 'boundary, on sulfide.'),
@@ -3171,7 +3331,12 @@ const REACTIONS = [
     // FINDING 5 FIXED, same defect: 0.34 mol of organic carbon per unit extent
     // was produced with no carbon substrate anywhere in the reaction. DIC is
     // now drawn to supply the carbon that is fixed.
-    [s(POOL.FE2, 1), s(POOL.O2, 0.35), s(POOL.DIC, 0.34)], [s(POOL.FE3, 1), s(POOL.OC, 0.34)], 0.58, 0.026, [POOL.FE2], 0.015, 1e9, 'CHIMOSYNTHESIS on ferrous iron. Fe2 is scarce and Fe3 is an '
+    // H AND O RECONCILED, with Fe3 as the mineral sink the composition
+    // contract declares (Fe2O3: 1.5 O per Fe). Fe2 brings no H, so the H the
+    // fixed carbon needs comes from water; the balance then fixes the O2
+    // draw: H 0.612 = 0.612 (from 0.306 H2O); O 0.306 + 2b = 1.5 + 0.17 ->
+    // b = 0.682.
+    [s(POOL.FE2, 1), s(POOL.O2, 0.682), s(POOL.DIC, 0.34), s(POOL.H2O, 0.306)], [s(POOL.FE3, 1), s(POOL.OC, 0.34)], 0.58, 0.026, [POOL.FE2], 0.015, 1e9, 'CHIMOSYNTHESIS on ferrous iron. Fe2 is scarce and Fe3 is an '
         + 'immobile sink, so this pathway both feeds on a limiting trace element '
         + 'and permanently sequesters it.'),
     rx('iron uptake', CAP.FE_UPTAKE, 'iron', [s(POOL.FE2, 1)], [s(POOL.OFE, 1)], 0.0, 0.50, [POOL.FE2], 0, 1e9, 'Fe is a cofactor, not structure: uptake consumes Fe2 for a tiny molar '
@@ -3183,11 +3348,15 @@ const REACTIONS = [
     // Only part of the litter is solubilised; the rest stays as refractory litter,
     // carrying its own N and P back into the litter pools. The earlier form
     // destroyed 0.55 C and 0.07 N outright and conjured phosphorus from nothing.
-    rx('ligninolysis', CAP.LIGNOLYTIC, 'decomposition', [s(POOL.LC, 1), s(POOL.LN, 0.08), s(POOL.LP, 0.001)], [s(POOL.DIC, 0.45), s(POOL.NH4, 0.012), s(POOL.PO4, 0.001),
-        s(POOL.LC, 0.55), s(POOL.LN, 0.068)], 0.0, 0.0035, [POOL.LC], 0, 1e9, 'Structural litter is refractory by construction: its rate is two orders '
+    rx('ligninolysis', CAP.LIGNOLYTIC, 'decomposition', 
+    // H AND O COMPLETE THE BALANCE, as in the labile family: the 0.55
+    // refractory remainder carries 0.99 H and 0.275 O of the original 1.8 and
+    // 0.5; the difference leaves as water (0.225) and H2 gas (0.18 -> 0.36 H).
+    [s(POOL.LC, 1), s(POOL.LN, 0.08), s(POOL.LP, 0.001)], [s(POOL.DIC, 0.45), s(POOL.NH4, 0.012), s(POOL.PO4, 0.001),
+        s(POOL.LC, 0.55), s(POOL.LN, 0.068), s(POOL.H2O, 0.225)], 0.0, 0.0035, [POOL.LC], 0, 1e9, 'Structural litter is refractory by construction: its rate is two orders '
         + 'of magnitude below labile decomposition. Most of it does NOT return to '
         + 'the water column — it buries, and only weathering brings it back. Litter '
-        + 'is therefore a long-timescale sink, not a recycled pool.'),
+        + 'is therefore a long-timescale sink, not a recycled pool.', [{ element: E.H, coeff: 0.36 }]),
     // Likewise: sediment nitrogen lives in SN and must be drawn, not conjured.
     // Weathering solubilises a fraction; the remainder stays buried. The earlier
     // form destroyed 0.3 C and released phosphorus that was never drawn from SN
@@ -3501,7 +3670,7 @@ __def("bio/chemlife.js", function(require, exports, module){/**
  */
 const { E, biomassDemand, newElemVec, sumElems, MACRONUTRIENTS, TRACE_ELEMENTS } = require("./elements.js");
 const { CAP, CAP_COUNT, REACTIONS, RX_COUNT, reactionExtent } = require("./metabolism.js");
-const { POOL } = require("../world/chemistry.js");
+const { POOL, POOL_COMPOSITION } = require("../world/chemistry.js");
 /**
  * Energy cost of constructing one mole of tissue carbon.
  *
@@ -3769,28 +3938,29 @@ function assimilate(chem, st, slot, cell, cfg, demand) {
             // drew the carbon twice while adding it once.
             chem.claim(POOL.OC, cell, takeC);
             st.stores[base + E.C] += takeC;
+            // THE BULK COMPOSITION CONTRACT: an organism takes the MOLECULE.
+            //
+            // One unit of organic carbon carries 1.8 H and 0.5 O (POOL_COMPOSITION),
+            // which is also the bulk tissue formula. Crediting carbon alone would
+            // drain H and O out of the field through the very transfer that is meant
+            // to supply tissue, and growth would be structurally impossible for want
+            // of H and O exactly as it once was. Crediting them here is what
+            // replaces the old separate water claim: tissue H and O ride with the
+            // carbon that constitutes the tissue.
+            st.stores[base + E.H] += POOL_COMPOSITION[POOL.OC * E.COUNT + E.H] * takeC;
+            st.stores[base + E.O] += POOL_COMPOSITION[POOL.OC * E.COUNT + E.O] * takeC;
         }
     }
-    // HYDROGEN AND OXYGEN FOR TISSUE.
+    // NO SEPARATE WATER UPTAKE FOR TISSUE.
     //
-    // FINDING 2 FIXED. grow() requires C, H, O, N, P, S and Fe in stores, but
-    // only carbon and the mineral nutrients were ever taken up — so H and O were
-    // permanently zero and growth was STRUCTURALLY IMPOSSIBLE for any organism,
-    // whatever its energy or nutrient reserves. Tissue is built from the external
-    // water reservoir, which is the declared source for both.
-    {
-        const takeH = Math.min(chem.remaining(POOL.H2O, cell) * eff, demand[E.H] * ASSIMILATION_FRACTION);
-        if (takeH > 0) {
-            chem.claim(POOL.H2O, cell, takeH);
-            st.stores[base + E.H] += takeH;
-            // H2O carries ONE OXYGEN with that hydrogen. Crediting only the tissue's
-            // 0.5 O:H ratio destroyed the other half of every mole claimed from the
-            // reservoir, which is why the oxygen book leaked while H balanced. Both
-            // atoms now enter the organism store; excess O is returned to the declared
-            // reservoir sink at death rather than silently destroyed.
-            st.stores[base + E.O] += takeH;
-        }
-    }
+    // An earlier version claimed water from the reservoir purely to supply
+    // tissue H and O, because carbon arrived without them; the H/O books were
+    // then kept level by returning the "excess" O to the reservoir sink at
+    // death. Under the composition contract the organic carbon carries its own
+    // H and O, so a water claim for tissue would double-supply them, and the
+    // sink return was a boundary bookkeeping device rather than a chemistry.
+    // Water remains an external buffered reservoir for REACTIONS (photosynthesis
+    // draws it, respiration returns it) and is not a tissue feedstock.
     // P and trace elements are taken by any living cell that carries tissue.
     const po4 = chem.remaining(POOL.PO4, cell);
     const takeP = Math.min(po4 * eff, demand[E.P] * ASSIMILATION_FRACTION);
@@ -3815,11 +3985,16 @@ function assimilate(chem, st, slot, cell, cfg, demand) {
     }
     // EXPLICIT freeNutrients subsidy. This is an EXOGENOUS, BOOKED input, not
     // an invisible relaxation of the growth ceiling or offspring gate. Carbon is
-    // deliberately excluded: free nutrients relieve mineral/tissue-water supply,
-    // while carbon still has to be physically assimilated from OC. The amount is
+    // deliberately excluded (it is physically assimilated from OC), and so are H
+    // and O: under the composition contract tissue H and O ride with that
+    // organic carbon, so subsidising them separately would inject water into the
+    // organism's stoichiometry and break the exact H/C and O/C ratios that let a
+    // unit of dead carbon carry its own H and O back into the organic pools at
+    // death. The subsidy therefore covers the dissolved MINERAL supply, N/P/S/Fe,
+    // whose scarcity is what this ablation is about. The amount is
     // recorded in the chemistry boundary flux so the elemental audit can balance.
     if (cfg.freeNutrients) {
-        for (const e of [E.H, E.O, E.N, E.P, E.S, E.FE]) {
+        for (const e of [E.N, E.P, E.S, E.FE]) {
             const need = demand[e] * ASSIMILATION_FRACTION;
             const add = Math.max(0, need - st.stores[base + e]);
             if (add <= 0)
@@ -3931,8 +4106,14 @@ function releaseOnDeath(chem, st, slot, cell, burialFraction, labile, litter) {
         // unbuilt carbon an organism held simply DISAPPEARED — which is why the
         // carbon books never closed no matter how the reactions were balanced.
         if (s > 0) {
+            // Carbon stores join the LABILE stream rather than being reacted here,
+            // so the caller routes them with the same OC mapping — and, with them,
+            // the H and O the composition contract says every unit of organic carbon
+            // carries. Reacting carbon directly while passing H and O through
+            // `labile` would split one molecule across two independent code paths,
+            // which is how an H/O ratio silently drifts from its reaction balance.
             if (e === E.C)
-                chem.react(POOL.OC, cell, s);
+                labile[E.C] += s;
             else if (e === E.N)
                 chem.react(POOL.NH4, cell, s);
             else if (e === E.P)
@@ -3941,12 +4122,10 @@ function releaseOnDeath(chem, st, slot, cell, burialFraction, labile, litter) {
                 chem.react(POOL.SO4, cell, s);
             else if (e === E.FE)
                 chem.react(POOL.FE2, cell, s);
-            // H and O stores previously fell through here and were voided by
-            // `clearSlot`, so any water/oxygen an organism held (including what the
-            // predation ride-along moved from prey biomass) silently vanished at
-            // death instead of returning to the external reservoir. They are routed
-            // through `labile` because world.ts already converts labile H/O into a
-            // reservoirSink debit — the same path their biomass half already took.
+            // H and O stores pass through `labile`. world.ts resolves them against
+            // the H and O carried by the carbon routed to OC/LC and books only the
+            // RESIDUE through the declared water boundary; see the death block in
+            // chemistryPhase for the exact rule.
             else if (e === E.H || e === E.O)
                 labile[e] += s;
         }
@@ -5534,6 +5713,7 @@ __def("world/config.js", function(require, exports, module){const DEFAULT_CONFIG
     chemistryNoNitrogenCycle: null,
     chemistryNoNutrients: null,
     chemistryCo2WeatheringScale: null,
+    chemistryBurial: null,
     chemistryToLegacyDetritus: null,
     chemistryPredationMatter: null,
     chemistryFreeEnergy: null,
@@ -6555,7 +6735,16 @@ const WORLD_ENGINE_VERSION = 'ts-evo-poc/0.8.0';
 // Owner D1/D2, 2026-10-15: dimensionally valid limiting-element growth and
 // linear macronutrient offspring demand. All chem/0.7.7 panels are historical;
 // chemistry-unset base semantics and parity remain unchanged.
-const CHEMISTRY_ENGINE_VERSION = 'chem/0.7.8';
+//
+// chem/0.8.0, 2026-10-18: the Owner-directed multielement C/H/O contract.
+// POOL_COMPOSITION becomes the authoritative inventory table (water is 2 H + 1
+// O, O2 is 2 O, bulk organic carbon carries its declared H/O ratio); burial
+// reserves its source through claim() instead of an unclaimed react(); eight
+// reaction stoichiometries are corrected, and nitrification's O2 becomes a
+// habitat gate rather than a booked substrate (a named correction — the
+// alternatives are documented in src/bio/metabolism.ts). Chemistry-UNSET
+// semantics and parity are unchanged; every chem/0.7.8 figure is historical.
+const CHEMISTRY_ENGINE_VERSION = 'chem/0.8.0';
 /**
  * Whether the chemistry semantics themselves changed in the 0.7.0 correction.
  *
@@ -6595,9 +6784,14 @@ function runIdentity(config) {
  * gates/0.7.6 covers the current suite through G40 with split conservation
  * tolerances, a discriminating 1:1 H/O uptake control, and the three-arm
  * cross-organism shared-budget control.
+ *
+ * gates/0.8.3, 2026-10-18: G26/G27/G38/G39 were rewritten for the multielement
+ * C/H/O contract and G52 (burial reservation) and G53 (live reaction closure)
+ * were added. A result recorded under gates/0.8.2 is not comparable without
+ * re-running.
  */
 // Combined chemistry and main validation suite, including G41-G47.
-const GATE_SUITE_VERSION = 'gates/0.8.2';
+const GATE_SUITE_VERSION = 'gates/0.8.3';
 
 exports.WORLD_ENGINE_VERSION = WORLD_ENGINE_VERSION;
 exports.CHEMISTRY_ENGINE_VERSION = CHEMISTRY_ENGINE_VERSION;
@@ -6642,7 +6836,7 @@ const { OrganismStore, BODY_GENE_COUNT, ROLE_STRIDE, NUTRIENT_COUNT } = require(
 const { RollingDigest } = require("../core/hash.js");
 const { TRAIT, TRAITS, BODY_GENES, TRAIT_COUNT } = require("../bio/genome.js");
 const { Phenotype, resolveCapacity } = require("../bio/phenotype.js");
-const { Chemistry, DEFAULT_CHEMISTRY, POOL, POOL_COUNT, POOL_ELEMENT_RT, conservationReport } = require("./chemistry.js");
+const { Chemistry, DEFAULT_CHEMISTRY, MAX_BURIAL_FRACTION, POOL, POOL_COMPOSITION, POOL_COUNT, POOL_ELEMENT_RT, conservationReport } = require("./chemistry.js");
 const { E, newElemVec, biomassDemand } = require("../bio/elements.js");
 const { CAP_COUNT, MODULE_CAPABILITY, maskFromStrength, REACTIONS, RX_COUNT, newMetabolicEvidence } = require("../bio/metabolism.js");
 const { DEFAULT_CHEM_CONFIG, ENERGY_PER_CARBON, assimilate, canAffordOffspring, grow, growChemStores, newChemStores, releaseOnDeath, runMetabolism, seedBiomass, transferToOffspring, transferPredationMatter } = require("../bio/chemlife.js");
@@ -7641,6 +7835,16 @@ class World {
         if (cfg.chemistryReproNutrientDemand != null
             && (!Number.isFinite(cfg.chemistryReproNutrientDemand) || cfg.chemistryReproNutrientDemand < 0)) {
             throw new Error('chemistryReproNutrientDemand must be finite and non-negative, or null');
+        }
+        // A configured burial fraction is DOMAIN-CHECKED, not capped. One fraction
+        // feeds both the boundary sink and the death litter split (x22), so the
+        // accepted domain is [0, MAX_BURIAL_FRACTION]; a value outside it would be
+        // silently reinterpreted by either consumer if it were clamped.
+        if (cfg.chemistryBurial != null
+            && (!Number.isFinite(cfg.chemistryBurial) || cfg.chemistryBurial < 0
+                || cfg.chemistryBurial > MAX_BURIAL_FRACTION)) {
+            throw new Error('chemistryBurial must be finite and within '
+                + `[0, ${MAX_BURIAL_FRACTION}], or null`);
         }
         this.config = cfg;
         // Normalise the senescence knob once (user config untouched): a plain
@@ -10144,15 +10348,30 @@ class World {
                 // organic matter. That is wrong chemically, and it fed nitrogen into ON
                 // from a source that was supposed to be structurally bound.
                 for (let e = 0; e < E.COUNT; e++) {
-                    // H and O have no modelled pool: they are water and oxygen bound in
-                    // tissue, and the water reservoir is EXTERNAL AND BUFFERED by
-                    // declaration. Routing them into the nearest organic pool instead
-                    // would have been both wrong chemistry and a large silent Fe source,
-                    // because organic-iron is the catch-all pool.
-                    if (e === 1 || e === 2) {
-                        const part = labile[e] + litter[e];
-                        if (part > 0)
-                            this.chemistry.flux.reservoirSink[e] += part;
+                    // H AND O RIDE WITH THE CARBON.
+                    //
+                    // There is no H or O pool: those elements travel inside the organic
+                    // pools. The composition contract says a unit of organic carbon
+                    // carries 1.8 H and 0.5 O — exactly the bulk tissue formula — so the
+                    // OC/LC deposits this death makes already contain the H and O that
+                    // `releaseOnDeath` reported for the same carbon. Booking them again
+                    // (as the previous version did, sending the whole amount to the
+                    // reservoir sink) both erased them from the system and made the H/O
+                    // books depend on a boundary device instead of on the chemistry.
+                    //
+                    // What is booked here is the RESIDUE: whatever remains after the
+                    // carrying carbon is counted. It is non-zero only when an organism
+                    // holds H or O off the tissue ratio — an ablation subsidy or a
+                    // corrupted load — which is exactly when a declared boundary booking
+                    // is the honest answer. Booked SIGNED, so a deficit surfaces as the
+                    // creation it would be rather than being absorbed by a one-way sink;
+                    // floating-point noise in the ratio nets to ~0 and never accumulates.
+                    if (e === E.H || e === E.O) {
+                        const perC = POOL_COMPOSITION[POOL.OC * E.COUNT + e];
+                        const carried = perC * (labile[E.C] + litter[E.C]);
+                        const residue = labile[e] + litter[e] - carried;
+                        if (residue !== 0)
+                            this.chemistry.flux.reservoirSink[e] += residue;
                         continue;
                     }
                     const labilePool = e === E.C ? POOL.OC : e === E.N ? POOL.ON
@@ -11250,7 +11469,12 @@ class World {
         // so multiplying by cellWidth^2 put the environment 1600x out of scale with
         // organism stores and reduced living biomass to a rounding error in its own
         // nutrient budget.
-        const chem = new Chemistry(cols, rows, 1, { ...DEFAULT_CHEMISTRY });
+        // The burial fraction reaches Chemistry here, domain-checked at
+        // construction (see World constructor). Null = the declared default.
+        const chem = new Chemistry(cols, rows, 1, {
+            ...DEFAULT_CHEMISTRY,
+            burial: cfg.chemistryBurial ?? DEFAULT_CHEMISTRY.burial,
+        });
         chem.setCellSize(cellW, this.config.worldH / rows);
         this.chemistry = chem;
         this.chemStores = newChemStores(this.store.capacity);
@@ -11298,7 +11522,19 @@ class World {
         for (let i = 0; i < c; i++) {
             const bury = oc[i] * per.burial;
             if (bury > 0) {
-                chem.react(POOL.OC, i, -bury);
+                // RESERVE THE SOURCE, ONCE. `claim()` writes the reservation into
+                // `claimed` AND the field delta, so no later draw in this cell this
+                // tick — organism uptake or another reaction — can take carbon that
+                // burial has already moved. The previous form used `react(..., -bury)`,
+                // which moved the field but reserved nothing: a second claimant could
+                // draw the same carbon, settle() clamped the overshoot, and the audit
+                // booked the unmaterialised remainder as matter created by clamping.
+                // Burial is the first draw of the tick (boundaries run before
+                // organisms), so it claims first.
+                chem.claim(POOL.OC, i, bury);
+                // ONE credit to the destination. The composition contract gives the
+                // sediment unit the same H and O content as the labile unit it came
+                // from, so the buried molecule arrives whole.
                 chem.react(POOL.SC, i, bury);
             }
         }
@@ -11433,13 +11669,16 @@ class World {
                 ev.runs[id]++;
                 if (r.energy > 0)
                     ev.energy[id] += r.energy * moved;
-                // Nitrogen leaving as gas is a DECLARED EXPORT, counted here so the
-                // cycle can balance against weathering over long runs.
-                // 2 NO3 -> 0.6 NH4 + 1.4 N2: 1.4 moles of nitrogen leave per unit
-                // extent. Booked from the reaction's OWN extent, so it is not confused
-                // with the net NO3 movement shared with nitrification.
-                if (r.name === 'denitrification') {
-                    chem.flux.gasExport[3] += moved * 1.4;
+                // GAS EXPORTS are DECLARED BOUNDARIES, counted here from the
+                // reaction's OWN extent so they cannot be confused with the net pool
+                // movement it shares with other reactions. The coefficients live on
+                // the reaction (metabolism.ts) and are derived from the composition
+                // contract: N2 from denitrification, H2 from the O2-free
+                // mineralisation family. A reaction that vents must declare the vent;
+                // an untracked gas exit looks exactly like a leak.
+                if (r.gas) {
+                    for (const g of r.gas)
+                        chem.flux.gasExport[g.element] += moved * g.coeff;
                 }
             }
             // ENERGY BOOK. Income and expenditure are recorded separately and
@@ -11539,9 +11778,11 @@ class World {
      * Refresh the conservation books.
      *
      * Output is DERIVED from the balance rather than asserted, so a genuine leak
-     * appears as output and a bookkeeping error appears as a residual. H and O
-     * are excluded from the conservation claim by declaration: water is an
-     * external buffered reservoir and is not simulated.
+     * appears as output and a bookkeeping error appears as a residual. All seven
+     * elements are inside the claim: H and O close through the concentration
+     * contract (water is molecular, organic carbon carries its H and O), with
+     * the water reservoir buffer, the freeNutrients subsidy and the two gas
+     * exports as the declared boundaries.
      */
     updateChemistryAudit() {
         const chem = this.chemistry;
@@ -11582,9 +11823,10 @@ class World {
         // computed from the sources on every pass, so neither can leak.
         a.inputs.fill(0);
         // Water: the opening reservoir is part of `initial`, NOT an input. Only a
-        // top-up drawn down by reactions counts as one, and H2O contributes one mole
-        // of H and one of O per molecule.
-        a.inputs[E.H] += chem.flux.waterInput;
+        // top-up drawn down by reactions counts as one. Under the composition
+        // contract water is MOLECULAR: one molecule contributes two H and one O,
+        // which is the same form every reaction uses.
+        a.inputs[E.H] += chem.flux.waterInput * 2;
         a.inputs[E.O] += chem.flux.waterInput;
         a.inputs[E.C] += chem.flux.co2In;
         a.inputs[E.P] += chem.flux.weatherP;
@@ -11598,8 +11840,10 @@ class World {
         // exists and counts tissue directly from chemStores — so booking it as an
         // external input would count the same matter twice. Births move tissue from parent to child
         // through the transfer path, so no founder matter appears after t=0.
-        // Outputs are DECLARED exports only, and the only declared export in this
-        // model is nitrogen leaving as gas via denitrification. They must not be
+        // Outputs are DECLARED exports only: the two gas vents (N2 from
+        // denitrification, H2 from O2-free mineralisation) plus whatever the
+        // reservoir sink absorbs — ablation removals and any H/O residue that
+        // leaves the tissue ratio. They must not be
         // derived from the running imbalance: an earlier version inferred a per-tick
         // "loss" whenever held < initial + inputs and accumulated it, which double
         // counted every tick and made the denominator grow without bound — it

@@ -30,7 +30,7 @@ import {
 import {
   CAP, CAP_COUNT, REACTIONS, RX_COUNT, reactionExtent, type Reaction, type ReactionOmission,
 } from './metabolism.js';
-import { POOL, type Chemistry } from '../world/chemistry.js';
+import { POOL, POOL_COMPOSITION, type Chemistry } from '../world/chemistry.js';
 
 /**
  * Energy cost of constructing one mole of tissue carbon.
@@ -424,29 +424,30 @@ export function assimilate(
       // drew the carbon twice while adding it once.
       chem.claim(POOL.OC, cell, takeC);
       st.stores[base + E.C] += takeC;
+      // THE BULK COMPOSITION CONTRACT: an organism takes the MOLECULE.
+      //
+      // One unit of organic carbon carries 1.8 H and 0.5 O (POOL_COMPOSITION),
+      // which is also the bulk tissue formula. Crediting carbon alone would
+      // drain H and O out of the field through the very transfer that is meant
+      // to supply tissue, and growth would be structurally impossible for want
+      // of H and O exactly as it once was. Crediting them here is what
+      // replaces the old separate water claim: tissue H and O ride with the
+      // carbon that constitutes the tissue.
+      st.stores[base + E.H] += POOL_COMPOSITION[POOL.OC * E.COUNT + E.H] * takeC;
+      st.stores[base + E.O] += POOL_COMPOSITION[POOL.OC * E.COUNT + E.O] * takeC;
     }
   }
 
-  // HYDROGEN AND OXYGEN FOR TISSUE.
+  // NO SEPARATE WATER UPTAKE FOR TISSUE.
   //
-  // FINDING 2 FIXED. grow() requires C, H, O, N, P, S and Fe in stores, but
-  // only carbon and the mineral nutrients were ever taken up — so H and O were
-  // permanently zero and growth was STRUCTURALLY IMPOSSIBLE for any organism,
-  // whatever its energy or nutrient reserves. Tissue is built from the external
-  // water reservoir, which is the declared source for both.
-  {
-    const takeH = Math.min(chem.remaining(POOL.H2O, cell) * eff, demand[E.H] * ASSIMILATION_FRACTION);
-    if (takeH > 0) {
-      chem.claim(POOL.H2O, cell, takeH);
-      st.stores[base + E.H] += takeH;
-      // H2O carries ONE OXYGEN with that hydrogen. Crediting only the tissue's
-      // 0.5 O:H ratio destroyed the other half of every mole claimed from the
-      // reservoir, which is why the oxygen book leaked while H balanced. Both
-      // atoms now enter the organism store; excess O is returned to the declared
-      // reservoir sink at death rather than silently destroyed.
-      st.stores[base + E.O] += takeH;
-    }
-  }
+  // An earlier version claimed water from the reservoir purely to supply
+  // tissue H and O, because carbon arrived without them; the H/O books were
+  // then kept level by returning the "excess" O to the reservoir sink at
+  // death. Under the composition contract the organic carbon carries its own
+  // H and O, so a water claim for tissue would double-supply them, and the
+  // sink return was a boundary bookkeeping device rather than a chemistry.
+  // Water remains an external buffered reservoir for REACTIONS (photosynthesis
+  // draws it, respiration returns it) and is not a tissue feedstock.
 
   // P and trace elements are taken by any living cell that carries tissue.
   const po4 = chem.remaining(POOL.PO4, cell);
@@ -477,11 +478,16 @@ export function assimilate(
 
   // EXPLICIT freeNutrients subsidy. This is an EXOGENOUS, BOOKED input, not
   // an invisible relaxation of the growth ceiling or offspring gate. Carbon is
-  // deliberately excluded: free nutrients relieve mineral/tissue-water supply,
-  // while carbon still has to be physically assimilated from OC. The amount is
+  // deliberately excluded (it is physically assimilated from OC), and so are H
+  // and O: under the composition contract tissue H and O ride with that
+  // organic carbon, so subsidising them separately would inject water into the
+  // organism's stoichiometry and break the exact H/C and O/C ratios that let a
+  // unit of dead carbon carry its own H and O back into the organic pools at
+  // death. The subsidy therefore covers the dissolved MINERAL supply, N/P/S/Fe,
+  // whose scarcity is what this ablation is about. The amount is
   // recorded in the chemistry boundary flux so the elemental audit can balance.
   if (cfg.freeNutrients) {
-    for (const e of [E.H, E.O, E.N, E.P, E.S, E.FE]) {
+    for (const e of [E.N, E.P, E.S, E.FE]) {
       const need = demand[e] * ASSIMILATION_FRACTION;
       const add = Math.max(0, need - st.stores[base + e]);
       if (add <= 0) continue;
@@ -608,17 +614,21 @@ export function releaseOnDeath(
     // unbuilt carbon an organism held simply DISAPPEARED — which is why the
     // carbon books never closed no matter how the reactions were balanced.
     if (s > 0) {
-      if (e === E.C) chem.react(POOL.OC, cell, s);
+      // Carbon stores join the LABILE stream rather than being reacted here,
+      // so the caller routes them with the same OC mapping — and, with them,
+      // the H and O the composition contract says every unit of organic carbon
+      // carries. Reacting carbon directly while passing H and O through
+      // `labile` would split one molecule across two independent code paths,
+      // which is how an H/O ratio silently drifts from its reaction balance.
+      if (e === E.C) labile[E.C] += s;
       else if (e === E.N) chem.react(POOL.NH4, cell, s);
       else if (e === E.P) chem.react(POOL.PO4, cell, s);
       else if (e === E.S) chem.react(POOL.SO4, cell, s);
       else if (e === E.FE) chem.react(POOL.FE2, cell, s);
-      // H and O stores previously fell through here and were voided by
-      // `clearSlot`, so any water/oxygen an organism held (including what the
-      // predation ride-along moved from prey biomass) silently vanished at
-      // death instead of returning to the external reservoir. They are routed
-      // through `labile` because world.ts already converts labile H/O into a
-      // reservoirSink debit — the same path their biomass half already took.
+      // H and O stores pass through `labile`. world.ts resolves them against
+      // the H and O carried by the carbon routed to OC/LC and books only the
+      // RESIDUE through the declared water boundary; see the death block in
+      // chemistryPhase for the exact rule.
       else if (e === E.H || e === E.O) labile[e] += s;
     }
   }

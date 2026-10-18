@@ -27,9 +27,16 @@
  *    (denitrification to gas, sediment burial).
  *  - No pH. Sulfide is not rendered toxic and no acid production is modelled.
  *  - O2 is not tracked inside biomass; respiratory quotient is simplified.
+ *  - ONE declared multielement composition contract (POOL_COMPOSITION in
+ *    src/world/chemistry.ts) governs every pool, transfer and reaction in this
+ *    network. A reaction that does not close against it is a defect, and the
+ *    element-contract gate asserts that each one does. Two gas exports are
+ *    declared (N2 from denitrification, H2 from O2-free mineralisation); water
+ *    remains an external buffered reservoir.
  */
 
 import { CLASS, POOL, type Chemistry } from '../world/chemistry.js';
+import { E } from './elements.js';
 
 /**
  * Metabolic capabilities — the heritable half of metabolism.
@@ -76,6 +83,21 @@ interface Sub {
   coeff: number;
 }
 
+/**
+ * A gas leaving the modelled system, per unit of extent.
+ *
+ * NOT a pool: the atmosphere is an external boundary, and matter that leaves
+ * as gas must be booked as an EXPORT on the elemental audit rather than
+ * quietly dropped or written into a pool it does not belong to. Two exits
+ * exist by declaration: N2 from denitrification and H2 from the O2-free
+ * mineralisation family (once the carbon that hydrogen arrived with is
+ * mineralised to DIC, no remaining product can carry it).
+ */
+export interface GasExport {
+  element: E;
+  coeff: number;
+}
+
 export interface Reaction {
   readonly id: number;
   readonly name: string;
@@ -83,6 +105,8 @@ export interface Reaction {
   readonly cap: CAP;
   readonly substrates: readonly Sub[];
   readonly products: readonly Sub[];
+  /** Gases exported per unit extent, booked on the boundary audit. */
+  readonly gas?: readonly GasExport[];
   /** Energy per unit extent. Negative means the process COSTS energy. */
   readonly energy: number;
   /** Per-unit-extent rate ceiling, before capability strength. */
@@ -105,10 +129,11 @@ function rx(
   energy: number, vmax: number,
   limits: readonly POOL[],
   minO2: number, maxO2: number, note: string,
+  gas?: readonly GasExport[],
 ): Reaction {
   return {
     id: nextRx++, name, cap, family, substrates, products, energy, vmax,
-    limits, minO2, maxO2, note,
+    limits, minO2, maxO2, note, gas,
   };
 }
 
@@ -163,14 +188,25 @@ export const REACTIONS: readonly Reaction[] = [
     + 'why the two are stoichiometrically coupled rather than merely similar.'),
 
   // --- Family 3: O2-independent metabolism ---------------------------------
+  // 1 OC -> 0.5 DIC + 0.5 OC + 0.25 H2O + 0.2 H2 (gas). THE HYDROGEN AND
+  // OXYGEN MUST GO SOMEWHERE: a unit of organic carbon carries 1.8 H and
+  // 0.5 O, DIC is a pure carbon carrier, and the returned half-carbon carries
+  // only 0.9 H and 0.25 O. The remainder leaves as water (0.25, i.e. 0.5 H
+  // and 0.25 O) and as H2 gas (0.2, i.e. 0.4 H). The earlier form listed only
+  // DIC and OC, destroying 0.9 H and 0.25 O per unit extent — the measured H
+  // and O residuals of the attribution.
   rx('fermentation', CAP.FERMENT, 'anaerobic',
     [s(POOL.OC, 1)],
-    [s(POOL.DIC, 0.5), s(POOL.OC, 0.5)],
+    [s(POOL.DIC, 0.5), s(POOL.OC, 0.5), s(POOL.H2O, 0.25)],
     0.26, 0.030, [POOL.OC],
     0, 0.03,
     'Substrate-level metabolism. Works only where O2 has been depleted, and '
     + 'yields far less per unit carbon than respiration. This is what makes '
-    + 'an anoxic niche worth occupying and what limits how large it can get.'),
+    + 'an anoxic niche worth occupying and what limits how large it can get. '
+    + 'The H2 it releases is a DECLARED gas export: no H2-consuming pathway '
+    + 'is modelled, so that hydrogen leaves the system rather than pretending '
+    + 'to return to a pool.',
+    [{ element: E.H, coeff: 0.4 }]),
 
   // --- Family 4: decomposition and mineralisation --------------------------
   // Organic matter is stored as SEPARATE single-element pools (OC, ON, OP,
@@ -184,10 +220,14 @@ export const REACTIONS: readonly Reaction[] = [
   // 0.3 is refractory and STAYS ORGANIC. The earlier form emitted 0.7 and
   // destroyed 0.3 outright, which is the carbon residual. Refractory carbon
   // returns to the organic pool, from which burial can eventually sequester it.
+  // H AND O COMPLETE THE BALANCE. Only 0.3 of the carbon stays organic, so
+  // 0.54 of the 1.8 H and 0.15 of the 0.5 O are re-incorporated; the rest
+  // leaves as water (0.63 = 1.26 H + 0.63 O), and the oxygen to make it comes
+  // from O2 (0.14 = 0.28 O): H 1.8 = 0.54 + 1.26; O 0.5 + 0.28 = 0.15 + 0.63.
   rx('aerobic decomposition', CAP.AEROBIC, 'decomposition',
-    [s(POOL.OC, 1), s(POOL.ON, 0.16), s(POOL.OP, 0.009)],
+    [s(POOL.OC, 1), s(POOL.ON, 0.16), s(POOL.OP, 0.009), s(POOL.O2, 0.14)],
     [s(POOL.DIC, 0.7), s(POOL.NH4, 0.05), s(POOL.PO4, 0.004),
-     s(POOL.ON, 0.11), s(POOL.OP, 0.005), s(POOL.OC, 0.3)],
+     s(POOL.ON, 0.11), s(POOL.OP, 0.005), s(POOL.OC, 0.3), s(POOL.H2O, 0.63)],
     0.0, 0.075, [POOL.OC],
     0.02, 1e9,
     'Mineralises labile organic matter and returns N and P to available '
@@ -207,17 +247,39 @@ export const REACTIONS: readonly Reaction[] = [
     // saying so. Detritus and tissue now share one stoichiometry.
     [s(POOL.OC, 1), s(POOL.ON, 0.16), s(POOL.OP, 0.009), s(POOL.OS, 0.006)],
     [s(POOL.DIC, 0.55), s(POOL.NH4, 0.05), s(POOL.PO4, 0.004), s(POOL.H2S, 0.006),
-     s(POOL.ON, 0.11), s(POOL.OP, 0.005), s(POOL.OC, 0.45)],
+     s(POOL.ON, 0.11), s(POOL.OP, 0.005), s(POOL.OC, 0.45), s(POOL.H2O, 0.275)],
     0.0, 0.045, [POOL.OC],
     0, 0.02,
     'Same mineralisation without O2, but carbon is recovered less completely '
     + 'and REDUCED SULFUR IS PRODUCED. This is how an anoxic zone manufactures '
     + 'the substrate for sulfate reducers and sulfur oxidisers — the coupling '
-    + 'between families 3, 4 and 6.'),
+    + 'between families 3, 4 and 6. H and O close as water (0.275) and H2 gas '
+    + '(0.214 -> 0.428 H); sulfide brings its own two H.',
+    [{ element: E.H, coeff: 0.428 }]),
 
   // --- Family 5: nitrogen ---------------------------------------------------
+  // THE ONE REACTION WHOSE O2 IS A GATE RATHER THAN A STOICHIOMETRIC SUBSTRATE.
+  //
+  // Under the composition contract, NH4 and NO3 are nitrogen carriers: no
+  // product of this reaction carries oxygen. A 1.8 O2 draw therefore cannot
+  // balance, and the two ways to make it balance are both worse than the
+  // correction taken here, because each breaks a mechanism with live
+  // dependants:
+  //   (a) NO3 = N + 3 O forces denitrification — its only consumer — to shed
+  //       that oxygen through organic carbon at 15 C per 2 NO3: an absurd
+  //       donor demand created by an accounting choice;
+  //   (b) NH4 = N + 4 H makes that hydrogen appear from nowhere in every
+  //       reaction that produces NH4 without a hydrogen source, sediment
+  //       release above all, which would manufacture H at every step.
+  // The correction: oxygen remains a REQUIREMENT — the minO2 gate below, and
+  // CAP.NITRIFY is only expressed where O2 is present — but it is no longer
+  // booked as matter this reaction consumes, because in this vocabulary no
+  // product can receive it. The attribution measured the uncorrectable draw
+  // directly: it was the single largest oxygen defect in the network (3.6 O
+  // per unit extent). Named correction, with its alternatives and evidence,
+  // in CHEM-080-CONTRACT.md.
   rx('nitrification', CAP.NITRIFY, 'nitrogen',
-    [s(POOL.NH4, 1), s(POOL.O2, 1.8)],
+    [s(POOL.NH4, 1)],
     [s(POOL.NO3, 1)], // 1:1 in N; 0.98 silently destroyed 2% of every run
     0.10, 0.040, [POOL.NH4],
     0.02, 1e9,
@@ -235,7 +297,8 @@ export const REACTIONS: readonly Reaction[] = [
     0, 0.015,
     'NO3 -> N2 gas. The model\'s ONLY nitrogen export to atmosphere, and it '
     + 'requires anoxia. Nitrogen fixation is not modelled, so this is a real '
-    + 'leak that an ecosystem must replace from weathering.'),
+    + 'leak that an ecosystem must replace from weathering.',
+    [{ element: E.N, coeff: 1.4 }]),
 
   // REMOVED as a separate reaction.
   //
@@ -250,22 +313,40 @@ export const REACTIONS: readonly Reaction[] = [
   // only the duplicate pool-to-pool path is gone.
 
   // --- Family 6: sulfur ----------------------------------------------------
+  // THE DONOR IS NOW DRAWN. The note has always declared organic carbon as
+  // this reaction's electron donor, but no carbon substrate was listed: the
+  // reaction reduced sulfate and created sulfide's two hydrogen atoms from
+  // nothing (+2.0 H per unit extent, the sulfur family's share of the H
+  // residual). Sulfide carries its H (composition contract), so the reduction
+  // needs a reductant; 2.5 OC supplies it. The carbon leaves as DIC and the
+  // surplus H and O as water: S 1 -> 1; C 2.5 -> 2.5; H 4.5 = 2 + 2.5;
+  // O 1.25 = 1.25. The carbon cost is high because the donor is bulk organic
+  // matter and the acceptor is tracked as sulfur alone, not as the full
+  // SO4(2-) formula — a declared abstraction, not a kinetic claim.
   rx('sulfate reduction', CAP.SULF_REDUCE, 'sulfur',
-    [s(POOL.SO4, 1)],
-    [s(POOL.H2S, 1)],
+    [s(POOL.SO4, 1), s(POOL.OC, 2.5)],
+    [s(POOL.H2S, 1), s(POOL.DIC, 2.5), s(POOL.H2O, 1.25)],
     0.08, 0.022, [POOL.SO4],
     0, 0.02,
     'Reduces sulfate to sulfide under anoxia, using organic carbon as the '
     + 'electron donor. Sulfate is abundant and near-useless without this; '
-    + 'sulfide is the valuable product.'),
+    + 'sulfide is the valuable product. The donor is now a real substrate, so '
+    + 'a sulfate reducer competes for the same labile carbon as every other '
+    + 'heterotroph.'),
 
   rx('sulfur oxidation', CAP.SULF_OXIDIZE, 'sulfur',
     // FINDING 5 FIXED. DIC was a zero-coefficient PRODUCT placeholder, so the
     // 0.42 mol of organic carbon this produces had no substrate. Chemolitho-
     // autotrophy fixes CO2 with the energy released by oxidising sulfide, so
     // DIC is now a substrate with a coefficient matching the carbon fixed.
-    [s(POOL.H2S, 1), s(POOL.O2, 1.1), s(POOL.DIC, 0.42)],
-    [s(POOL.SO4, 1), s(POOL.OC, 0.42)],
+    // H AND O RECONCILED. Sulfide brings 2 H; the 0.42 C fixed into organic
+    // matter carries 0.756 H and 0.21 O. The remainder leaves as water
+    // (0.622 = 1.244 H + 0.622 O), and the O2 draw follows from it:
+    //   2 = 0.756 + 1.244;  2b = 0.21 + 0.622 -> b = 0.416.
+    // The earlier 1.1 O2 draw was 0.684 O more than any product could hold —
+    // the largest single term in the oxygen residual.
+    [s(POOL.H2S, 1), s(POOL.O2, 0.416), s(POOL.DIC, 0.42)],
+    [s(POOL.SO4, 1), s(POOL.OC, 0.42), s(POOL.H2O, 0.622)],
     0.74, 0.030, [POOL.H2S],
     0.02, 1e9,
     'CHIMOSYNTHESIS. Oxidises sulfide for energy and fixes DIC as carbon '
@@ -278,7 +359,12 @@ export const REACTIONS: readonly Reaction[] = [
     // FINDING 5 FIXED, same defect: 0.34 mol of organic carbon per unit extent
     // was produced with no carbon substrate anywhere in the reaction. DIC is
     // now drawn to supply the carbon that is fixed.
-    [s(POOL.FE2, 1), s(POOL.O2, 0.35), s(POOL.DIC, 0.34)],
+    // H AND O RECONCILED, with Fe3 as the mineral sink the composition
+    // contract declares (Fe2O3: 1.5 O per Fe). Fe2 brings no H, so the H the
+    // fixed carbon needs comes from water; the balance then fixes the O2
+    // draw: H 0.612 = 0.612 (from 0.306 H2O); O 0.306 + 2b = 1.5 + 0.17 ->
+    // b = 0.682.
+    [s(POOL.FE2, 1), s(POOL.O2, 0.682), s(POOL.DIC, 0.34), s(POOL.H2O, 0.306)],
     [s(POOL.FE3, 1), s(POOL.OC, 0.34)],
     0.58, 0.026, [POOL.FE2],
     0.015, 1e9,
@@ -302,15 +388,19 @@ export const REACTIONS: readonly Reaction[] = [
   // carrying its own N and P back into the litter pools. The earlier form
   // destroyed 0.55 C and 0.07 N outright and conjured phosphorus from nothing.
   rx('ligninolysis', CAP.LIGNOLYTIC, 'decomposition',
+    // H AND O COMPLETE THE BALANCE, as in the labile family: the 0.55
+    // refractory remainder carries 0.99 H and 0.275 O of the original 1.8 and
+    // 0.5; the difference leaves as water (0.225) and H2 gas (0.18 -> 0.36 H).
     [s(POOL.LC, 1), s(POOL.LN, 0.08), s(POOL.LP, 0.001)],
     [s(POOL.DIC, 0.45), s(POOL.NH4, 0.012), s(POOL.PO4, 0.001),
-     s(POOL.LC, 0.55), s(POOL.LN, 0.068)],
+     s(POOL.LC, 0.55), s(POOL.LN, 0.068), s(POOL.H2O, 0.225)],
     0.0, 0.0035, [POOL.LC],
     0, 1e9,
     'Structural litter is refractory by construction: its rate is two orders '
     + 'of magnitude below labile decomposition. Most of it does NOT return to '
     + 'the water column — it buries, and only weathering brings it back. Litter '
-    + 'is therefore a long-timescale sink, not a recycled pool.'),
+    + 'is therefore a long-timescale sink, not a recycled pool.',
+    [{ element: E.H, coeff: 0.36 }]),
 
   // Likewise: sediment nitrogen lives in SN and must be drawn, not conjured.
   // Weathering solubilises a fraction; the remainder stays buried. The earlier

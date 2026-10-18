@@ -29,12 +29,16 @@ const versionSrc = read(join(root, 'src', 'world', 'version.ts'));
 const worldV = /WORLD_ENGINE_VERSION = '([^']+)'/.exec(versionSrc)?.[1] ?? '';
 const chemV = /CHEMISTRY_ENGINE_VERSION = '([^']+)'/.exec(versionSrc)?.[1] ?? '';
 const expectedIdentity = `${worldV}+${chemV}`;
-// Live qualification is separate from the archived chemistry panels below.
+// Fixed identity of the retired 0.7.8 qualification. It was live when recorded
+// and is provenance now: the multielement contract superseded it, and a later
+// bump must not relabel its evidence or re-read its explanations.
+const priorIdentity = 'ts-evo-poc/0.8.0+chem/0.7.8';
+// Retired 0.7.8 targeted qualification, verified as recorded.
 {
   const doc = read(join(root, 'CHEM-078-CORRECTIONS.md'));
   const rows = read(join(root, 'evidence/chem078-final-targeted-20261015.jsonl')).trim().split('\n').map(JSON.parse);
-  assert.equal(rows[0].identity, expectedIdentity);
-  assert.ok(doc.includes(expectedIdentity));
+  assert.equal(rows[0].identity, priorIdentity);
+  assert.ok(doc.includes(priorIdentity));
   assert.equal(rows.filter((r) => r.decision === 'D1').length, 20);
   assert.equal(rows.filter((r) => r.decision === 'D2').length, 45);
   const live = rows.find((r) => r.decision === 'D1-live');
@@ -57,7 +61,7 @@ const expectedIdentity = `${worldV}+${chemV}`;
   const complete = JSON.parse(read(join(dir, 'complete.json')));
   const current = read(join(dir, 'runs.jsonl')).trim().split('\n').map(JSON.parse);
   const pairs = read(join(dir, 'comparisons.jsonl')).trim().split('\n').map(JSON.parse);
-  assert.equal(protocol.identity, expectedIdentity);
+  assert.equal(protocol.identity, priorIdentity);
   assert.equal(complete.uniqueRuns, 4);
   assert.equal(complete.executions, 8);
   assert.equal(complete.repeatsExact, 4);
@@ -72,7 +76,7 @@ const expectedIdentity = `${worldV}+${chemV}`;
     if (pair.arm === 'legacy') assert.deepEqual(pair.after, pair.before);
     else {
       assert.equal(pair.before.identity, 'ts-evo-poc/0.8.0+chem/0.7.7');
-      assert.equal(pair.after.identity, expectedIdentity);
+      assert.equal(pair.after.identity, priorIdentity);
       for (const when of ['before', 'after']) for (const element of ['C', 'H', 'O']) {
         assert.equal(pair[when].chemistry.elementalResiduals.find((r) => r.element === element)?.ok, false,
           'quoted inherited strict-audit limitation must remain visible in raw evidence');
@@ -80,6 +84,88 @@ const expectedIdentity = `${worldV}+${chemV}`;
     }
     assert.ok(doc.includes(`| ${pair.seed} | ${pair.arm} | ${pair.before.population} | ${pair.after.population} | ${pair.before.births} | ${pair.after.births} |`));
   }
+}
+// ---------------------------------------------------------------------------
+// CURRENT identity — the chem/0.8.0 contract re-measurement.
+//
+// This panel is live: it must carry the engine's current identity, its figures
+// must be present in this raw archive, and the archive must be internally
+// consistent (the terminal JSONL row must reconstruct the summary it claims).
+// The closure prediction is NOT asserted here: a falsified prediction is a
+// result, so the doc's stated failure count is pinned to the raw count instead.
+// ---------------------------------------------------------------------------
+{
+  const dir = join(root, 'evidence/cho-080-20261018');
+  const protocol = JSON.parse(read(join(dir, 'protocol.json')));
+  const complete = JSON.parse(read(join(dir, 'complete.json')));
+  const summary = JSON.parse(read(join(dir, 'summary.json')));
+  const contrast = JSON.parse(read(join(dir, 'old-new-contrast.json')));
+  const controls = JSON.parse(read(join(dir, 'one-cell-controls.json')));
+  const doc = read(join(root, 'CHO-080-RESULTS.md'));
+  assert.ok(doc.includes(expectedIdentity), 'the re-measurement doc must name the current identity');
+  assert.equal(protocol.seeds.length, 4);
+  assert.deepEqual(protocol.discoveryReplays, [41001, 41002]);
+  assert.deepEqual(protocol.newExploratorySeeds, [41003, 41004]);
+  assert.equal(complete.uniqueRuns, 8);
+  assert.equal(complete.discoveryPairs, 2);
+  assert.equal(complete.newPairs, 2);
+  assert.equal(complete.fullHorizonExecutions, 16);
+  assert.equal(summary.length, 8);
+  for (const r of summary) {
+    const suffix = r.omission ? `+rxomit/1/${r.omission}` : '';
+    assert.equal(r.identity, expectedIdentity + suffix);
+    assert.equal(r.observerExact, true);
+    assert.equal(r.unreadLost, 0);
+    assert.equal(r.descendants.status, 'COMPLETE');
+    const name = `${r.omission ?? 'control'}-${r.seed}`;
+    const lines = read(join(dir, `${name}-ticks.jsonl`)).trim().split('\n');
+    assert.equal(lines.length, 1000, `${name} must hold a full horizon`);
+    const last = JSON.parse(lines.at(-1));
+    assert.deepEqual(last.audit, r.audit, `${name}: terminal raw audit must reconstruct the summary`);
+    assert.equal(last.hash, r.hash);
+    assert.deepEqual(last.attribution, r.attribution);
+  }
+  assert.equal(contrast.length, 4);
+  for (const c of contrast) {
+    assert.equal(c.oldIdentity, priorIdentity);
+    assert.equal(c.newIdentity, expectedIdentity + (c.name.startsWith('nitrification') ? '+rxomit/1/nitrification' : ''));
+    assert.equal(c.hashChanged, true, 'the correction must be observable at every discovery replay');
+    assert.deepEqual(c.oldFirstFailures, { H: 17, O: 17, C: 34 });
+  }
+  const near = (a, b) => Math.abs(a - b) <= 1e-12 * Math.max(1, Math.abs(b));
+  const clean = controls.find(c => c.name === 'burial-reservation' && c.unreserved === false);
+  const defect = controls.find(c => c.name === 'burial-reservation' && c.unreserved === true);
+  assert.ok(clean && near(clean.clamp, 0) && near(clean.carbonCreated, 0),
+    'the reservation path must not clamp or create carbon');
+  assert.ok(defect && defect.clamp > 0 && near(defect.clamp, defect.carbonCreated),
+    'the unreserved harness control must reproduce clamp-created carbon');
+  for (const c of controls.filter(c => ['photosynthesis', 'aerobic respiration', 'nitrification',
+    'sulfur oxidation', 'iron oxidation'].includes(c.name))) {
+    assert.ok(c.strict.every(e => e.ok), `${c.name} must close under the contract`);
+  }
+  const nitr = controls.find(c => c.name === 'nitrification-correction');
+  assert.ok(nitr && nitr.vector.every(v => Math.abs(v) < 1e-12) && nitr.minO2 > 0,
+    'nitrification must close by declaration with its oxygen gate intact');
+  // Verdict-document figures, against this raw panel. The doc's claim is
+  // measured in RUNS, so the count must be runs-with-any-failure — summing
+  // per-element failures would pin the wrong unit and look checked anyway.
+  const runsWithFailures = summary.filter(r => Object.keys(r.firstFailures).length > 0).length;
+  assert.ok(doc.includes(`**${runsWithFailures} of ${summary.length} runs carry any strict-audit failure**`),
+    `re-measurement doc must state the measured failure count (${runsWithFailures}/${summary.length} runs)`);
+  assert.ok(doc.includes('H 17 → none, O 17 → none, C 34 → none'));
+  for (const seed of [41001, 41002, 41003, 41004]) {
+    const a = summary.find(r => r.seed === seed && r.omission === null);
+    const b = summary.find(r => r.seed === seed && r.omission === 'nitrification');
+    assert.ok(doc.includes(`| ${seed} | ${a.population} → ${b.population} | ${a.births} → ${b.births} | `
+      + `${a.descendants.offspringProducedChildren} → ${b.descendants.offspringProducedChildren} |`),
+    `missing re-measurement figure row for seed ${seed}`);
+  }
+  const armMean = (omission, key) => [41001, 41002, 41003, 41004]
+    .reduce((n, seed) => n + summary.find(r => r.seed === seed && r.omission === omission)[key], 0) / 4;
+  assert.ok(doc.includes(`**${armMean(null, 'population')} → ${armMean('nitrification', 'population')}**`));
+  assert.ok(doc.includes(`**${armMean(null, 'births')} → ${armMean('nitrification', 'births')}**`));
+  console.log(`chem/0.8.0 re-measurement: 8 runs, ${runsWithFailures} with any strict failure, `
+    + 'contrast and controls verified');
 }
 // Fixed identity of the reconciled investigation panels. A live chemistry bump
 // does not relabel archived cohorts or make their numbers current again.

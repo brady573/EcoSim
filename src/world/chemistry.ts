@@ -6,21 +6,24 @@
  * exactly one POOL in this file, and every transfer between pools is an
  * explicit movement of one ELEMENT (src/bio/elements.ts).
  *
- * WHAT IS MODELLED. Twenty-four compartments spanning inorganic dissolved
- * species, an immobile mineral sink, labile organic matter, structural litter
- * and sediment. C, N, P, S and Fe are cycled; H and O are tracked as biomass
- * components and as dissolved O2.
+ * WHAT IS MODELLED. Twenty-five compartments spanning inorganic dissolved
+ * species, an immobile mineral sink, labile organic matter, structural
+ * litter, sediment and a buffered water reservoir. All seven elements
+ * (C, H, O, N, P, S, Fe) are cycled under ONE declared multielement
+ * composition contract (POOL_COMPOSITION below): molecular H2O and O2, a
+ * carbon-carrier DIC, bulk organic matter [C 1, H 1.8, O 0.5] per carbon,
+ * and single-element nutrient carriers (with sulfide carrying its two H and
+ * ferric oxide its declared 1.5 O per Fe).
  *
  * WHAT IS NOT CLAIMED. There is no molecular chemistry here — no speciation
  * equilibria, no pH-dependent solubility, no enzyme kinetics, no atmospheric
  * column. Water is an EXTERNAL BUFFERED RESERVOIR: the water pool is not a
- * chemical species network, so no molecular water identity is claimed. H and O
- * ARE tracked at pool level: reservoir top-up (`waterInput`), reservoir sink
- * (`reservoirSink`) and 1:1 water uptake into organism stores are declared
- * boundary fluxes, and the H/O books are asserted to close at that declared
- * level (G39). C, N, P, S and Fe additionally close across the modelled
- * compartments with weathering, gas export and sediment export as explicit
- * boundaries (G27).
+ * chemical species network, and the reservoir top-up (`waterInput`) is a
+ * declared boundary input. H and O ARE inside the conservation claim: they
+ * close across the modelled compartments through the composition contract,
+ * with the water-buffer boundary, the freeNutrients subsidy and two declared
+ * gas exports (N2, H2) as the only exits (G39, G41). C, N, P, S and Fe close
+ * the same way, with weathering and sediment as explicit boundaries (G27).
  *
  * DETERMINISM. Transport is a pull-based 5-point stencil (see
  * ScalarField.step), which is order-independent by construction: every cell
@@ -116,6 +119,96 @@ export const POOL_ELEMENT_RT: readonly E[] = [
   E.H,                                          // 24 water (H and O; tracked in both)
 ];
 
+/**
+ * DECLARED MULTIELEMENT COMPOSITION — the one contract every transfer uses.
+ *
+ * Per unit of pool AMOUNT, the moles of each element the pool contains, in E
+ * order [C, H, O, N, P, S, Fe]. This table is authoritative for the INVENTORY:
+ * `elementTotal()` multiplies each pool by its row, and every reaction,
+ * acquisition, death, burial, weathering and boundary flux was reconciled
+ * against it (see REPORT.md and CHEM-080-CONTRACT.md). `POOL_ELEMENT_RT` above
+ * remains the PRIMARY-element map used by ablations and diagnostics; for pools
+ * that carry more than one element it names the element an ablation removes.
+ *
+ * THE DECLARED CONVENTIONS, and why each is what it is:
+ *
+ *  - H2O = 2 H + 1 O and O2 = 2 O per unit. MOLECULAR. The reaction network
+ *    already derived its coefficients from these molecular forms (photosynthesis
+ *    is 1 DIC + 0.9 H2O -> 1 OC + 0.2 O2, which balances only under them); the
+ *    earlier inventory counted water as 1 H + 1 O and O2 as 1 O, which is what
+ *    made the H and O books disagree with the reactions.
+ *
+ *  - DIC = C only. DECLARED POC ABSTRACTION, not molecular CO2. Inorganic
+ *    carbon is tracked as the element; its oxygen is represented through the
+ *    O2 / H2O couple that the reactions carry explicitly. A CO2 inventory would
+ *    force every O2-free mineralisation to consume water to dispose of the
+ *    carbon's oxygen, which is not this model's chemistry.
+ *
+ *  - Organic carbon pools (OC, LC, SC) = [C 1, H 1.8, O 0.5] per C unit: the
+ *    bulk biomass formula, identical to BIOMASS_STOICH. Dead tissue, litter and
+ *    buried sediment represent the same bulk organic matter as living tissue,
+ *    so one unit of organic carbon always carries the same H and O. N, P, S and
+ *    Fe live in their OWN pools (ON, OP, OS, OFe and the litter/sediment
+ *    equivalents) and are NOT repeated inside the C pools — that is what keeps
+ *    the nutrient pools from being double-counted.
+ *
+ *  - N, P, S and Fe pools are single-element carriers, with two declared
+ *    exceptions that the reaction balances require and that are physical:
+ *      H2S carries its two H (sulfide is the reductant whose hydrogen is
+ *      partly incorporated into fixed organic carbon); Fe3 carries 1.5 O per Fe
+ *      (it is a ferric oxide mineral sink, declared as Fe2O3 content).
+ *
+ *  - Fe2, like the other dissolved nutrients, is a bare element carrier
+ *    (hydration is not inventoried; solubility is represented by CLASS).
+ *
+ * What this buys: with the table in place, matter closes WITHIN the modelled
+ * system for all seven elements, plus two declared gas exports (N2 from
+ * denitrification, H2 from O2-free mineralisation). H2O remains an external
+ * BUFFERED reservoir — the buffer top-up is still a declared boundary input —
+ * but H and O are no longer routed to the reservoir sink to hide an
+ * accounting mismatch: they stay in the pools their reactions put them in.
+ *
+ * Every row is asserted against every reaction by the element-contract gate;
+ * editing a row without re-deriving the reactions is a contract violation, not
+ * a parameter change.
+ */
+const COMPOSITION_ROWS: readonly (readonly number[])[] = [
+  //   C    H    O    N    P    S   Fe
+  [0, 0, 2, 0, 0, 0, 0],         // 0  O2   molecular oxygen
+  [1, 0, 0, 0, 0, 0, 0],         // 1  DIC  carbon carrier (declared POC abstraction)
+  [0, 0, 0, 1, 0, 0, 0],         // 2  NH4  nitrogen carrier
+  [0, 0, 0, 1, 0, 0, 0],         // 3  NO2  nitrogen carrier
+  [0, 0, 0, 1, 0, 0, 0],         // 4  NO3  nitrogen carrier
+  [0, 0, 0, 0, 1, 0, 0],         // 5  PO4  phosphorus carrier
+  [0, 0, 0, 0, 0, 1, 0],         // 6  SO4  sulfur carrier
+  [0, 2, 0, 0, 0, 1, 0],         // 7  H2S  sulfide, carries its two H
+  [0, 0, 0, 0, 0, 0, 1],         // 8  Fe2  iron carrier
+  [0, 0, 1.5, 0, 0, 0, 1],       // 9  Fe3  ferric oxide (Fe2O3 per Fe)
+  [1, 1.8, 0.5, 0, 0, 0, 0],     // 10 OC   bulk organic carbon
+  [0, 0, 0, 1, 0, 0, 0],         // 11 ON   organic nitrogen
+  [0, 0, 0, 0, 1, 0, 0],         // 12 OP   organic phosphorus
+  [0, 0, 0, 0, 0, 1, 0],         // 13 OS   organic sulfur
+  [0, 0, 0, 0, 0, 0, 1],         // 14 OFe  organic iron
+  [1, 1.8, 0.5, 0, 0, 0, 0],     // 15 LC   litter carbon (bulk)
+  [0, 0, 0, 1, 0, 0, 0],         // 16 LN   litter nitrogen
+  [0, 0, 0, 0, 1, 0, 0],         // 17 LP   litter phosphorus
+  [0, 0, 0, 0, 0, 1, 0],         // 18 LS   litter sulfur
+  [1, 1.8, 0.5, 0, 0, 0, 0],     // 19 SC   sediment carbon (bulk)
+  [0, 0, 0, 1, 0, 0, 0],         // 20 SN   sediment nitrogen
+  [0, 0, 0, 0, 1, 0, 0],         // 21 SP   sediment phosphorus
+  [0, 0, 0, 0, 0, 1, 0],         // 22 SS   sediment sulfur
+  [0, 0, 0, 0, 0, 0, 1],         // 23 SFe  sediment iron
+  [0, 2, 1, 0, 0, 0, 0],         // 24 H2O  molecular water (buffered reservoir)
+];
+
+// Flat [pool * E.COUNT + element] for the hot audit path.
+export const POOL_COMPOSITION: readonly number[] = COMPOSITION_ROWS.flat();
+
+/** Moles of element `e` carried per unit of pool `p`, by the declared contract. */
+export function poolComposition(p: POOL, e: E): number {
+  return POOL_COMPOSITION[p * E.COUNT + e];
+}
+
 /** Transport class: how a pool moves through the grid. */
 export const enum CLASS {
   DISSOLVED = 0,  // diffuses freely
@@ -205,6 +298,19 @@ export class ChemField {
     }
   }
 }
+
+/**
+ * Largest accepted boundary burial fraction.
+ *
+ * One fraction has TWO consumers: the per-tick boundary sink (OC -> SC, taken
+ * before organisms run) and the litter share of dead tissue, derived in the
+ * death path as `burial * 22`. Above 1/22 the death split would exceed 1 and
+ * release negative labile matter, so the accepted domain is
+ * [0, MAX_BURIAL_FRACTION]. Out-of-domain configuration is REJECTED at
+ * construction, never silently capped: a clamped fraction would be a different
+ * experiment wearing the configured value's name.
+ */
+export const MAX_BURIAL_FRACTION = 1 / 22;
 
 export interface ChemistryConfig {
   /** Per-tick diffusivity for dissolved species. */
@@ -297,18 +403,22 @@ export interface BoundaryFluxes {
   /**
    * Matter that left the modelled system as gas, per element.
    *
-   * Nitrogen is the model's only atmospheric export (denitrification). This is
-   * tracked because an N cycle with no exit cannot balance against weathering
-   * input over long runs, and an untracked exit looks exactly like a leak.
+   * Two declared vents: N2 from denitrification and H2 from the O2-free
+   * mineralisation family. Tracked because a cycle with no exit cannot balance
+   * against weathering input over long runs, and an untracked exit looks
+   * exactly like a leak.
    */
   gasExport: Float64Array;
   /**
-   * Hydrogen and oxygen leaving as dead tissue.
+   * Matter leaving through the declared external water/mineral boundary.
    *
-   * Water is an EXTERNAL BUFFERED RESERVOOL in this model and is not
-   * simulated, so H and O in tissue leave the modelled system on death. They
-   * are tracked here so the books close rather than being quietly dropped, and
-   * so no conservation claim is made across that boundary.
+   * Two things land here: ablation removals (`noNutrients`) and any H/O
+   * RESIDUE that leaves the tissue ratio at death. Under the composition
+   * contract, tissue H and O normally stay in the system inside the organic
+   * pools — a unit of organic carbon carries its own 1.8 H and 0.5 O — so this
+   * is no longer the main death path: a figure here means matter left the
+   * modelled system, and it is booked so the books close rather than being
+   * quietly dropped.
    */
   reservoirSink: Float64Array;
   /** Water drawn from the external reservoir to hold it at its level. */
@@ -594,27 +704,24 @@ export class Chemistry {
   /**
    * Total inventory of one element across every modelled compartment, in moles.
    *
-   * This is the number conservation is checked against. It does NOT include
-   * atmospheric CO2, water, or anything outside the declared boundaries.
+   * This is the number conservation is checked against. Every pool is counted
+   * through POOL_COMPOSITION — the one declared multielement contract — so a
+   * pool that carries several elements (water, O2, the bulk organic carbons,
+   * H2S, Fe3) is counted for each of them at its full declared content. The
+   * boundaries that remain external BY DECLARATION are the atmospheric CO2
+   * source, the water reservoir buffer, weathering, the freeNutrients subsidy
+   * and the gas exports; each is booked as an input or output on the audit.
    */
   elementTotal(e: E): number {
     const n = this.cols * this.rows;
     let sum = 0;
-    // Water is the one pool carrying TWO elements; it belongs in both books at
-    // its full molar amount, which is what makes photosynthesis' water draw
-    // balance against its products.
-    // Water is the one pool carrying TWO elements. It is counted ONCE here,
-    // explicitly, and excluded from the per-pool loop below — otherwise the
-    // generic POOL_ELEMENT mapping double-books it.
-    if (e === E.H || e === E.O) {
-      const w = this.fields[POOL.H2O].data;
-      for (let i = 0; i < n; i++) sum += w[i];
-    }
     for (let p = 0; p < POOL_COUNT; p++) {
-      if (p === POOL.H2O) continue;
-      if (POOL_ELEMENT_RT[p] !== e) continue;
+      const c = POOL_COMPOSITION[p * E.COUNT + e];
+      if (c === 0) continue;
       const f = this.fields[p].data;
-      for (let i = 0; i < n; i++) sum += f[i];
+      let s = 0;
+      for (let i = 0; i < n; i++) s += f[i];
+      sum += s * c;
     }
     return sum * this.cellArea;
   }

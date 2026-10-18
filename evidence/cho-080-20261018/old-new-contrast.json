@@ -1,0 +1,70 @@
+[
+  {
+    "name": "control-41001",
+    "oldIdentity": "ts-evo-poc/0.8.0+chem/0.7.8",
+    "newIdentity": "ts-evo-poc/0.8.0+chem/0.8.0",
+    "newHash": "68ad4253",
+    "hashChanged": true,
+    "oldPopulation": 13,
+    "newPopulation": 21,
+    "oldBirths": 31,
+    "newBirths": 38,
+    "oldFirstFailures": {
+      "H": 17,
+      "O": 17,
+      "C": 34
+    },
+    "newFirstFailures": {}
+  },
+  {
+    "name": "nitrification-41001",
+    "oldIdentity": "ts-evo-poc/0.8.0+chem/0.7.8",
+    "newIdentity": "ts-evo-poc/0.8.0+chem/0.8.0+rxomit/1/nitrification",
+    "newHash": "f940e23d",
+    "hashChanged": true,
+    "oldPopulation": 26,
+    "newPopulation": 30,
+    "oldBirths": 44,
+    "newBirths": 47,
+    "oldFirstFailures": {
+      "H": 17,
+      "O": 17,
+      "C": 34
+    },
+    "newFirstFailures": {}
+  },
+  {
+    "name": "control-41002",
+    "oldIdentity": "ts-evo-poc/0.8.0+chem/0.7.8",
+    "newIdentity": "ts-evo-poc/0.8.0+chem/0.8.0",
+    "newHash": "1a78252d",
+    "hashChanged": true,
+    "oldPopulation": 8,
+    "newPopulation": 8,
+    "oldBirths": 17,
+    "newBirths": 17,
+    "oldFirstFailures": {
+      "H": 17,
+      "O": 17,
+      "C": 34
+    },
+    "newFirstFailures": {}
+  },
+  {
+    "name": "nitrification-41002",
+    "oldIdentity": "ts-evo-poc/0.8.0+chem/0.7.8",
+    "newIdentity": "ts-evo-poc/0.8.0+chem/0.8.0+rxomit/1/nitrification",
+    "newHash": "79a758ce",
+    "hashChanged": true,
+    "oldPopulation": 40,
+    "newPopulation": 38,
+    "oldBirths": 60,
+    "newBirths": 58,
+    "oldFirstFailures": {
+      "H": 17,
+      "O": 17,
+      "C": 34
+    },
+    "newFirstFailures": {}
+  }
+]

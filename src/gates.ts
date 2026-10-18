@@ -35,7 +35,7 @@ import { TROPHIC_COUNT } from './bio/role.js';
 import type { Phenotype } from './bio/phenotype.js';
 import { Rng } from './core/rng.js';
 import { INTENT } from './world/world.js';
-import { REACTIONS, CAP, CAP_COUNT } from './bio/metabolism.js';
+import { REACTIONS, CAP, CAP_COUNT, reactionExtent } from './bio/metabolism.js';
 
 import { runIdentity, CHEMISTRY_ENGINE_VERSION } from './world/version.js';
 import { E_RUNTIME_COUNT, E } from './bio/elements.js';
@@ -43,7 +43,7 @@ import {
   DEFAULT_CHEM_CONFIG, assimilate, canAffordOffspring, grow, newChemStores,
   runMetabolism, transferPredationMatter,
 } from './bio/chemlife.js';
-import { Chemistry, DEFAULT_CHEMISTRY, POOL, POOL_RT } from './world/chemistry.js';
+import { Chemistry, DEFAULT_CHEMISTRY, MAX_BURIAL_FRACTION, POOL, POOL_COMPOSITION, POOL_COUNT, POOL_RT } from './world/chemistry.js';
 import { REPRO_GATE, type ReproProbe } from './trace/reproprobe.js';
 import { chemicalGrowthCases, chemicalReproductionCases, chemicalLiveGrowthCases } from './chem-correctness.js';
 import { reactionOmissionCases } from './reaction-omission-checks.js';
@@ -1539,58 +1539,50 @@ function gate22(): void {
 }
 
 /**
- * G26 — the reaction network is element-balanced on paper.
+ * G26 — the reaction network closes against the declared composition contract.
  *
- * FINDING 5 FOLLOW-UP. Four reactions created elements rather than
- * transforming them: sulfur oxidation carried a zero-coefficient DIC
- * placeholder where its carbon substrate belonged, iron oxidation had no carbon
- * entry at all, anaerobic decomposition emitted sulfide without drawing organic
- * sulfur, and ligninolysis released phosphate without drawing litter
- * phosphorus. Every one of those produced a healthy-looking run and a
- * conservation residual nobody could locate in the network, because by
- * inspection the network looked fine.
+ * EVERY element is checked, H and O included, and NO reaction is exempt. The
+ * previous version checked only C, N, P, S and Fe — and went green while four
+ * reactions created elements and the entire H and O inventory disagreed with
+ * the reactions by construction — because it re-declared its own pool→element
+ * table with water and O2 at 1:1. Under the composition contract the table is
+ * IMPORTED (POOL_COMPOSITION), the check covers all seven elements, and a gas
+ * vent is a declared PRODUCT term rather than an exemption.
  *
  * This is a STATIC check on the declared stoichiometry. It cannot be satisfied
  * by a model that balances at runtime for the wrong reason, and it catches a
- * mis-declared coefficient before a single tick runs.
- *
- * Denitrification is exempt BY DECLARATION: it destroys 1.4 mol of nitrogen per
- * unit extent, and that nitrogen leaves as N2 gas, which is booked as an
- * external export in the audit. An exemption that is written down is a claim;
- * an exemption that is merely true is a hole.
+ * mis-declared coefficient before a single tick runs. Its live counterpart is
+ * G53, which pushes the same closure through the real reaction machinery.
  */
 function gate26(): void {
-  // The `E` enum order is C, H, O, N, P, S, Fe. Guessing this order wrong makes
-  // every gate below report another element's residual, which is worse than no
-  // gate at all because it still looks like a measurement.
   const NAME = ['C', 'H', 'O', 'N', 'P', 'S', 'Fe'];
-  const POOL_ELEMENT: readonly number[] = [
-    2, 0, 3, 3, 3, 4, 5, 5, 6, 6,
-    0, 3, 4, 5, 6,
-    0, 3, 4, 5,
-    0, 3, 4, 5, 6,
-    1,
-  ];
-  const EXEMPT: Record<string, string> = {
-    'denitrification': 'N2 leaves as gas; booked as an external export',
-  };
   const bad: string[] = [];
   for (const r of REACTIONS) {
-    const net: Record<string, number> = {};
-    for (const s of r.substrates) net[NAME[POOL_ELEMENT[s.pool]]] =
-      (net[NAME[POOL_ELEMENT[s.pool]]] ?? 0) - s.coeff;
-    for (const p of r.products) net[NAME[POOL_ELEMENT[p.pool]]] =
-      (net[NAME[POOL_ELEMENT[p.pool]]] ?? 0) + p.coeff;
-    const leak = Object.entries(net).filter(([e, v]) =>
-      Math.abs(v) > 1e-9 && e !== 'O' && e !== 'H' && !EXEMPT[r.name]);
+    const net = new Array<number>(E_RUNTIME_COUNT).fill(0);
+    for (const s of r.substrates) {
+      for (let e = 0; e < E_RUNTIME_COUNT; e++) {
+        net[e] -= s.coeff * POOL_COMPOSITION[s.pool * E_RUNTIME_COUNT + e];
+      }
+    }
+    for (const p of r.products) {
+      for (let e = 0; e < E_RUNTIME_COUNT; e++) {
+        net[e] += p.coeff * POOL_COMPOSITION[p.pool * E_RUNTIME_COUNT + e];
+      }
+    }
+    // A gas vent removes matter from the modelled system, so it closes on the
+    // PRODUCT side of the equation: products + gas = substrates. (The live
+    // counterpart, G53, sees the same quantity from the other side — the field
+    // inventory DROPS by the vent.)
+    for (const g of r.gas ?? []) net[g.element] += g.coeff;
+    const leak = net.map((v, e) => ({ e, v })).filter(({ v }) => Math.abs(v) > 1e-9);
     if (leak.length) {
-      bad.push(`${r.name}: ${leak.map(([e, v]) => `${e} ${v > 0 ? '+' : ''}${v.toFixed(3)}`).join(', ')}`);
+      bad.push(`${r.name}: ${leak.map(({ e, v }) => `${NAME[e]} ${v > 0 ? '+' : ''}${v.toFixed(3)}`).join(', ')}`);
     }
   }
-  record('G26', 'reaction network is element-balanced', bad.length === 0,
+  record('G26', 'reaction network closes against the composition contract', bad.length === 0,
     bad.length === 0
-      ? `all ${REACTIONS.length} reactions balance across C, N, P, S, Fe `
-        + `(denitrification exempt by declared gas export)`
+      ? `all ${REACTIONS.length} reactions close across all 7 elements, H and O included `
+        + `(gas vents declared as products, no exemptions)`
       : `unbalanced reactions:\n         - ${bad.join('\n         - ')}`);
 }
 
@@ -1608,11 +1600,13 @@ function gate26(): void {
  * for organisms to grow, die and be replaced. Anything less would pass on a
  * model that does nothing.
  *
- * H and O are EXCLUDED BY DECLARATION: they are carried by an external, buffered
- * water reservoir. No conservation is claimed across that boundary, so a
- * residual there is a known and accepted property of the model, not a pass and
- * not a failure. Including them would make this gate green by asserting
- * something the model never promised.
+ * ALL SEVEN elements are checked, H and O included. Under the composition
+ * contract they close inside the system — water is molecular, organic carbon
+ * carries its H and O, and every boundary exit is booked (water top-up,
+ * freeNutrients subsidy, the two gas vents). During the attribution they could
+ * not be checked at all, because the books and the reactions used two
+ * different water conventions; excluding them made this gate green while the
+ * largest defect in the network was an OXYGEN residual.
  */
 function gate27(): void {
   const chemCfg = { seed: 517, founders: 400, genomeV2: true, chemistry: true } as const;
@@ -1625,7 +1619,7 @@ function gate27(): void {
     return;
   }
   const NAME = ['C', 'H', 'O', 'N', 'P', 'S', 'Fe'];
-  const CHECKED = ['C', 'N', 'P', 'S', 'Fe'];
+  const CHECKED = NAME;
   // 0.1% of the accounted total. The measured residuals are ~0.0003%; the
   // tolerance is loose enough to survive float64 reassociation and tight
   // enough that the defects this gate exists for were 10^3 to 10^5 times larger.
@@ -2319,6 +2313,13 @@ function gate38(): void {
   const chem = w.chemistry!;
   const subsidy = Array.from(chem.flux.freeNutrientSubsidy).reduce((a, b) => a + b, 0);
   const built = chem.flux.chemCarbonBuilt;
+  // The subsidy list is N/P/S/Fe BY CONTRACT: tissue H and O ride with organic
+  // carbon, so a subsidy that also topped up H, O or C would inject water into
+  // the organism's stoichiometry and break the exact H/C and O/C ratios the
+  // death path relies on to carry dead tissue's H and O back into the pools.
+  // Asserted at zero, not merely absent from the total.
+  const subsidyOffList = chem.flux.freeNutrientSubsidy[E.C]
+    + chem.flux.freeNutrientSubsidy[E.H] + chem.flux.freeNutrientSubsidy[E.O];
   const core = new Set(['C', 'N', 'P', 'S', 'Fe']);
   const conservation = w.chemAudit!.residual
     .every((x) => Math.abs(x.residualFraction) < (core.has(x.element) ? 0.001 : 0.005));
@@ -2332,37 +2333,57 @@ function gate38(): void {
   grow(st, 0, 1, 100, cfg, gr, new Float64Array(E.COUNT));
   const offspring = canAffordOffspring(st, 0, cfg);
   const bypassAbsent = gr.carbon === 0 && gr.nutrientLimited && !offspring.ok;
-  const pass = subsidy > 0 && built > 0 && conservation && ceilingStillBinds && bypassAbsent;
+  const pass = subsidy > 0 && built > 0 && conservation && ceilingStillBinds && bypassAbsent
+    && subsidyOffList === 0;
   record('G38', 'freeNutrients is a booked subsidy without gate bypasses', pass,
     `subsidy=${subsidy.toFixed(4)} mol | carbonBuilt=${built.toFixed(4)} mol`
     + ` | all-7 conservation=${conservation} | nutrientLimited=${w.chemNutrientLimited}`
+    + ` | C/H/O off-list=${subsidyOffList.toFixed(6)}`
     + ` | empty-store negative control carbon=${gr.carbon} lacking=${offspring.lacking}`);
 }
 
 /**
- * G39 — water uptake debits H and O at 1:1 in a live chemistry world.
+ * G39 — tissue H and O travel with organic carbon, and the H/O books close.
+ *
+ * The composition contract makes an organism take the MOLECULE: one claimed
+ * unit of organic carbon credits 1.8 H and 0.5 O into stores, matching the
+ * tissue formula growth draws against. The old contract claimed WATER for
+ * tissue H and O at 1:1 and kept the books level with a reservoir sink — a
+ * boundary device that erased dead tissue's H and O from the system instead of
+ * putting them anywhere. This gate asserts the live-world H/O books close
+ * (they are now inside the conservation claim, G27) and pins the one-cell
+ * claim arithmetic so a regression to a water-for-tissue claim cannot hide
+ * behind the reservoir denominator.
  */
 function gate39(): void {
   const w = new World({ config: { seed: 517, founders: 400, genomeV2: true, chemistry: true } as never });
   for (let i = 0; i < 300; i++) w.step();
   const ho = new Map(w.chemAudit!.residual.map((x) => [x.element, Math.abs(x.residualFraction)]));
   const h = ho.get('H') ?? 1, o = ho.get('O') ?? 1;
-  // Discriminating synthetic control: one H2O mole claimed must credit exactly
-  // one H and one O into stores. A world-scale percentage alone can hide a
-  // half-oxygen regression behind the reservoir denominator.
+  // Discriminating synthetic control: one organic-carbon claim must credit
+  // exactly the contract's H and O, and must NOT touch the water reservoir.
   const sc = new Chemistry(1, 1, 1, DEFAULT_CHEMISTRY);
+  sc.fields[POOL.OC].data[0] = 10;
   sc.fields[POOL.H2O].data[0] = 100;
   const st = newChemStores(1);
-  const demand = new Float64Array(E.COUNT); demand[E.H] = 1;
-  const before = sc.remaining(POOL.H2O, 0);
+  const demand = new Float64Array(E.COUNT); demand[E.C] = 1;
+  const ocBefore = sc.remaining(POOL.OC, 0);
+  const wBefore = sc.remaining(POOL.H2O, 0);
   assimilate(sc, st, 0, 0, DEFAULT_CHEM_CONFIG, demand);
-  const claimed = before - sc.remaining(POOL.H2O, 0);
-  const uptakeBalanced = claimed > 0 && Math.abs(st.stores[E.H] - claimed) < 1e-12
-    && Math.abs(st.stores[E.O] - claimed) < 1e-12;
-  const pass = h < 0.005 && o < 0.005 && uptakeBalanced;
-  record('G39', 'H2O uptake credits H and O 1:1 and the live book closes', pass,
+  const claimed = ocBefore - sc.remaining(POOL.OC, 0);
+  const wantH = POOL_COMPOSITION[POOL.OC * E.COUNT + E.H] * claimed;
+  const wantO = POOL_COMPOSITION[POOL.OC * E.COUNT + E.O] * claimed;
+  const carried = claimed > 0
+    && Math.abs(st.stores[E.C] - claimed) < 1e-12
+    && Math.abs(st.stores[E.H] - wantH) < 1e-12
+    && Math.abs(st.stores[E.O] - wantO) < 1e-12;
+  const waterIntact = Math.abs(sc.remaining(POOL.H2O, 0) - wBefore) < 1e-12;
+  const pass = h < 0.005 && o < 0.005 && carried && waterIntact;
+  record('G39', 'tissue H and O ride with organic carbon and the H/O books close', pass,
     `H |residual|=${(h * 100).toFixed(5)}% O |residual|=${(o * 100).toFixed(5)}% (limit 0.5%)`
-    + ` | claimed=${claimed} storeH=${st.stores[E.H]} storeO=${st.stores[E.O]}`);
+    + ` | claimed OC=${claimed} storeC=${st.stores[E.C]} storeH=${st.stores[E.H]}`
+    + ` storeO=${st.stores[E.O]} (want H ${wantH} O ${wantO})`
+    + ` | water reservoir untouched=${waterIntact}`);
 }
 
 /**
@@ -3250,6 +3271,238 @@ function gate46(): void {
     `identity was only tested on its trivial branch.`);
 }
 
+/**
+ * G52 — the burial call site reserves its source and credits exactly once.
+ *
+ * The defect this gate exists for: burial moved OC to SC with a bare
+ * `react(..., -bury)`, which writes the field delta but NOT the tick's
+ * reservation. Any other claimant in the same cell — organism uptake, a
+ * reaction — could then draw the same carbon, settle() clamped the overshoot,
+ * and the audit booked the unmaterialised remainder as matter created by
+ * clamping. The fix reserves the source through `claim()` first. Four live
+ * scenarios and one mutation control:
+ *
+ *  A. ONE TICK, PURE BURIAL, lambda = 0.5, no organisms, OC preloaded: the
+ *     sediment receives exactly the carbon the water column lost.
+ *  B. NO-BURIAL CONTROL, lambda = 0: neither pool moves. Without this, A
+ *     proves nothing about burial specifically.
+ *  C. TIGHT, MULTI-ORGANISM: lambda = 0.5 with founders present and OC far
+ *     below aggregate demand. No OC clamp may be generated, while organisms
+ *     must still have claimed carbon — the reservation must exclude over-draw
+ *     without excluding draw.
+ *  D. ROOMY: the default lambda with founders present. Burial still credits
+ *     the sediment and growth still runs; the two are not mutually exclusive.
+ *  E. MUTATION CONTROL on the tight arithmetic: with the reservation removed
+ *     by hand and the same over-draw applied, the clamp must APPEAR. A harness
+ *     that cannot detect the original defect cannot vouch for its fix.
+ *  F. DOMAIN REJECTION: burial configuration outside [0, MAX_BURIAL_FRACTION]
+ *     throws at construction. The configured fraction is checked, never
+ *     silently capped — a clamp would be a different experiment under the
+ *     configured value's name.
+ *
+ * The fraction reaches the world through `chemistryBurial` (null = declared
+ * behaviour), so the tight/roomy arms differ ONLY in that key, and the arm
+ * that must reproduce today's production path uses no key at all.
+ */
+function gate52(): void {
+  const fs = (chem: Chemistry, p: number) => chem.fields[p].data.reduce((a, b) => a + b, 0);
+  const detail: string[] = [];
+  let pass = true;
+  // "No clamp" means no unreserved draw, not zero floating-point dust from
+  // indexed accumulation. The defect this gate exists for produced clamps at
+  // ~5e-3 in the E control below; dust is 2e-19. The threshold separates the
+  // two by thirteen orders of magnitude, and E proves the harness can still
+  // see the defect.
+  const CLAMP_DUST = 1e-12;
+
+  // --- A. one tick of pure burial -----------------------------------------
+  {
+    const w = new World({ config: { seed: 517, founders: 0, genomeV2: true, chemistry: true,
+      chemistryBurial: MAX_BURIAL_FRACTION } as never });
+    const chem = w.chemistry!;
+    chem.fields[POOL.OC].data.fill(4);
+    const oc0 = fs(chem, POOL.OC), sc0 = fs(chem, POOL.SC);
+    w.step();
+    const oc1 = fs(chem, POOL.OC), sc1 = fs(chem, POOL.SC);
+    const lost = oc0 - oc1, gained = sc1 - sc0;
+    const balanced = Math.abs(lost - gained) < 1e-9 * Math.max(1, oc0);
+    const clamped = chem.clampedCumulative[POOL.OC];
+    pass = pass && balanced && clamped < CLAMP_DUST;
+    detail.push(`A lost ${lost.toFixed(4)} / credited ${gained.toFixed(4)} mol C, clamp ${clamped}`);
+  }
+
+  // --- B. no-burial control -----------------------------------------------
+  {
+    const w = new World({ config: { seed: 517, founders: 0, genomeV2: true, chemistry: true,
+      chemistryBurial: 0 } as never });
+    const chem = w.chemistry!;
+    chem.fields[POOL.OC].data.fill(4);
+    const oc0 = fs(chem, POOL.OC), sc0 = fs(chem, POOL.SC);
+    w.step();
+    const unchanged = Math.abs(fs(chem, POOL.OC) - oc0) < 1e-12
+      && Math.abs(fs(chem, POOL.SC) - sc0) < 1e-12;
+    pass = pass && unchanged;
+    detail.push(`B no-burial control unchanged=${unchanged}`);
+  }
+
+  // --- C. tight, multi-organism -------------------------------------------
+  {
+    const w = new World({ config: { seed: 517, founders: 400, genomeV2: true, chemistry: true,
+      chemistryBurial: MAX_BURIAL_FRACTION } as never });
+    const chem = w.chemistry!;
+    chem.fields[POOL.OC].data.fill(0.01);
+    for (let i = 0; i < 30; i++) w.step();
+    const st = w.chemStores!;
+    let storesC = 0;
+    for (let s = 0; s < st.stores.length / E_RUNTIME_COUNT; s++) {
+      if (w.aliveAt(s)) storesC += st.stores[s * E_RUNTIME_COUNT + E.C];
+    }
+    const clampOC = chem.clampedCumulative[POOL.OC];
+    const scTotal = fs(chem, POOL.SC);
+    // "Draw still happens" needs a witness that CANNOT come from the founding
+    // cohort: founders are seeded with N/P/S/Fe stores but NO carbon, so every
+    // gram of chemically built tissue in this world (and every gram of carbon
+    // left sitting in stores) was claimed from the cell AFTER burial had taken
+    // its share.
+    const built = chem.flux.chemCarbonBuilt;
+    const ok = clampOC < CLAMP_DUST && scTotal > 0 && built > 0;
+    pass = pass && ok;
+    detail.push(`C tight: OC clamp ${clampOC} mol, sediment ${scTotal.toFixed(4)}, `
+      + `stores C ${storesC.toExponential(2)}, carbon built ${built.toExponential(2)}`);
+  }
+
+  // --- D. roomy ------------------------------------------------------------
+  {
+    const w = new World({ config: { seed: 517, founders: 400, genomeV2: true, chemistry: true } as never });
+    const chem = w.chemistry!;
+    chem.fields[POOL.OC].data.fill(2);
+    for (let i = 0; i < 60; i++) w.step();
+    const clampOC = chem.clampedCumulative[POOL.OC];
+    const scTotal = fs(chem, POOL.SC);
+    const built = chem.flux.chemCarbonBuilt;
+    const ok = clampOC < CLAMP_DUST && scTotal > 0 && built > 0;
+    pass = pass && ok;
+    detail.push(`D roomy: OC clamp ${clampOC} mol, sediment ${scTotal.toFixed(4)}, carbon built ${built.toFixed(4)}`);
+  }
+
+  // --- E. mutation control -------------------------------------------------
+  {
+    const run = (mutate: boolean): number => {
+      const sc = new Chemistry(1, 1, 1, DEFAULT_CHEMISTRY);
+      sc.waterBuffer = 0;
+      sc.fields[POOL.OC].data[0] = 0.01;
+      const bury = 0.01 * 0.5;
+      if (mutate) sc.react(POOL.OC, 0, -bury);   // the removed defect
+      else sc.claim(POOL.OC, 0, bury);           // the reservation, as fixed
+      sc.react(POOL.SC, 0, bury);
+      // One claimant then takes everything it can still see — exactly the
+      // over-draw the defect allowed.
+      sc.claim(POOL.OC, 0, sc.remaining(POOL.OC, 0));
+      sc.settle();
+      return sc.clamped[POOL.OC];
+    };
+    const mutatedClamp = run(true);
+    const correctClamp = run(false);
+    const ok = mutatedClamp > 0 && correctClamp === 0;
+    pass = pass && ok;
+    detail.push(`E mutation: clamp with reservation ${correctClamp}, `
+      + `without ${mutatedClamp.toExponential(2)} (must be > 0)`);
+  }
+
+  // --- F. invalid burial configuration is rejected, never capped -----------
+  {
+    let rejected = 0;
+    for (const bad of [-1e-9, MAX_BURIAL_FRACTION * 1.5, Number.NaN, Number.POSITIVE_INFINITY]) {
+      try {
+        new World({ config: { seed: 517, founders: 0, genomeV2: true, chemistry: true,
+          chemistryBurial: bad } as never });
+      } catch {
+        rejected++;
+      }
+    }
+    const ok = rejected === 4;
+    pass = pass && ok;
+    detail.push(`F invalid burial configs rejected ${rejected}/4 (negative, above max, NaN, Infinity)`);
+  }
+
+  record('G52', 'burial reserves its source and credits the sediment exactly once', pass,
+    detail.join(' | '));
+}
+
+/**
+ * G53 — every reaction closes through the LIVE reaction machinery.
+ *
+ * G26 proves the declared coefficients close on paper. This runs each reaction
+ * through `reactionExtent` — the same code path a living organism's metabolism
+ * uses, including its O2 window, Monod limits, availability caps and gross
+ * reservations — applies the resulting transfers with `react` + `settle`, and
+ * measures the ACTUAL inventory change, element by element. For every reaction
+ * the change must be exactly the declared gas vent and nothing else: an H, O
+ * or any-other-element residual here is the accounting class this contract
+ * exists to prevent.
+ *
+ * Conditions are pinned per reaction (substrates abundant, O2 inside the
+ * reaction's own window) so every one executes a NON-ZERO extent. A reaction
+ * that silently failed to run would otherwise pass by doing nothing — the
+ * gate fails on "DID NOT RUN" rather than accepting it as closure.
+ *
+ * CORRUPTION CONTROL: the same harness on fermentation with its water product
+ * withheld must show an O residual. A fixture that cannot see a deliberately
+ * broken transfer cannot vouch for a working one.
+ */
+function gate53(): void {
+  const NAME = ['C', 'H', 'O', 'N', 'P', 'S', 'Fe'];
+
+  const runReaction = (r: (typeof REACTIONS)[number], corruptWaterProduct = false) => {
+    const sc = new Chemistry(1, 1, 1, DEFAULT_CHEMISTRY);
+    // The harness measures FIELD content, so the reservoir buffer must not
+    // silently replenish what a reaction drew: water is a stock here, and a
+    // top-up would hide a water draw mid-measurement.
+    sc.waterBuffer = 0;
+    for (let p = 0; p < POOL_COUNT; p++) sc.fields[p].data[0] = 100;
+    sc.fields[POOL.O2].data[0] = r.minO2 > 0 ? r.minO2 * 1.5
+      : (r.maxO2 < 1e8 ? r.maxO2 * 0.5 : 0.05);
+    const before = new Float64Array(E_RUNTIME_COUNT);
+    for (let e = 0; e < E_RUNTIME_COUNT; e++) before[e] = sc.elementTotal(e);
+    const out = new Float64Array(POOL_COUNT);
+    const extent = reactionExtent(r, sc, 0, 1, out);
+    if (corruptWaterProduct && r.name === 'fermentation') out[POOL.H2O] = 0;
+    for (let p = 0; p < POOL_COUNT; p++) if (out[p] !== 0) sc.react(p, 0, out[p]);
+    sc.settle();
+    const residual = new Array<number>(E_RUNTIME_COUNT).fill(0);
+    for (let e = 0; e < E_RUNTIME_COUNT; e++) {
+      let expected = 0;
+      // A declared gas vent is matter that LEFT the system: the field
+      // inventory must drop by it.
+      for (const g of r.gas ?? []) if (g.element === e) expected -= g.coeff * extent;
+      residual[e] = (sc.elementTotal(e) - before[e]) - expected;
+    }
+    return { extent, residual, clamped: sc.totalClamped() };
+  };
+
+  const defects: string[] = [];
+  let ran = 0;
+  for (const r of REACTIONS) {
+    const res = runReaction(r);
+    if (!(res.extent > 0)) { defects.push(`${r.name}: DID NOT RUN`); continue; }
+    ran++;
+    const leaks = res.residual.map((v, e) => ({ v, e }))
+      .filter(({ v }) => Math.abs(v) > 1e-8 * (1 + Math.abs(res.extent)));
+    if (leaks.length > 0 || res.clamped > 0) {
+      defects.push(`${r.name}: ${leaks.map(({ v, e }) => `${NAME[e]} ${v.toExponential(2)}`).join(', ')}`
+        + (res.clamped > 0 ? ` clamped ${res.clamped.toExponential(2)}` : ''));
+    }
+  }
+  const corrupt = runReaction(REACTIONS.find((x) => x.name === 'fermentation')!, true);
+  const corruptVisible = Math.abs(corrupt.residual[E.O]) > 1e-6;
+  const pass = defects.length === 0 && ran === REACTIONS.length && corruptVisible;
+  record('G53', 'every reaction closes through the live reaction machinery', pass,
+    `${ran}/${REACTIONS.length} reactions executed with non-zero extent; `
+    + (defects.length ? `defects: ${defects.join(' | ')} | ` : `no element residuals, no clamp; `)
+    + `corruption control (fermentation water product withheld) O residual `
+    + `${corrupt.residual[E.O].toExponential(2)} visible=${corruptVisible}`);
+}
+
 function main(): void {
   console.log(`=== credibility gates :: ${WORLD_ENGINE_VERSION} ===`);
   console.log(`scenario: founders=${SMALL.founders} world=${SMALL.worldW}x${SMALL.worldH} ticks=${TICKS} seed=${SMALL.seed}\n`);
@@ -3298,6 +3551,8 @@ function main(): void {
   gate44();
   gate45();
   gate46();
+  gate52();
+  gate53();
   for (const [id, name, test] of [
     ['G48', 'D1 growth preserves every element at the limiting carbon quantity', chemicalGrowthCases],
     ['G49', 'D2 N/P demand is linear; carbon/cofactor boundaries stay explicit', chemicalReproductionCases],

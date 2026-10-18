@@ -39,7 +39,7 @@ import { RollingDigest } from '../core/hash.js';
 import { TRAIT, TRAITS, BODY_GENES, TRAIT_COUNT, type TraitSpec } from '../bio/genome.js';
 import { Phenotype, resolveCapacity } from '../bio/phenotype.js';
 import {
-  Chemistry, DEFAULT_CHEMISTRY, POOL, POOL_COUNT, POOL_ELEMENT_RT, conservationReport,
+  Chemistry, DEFAULT_CHEMISTRY, MAX_BURIAL_FRACTION, POOL, POOL_COMPOSITION, POOL_COUNT, POOL_ELEMENT_RT, conservationReport,
   type ConservationReport,
 } from './chemistry.js';
 import { E, newElemVec, biomassDemand } from '../bio/elements.js';
@@ -1206,6 +1206,16 @@ export class World {
     if (cfg.chemistryReproNutrientDemand != null
       && (!Number.isFinite(cfg.chemistryReproNutrientDemand) || cfg.chemistryReproNutrientDemand < 0)) {
       throw new Error('chemistryReproNutrientDemand must be finite and non-negative, or null');
+    }
+    // A configured burial fraction is DOMAIN-CHECKED, not capped. One fraction
+    // feeds both the boundary sink and the death litter split (x22), so the
+    // accepted domain is [0, MAX_BURIAL_FRACTION]; a value outside it would be
+    // silently reinterpreted by either consumer if it were clamped.
+    if (cfg.chemistryBurial != null
+      && (!Number.isFinite(cfg.chemistryBurial) || cfg.chemistryBurial < 0
+        || cfg.chemistryBurial > MAX_BURIAL_FRACTION)) {
+      throw new Error('chemistryBurial must be finite and within '
+        + `[0, ${MAX_BURIAL_FRACTION}], or null`);
     }
     this.config = cfg;
     // Normalise the senescence knob once (user config untouched): a plain
@@ -3824,14 +3834,29 @@ export class World {
         // organic matter. That is wrong chemically, and it fed nitrogen into ON
         // from a source that was supposed to be structurally bound.
         for (let e = 0; e < E.COUNT; e++) {
-          // H and O have no modelled pool: they are water and oxygen bound in
-          // tissue, and the water reservoir is EXTERNAL AND BUFFERED by
-          // declaration. Routing them into the nearest organic pool instead
-          // would have been both wrong chemistry and a large silent Fe source,
-          // because organic-iron is the catch-all pool.
-          if (e === 1 || e === 2) {
-            const part = labile[e] + litter[e];
-            if (part > 0) this.chemistry.flux.reservoirSink[e] += part;
+          // H AND O RIDE WITH THE CARBON.
+          //
+          // There is no H or O pool: those elements travel inside the organic
+          // pools. The composition contract says a unit of organic carbon
+          // carries 1.8 H and 0.5 O — exactly the bulk tissue formula — so the
+          // OC/LC deposits this death makes already contain the H and O that
+          // `releaseOnDeath` reported for the same carbon. Booking them again
+          // (as the previous version did, sending the whole amount to the
+          // reservoir sink) both erased them from the system and made the H/O
+          // books depend on a boundary device instead of on the chemistry.
+          //
+          // What is booked here is the RESIDUE: whatever remains after the
+          // carrying carbon is counted. It is non-zero only when an organism
+          // holds H or O off the tissue ratio — an ablation subsidy or a
+          // corrupted load — which is exactly when a declared boundary booking
+          // is the honest answer. Booked SIGNED, so a deficit surfaces as the
+          // creation it would be rather than being absorbed by a one-way sink;
+          // floating-point noise in the ratio nets to ~0 and never accumulates.
+          if (e === E.H || e === E.O) {
+            const perC = POOL_COMPOSITION[POOL.OC * E.COUNT + e];
+            const carried = perC * (labile[E.C] + litter[E.C]);
+            const residue = labile[e] + litter[e] - carried;
+            if (residue !== 0) this.chemistry.flux.reservoirSink[e] += residue;
             continue;
           }
           const labilePool = e === E.C ? POOL.OC : e === E.N ? POOL.ON
@@ -4986,7 +5011,12 @@ export class World {
     // so multiplying by cellWidth^2 put the environment 1600x out of scale with
     // organism stores and reduced living biomass to a rounding error in its own
     // nutrient budget.
-    const chem = new Chemistry(cols, rows, 1, { ...DEFAULT_CHEMISTRY });
+    // The burial fraction reaches Chemistry here, domain-checked at
+    // construction (see World constructor). Null = the declared default.
+    const chem = new Chemistry(cols, rows, 1, {
+      ...DEFAULT_CHEMISTRY,
+      burial: cfg.chemistryBurial ?? DEFAULT_CHEMISTRY.burial,
+    });
     chem.setCellSize(cellW, this.config.worldH / rows);
     this.chemistry = chem;
     this.chemStores = newChemStores(this.store.capacity);
@@ -5036,7 +5066,22 @@ export class World {
     const oc = chem.fields[POOL.OC].data;
     for (let i = 0; i < c; i++) {
       const bury = oc[i] * per.burial;
-      if (bury > 0) { chem.react(POOL.OC, i, -bury); chem.react(POOL.SC, i, bury); }
+      if (bury > 0) {
+        // RESERVE THE SOURCE, ONCE. `claim()` writes the reservation into
+        // `claimed` AND the field delta, so no later draw in this cell this
+        // tick — organism uptake or another reaction — can take carbon that
+        // burial has already moved. The previous form used `react(..., -bury)`,
+        // which moved the field but reserved nothing: a second claimant could
+        // draw the same carbon, settle() clamped the overshoot, and the audit
+        // booked the unmaterialised remainder as matter created by clamping.
+        // Burial is the first draw of the tick (boundaries run before
+        // organisms), so it claims first.
+        chem.claim(POOL.OC, i, bury);
+        // ONE credit to the destination. The composition contract gives the
+        // sediment unit the same H and O content as the labile unit it came
+        // from, so the buried molecule arrives whole.
+        chem.react(POOL.SC, i, bury);
+      }
     }
   }
 
@@ -5173,13 +5218,15 @@ export class World {
         ev.extent[id] += moved;
         ev.runs[id]++;
         if (r.energy > 0) ev.energy[id] += r.energy * moved;
-        // Nitrogen leaving as gas is a DECLARED EXPORT, counted here so the
-        // cycle can balance against weathering over long runs.
-        // 2 NO3 -> 0.6 NH4 + 1.4 N2: 1.4 moles of nitrogen leave per unit
-        // extent. Booked from the reaction's OWN extent, so it is not confused
-        // with the net NO3 movement shared with nitrification.
-        if (r.name === 'denitrification') {
-          chem.flux.gasExport[3] += moved * 1.4;
+        // GAS EXPORTS are DECLARED BOUNDARIES, counted here from the
+        // reaction's OWN extent so they cannot be confused with the net pool
+        // movement it shares with other reactions. The coefficients live on
+        // the reaction (metabolism.ts) and are derived from the composition
+        // contract: N2 from denitrification, H2 from the O2-free
+        // mineralisation family. A reaction that vents must declare the vent;
+        // an untracked gas exit looks exactly like a leak.
+        if (r.gas) {
+          for (const g of r.gas) chem.flux.gasExport[g.element] += moved * g.coeff;
         }
 
       }
@@ -5285,9 +5332,11 @@ export class World {
    * Refresh the conservation books.
    *
    * Output is DERIVED from the balance rather than asserted, so a genuine leak
-   * appears as output and a bookkeeping error appears as a residual. H and O
-   * are excluded from the conservation claim by declaration: water is an
-   * external buffered reservoir and is not simulated.
+   * appears as output and a bookkeeping error appears as a residual. All seven
+   * elements are inside the claim: H and O close through the concentration
+   * contract (water is molecular, organic carbon carries its H and O), with
+   * the water reservoir buffer, the freeNutrients subsidy and the two gas
+   * exports as the declared boundaries.
    */
   private updateChemistryAudit(): void {
     const chem = this.chemistry!;
@@ -5326,9 +5375,10 @@ export class World {
     // computed from the sources on every pass, so neither can leak.
     a.inputs.fill(0);
     // Water: the opening reservoir is part of `initial`, NOT an input. Only a
-    // top-up drawn down by reactions counts as one, and H2O contributes one mole
-    // of H and one of O per molecule.
-    a.inputs[E.H] += chem.flux.waterInput;
+    // top-up drawn down by reactions counts as one. Under the composition
+    // contract water is MOLECULAR: one molecule contributes two H and one O,
+    // which is the same form every reaction uses.
+    a.inputs[E.H] += chem.flux.waterInput * 2;
     a.inputs[E.O] += chem.flux.waterInput;
     a.inputs[E.C] += chem.flux.co2In;
     a.inputs[E.P] += chem.flux.weatherP;
@@ -5343,8 +5393,10 @@ export class World {
     // through the transfer path, so no founder matter appears after t=0.
 
 
-    // Outputs are DECLARED exports only, and the only declared export in this
-    // model is nitrogen leaving as gas via denitrification. They must not be
+    // Outputs are DECLARED exports only: the two gas vents (N2 from
+    // denitrification, H2 from O2-free mineralisation) plus whatever the
+    // reservoir sink absorbs — ablation removals and any H/O residue that
+    // leaves the tissue ratio. They must not be
     // derived from the running imbalance: an earlier version inferred a per-tick
     // "loss" whenever held < initial + inputs and accumulated it, which double
     // counted every tick and made the denominator grow without bound — it

@@ -1,12 +1,15 @@
 # Evidence inventory — supersession under the Owner-authorised canopy correction
 
-> **CURRENT chemistry:** `ts-evo-poc/0.8.0+chem/0.7.8` applies the Owner-accepted
-> D1 growth-limiter and D2 reproduction-demand corrections. Current targeted
-> qualification is recorded in `CHEM-078-CORRECTIONS.md`; no broad ecological
+> **CURRENT chemistry:** `ts-evo-poc/0.8.0+chem/0.8.0` applies the
+> Owner-directed multielement C/H/O contract: `POOL_COMPOSITION` as the
+> authoritative inventory table, the burial-reservation repair, eight derived
+> reaction corrections, and nitrification's oxygen as a habitat gate (a named
+> correction). Current qualification is recorded in `CHEM-080-CONTRACT.md` and
+> the preregistered re-measurement `CHO-080-RESULTS.md`; no broad ecological
 > panel has been requalified. All chemistry figures below labelled current at
-> their time, including the 0.8.0/0.7.7 reconciliation and mechanism panels,
-> are now HISTORICAL under their recorded identities. They are not rewritten.
-> Chemistry-unset base parity remains unchanged.
+> their time, including `chem/0.7.8`, are now HISTORICAL under their recorded
+> identities. They are not rewritten. Chemistry-unset base parity remains
+> unchanged.
 >
 > **HISTORICAL reconciliation:** `ts-evo-poc/0.8.0+chem/0.7.7` combines main's
 > 0.6.3 fixes with the experimental branch. All 0.7.0 cohort results below are
@@ -47,7 +50,8 @@ Every figure produced under `ts-evo-poc/0.6.0` was measured through that defect.
 | `ts-evo-poc/0.6.0` | **HISTORICAL** | Pins measured through the canopy defect. |
 | `ts-evo-poc/0.7.0` | **HISTORICAL** | Canopy-corrected parent before main reconciliation. |
 | `ts-evo-poc/0.8.0` | **CURRENT** | Main reconciliation; chemistry-off pins 503/126/69 and 337/119/95. |
-| `ts-evo-poc/0.8.0+chem/0.7.8` | **CURRENT** | D1/D2 targeted qualification in `CHEM-078-CORRECTIONS.md`; broad ecological verdicts not requalified. |
+| `ts-evo-poc/0.8.0+chem/0.8.0` | **CURRENT** | Multielement C/H/O contract + burial reservation; qualification in `CHEM-080-CONTRACT.md`, re-measurement in `CHO-080-RESULTS.md`; broad ecological verdicts not requalified. |
+| `ts-evo-poc/0.8.0+chem/0.7.8` | **HISTORICAL** | D1/D2 targeted qualification in `CHEM-078-CORRECTIONS.md`; superseded by the multielement contract. Strict `ok:false` audits retained as recorded, first H/O failure at tick 17. |
 | `ts-evo-poc/0.8.0+chem/0.7.7` | **HISTORICAL** | Reconciliation, factorial and family panels before D1/D2; never relabelled. |
 | `ts-evo-poc/0.6.0+chem/0.7.0` | **HISTORICAL** | Base component superseded. |
 | `ts-evo-poc/0.7.0+chem/0.7.0` | **HISTORICAL (identity-only supersession)** | Chemistry semantics calculation unchanged, but accounting composition changed. No ecological rerun is implied except residual/G36 accounting. |

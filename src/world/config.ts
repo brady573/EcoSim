@@ -597,6 +597,14 @@ export interface WorldConfig {
   chemistryNoNutrients: boolean | null;
   /** H9 intervention: scale CO2 weathering. null = declared behaviour. */
   chemistryCo2WeatheringScale: number | null;
+  /**
+   * Boundary burial fraction per tick: the share of a cell's labile organic
+   * carbon that sinks to the sediment before organisms run. null = declared
+   * behaviour. The same fraction also sets the litter share of dead tissue
+   * (x22), so the accepted domain is [0, MAX_BURIAL_FRACTION]; anything else
+   * is rejected at construction rather than silently capped.
+   */
+  chemistryBurial: number | null;
   /** H10 intervention: bridge chemistry death to the legacy detritus field. */
   chemistryToLegacyDetritus: boolean | null;
   /**
@@ -882,6 +890,7 @@ export const DEFAULT_CONFIG: WorldConfig = {
   chemistryNoNitrogenCycle: null,
   chemistryNoNutrients: null,
   chemistryCo2WeatheringScale: null,
+  chemistryBurial: null,
   chemistryToLegacyDetritus: null,
   chemistryPredationMatter: null,
   chemistryFreeEnergy: null,

@@ -1,5 +1,16 @@
 # C/H/O attribution and eight additional exploratory pairs
 
+> **HISTORICAL under `ts-evo-poc/0.8.0+chem/0.8.0`.** This panel was measured
+> under the retired `ts-evo-poc/0.8.0+chem/0.7.8` engine, whose flat pool-map
+> inventory the multielement C/H/O contract replaced (`CHEM-080-CONTRACT.md`).
+> Nothing in this record was relabelled or retroactively certified: the strict
+> `ok:false` audits it reports are the recorded verdicts of that engine, the
+> first H/O failure at tick 17 is that engine's measurement, and the burial
+> clamp it exposes is the defect the contract tranche repairs. The archive is
+> verified as recorded under its own frozen convention
+> (`scripts/chem-attribution-078.mjs`), not re-explained with the new contract.
+> The current re-measurement is `CHO-080-RESULTS.md`.
+
 Scope: Owner-authorized investigation on 2026-10-17, preregistered in
 `CHO-ATTRIBUTION-PREREGISTRATION.md`. Raw record:
 `evidence/cho-attribution-20261017/`. This is not held-out confirmation.
