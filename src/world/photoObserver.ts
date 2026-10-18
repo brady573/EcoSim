@@ -38,6 +38,15 @@ export interface PhotoObserverEvent {
   shortfall: number;
 }
 
+export interface PhotoObserverGuildStats {
+  eligibleEvents: number;
+  limitedEvents: number;
+  sumLim: number;
+  sumShortfall: number;
+  uniqueOrganisms: number;
+  uniqueCells: number;
+}
+
 export interface PhotoObserverWindowStats {
   label: string;
   lo: number;
@@ -51,9 +60,16 @@ export interface PhotoObserverWindowStats {
   uniqueOrganisms: number;
   uniqueCells: number;
   sample: PhotoObserverEvent[];
+  /** Per DISPLAYED guild: the same counters restricted to that guild. */
+  perGuild: [PhotoObserverGuildStats, PhotoObserverGuildStats, PhotoObserverGuildStats];
 }
 
 const LIMIT_THRESHOLD = 0.9;
+
+type GuildAcc = PhotoObserverGuildStats & { _orgs: Set<number>; _cells: Set<number> };
+type WindowAcc = Omit<PhotoObserverWindowStats, 'perGuild'> & {
+  _orgs: Set<number>; _cells: Set<number>; sample: PhotoObserverEvent[]; perGuild: GuildAcc[];
+};
 
 export interface PhotoObserverSnapshot {
   windows: PhotoObserverWindowStats[];
@@ -63,7 +79,7 @@ export interface PhotoObserverSnapshot {
 export class PhotoObserver {
   readonly windows: PhotoObserverWindow[];
   readonly sampleCap: number;
-  private stats: Array<PhotoObserverWindowStats & { _orgs: Set<number>; _cells: Set<number> }>;
+  private stats: WindowAcc[];
 
   constructor(windows?: PhotoObserverWindow[], sampleCap = 64) {
     this.windows = windows ?? [
@@ -74,7 +90,7 @@ export class PhotoObserver {
       { label: '625-750', lo: 626, hi: 750 },
     ];
     this.sampleCap = sampleCap;
-    this.stats = this.windows.map((w) => ({
+    this.stats = this.windows.map((w): WindowAcc => ({
       label: w.label,
       lo: w.lo,
       hi: w.hi,
@@ -93,6 +109,10 @@ export class PhotoObserver {
       sample: [],
       _orgs: new Set<number>(),
       _cells: new Set<number>(),
+      perGuild: [0, 1, 2].map((): GuildAcc => ({
+        eligibleEvents: 0, limitedEvents: 0, sumLim: 0, sumShortfall: 0,
+        uniqueOrganisms: 0, uniqueCells: 0, _orgs: new Set<number>(), _cells: new Set<number>(),
+      })),
     }));
   }
 
@@ -127,6 +147,18 @@ export class PhotoObserver {
     st._cells.add(ev.cell);
     st.uniqueOrganisms = st._orgs.size;
     st.uniqueCells = st._cells.size;
+    const g = ev.displayedGuild;
+    if (g >= 0 && g <= 2) {
+      const gs = st.perGuild[g];
+      gs.eligibleEvents++;
+      if (ev.lim <= LIMIT_THRESHOLD) gs.limitedEvents++;
+      gs.sumLim += ev.lim;
+      gs.sumShortfall += ev.shortfall;
+      gs._orgs.add(ev.organismId);
+      gs._cells.add(ev.cell);
+      gs.uniqueOrganisms = gs._orgs.size;
+      gs.uniqueCells = gs._cells.size;
+    }
     if (st.sample.length < this.sampleCap) {
       // Store a copy: the caller's locals are scoped to the tick loop, but a
       // plain array copy keeps the retained sample independent of any later
@@ -168,8 +200,24 @@ export class PhotoObserver {
         uniqueOrganisms: st.uniqueOrganisms,
         uniqueCells: st.uniqueCells,
         sample: st.sample,
+        perGuild: [
+          this.guildView(st.perGuild[0]),
+          this.guildView(st.perGuild[1]),
+          this.guildView(st.perGuild[2]),
+        ] as [PhotoObserverGuildStats, PhotoObserverGuildStats, PhotoObserverGuildStats],
       })),
       outOfWindowEvents: this.outOfWindowEvents,
+    };
+  }
+
+  private guildView(g: GuildAcc): PhotoObserverGuildStats {
+    return {
+      eligibleEvents: g.eligibleEvents,
+      limitedEvents: g.limitedEvents,
+      sumLim: g.sumLim,
+      sumShortfall: g.sumShortfall,
+      uniqueOrganisms: g.uniqueOrganisms,
+      uniqueCells: g.uniqueCells,
     };
   }
 
