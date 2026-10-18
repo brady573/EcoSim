@@ -14,6 +14,15 @@
 /**
  * Bump on any behavioural change to the simulation.
  *
+ * 0.6.6 adds O2 behaviour WHEN ITS KNOB IS SET: `phenoMineralRescue` injects
+ * the forgone accepted remainder from an exogenous donor at the suppressed
+ * event's cell/tick/pool, booked only into `exogenousReplacement`. Knob-unset
+ * (and null-knob) runs are bit-identical to 0.6.5 (C1 pins prove it), so the
+ * pair 517 -> 882/170/65, 24601 -> 563/279/90 (500 ticks) still holds — no
+ * new retirement-chain entry, no re-pin. 0.6.5 observations describe
+ * suppression-only runs; any rescue figure belongs to 0.6.6 and must be
+ * source-qualified as such.
+ *
  * 0.6.5 adds O1 behaviour WHEN ITS KNOB IS SET: `phenoMineralReturn` scales
  * the offered mineralization return per expressed donor class, changing
  * nutrient flow and downstream populations in that configured arm. Knob-unset
@@ -111,12 +120,13 @@
  * All figures recorded under 0.4.1 describe the DEFECTIVE semantics and are
  * provenance only. See REPORT.md.
  */
-export const WORLD_ENGINE_VERSION = 'ts-evo-poc/0.6.5';
+export const WORLD_ENGINE_VERSION = 'ts-evo-poc/0.6.6';
 
 /**
  * Identifier for the credibility-check suite. G30 (per-pool nutrient cap on
  * return paths) shipped with gates/0.4.0; G31 and G32 (the book-level checks)
  * with gates/0.5.0; G33 (phenotype-partitioned mineralization books) with
- * gates/0.6.0; G34 (O1 phenotype-class suppression) with gates/0.7.0.
+ * gates/0.6.0; G34 (O1 phenotype-class suppression) with gates/0.7.0;
+ * G35 (O2 exogenous replacement) with gates/0.8.0.
  */
-export const GATE_SUITE_VERSION = 'gates/0.7.0';
+export const GATE_SUITE_VERSION = 'gates/0.8.0';

@@ -687,6 +687,28 @@ export interface WorldConfig {
    */
   phenoMineralReturn: { carrionOnly: number; recalcOnly: number; dual: number } | null;
 
+  /**
+   * Diagnostic: per-phenotype-class exogenous rescue of suppressed returns
+   * (O2, Owner Stage 3, issue #15). `null` = no rescue, exactly: no field
+   * write, no book entry, declared behaviour bit-identical.
+   *
+   * When set, each suppressed event's forgone accepted return — shadow minus
+   * actual per pool, measured event-locally against live headroom — is
+   * injected back into the SAME cell from an explicitly exogenous donor and
+   * booked ONLY into the `exogenousReplacement` family (never into biotic or
+   * abiotic books). Per-book-cell identity ("book cell" = one (class, guild,
+   * pool, source) ledger address, not a spatial field cell): actual.accepted
+   * + exogenous.accepted == shadow.accepted within float summation (G35
+   * asserts the bound).
+   * Injection with zero remainder is skipped (no clamp side effects); natural
+   * paths are untouched. Each flag must be a real boolean; closed key set;
+   * anything else throws at construction. Rescue without suppression is an
+   * automatic no-op (remainder zero). This is a measurement instrument for
+   * the nutrient-mediation question, not restored biological interdependence
+   * and not a permanent subsidy: ordinary runs keep it null.
+   */
+  phenoMineralRescue: { carrionOnly: boolean; recalcOnly: boolean; dual: boolean } | null;
+
   /** Fraction of basal metabolism excreted back into the local substrate. */
   excretionRate: number;
 
@@ -852,6 +874,8 @@ export const DEFAULT_CONFIG: WorldConfig = {
   genomeV2: null,
   // O1 phenotype-class return fractions (see field comment). null = declared.
   phenoMineralReturn: null,
+  // O2 exogenous rescue flags (see field comment). null = no rescue.
+  phenoMineralRescue: null,
   nutrientFloor: 0,
   sporeDispersal: null,
   dormantSenescence: null,

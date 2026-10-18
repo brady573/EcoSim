@@ -38,8 +38,10 @@ Suppress `{carrionOnly:1, recalcOnly:0, dual:1}` @500t viability:
 The `shadowForgone` line is the pool/source/class-local forgone accepted return
 (shadow − actual on the suppressed arm): the quantity an exogenous replacement
 would need to match per pool/source/class. It is cumulative with bounded memory
-(4 books × 108 cells); per-tick deltas are available via snapshot diffs, but
-cell/time-exact replacement would need an unbounded event log and is NOT
-claimed here. Never substitute the null-world cumulative accepted total as the
-rescue schedule: trajectories diverge once offers differ, so only the
-event-local shadow difference is dose-valid.
+(4 books × 108 cells); per-tick deltas are available via snapshot diffs.
+Cell/time-exact retroactive replacement from cumulative books alone is NOT
+claimed here — but streaming same-event replacement (the O2 design: inject at
+the live writer cell/tick) avoids any historical log by construction, so
+exactness never required unbounded storage. Never substitute the null-world
+cumulative accepted total as the rescue schedule: trajectories diverge once
+offers differ, so only the event-local shadow difference is dose-valid.

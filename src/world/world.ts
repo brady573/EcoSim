@@ -630,6 +630,7 @@ export class World {
     bioticMineralization: ReturnBooks<number[][][]>;
     bioticMineralizationByPheno: ReturnBooks<number[][][][]>;
     bioticMineralizationShadow: ReturnBooks<number[][][][]>;
+    exogenousReplacement: ReturnBooks<number[][][][]>;
     abioticRegen: number[];
     abioticMineralization: number[][];
   } {
@@ -649,6 +650,12 @@ export class World {
     // per cell on null/unset runs (G34 asserts); the suppressed-run difference
     // is the pool/source/class-local forgone return. See G34.
     const bioticMineralizationShadow: ReturnBooks<number[][][][]> = {
+      attempted: [], accepted: [], capLoss: [], eviction: [],
+    };
+    // O2: exogenous replacement of the forgone remainder, same shape. Guild
+    // addresses the suppressed event (accounting context); the donor is
+    // exogenous and appears nowhere else. See G35.
+    const exogenousReplacement: ReturnBooks<number[][][][]> = {
       attempted: [], accepted: [], capLoss: [], eviction: [],
     };
     for (let g = 0; g < TROPHIC_COUNT; g++) {
@@ -711,7 +718,11 @@ export class World {
     this.fillPhenoBook(bioticMineralizationShadow.accepted, this.bioticShadowAcceptedClassGuildPoolSource);
     this.fillPhenoBook(bioticMineralizationShadow.capLoss, this.bioticShadowCapLossClassGuildPoolSource);
     this.fillPhenoBook(bioticMineralizationShadow.eviction, this.bioticShadowEvictionClassGuildPoolSource);
-    return { photoUptake, excretionReturns, bioticMineralization, bioticMineralizationByPheno, bioticMineralizationShadow, abioticRegen, abioticMineralization };
+    this.fillPhenoBook(exogenousReplacement.attempted, this.exogenousAttemptedClassGuildPoolSource);
+    this.fillPhenoBook(exogenousReplacement.accepted, this.exogenousAcceptedClassGuildPoolSource);
+    this.fillPhenoBook(exogenousReplacement.capLoss, this.exogenousCapLossClassGuildPoolSource);
+    this.fillPhenoBook(exogenousReplacement.eviction, this.exogenousEvictionClassGuildPoolSource);
+    return { photoUptake, excretionReturns, bioticMineralization, bioticMineralizationByPheno, bioticMineralizationShadow, exogenousReplacement, abioticRegen, abioticMineralization };
   }
 
   /**
@@ -861,6 +872,8 @@ export class World {
   //     class: 0=carrionOnly, 1=recalcOnly, 2=dual, 3=neither (see classifyMineralPheno)
   //   bioticShadow{Attempted,Accepted,CapLoss,Eviction}[same stride as bioticPheno]
   //     would-be UNSCALED offer booked against live headroom, no field writes
+  //   exogenous{Attempted,Accepted,CapLoss,Eviction}[same stride as bioticPheno]
+  //     O2 replacement of the forgone accepted remainder, exogenous donor only
   //   abioticRegen[pool]
   //   abioticMineralization[pool * 3 + source]  source: 0=detritus, 1=sediment, 2=litter
   private photoUptakeGuildPool = new Float64Array(TROPHIC_COUNT * NUTRIENT_COUNT);
@@ -925,6 +938,17 @@ export class World {
   private bioticShadowAcceptedClassGuildPoolSource = new Float64Array(MINERAL_PHENO_CLASS_COUNT * TROPHIC_COUNT * NUTRIENT_COUNT * 3);
   private bioticShadowCapLossClassGuildPoolSource = new Float64Array(MINERAL_PHENO_CLASS_COUNT * TROPHIC_COUNT * NUTRIENT_COUNT * 3);
   private bioticShadowEvictionClassGuildPoolSource = new Float64Array(MINERAL_PHENO_CLASS_COUNT * TROPHIC_COUNT * NUTRIENT_COUNT * 3);
+  /**
+   * O2 exogenous replacement books (Owner Stage 3). Same stride as the pheno
+   * family; the class/guild/pool/source address identifies the SUPPRESSED
+   * event being replaced (accounting context), while the donor is explicitly
+   * exogenous — these books never mix into biotic, abiotic, ledger, cyclic or
+   * broadcast paths. Pure observation like the pheno/shadow books.
+   */
+  private exogenousAttemptedClassGuildPoolSource = new Float64Array(MINERAL_PHENO_CLASS_COUNT * TROPHIC_COUNT * NUTRIENT_COUNT * 3);
+  private exogenousAcceptedClassGuildPoolSource = new Float64Array(MINERAL_PHENO_CLASS_COUNT * TROPHIC_COUNT * NUTRIENT_COUNT * 3);
+  private exogenousCapLossClassGuildPoolSource = new Float64Array(MINERAL_PHENO_CLASS_COUNT * TROPHIC_COUNT * NUTRIENT_COUNT * 3);
+  private exogenousEvictionClassGuildPoolSource = new Float64Array(MINERAL_PHENO_CLASS_COUNT * TROPHIC_COUNT * NUTRIENT_COUNT * 3);
   private abioticRegenPool = new Float64Array(NUTRIENT_COUNT);
   private abioticMineralizationPoolSource = new Float64Array(NUTRIENT_COUNT * 3);
 
@@ -1208,6 +1232,24 @@ export class World {
       for (const k of Object.keys(pmr)) {
         if (k !== 'carrionOnly' && k !== 'recalcOnly' && k !== 'dual') {
           throw new Error(`unknown phenoMineralReturn key: ${JSON.stringify(k)} (want exactly carrionOnly/recalcOnly/dual)`);
+        }
+      }
+    }
+    // O2 rescue flags: validated at construction, never mid-run. null =
+    // no rescue. Each named flag must be a real boolean (truthy numbers or
+    // strings throw — a `1` that means "on" today becomes an ambiguous dose
+    // tomorrow); closed key set like the O1 knob.
+    const rsc = cfg.phenoMineralRescue;
+    if (rsc !== null && rsc !== undefined) {
+      for (const k of ['carrionOnly', 'recalcOnly', 'dual'] as const) {
+        const v: unknown = (rsc as Record<string, unknown>)[k];
+        if (typeof v !== 'boolean') {
+          throw new Error(`bad phenoMineralRescue.${k}: ${JSON.stringify(v)} (want boolean; the whole knob may be null for no rescue)`);
+        }
+      }
+      for (const k of Object.keys(rsc)) {
+        if (k !== 'carrionOnly' && k !== 'recalcOnly' && k !== 'dual') {
+          throw new Error(`unknown phenoMineralRescue key: ${JSON.stringify(k)} (want exactly carrionOnly/recalcOnly/dual)`);
         }
       }
     }
@@ -1704,7 +1746,7 @@ export class World {
       accepted: Float64Array; attempted: Float64Array;
       capLoss: Float64Array; eviction: Float64Array; off: number;
     } | null = null,
-  ): void {
+  ): number {
     const cap = this.nutrientCapAt(nIdx, ci);
     const before = data[ci];
     const o = World.ceilingOutcome(cap, before, amount);
@@ -1719,6 +1761,9 @@ export class World {
       pheno.capLoss[pheno.off] += amount - o.acceptedAmt;
       pheno.eviction[pheno.off] += o.evictAmt;
     }
+    // Return the accepted amount so the O2 remainder can be derived without
+    // re-reading books. Excretion callers ignore the return value.
+    return o.acceptedAmt;
   }
 
   /**
@@ -1784,6 +1829,10 @@ export class World {
     const shAcc = this.bioticShadowAcceptedClassGuildPoolSource;
     const shCap = this.bioticShadowCapLossClassGuildPoolSource;
     const shEvi = this.bioticShadowEvictionClassGuildPoolSource;
+    // Per-pool would-be accepted (shadow) and actual accepted, retained for
+    // the O2 remainder below. Scalar locals, no allocation.
+    const shAccP = [0, 0, 0];
+    const accP = [0, 0, 0];
     for (let p = 0; p < NUTRIENT_COUNT; p++) {
       const nut = p === 0 ? nutA : p === 1 ? nutB : nutC;
       const so = phenoBase + p * 3;
@@ -1793,9 +1842,8 @@ export class World {
       shAcc[so] += o.acceptedAmt;
       shCap[so] += perFull - o.acceptedAmt;
       shEvi[so] += o.evictAmt;
+      shAccP[p] = o.acceptedAmt;
     }
-    if (suppressedToZero) return;
-    const perPool = offered / NUTRIENT_COUNT;
     const pheno = {
       accepted: this.bioticPhenoAcceptedClassGuildPoolSource,
       attempted: this.bioticPhenoAttemptedClassGuildPoolSource,
@@ -1803,25 +1851,70 @@ export class World {
       eviction: this.bioticPhenoEvictionClassGuildPoolSource,
       off: 0,
     };
-    // Offsets step by 3 because the source dimension is the innermost one.
-    pheno.off = phenoBase + 0 * 3;
-    this.returnThroughCeiling(nutA, 0, ci, perPool, base + 0 * 3,
-      this.bioticMineralizationGuildPoolSource, this.bioticAttemptedGuildPoolSource,
-      this.bioticCapLossGuildPoolSource, this.bioticEvictionGuildPoolSource, pheno);
-    pheno.off = phenoBase + 1 * 3;
-    this.returnThroughCeiling(nutB, 1, ci, perPool, base + 1 * 3,
-      this.bioticMineralizationGuildPoolSource, this.bioticAttemptedGuildPoolSource,
-      this.bioticCapLossGuildPoolSource, this.bioticEvictionGuildPoolSource, pheno);
-    pheno.off = phenoBase + 2 * 3;
-    this.returnThroughCeiling(nutC, 2, ci, perPool, base + 2 * 3,
-      this.bioticMineralizationGuildPoolSource, this.bioticAttemptedGuildPoolSource,
-      this.bioticCapLossGuildPoolSource, this.bioticEvictionGuildPoolSource, pheno);
-    // The SCALED offer drives the coupled feedback (cyclic regen reads
-    // mineralisedCell; broadcast reads bioticMineralised): suppression's
-    // downstream coupling is therefore measured distinctly through the
-    // existing abiotic books, never routed around.
-    this.bioticMineralised += offered;
-    this.mineralisedCell[ci] += offered;
+    if (suppressedToZero) {
+      // P1a: a suppressed zero offer touches no field, book, or feedback —
+      // but the shadow above still records the would-be flow and the rescue
+      // below still replaces it. Skipping here is the entire fix.
+    } else {
+      const perPool = offered / NUTRIENT_COUNT;
+      // Offsets step by 3 because the source dimension is the innermost one.
+      pheno.off = phenoBase + 0 * 3;
+      accP[0] = this.returnThroughCeiling(nutA, 0, ci, perPool, base + 0 * 3,
+        this.bioticMineralizationGuildPoolSource, this.bioticAttemptedGuildPoolSource,
+        this.bioticCapLossGuildPoolSource, this.bioticEvictionGuildPoolSource, pheno);
+      pheno.off = phenoBase + 1 * 3;
+      accP[1] = this.returnThroughCeiling(nutB, 1, ci, perPool, base + 1 * 3,
+        this.bioticMineralizationGuildPoolSource, this.bioticAttemptedGuildPoolSource,
+        this.bioticCapLossGuildPoolSource, this.bioticEvictionGuildPoolSource, pheno);
+      pheno.off = phenoBase + 2 * 3;
+      accP[2] = this.returnThroughCeiling(nutC, 2, ci, perPool, base + 2 * 3,
+        this.bioticMineralizationGuildPoolSource, this.bioticAttemptedGuildPoolSource,
+        this.bioticCapLossGuildPoolSource, this.bioticEvictionGuildPoolSource, pheno);
+      // The SCALED offer drives the coupled feedback (cyclic regen reads
+      // mineralisedCell; the broadcast loop runs on abiotic decay totals):
+      // suppression's downstream coupling is therefore measured distinctly through the
+      // existing abiotic books, never routed around.
+      this.bioticMineralised += offered;
+      this.mineralisedCell[ci] += offered;
+    }
+    // O2 rescue (Owner Stage 3): replace the forgone accepted remainder from
+    // an exogenous donor at the SAME cell/tick/pool. Remainder per pool is
+    // shAccP (would-be, pre-offer headroom) minus accP (actual just booked).
+    // Injecting AFTER the suppressed offer keeps headroom exact: S <= cap-H
+    // BY CLAMP CONSTRUCTION (S = min(cap,H+F)-H), so H+A0+R == H+S <= cap up
+    // to float re-addition rounding (absorbed by the G35 bound) — a remainder
+    // lands whole unless the cap genuinely binds, in which case the shortfall
+    // books truthfully into exogenous capLoss. (S = 5 with H = 9.9, cap = 10
+    // is impossible: the shadow clamp could never have accepted 5 there.)
+    // Zero remainders skip (no clamp side effects, same P1a discipline).
+    // Unrescued classes: R == 0 because shadow == actual there (G34 pins it),
+    // so they no-op without a special case — except float dust: skip
+    // threshold is exact `R > 0`. Rescue writes the nutrient FIELDS (it is
+    // real nutrient) and the exogenous books ONLY — never biotic/abiotic/
+    // ledger/cyclic inputs (cyclic reads mineralisedCell; the broadcast loop
+    // runs on abiotic decay totals, not on bioticMineralised, which has no
+    // simulation reader).
+    const rsc = this.config.phenoMineralRescue;
+    const rescueOn = rsc !== null && rsc !== undefined && cls !== 3
+      && (cls === 0 ? rsc.carrionOnly : cls === 1 ? rsc.recalcOnly : rsc.dual);
+    if (rescueOn) {
+      const exAtt = this.exogenousAttemptedClassGuildPoolSource;
+      const exAcc = this.exogenousAcceptedClassGuildPoolSource;
+      const exCap = this.exogenousCapLossClassGuildPoolSource;
+      const exEvi = this.exogenousEvictionClassGuildPoolSource;
+      for (let p = 0; p < NUTRIENT_COUNT; p++) {
+        const remainder = shAccP[p] - accP[p];
+        if (!(remainder > 0)) continue;
+        const nut = p === 0 ? nutA : p === 1 ? nutB : nutC;
+        const eo = phenoBase + p * 3;
+        const o = World.ceilingOutcome(this.nutrientCapAt(p, ci), nut[ci], remainder);
+        nut[ci] = o.after;
+        exAtt[eo] += remainder;
+        exAcc[eo] += o.acceptedAmt;
+        exCap[eo] += remainder - o.acceptedAmt;
+        exEvi[eo] += o.evictAmt;
+      }
+    }
   }
 
   private writeRole(slot: number, r: RoleReadout): void {

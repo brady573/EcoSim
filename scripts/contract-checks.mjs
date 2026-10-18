@@ -110,9 +110,9 @@ function probeArgs(over = {}) {
 }
 
 /**
- * Knobs-unset parity, live pin for engine ts-evo-poc/0.6.5.
+ * Knobs-unset parity, live pin for engine ts-evo-poc/0.6.6.
  *
- * Under 0.6.5 the live pair is UNCHANGED and was NOT re-pinned. Relative to
+ * Under 0.6.6 the live pair is UNCHANGED and was NOT re-pinned. Relative to
  * the reviewed head, nutrient-write arithmetic is unchanged; the four-book
  * instrumentation does not change biology. The earlier per-pool cap fix was
  * made on source snapshots still labelled 0.6.2; 0.6.3 identifies the corrected
@@ -167,8 +167,8 @@ if (!hasBuild) {
     const got = lastRow(runProbe(probeArgs({ seed: p.seed, ticks: 500 })));
     const ok = got !== null && got.prod === p.want[0] && got.cons === p.want[1] && got.dec === p.want[2];
     check('C1', `parity seed ${p.seed} (knobs unset)`, ok,
-      ok ? `P${got.prod}/C${got.cons}/D${got.dec} matches pinned (0.6.5: same pair as 0.6.4/0.6.3/0.6.2 — O1 knob null adds no biology; retired ${p.retired})`
-         : `expected P${p.want.join('/C')}/D${p.want[2]} (0.6.5), got ${fmt(got)}`);
+      ok ? `P${got.prod}/C${got.cons}/D${got.dec} matches pinned (0.6.6: same pair as 0.6.5/0.6.4/0.6.3/0.6.2 — O2 instrument null adds no biology; retired ${p.retired})`
+         : `expected P${p.want.join('/C')}/D${p.want[2]} (0.6.6), got ${fmt(got)}`);
   }
 }
 
@@ -266,7 +266,7 @@ if (!existsSync(htmlPath)) {
   check('C5', 'built engine contains new config keys', false, 'no evidence/app/evo-sim-poc.html');
 } else {
   const html = readFileSync(htmlPath, 'utf8');
-  const required = ['reproSurplusTicks', 'mixotrophyCarbon', 'nutrientCyclic', 'nutrientFloor', 'dormantThreatBlind', 'pioneerBonus', 'decomposerPhotoScale', 'phenoMineralReturn'];
+  const required = ['reproSurplusTicks', 'mixotrophyCarbon', 'nutrientCyclic', 'nutrientFloor', 'dormantThreatBlind', 'pioneerBonus', 'decomposerPhotoScale', 'phenoMineralReturn', 'phenoMineralRescue'];
   const absent = required.filter((k) => !html.includes(k));
   check('C5', 'built engine contains new config keys', absent.length === 0,
     absent.length === 0 ? `all ${required.length} keys present` : `ABSENT: ${absent.join(', ')}`);
