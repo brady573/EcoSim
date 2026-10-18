@@ -14,6 +14,22 @@
 /**
  * Bump on any behavioural change to the simulation.
  *
+ * 0.6.7 is a MEASUREMENT-ONLY release (L2, issue #15, Owner decision
+ * 2026-10-18): the opt-in `photoObserver` config knob adds a strictly
+ * observational photosynthesis-site observer (`src/world/photoObserver.ts`)
+ * that records event-time Liebig data — per-event affinity, desired demand,
+ * pre-supply, realized `lim`, binding pools, actual uptake and demand
+ * shortfall — into bounded, windowed aggregators read via
+ * `getPhotoObserverSnapshot()`. It adds NO behaviour: no field write, no RNG
+ * draw, no iteration-order change, no hashState contribution; knob-unset runs
+ * are bit-identical to 0.6.6 (C1 pins prove it; G36 additionally proves
+ * observer-on/off parity on a live world). Default-collapsed
+ * 517 -> 882/170/65, 24601 -> 563/279/90 (500 ticks) still holds — no new
+ * retirement-chain entry, no re-pin. No 0.6.6 figure is relabelled: every
+ * existing observation stays 0.6.6, and any observed-event figure (event-time
+ * `lim`, binding pools, shortfall) belongs to 0.6.7 and must be
+ * source-qualified as such.
+ *
  * 0.6.6 adds O2 behaviour WHEN ITS KNOB IS SET: `phenoMineralRescue` injects
  * the forgone accepted remainder from an exogenous donor at the suppressed
  * event's cell/tick/pool, booked only into `exogenousReplacement`. Knob-unset
@@ -120,13 +136,14 @@
  * All figures recorded under 0.4.1 describe the DEFECTIVE semantics and are
  * provenance only. See REPORT.md.
  */
-export const WORLD_ENGINE_VERSION = 'ts-evo-poc/0.6.6';
+export const WORLD_ENGINE_VERSION = 'ts-evo-poc/0.6.7';
 
 /**
  * Identifier for the credibility-check suite. G30 (per-pool nutrient cap on
  * return paths) shipped with gates/0.4.0; G31 and G32 (the book-level checks)
  * with gates/0.5.0; G33 (phenotype-partitioned mineralization books) with
  * gates/0.6.0; G34 (O1 phenotype-class suppression) with gates/0.7.0;
- * G35 (O2 exogenous replacement) with gates/0.8.0.
+ * G35 (O2 exogenous replacement) with gates/0.8.0; G36 (L2 photosynthesis-site
+ * observer purity) with gates/0.9.0.
  */
-export const GATE_SUITE_VERSION = 'gates/0.8.0';
+export const GATE_SUITE_VERSION = 'gates/0.9.0';

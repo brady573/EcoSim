@@ -47,6 +47,7 @@ import { resolveConfig, type WorldConfig, type DormantSenescence } from './confi
 import { Ledger } from './ledger.js';
 import { AbioticDriver, emptyModifiers, type AbioticModifiers } from './disturbances.js';
 import { WorldHistory, LineageTracker } from './history.js';
+import { PhotoObserver, type PhotoObserverSnapshot } from './photoObserver.js';
 
 /** Damage at or above which an organism dies. */
 export const FATAL_DAMAGE = 100;
@@ -392,6 +393,14 @@ export class World {
   private reproSurplus = REPRO_SURPLUS_TICKS;
   /** Monotonic id allocator. */
   private nextId = 1;
+  /**
+   * L2 photosynthesis-site observer (issue #15, Owner decision 2026-10-18).
+   * Null when `photoObserver` is unset/false — the declared, byte-identical
+   * default. When enabled, it only AGGREGATES event-time Liebig data; it is
+   * never read by engine logic and is excluded from `hashState` (G36 asserts
+   * on/off parity).
+   */
+  private photoObs: PhotoObserver | null = null;
 
   // --- Per-tick scratch, allocated once. -----------------------------------
   private neighbourScratch: Int32Array;
@@ -624,6 +633,20 @@ export class World {
    * `T` is `number[][]` for excretion (guild x pool) and `number[][][]` for
    * biotic mineralisation (guild x pool x source).
    */
+  /**
+   * The L2 photosynthesis-site observer's serializable aggregate (per declared
+   * window: eligible events, limited events at lim <= 0.90, demand totals,
+   * per-pool desired/present/uptake/binding, unique organism/cell counts and a
+   * fixed-size diagnostic sample, plus the out-of-window count). Null when the
+   * opt-in `photoObserver` knob is unset — the declared default. Pure read of
+   * the diagnostic store; the engine never reads this data back, so it cannot
+   * alter any outcome, and it is excluded from `hashState` (G36 proves on/off
+   * parity).
+   */
+  getPhotoObserverSnapshot(): PhotoObserverSnapshot | null {
+    return this.photoObs ? this.photoObs.snapshot() : null;
+  }
+
   getFluxSnapshot(): {
     photoUptake: number[][];
     excretionReturns: ReturnBooks<number[][]>;
@@ -1253,6 +1276,17 @@ export class World {
         }
       }
     }
+
+    // L2 photosynthesis-site observer: null = off (declared), true = on.
+    // Strict boolean or null only — a truthy number or string throws, so an
+    // "on" that means "on" today cannot become an ambiguous dose tomorrow.
+    const po = cfg.photoObserver;
+    if (po !== null && po !== undefined && typeof po !== 'boolean') {
+      throw new Error(`bad photoObserver: ${JSON.stringify(po)} (want boolean or null; null = off, declared behaviour)`);
+    }
+
+    // Observer ONLY when opted in (null/false = null field, declared default).
+    this.photoObs = cfg.photoObserver === true ? new PhotoObserver() : null;
 
     this.reproSurplus = resolveReproSurplusTicks(cfg);
 
@@ -2838,11 +2872,23 @@ export class World {
           if (affC > 1e-4) lim = Math.min(lim, nutC[ci] / wC);
           if (lim > 1) lim = 1;
 
+          // L2 observer capture point: this event's Liebig data is observable
+          // AFTER the consumption blocks below have run, because the per-pool
+          // `actualTake` values are produced there; the recorded PRE-supply
+          // (present[]) below is read right here, before consumption. Every
+          // recorded quantity is a plain local read; nothing here writes state,
+          // draws RNG or changes any engine decision. Aggregate allocation is
+          // observer-side only and has no effect on simulation semantics.
+          const obsA = nutA[ci], obsB = nutB[ci], obsC = nutC[ci];
+          const obsOn = this.photoObs !== null && this.photoObs !== undefined;
+
           // Consume from each pool, capped by what is present.
+          let actualTakeA = 0, actualTakeB = 0, actualTakeC = 0;
           if (affA > 1e-4) {
             const take = wA * lim;
             const actualTake = take < nutA[ci] ? take : nutA[ci];
             nutA[ci] -= actualTake;
+            actualTakeA = actualTake;
             // Flux measurement: photosynthesis uptake per guild per pool
             const g = this.roleOf(slot).trophic;
             this.photoUptakeGuildPool[g * NUTRIENT_COUNT + 0] += actualTake;
@@ -2851,6 +2897,7 @@ export class World {
             const take = wB * lim;
             const actualTake = take < nutB[ci] ? take : nutB[ci];
             nutB[ci] -= actualTake;
+            actualTakeB = actualTake;
             const g = this.roleOf(slot).trophic;
             this.photoUptakeGuildPool[g * NUTRIENT_COUNT + 1] += actualTake;
           }
@@ -2858,8 +2905,39 @@ export class World {
             const take = wC * lim;
             const actualTake = take < nutC[ci] ? take : nutC[ci];
             nutC[ci] -= actualTake;
+            actualTakeC = actualTake;
             const g = this.roleOf(slot).trophic;
             this.photoUptakeGuildPool[g * NUTRIENT_COUNT + 2] += actualTake;
+          }
+
+          // L2 observer: emit the eligible event (photo>0.02 and ci>=0 hold by
+          // the enclosing guard; demand>0 holds here; at least one affinity
+          // above the eligibility threshold is required to constitute an
+          // eligible photo event — a zero-affinity organism takes nothing and
+          // is NOT a nutrient-limitation observation).
+          if (obsOn) {
+            const displayedGuild = this.roleOf(slot).trophic;
+            // Binding pool: an affinity-eligible pool whose present/desired
+            // ratio equals (within dust) the realized Liebig minimum.
+            const bindA = affA > 1e-4 && obsA / wA <= lim + 1e-9;
+            const bindB = affB > 1e-4 && obsB / wB <= lim + 1e-9;
+            const bindC = affC > 1e-4 && obsC / wC <= lim + 1e-9;
+            if (affA > 1e-4 || affB > 1e-4 || affC > 1e-4) {
+              this.photoObs!.record({
+                tick: this.tick,
+                cell: ci,
+                organismId: store.id[slot],
+                displayedGuild,
+                demand,
+                affinity: [affA, affB, affC],
+                desired: [wA, wB, wC],
+                present: [obsA, obsB, obsC],
+                lim,
+                binding: [bindA, bindB, bindC],
+                uptake: [actualTakeA, actualTakeB, actualTakeC],
+                shortfall: demand * (1 - lim),
+              });
+            }
           }
 
           // Energy fixed is proportional to what was actually obtained.
