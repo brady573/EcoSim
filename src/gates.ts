@@ -3042,22 +3042,50 @@ function gate36(): void {
     && obs.retainedEventCount() === 4 // sampleCap 3 per window: wA caps at 3, wB 1
     && u[0].sample.length === 3 && u[1].sample.length === 1;
 
-  record('G36', 'photosynthesis-site observer is pure, real and bounded',
+  // Nonlimited activity must never inflate limited-only spatial coverage or
+  // binding attribution. Repeated limited events share one stable ID/cell.
+  const attribution = new PhotoObserver([{ label: 'scope', lo: 1, hi: 10 }], 2);
+  attribution.record({ ...mkEvent(1, 0.95, 2.85), organismId: 100, cell: 200,
+    binding: [true, false, false] });
+  for (let n = 0; n < 3; n++) attribution.record({ ...mkEvent(2, 0.5, 1.5),
+    organismId: 101, cell: 201, binding: [false, true, false] });
+  const scoped = attribution.snapshot().windows[0];
+  const producer = scoped.perGuild[0];
+  const attributionOk = scoped.uniqueOrganisms === 2 && scoped.uniqueCells === 2
+    && scoped.limitedUniqueOrganisms === 1 && scoped.limitedUniqueCells === 1
+    && producer.uniqueOrganisms === 2 && producer.limitedUniqueOrganisms === 1
+    && producer.uniqueCells === 2 && producer.limitedUniqueCells === 1
+    && producer.bindingByPool.join() === '1,3,0'
+    && producer.limitedBindingByPool.join() === '0,3,0'
+    && scoped.limitedBindingByPool.join() === '0,3,0';
+
+  // Resource fixture: samples saturate, exact distinct sets grow linearly.
+  // This is an entry-count cost test, NOT a claim of constant memory or bytes.
+  const resource = new PhotoObserver([{ label: 'resource', lo: 1, hi: 1 }], 2);
+  for (let id = 0; id < 4096; id++) resource.record({ ...mkEvent(1, 0.5, 1.5),
+    organismId: id, cell: id });
+  const footprint = resource.distinctMeasure();
+  const resourceOk = resource.retainedEventCount() === 2
+    && Object.values(footprint).every((entries) => entries === 8192);
+
+  record('G36', 'photosynthesis-site observer purity, attribution and measured resource cost',
     censusEqual && offNull && onNotNull && rejectsOk && reconcileOk && outOfWindow === 0
-      && eventFail === 0 && unitOk,
+      && eventFail === 0 && unitOk && attributionOk && resourceOk,
     `${TICKS} ticks, identical worlds observer off/on/on: hash mismatches at ` +
     `checkpoints [${CHECKS.join(',')}] ${hashMismatches} (must be 0), photoUptake ` +
     `book cell mismatches ${bookMismatches} (must be 0), census off/on=${aliveOff}/${aliveOn} ` +
     `(must be equal). Off-run snapshot null: ${offNull ? 'yes' : 'NO'}; on-run snapshot ` +
     `present: ${onNotNull ? 'yes' : 'NO'}. Bad knobs threw ${throws}/${badKnobs.length} ` +
     `(must equal). Book reconciliation per pool (observer total vs photoUptake all-` +
-    `guild totals): worst relative residual ${worst.toExponential(2)} (<= 1e-9 class dust ` +
+    `guild totals): worst relative residual ${worst.toExponential(2)} (<= 1e-6 relative tolerance ` +
     `required for identical summation sites — observer sums per event, the book sums per ` +
     `pool). Sampled-event Liebig recomputation: ${eventChecks} pool checks, ` +
     `${eventFail} failures (must be 0). Aggregator unit: windows sorted, limited ` +
     `counted at lim<=0.90 incl. the exact 0.90 boundary, out-of-window counted ` +
     `${obs.outOfWindowEvents}, retained events ${obs.retainedEventCount()} under the ` +
-    `fixed dual-window cap. Purity statement only — this gate asserts nothing about ` +
+    `fixed dual-window SAMPLE cap. Eligible/limited attribution fixture=${attributionOk}; ` +
+    `4096-ID resource fixture=${resourceOk} (8192 entries per distinct-set category, ` +
+    `2 retained samples; exact sets are NOT constant-memory). Purity statement only — this gate asserts nothing about ` +
     `when or whether nutrient limitation occurs.`);
 }
 

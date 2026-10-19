@@ -136,7 +136,10 @@
  * All figures recorded under 0.4.1 describe the DEFECTIVE semantics and are
  * provenance only. See REPORT.md.
  */
-export const WORLD_ENGINE_VERSION = 'ts-evo-poc/0.6.7';
+// 0.6.8 repairs L2 measurement attribution: distinct IDs/cells and binding
+// counts now distinguish all eligible events from lim<=0.90 events. Biology,
+// RNG and default pins are unchanged. Original 0.6.7 archives retain identity.
+export const WORLD_ENGINE_VERSION = 'ts-evo-poc/0.6.8';
 
 /**
  * Identifier for the credibility-check suite. G30 (per-pool nutrient cap on

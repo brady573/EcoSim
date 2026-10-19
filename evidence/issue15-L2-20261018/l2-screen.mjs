@@ -19,7 +19,10 @@
  * second candidate, no threshold interpretation happens in this file.
  */
 import { writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { World } from '../../build/world/world.js';
+import { WORLD_ENGINE_VERSION } from '../../build/world/version.js';
+import { afterR2 } from './l2-protocol.mjs';
 
 const BASE = {
   founders: 400, worldW: 2400, worldH: 2400,
@@ -109,7 +112,7 @@ function runArm(seed, sup, resc) {
     w.step();
     if (SAMPLES.includes(t)) samples.push(runToeSnapshot(w));
   }
-  return { samples, observer: w.getPhotoObserverSnapshot(), hash: w.hashState() };
+  return { samples, observer: w.getPhotoObserverSnapshot(), hash: w.hashState(), resolvedConfig: w.config };
 }
 
 // ---- R1 evaluation against the frozen rule --------------------------------
@@ -130,6 +133,9 @@ function frameR1(seed, A) {
       eventsBelow100: g.eligibleEvents < MIN_EVENTS,
       uniqueOrganisms: g.uniqueOrganisms,
       uniqueCells: g.uniqueCells,
+      limitedUniqueOrganisms: g.limitedUniqueOrganisms,
+      limitedUniqueCells: g.limitedUniqueCells,
+      limitedBoundPools: g.limitedBindingByPool,
       avgLim: g.eligibleEvents > 0 ? r3(g.sumLim / g.eligibleEvents) : null,
       sumShortfall: r3(g.sumShortfall),
       limZeroEvents: g.zeroLimEvents,
@@ -152,6 +158,10 @@ const r1Met = SEEDS.some((s) => r1[s].met);
 const r1Unmeasurable = SEEDS.every((s) => r1[s].unmeasurable);
 
 const out = { prereg: 'docs/issue15-L2-preregistration.md', engine: 'ts-evo-poc/0.6.7', candidate: L2, seeds: {}, R1: r1, arms: {} };
+out.engine = WORLD_ENGINE_VERSION;
+out.sourceSHA = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+out.command = 'node evidence/issue15-L2-20261018/l2-screen.mjs';
+out.resolvedConfigs = Object.fromEntries(SEEDS.map((s) => [s, A[s].resolvedConfig]));
 out.arms.A = Object.fromEntries(SEEDS.map((s) => [s, { samples: A[s].samples, observer: A[s].observer }]));
 
 console.log('=== L2 A-first R1 (frozen rule, producer-DISPLAYED eligible events) ===');
@@ -162,6 +172,7 @@ for (const seed of SEEDS) {
       + `>=5%=${w.pctGat5} events>=100=${!w.eventsBelow100} uniqOrganisms=${w.uniqueOrganisms} uniqCells=${w.uniqueCells} `
       + `avgLim=${w.avgLim} limZero=${w.limZeroEvents} limPartial=${w.limPartialEvents} `
       + `sumShortfall=${w.sumShortfall} boundPools=[${w.boundPools.map((b) => `${b.pool}:${b.bindingEvents}`).join(' ')}]`);
+    console.log(`  eligibleOnlyCoverage=${w.uniqueOrganisms} organisms/${w.uniqueCells} cells; limitedOnlyCoverage=${w.limitedUniqueOrganisms} organisms/${w.limitedUniqueCells} cells; limitedOnlyBinding=[${w.limitedBoundPools.join(',')}]`);
   }
   console.log(`seed ${seed} R1=${f.met ? 'MET' : (f.unmeasurable ? 'UNMEASURABLE' : 'NOT MET')}`);
 }
@@ -169,21 +180,31 @@ console.log(`R1 overall (>=1 seed met): ${r1Met ? 'MET' : (r1Unmeasurable ? 'UNM
 
 // ---- B/C conditional on R1 (the script refuses to run them otherwise) -----
 const B = {}, C = {}, twins = {};
+let r2 = { met: false, passingSeeds: [] };
 if (r1Met) {
   for (const seed of SEEDS) {
     B[seed] = runArm(seed, SUP, undefined);
-    C[seed] = runArm(seed, SUP, RESC);
-    twins[seed] = runArm(seed, SUP, RESC);
   }
   out.arms.B = Object.fromEntries(SEEDS.map((s) => [s, { samples: B[s].samples, observer: B[s].observer }]));
-  out.arms.C = Object.fromEntries(SEEDS.map((s) => [s, { samples: C[s].samples, observer: C[s].observer }]));
+  const lost = Object.fromEntries(SEEDS.map((s) => [s, windowBooks(B, s).lateBoth.lost]));
+  r2 = afterR2(r1, lost, () => {
+    // Frozen protocol: once a qualifying R1 seed meets R2, the matched panel
+    // includes BOTH discovery seeds. Do not label other seeds R1/R2-qualified.
+    for (const seed of SEEDS) {
+      C[seed] = runArm(seed, SUP, RESC);
+      twins[seed] = runArm(seed, SUP, RESC);
+    }
+    out.arms.C = Object.fromEntries(SEEDS.map((s) => [s, { samples: C[s].samples, observer: C[s].observer }]));
+  });
+  out.R2 = { ...r2, lostBySeed: lost };
+  console.log(`R2: ${r2.met ? 'MET' : 'NOT MET -> STOP-B; C skipped'}`);
 } else {
   console.log('R1 not met: B and C skipped per frozen STOP-A (no tuning, no second candidate).');
 }
 
 // Twin determinism (C twice) and per-seed twin digest check.
 for (const seed of SEEDS) {
-  if (r1Met) console.log(`seed ${seed} C-twin digestsEqual=${C[seed].hash === twins[seed].hash}`);
+  if (r2.met) console.log(`seed ${seed} C-twin digestsEqual=${C[seed].hash === twins[seed].hash}`);
 }
 
 // Per-window lost flow from cumulative book deltas (exact windows from sample
@@ -202,7 +223,7 @@ function windowBooks(arm, seed) {
 }
 
 // Print per-seed late-window book deltas for classification (R2 >= 1.0).
-if (r1Met) {
+if (r2.met) {
   for (const seed of SEEDS) {
     const wb = windowBooks(B, seed);
     const wc = windowBooks(C, seed);
