@@ -110,13 +110,16 @@ function probeArgs(over = {}) {
 }
 
 /**
- * Knobs-unset parity, live pin for engine ts-evo-poc/0.6.6.
+ * Knobs-unset parity, live pin for engine ts-evo-poc/0.6.7 (0.6.7 is the L2
+ * measurement-only observer; it adds no biology).
  *
- * Under 0.6.6 the live pair is UNCHANGED and was NOT re-pinned. Relative to
- * the reviewed head, nutrient-write arithmetic is unchanged; the four-book
- * instrumentation does not change biology. The earlier per-pool cap fix was
- * made on source snapshots still labelled 0.6.2; 0.6.3 identifies the corrected
- * source and repaired measurement contract, with no new retirement pair.
+ * Under 0.6.7 (as under 0.6.6/0.6.5/0.6.4) the live pair is UNCHANGED and was
+ * NOT re-pinned. Relative to the reviewed head, nutrient-write arithmetic and
+ * every default are unchanged; the O2 rescue, O1 suppression and the L2
+ * opt-in photosynthesis-site observer are all diagnostics. The earlier
+ * per-pool cap fix was made on source snapshots still labelled 0.6.2; 0.6.3
+ * identifies the corrected source and repaired measurement contract, with no
+ * new retirement pair.
  *
  * The live pair itself was re-pinned under 0.6.2 (radiationMultiplier + mating
  * logic fixes): 517 -> 882/170/65, 24601 -> 563/279/90, each measured twice
@@ -167,8 +170,8 @@ if (!hasBuild) {
     const got = lastRow(runProbe(probeArgs({ seed: p.seed, ticks: 500 })));
     const ok = got !== null && got.prod === p.want[0] && got.cons === p.want[1] && got.dec === p.want[2];
     check('C1', `parity seed ${p.seed} (knobs unset)`, ok,
-      ok ? `P${got.prod}/C${got.cons}/D${got.dec} matches pinned (0.6.6: same pair as 0.6.5/0.6.4/0.6.3/0.6.2 — O2 instrument null adds no biology; retired ${p.retired})`
-         : `expected P${p.want.join('/C')}/D${p.want[2]} (0.6.6), got ${fmt(got)}`);
+      ok ? `P${got.prod}/C${got.cons}/D${got.dec} matches pinned (0.6.7 measurement-only: same pair as 0.6.6/0.6.5/0.6.4/0.6.3/0.6.2 — observer off by default, no biology; retired ${p.retired})`
+         : `expected P${p.want.join('/C')}/D${p.want[2]} (0.6.7), got ${fmt(got)}`);
   }
 }
 
@@ -266,7 +269,7 @@ if (!existsSync(htmlPath)) {
   check('C5', 'built engine contains new config keys', false, 'no evidence/app/evo-sim-poc.html');
 } else {
   const html = readFileSync(htmlPath, 'utf8');
-  const required = ['reproSurplusTicks', 'mixotrophyCarbon', 'nutrientCyclic', 'nutrientFloor', 'dormantThreatBlind', 'pioneerBonus', 'decomposerPhotoScale', 'phenoMineralReturn', 'phenoMineralRescue'];
+  const required = ['reproSurplusTicks', 'mixotrophyCarbon', 'nutrientCyclic', 'nutrientFloor', 'dormantThreatBlind', 'pioneerBonus', 'decomposerPhotoScale', 'phenoMineralReturn', 'phenoMineralRescue', 'photoObserver'];
   const absent = required.filter((k) => !html.includes(k));
   check('C5', 'built engine contains new config keys', absent.length === 0,
     absent.length === 0 ? `all ${required.length} keys present` : `ABSENT: ${absent.join(', ')}`);

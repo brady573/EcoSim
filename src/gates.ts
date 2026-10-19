@@ -32,6 +32,7 @@ import {
 } from './bio/modgenome.js';
 import { OrganismStore, NUTRIENT_COUNT } from './core/soa.js';
 import { TROPHIC_COUNT, MINERAL_PHENO_CLASS_COUNT, MINERAL_PHENO, deriveRole, classifyMineralPheno } from './bio/role.js';
+import { PhotoObserver } from './world/photoObserver.js';
 import type { Phenotype } from './bio/phenotype.js';
 import { Rng } from './core/rng.js';
 import { INTENT } from './world/world.js';
@@ -2900,6 +2901,194 @@ function gate35(): void {
     `no mediation claim.`);
 }
 
+// G36 — L2 photosynthesis-site observer purity (issue #15, Owner decision
+// 2026-10-18). Measurement-only instrument, so the gate proves PURITY and
+// REALITY: (a) enabling the observer changes nothing — identical worlds with
+// observer on/off stay hash-identical at multiple checkpoints, book the same
+// photoUptake totals and end with the same census and determinism twinning;
+// (b) the observer measures the engine, not itself — sampled events satisfy
+// the exact Liebig identities recomputed from their own fields, and the
+// producer-filtered uptake stream reconciles with the engine's photoUptake
+// books within float-summation dust; (c) the aggregator sorts synthetic
+// zero/partial/full-lim events correctly, counts out-of-window events and
+// stays inside a fixed sample cap (finite bounded memory); (d) bad knob values
+// throw at construction; null/unset produces no observer at all. A green G is
+// an instrument statement, never a biology claim.
+function gate36(): void {
+  const TICKS = 150;
+  const base = { founders: 240, worldW: 900, worldH: 900, seed: 4242, label: 'gates36' };
+  const mk = (on: boolean | null | undefined): World =>
+    new World({ config: { ...base, ...(on === undefined ? {} : { photoObserver: on }) } });
+
+  const wOff = mk(null);
+  const wOn = mk(true);
+  const wOn2 = mk(true);
+  const CHECKS = [1, 40, 100, TICKS];
+  let hashMismatches = 0;
+  for (const t of CHECKS) {
+    for (let k = wOff.tick + 1; k <= t; k++) {
+      wOff.step(); wOn.step(); wOn2.step();
+    }
+    // Read the observer's own bookkeeping with the state frozen: reading the
+    // snapshot cannot perturb the world, so read it BEFORE hashing.
+    if (wOn.hashState() !== wOff.hashState()) hashMismatches++;
+    if (wOn2.hashState() !== wOff.hashState()) hashMismatches++;
+  }
+  const fOff = wOff.getFluxSnapshot();
+  const fOn = wOn.getFluxSnapshot();
+  let bookMismatches = 0;
+  for (let g = 0; g < TROPHIC_COUNT; g++) {
+    for (let p = 0; p < NUTRIENT_COUNT; p++) {
+      if (fOff.photoUptake[g][p] !== fOn.photoUptake[g][p]) bookMismatches++;
+    }
+  }
+  let aliveOff = 0, aliveOn = 0;
+  for (let i = 0; i < wOff.store.count; i++) { if (wOff.aliveAt(i)) aliveOff++; }
+  for (let i = 0; i < wOn.store.count; i++) { if (wOn.aliveAt(i)) aliveOn++; }
+  const censusEqual = aliveOff === aliveOn && hashMismatches === 0 && bookMismatches === 0;
+
+  // The observer must be null exactly when the knob is not opt-in.
+  const offNull = wOff.getPhotoObserverSnapshot() === null && mk(false).getPhotoObserverSnapshot() === null;
+  const onNotNull = wOn.getPhotoObserverSnapshot() !== null;
+
+  // Rejected knob values throw at construction.
+  const badKnobs: unknown[] = [1, 'on', 'true'];
+  let throws = 0;
+  for (const bad of badKnobs) {
+    try { mk(bad as never); } catch { throws++; }
+  }
+  const rejectsOk = throws === badKnobs.length;
+
+  // Same pool/writer semantics: every recorded producer+consumer+decomposer
+  // photo event's uptake must reconcile with the engine's photoUptake books
+  // (observer and book write at the same sites, per pool, per guild).
+  const snapOnW = wOn.getPhotoObserverSnapshot()!.windows;
+  // Equalities only mean something if every actual event was inside a window;
+  // the windows cover ticks 1..750 and this world only ran to TICKS.
+  let bookUptakeTotalPool = [0, 0, 0];
+  for (let g = 0; g < TROPHIC_COUNT; g++) {
+    for (let p = 0; p < NUTRIENT_COUNT; p++) bookUptakeTotalPool[p] += fOff.photoUptake[g][p];
+  }
+  const obsByPool = [0, 0, 0];
+  for (const win of snapOnW) for (let p = 0; p < NUTRIENT_COUNT; p++) obsByPool[p] += win.pool[p].uptake;
+  let reconcileOk = true;
+  let worst = 0;
+  for (let p = 0; p < NUTRIENT_COUNT; p++) {
+    const den = Math.max(1, Math.abs(bookUptakeTotalPool[p]));
+    const rel = Math.abs(obsByPool[p] - bookUptakeTotalPool[p]) / den;
+    if (rel > 1e-6) reconcileOk = false;
+    worst = Math.max(worst, rel);
+  }
+  // No recorded event escaped the declared windows (world never exceeded 150 ticks).
+  const outOfWindow = wOn.getPhotoObserverSnapshot()!.outOfWindowEvents;
+
+  // Sampled events satisfy the exact Liebig identities recomputed from their own
+  // observed fields (lim, binding, uptake). This proves the recorder writes what
+  // it claims, live-values style, per sampled event across all windows.
+  let eventChecks = 0, eventFail = 0;
+  for (const win of snapOnW) {
+    for (const e of win.sample) {
+      let limCalc = 1;
+      for (let p = 0; p < 3; p++) {
+        if (e.affinity[p] <= 1e-4) continue;
+        limCalc = Math.min(limCalc, e.present[p] / e.desired[p]);
+      }
+      if (limCalc > 1) limCalc = 1;
+      if (e.lim !== limCalc) { eventFail++; continue; }
+      for (let p = 0; p < 3; p++) {
+        const eligible = e.affinity[p] > 1e-4;
+        const wantUptake = eligible ? Math.min(e.desired[p] * e.lim, e.present[p]) : 0;
+        if (!eligible && e.binding[p]) { eventFail++; break; }
+        if (eligible && e.binding[p] !== (e.present[p] / e.desired[p] <= e.lim + 1e-9)) { eventFail++; break; }
+        if (Math.abs(e.uptake[p] - wantUptake) > 1e-9 * Math.max(1, Math.abs(wantUptake))) { eventFail++; break; }
+        eventChecks++;
+      }
+    }
+  }
+
+  // Aggregator unit behavior: synthetic zero/partial/full-lim events fall into
+  // the right windows, limitedEvents counts only lim<=0.90, shortfall sums,
+  // out-of-window events are counted and the sample respects the cap.
+  const obs = new PhotoObserver(
+    [
+      { label: 'wA', lo: 1, hi: 10 },
+      { label: 'wB', lo: 11, hi: 20 },
+    ],
+    3,
+  );
+  const mkEvent = (tick: number, lim: number, uptake: number) => ({
+    tick, cell: tick, organismId: tick, displayedGuild: 0,
+    demand: 10 * (1 - lim),
+    affinity: [0.5, 0.5, 0.5] as [number, number, number],
+    desired: [3, 3, 3] as [number, number, number],
+    present: [3 * lim, 3 * lim, 3 * lim] as [number, number, number],
+    lim,
+    binding: [true, false, false] as [boolean, boolean, boolean],
+    uptake: [uptake, 0, 0] as [number, number, number],
+    shortfall: 10 * (1 - lim),
+  });
+  obs.record(mkEvent(5, 1, 3));      // full-lim
+  obs.record(mkEvent(15, 0.5, 1.5)); // partial-lim, window B
+  obs.record(mkEvent(8, 0.9, 2.7));  // exactly at the 0.90 cutoff => limited
+  obs.record(mkEvent(8, 0.91, 0));   // just past the cutoff => NOT limited
+  obs.record(mkEvent(30, 0.2, 0.6)); // out of window
+  const unit = obs.snapshot();
+  const u = unit.windows;
+  const unitOk = u[0].label === 'wA' && u[0].eligibleEvents === 3
+    && u[0].limitedEvents === 1 && u[1].eligibleEvents === 1
+    && u[1].limitedEvents === 1
+    && Math.abs(u[0].sumShortfall - (0 + 1 + 0.9)) < 1e-12
+    && unit.outOfWindowEvents === 1
+    && obs.retainedEventCount() === 4 // sampleCap 3 per window: wA caps at 3, wB 1
+    && u[0].sample.length === 3 && u[1].sample.length === 1;
+
+  // Nonlimited activity must never inflate limited-only spatial coverage or
+  // binding attribution. Repeated limited events share one stable ID/cell.
+  const attribution = new PhotoObserver([{ label: 'scope', lo: 1, hi: 10 }], 2);
+  attribution.record({ ...mkEvent(1, 0.95, 2.85), organismId: 100, cell: 200,
+    binding: [true, false, false] });
+  for (let n = 0; n < 3; n++) attribution.record({ ...mkEvent(2, 0.5, 1.5),
+    organismId: 101, cell: 201, binding: [false, true, false] });
+  const scoped = attribution.snapshot().windows[0];
+  const producer = scoped.perGuild[0];
+  const attributionOk = scoped.uniqueOrganisms === 2 && scoped.uniqueCells === 2
+    && scoped.limitedUniqueOrganisms === 1 && scoped.limitedUniqueCells === 1
+    && producer.uniqueOrganisms === 2 && producer.limitedUniqueOrganisms === 1
+    && producer.uniqueCells === 2 && producer.limitedUniqueCells === 1
+    && producer.bindingByPool.join() === '1,3,0'
+    && producer.limitedBindingByPool.join() === '0,3,0'
+    && scoped.limitedBindingByPool.join() === '0,3,0';
+
+  // Resource fixture: samples saturate, exact distinct sets grow linearly.
+  // This is an entry-count cost test, NOT a claim of constant memory or bytes.
+  const resource = new PhotoObserver([{ label: 'resource', lo: 1, hi: 1 }], 2);
+  for (let id = 0; id < 4096; id++) resource.record({ ...mkEvent(1, 0.5, 1.5),
+    organismId: id, cell: id });
+  const footprint = resource.distinctMeasure();
+  const resourceOk = resource.retainedEventCount() === 2
+    && Object.values(footprint).every((entries) => entries === 8192);
+
+  record('G36', 'photosynthesis-site observer purity, attribution and measured resource cost',
+    censusEqual && offNull && onNotNull && rejectsOk && reconcileOk && outOfWindow === 0
+      && eventFail === 0 && unitOk && attributionOk && resourceOk,
+    `${TICKS} ticks, identical worlds observer off/on/on: hash mismatches at ` +
+    `checkpoints [${CHECKS.join(',')}] ${hashMismatches} (must be 0), photoUptake ` +
+    `book cell mismatches ${bookMismatches} (must be 0), census off/on=${aliveOff}/${aliveOn} ` +
+    `(must be equal). Off-run snapshot null: ${offNull ? 'yes' : 'NO'}; on-run snapshot ` +
+    `present: ${onNotNull ? 'yes' : 'NO'}. Bad knobs threw ${throws}/${badKnobs.length} ` +
+    `(must equal). Book reconciliation per pool (observer total vs photoUptake all-` +
+    `guild totals): worst relative residual ${worst.toExponential(2)} (<= 1e-6 relative tolerance ` +
+    `required for identical summation sites — observer sums per event, the book sums per ` +
+    `pool). Sampled-event Liebig recomputation: ${eventChecks} pool checks, ` +
+    `${eventFail} failures (must be 0). Aggregator unit: windows sorted, limited ` +
+    `counted at lim<=0.90 incl. the exact 0.90 boundary, out-of-window counted ` +
+    `${obs.outOfWindowEvents}, retained events ${obs.retainedEventCount()} under the ` +
+    `fixed dual-window SAMPLE cap. Eligible/limited attribution fixture=${attributionOk}; ` +
+    `4096-ID resource fixture=${resourceOk} (8192 entries per distinct-set category, ` +
+    `2 retained samples; exact sets are NOT constant-memory). Purity statement only — this gate asserts nothing about ` +
+    `when or whether nutrient limitation occurs.`);
+}
+
 function main(): void {
   console.log(`=== credibility gates :: ${WORLD_ENGINE_VERSION} ===`);
   console.log(`scenario: founders=${SMALL.founders} world=${SMALL.worldW}x${SMALL.worldH} ticks=${TICKS} seed=${SMALL.seed}\n`);
@@ -2936,6 +3125,7 @@ function main(): void {
   gate33();
   gate34();
   gate35();
+  gate36();
 
   const failed = results.filter((r) => !r.pass);
   console.log(`\n${results.length - failed.length}/${results.length} checks passed`);

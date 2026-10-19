@@ -1,0 +1,20 @@
+=== L2 A-first R1 (frozen rule, producer-DISPLAYED eligible events) ===
+seed 517 window 500-625: limited=18208/127334 (14.30%) >=5%=true events>=100=true uniqOrganisms=1231 uniqCells=872 avgLim=0.882016 limZero=0 limPartial=18208 sumShortfall=5149.74267 boundPools=[A:2592 B:8780 C:7405]
+  eligibleOnlyCoverage=1231 organisms/872 cells; limitedOnlyCoverage=277 organisms/58 cells; limitedOnlyBinding=[2509,8591,7108]
+seed 517 window 625-750: limited=26214/143959 (18.21%) >=5%=true events>=100=true uniqOrganisms=1303 uniqCells=1138 avgLim=0.854759 limZero=0 limPartial=26214 sumShortfall=6033.141672 boundPools=[A:4453 B:12357 C:10280]
+  eligibleOnlyCoverage=1303 organisms/1138 cells; limitedOnlyCoverage=314 organisms/129 cells; limitedOnlyBinding=[4358,12030,9826]
+seed 517 R1=MET
+seed 41001 window 500-625: limited=10327/93385 (11.06%) >=5%=true events>=100=true uniqOrganisms=908 uniqCells=541 avgLim=0.907297 limZero=0 limPartial=10327 sumShortfall=2914.02098 boundPools=[A:22 B:2683 C:7900]
+  eligibleOnlyCoverage=908 organisms/541 cells; limitedOnlyCoverage=170 organisms/33 cells; limitedOnlyBinding=[21,2632,7674]
+seed 41001 window 625-750: limited=17043/103004 (16.55%) >=5%=true events>=100=true uniqOrganisms=972 uniqCells=564 avgLim=0.864253 limZero=0 limPartial=17043 sumShortfall=3885.195964 boundPools=[A:121 B:2136 C:15314]
+  eligibleOnlyCoverage=972 organisms/564 cells; limitedOnlyCoverage=260 organisms/48 cells; limitedOnlyBinding=[82,2109,14852]
+seed 41001 R1=MET
+R1 overall (>=1 seed met): MET
+R2: MET
+seed 517 C-twin digestsEqual=true
+seed 41001 C-twin digestsEqual=true
+seed 517 B late500-750 lost=1128.107102 (window1=445.183031, window2=682.924071) exoAcc=0
+seed 517 C late500-750 lost=889.505243 exoAcc=889.505243 (totalRun exoAcc=2003.038831)
+seed 41001 B late500-750 lost=2458.57904 (window1=1134.347552, window2=1324.231488) exoAcc=0
+seed 41001 C late500-750 lost=2750.523675 exoAcc=2750.523675 (totalRun exoAcc=5418.201851)
+wrote evidence/issue15-L2-20261018/l2-panel.json

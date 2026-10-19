@@ -3483,6 +3483,8 @@ const DEFAULT_CONFIG = {
     phenoMineralReturn: null,
     // O2 exogenous rescue flags (see field comment). null = no rescue.
     phenoMineralRescue: null,
+    // L2 photosynthesis-site observer (see field comment). null = off.
+    photoObserver: null,
     nutrientFloor: 0,
     sporeDispersal: null,
     dormantSenescence: null,
@@ -4382,6 +4384,250 @@ exports.LineageTracker = LineageTracker;
 exports.annotateForcing = annotateForcing;
 
 });
+__def("world/photoObserver.js", function(require, exports, module){/**
+ * L2 photosynthesis-site observer (issue #15, Owner decision 2026-10-18).
+ *
+ * Strictly observational: records event-time Liebig data at the photosynthesis
+ * computation site, BEFORE consumption, into bounded aggregators keyed by
+ * declared time window. It performs NO field write, NO RNG draw, NO
+ * iteration-order change and contributes NOTHING to hashState. Enabling it
+ * must be byte-identical to disabling it (G36 asserts).
+ *
+ * MEMORY SHAPE (exact, not constant): the retained per-event sample is capped
+ * at `sampleCap` per window, but the distinct-participant/location tracking
+ * accumulates one Set entry per DISTINCT organism ID and per DISTINCT spatial
+ * cell seen — per window, and mirrored per displayed guild. That is
+ * O(distinct organisms + distinct cells per window) memory, on the order of
+ * the live population and geography, NOT a fixed ceiling. `retainedEventCount`
+ * answers only the capped-sample question; `distinctMeasure` reports the
+ * actual Set footprint. A fixed-size subset view is deliberately NOT claimed.
+ *
+ * Measurement only. It is not biology and not a permanent subsidy.
+ */
+const LIMIT_THRESHOLD = 0.9;
+class PhotoObserver {
+    windows;
+    sampleCap;
+    stats;
+    constructor(windows, sampleCap = 64) {
+        this.windows = windows ?? [
+            { label: '0-100', lo: 1, hi: 100 },
+            { label: '100-250', lo: 101, hi: 250 },
+            { label: '250-500', lo: 251, hi: 500 },
+            { label: '500-625', lo: 501, hi: 625 },
+            { label: '625-750', lo: 626, hi: 750 },
+        ];
+        this.sampleCap = sampleCap;
+        this.stats = this.windows.map((w) => ({
+            label: w.label,
+            lo: w.lo,
+            hi: w.hi,
+            eligibleEvents: 0,
+            limitedEvents: 0,
+            sumLim: 0,
+            sumDemand: 0,
+            sumShortfall: 0,
+            pool: [
+                { desired: 0, present: 0, uptake: 0, bindingEvents: 0 },
+                { desired: 0, present: 0, uptake: 0, bindingEvents: 0 },
+                { desired: 0, present: 0, uptake: 0, bindingEvents: 0 },
+            ],
+            uniqueOrganisms: 0,
+            uniqueCells: 0,
+            limitedUniqueOrganisms: 0,
+            limitedUniqueCells: 0,
+            limitedBindingByPool: [0, 0, 0],
+            sample: [],
+            _orgs: new Set(),
+            _cells: new Set(),
+            _limOrgs: new Set(),
+            _limCells: new Set(),
+            perGuild: [0, 1, 2].map(() => ({
+                eligibleEvents: 0, limitedEvents: 0, zeroLimEvents: 0, partialLimEvents: 0,
+                sumLim: 0, sumShortfall: 0,
+                bindingByPool: [0, 0, 0], limitedBindingByPool: [0, 0, 0],
+                uniqueOrganisms: 0, uniqueCells: 0,
+                limitedUniqueOrganisms: 0, limitedUniqueCells: 0,
+                _orgs: new Set(), _cells: new Set(),
+                _limOrgs: new Set(), _limCells: new Set(),
+            })),
+        }));
+    }
+    windowIndex(tick) {
+        for (let i = 0; i < this.windows.length; i++) {
+            const w = this.windows[i];
+            if (tick >= w.lo && tick <= w.hi)
+                return i;
+        }
+        return -1;
+    }
+    record(ev) {
+        const wi = this.windowIndex(ev.tick);
+        if (wi < 0) {
+            this.outOfWindowEvents++;
+            return;
+        }
+        const st = this.stats[wi];
+        st.eligibleEvents++;
+        if (ev.lim <= LIMIT_THRESHOLD)
+            st.limitedEvents++;
+        st.sumLim += ev.lim;
+        st.sumDemand += ev.demand;
+        st.sumShortfall += ev.shortfall;
+        for (let p = 0; p < 3; p++) {
+            const ps = st.pool[p];
+            ps.desired += ev.desired[p];
+            ps.present += ev.present[p];
+            ps.uptake += ev.uptake[p];
+            if (ev.binding[p])
+                ps.bindingEvents++;
+        }
+        st._orgs.add(ev.organismId);
+        st._cells.add(ev.cell);
+        st.uniqueOrganisms = st._orgs.size;
+        st.uniqueCells = st._cells.size;
+        if (ev.lim <= LIMIT_THRESHOLD) {
+            st._limOrgs.add(ev.organismId);
+            st._limCells.add(ev.cell);
+            st.limitedUniqueOrganisms = st._limOrgs.size;
+            st.limitedUniqueCells = st._limCells.size;
+            for (let p = 0; p < 3; p++)
+                if (ev.binding[p])
+                    st.limitedBindingByPool[p]++;
+        }
+        const g = ev.displayedGuild;
+        if (g >= 0 && g <= 2) {
+            const gs = st.perGuild[g];
+            gs.eligibleEvents++;
+            gs.sumLim += ev.lim;
+            gs.sumShortfall += ev.shortfall;
+            gs._orgs.add(ev.organismId);
+            gs._cells.add(ev.cell);
+            gs.uniqueOrganisms = gs._orgs.size;
+            gs.uniqueCells = gs._cells.size;
+            for (let p = 0; p < 3; p++)
+                if (ev.binding[p])
+                    gs.bindingByPool[p]++;
+            if (ev.lim <= LIMIT_THRESHOLD) {
+                gs.limitedEvents++;
+                if (ev.lim <= 0)
+                    gs.zeroLimEvents++;
+                else
+                    gs.partialLimEvents++;
+                gs._limOrgs.add(ev.organismId);
+                gs._limCells.add(ev.cell);
+                gs.limitedUniqueOrganisms = gs._limOrgs.size;
+                gs.limitedUniqueCells = gs._limCells.size;
+                for (let p = 0; p < 3; p++)
+                    if (ev.binding[p])
+                        gs.limitedBindingByPool[p]++;
+            }
+        }
+        if (st.sample.length < this.sampleCap) {
+            // Store a copy: the caller's locals are scoped to the tick loop, but a
+            // plain array copy keeps the retained sample independent of any later
+            // reuse of the same array object by the engine.
+            st.sample.push({
+                tick: ev.tick,
+                cell: ev.cell,
+                organismId: ev.organismId,
+                displayedGuild: ev.displayedGuild,
+                demand: ev.demand,
+                affinity: [...ev.affinity],
+                desired: [...ev.desired],
+                present: [...ev.present],
+                lim: ev.lim,
+                binding: [...ev.binding],
+                uptake: [...ev.uptake],
+                shortfall: ev.shortfall,
+            });
+        }
+    }
+    /** Serializable aggregate (private sets collapsed to counts). */
+    snapshot() {
+        return {
+            windows: this.stats.map((st) => ({
+                label: st.label,
+                lo: st.lo,
+                hi: st.hi,
+                eligibleEvents: st.eligibleEvents,
+                limitedEvents: st.limitedEvents,
+                sumLim: st.sumLim,
+                sumDemand: st.sumDemand,
+                sumShortfall: st.sumShortfall,
+                pool: [
+                    { ...st.pool[0] },
+                    { ...st.pool[1] },
+                    { ...st.pool[2] },
+                ],
+                uniqueOrganisms: st.uniqueOrganisms,
+                uniqueCells: st.uniqueCells,
+                limitedUniqueOrganisms: st.limitedUniqueOrganisms,
+                limitedUniqueCells: st.limitedUniqueCells,
+                limitedBindingByPool: [...st.limitedBindingByPool],
+                sample: st.sample,
+                perGuild: [
+                    this.guildView(st.perGuild[0]),
+                    this.guildView(st.perGuild[1]),
+                    this.guildView(st.perGuild[2]),
+                ],
+            })),
+            outOfWindowEvents: this.outOfWindowEvents,
+        };
+    }
+    guildView(g) {
+        return {
+            eligibleEvents: g.eligibleEvents,
+            limitedEvents: g.limitedEvents,
+            zeroLimEvents: g.zeroLimEvents,
+            partialLimEvents: g.partialLimEvents,
+            sumLim: g.sumLim,
+            sumShortfall: g.sumShortfall,
+            bindingByPool: [...g.bindingByPool],
+            uniqueOrganisms: g.uniqueOrganisms,
+            uniqueCells: g.uniqueCells,
+            limitedUniqueOrganisms: g.limitedUniqueOrganisms,
+            limitedUniqueCells: g.limitedUniqueCells,
+            limitedBindingByPool: [...g.limitedBindingByPool],
+        };
+    }
+    /**
+     * Honest memory accounting. Retained sample records are capped
+     * (`retainedEventCount`), but the participant/location Sets are NOT: they
+     * grow with distinct organism IDs and distinct cells seen per window (riff
+     * on live engine scale, e.g. up to the population cap per window). Report
+     * the actual tracked sizes rather than advertising a constant ceiling.
+     */
+    distinctMeasure() {
+        let organisms = 0, cells = 0, organismsLimited = 0, cellsLimited = 0;
+        for (const st of this.stats) {
+            organisms += st._orgs.size;
+            cells += st._cells.size;
+            organismsLimited += st._limOrgs.size;
+            cellsLimited += st._limCells.size;
+            for (const gs of st.perGuild) {
+                cells += gs._cells.size;
+                organisms += gs._orgs.size;
+                organismsLimited += gs._limOrgs.size;
+                cellsLimited += gs._limCells.size;
+            }
+        }
+        return { organisms, cells, organismsLimited, cellsLimited };
+    }
+    /** Per-window exclusive events outside any declared window for diagnostics. */
+    outOfWindowEvents = 0;
+    /** Memory bound: number of retained event records across all windows. */
+    retainedEventCount() {
+        let n = 0;
+        for (const st of this.stats)
+            n += st.sample.length;
+        return n;
+    }
+}
+
+exports.PhotoObserver = PhotoObserver;
+
+});
 __def("world/version.js", function(require, exports, module){/**
  * Engine version for the experimental evolution POC.
  *
@@ -4396,6 +4642,22 @@ __def("world/version.js", function(require, exports, module){/**
  */
 /**
  * Bump on any behavioural change to the simulation.
+ *
+ * 0.6.7 is a MEASUREMENT-ONLY release (L2, issue #15, Owner decision
+ * 2026-10-18): the opt-in `photoObserver` config knob adds a strictly
+ * observational photosynthesis-site observer (`src/world/photoObserver.ts`)
+ * that records event-time Liebig data — per-event affinity, desired demand,
+ * pre-supply, realized `lim`, binding pools, actual uptake and demand
+ * shortfall — into bounded, windowed aggregators read via
+ * `getPhotoObserverSnapshot()`. It adds NO behaviour: no field write, no RNG
+ * draw, no iteration-order change, no hashState contribution; knob-unset runs
+ * are bit-identical to 0.6.6 (C1 pins prove it; G36 additionally proves
+ * observer-on/off parity on a live world). Default-collapsed
+ * 517 -> 882/170/65, 24601 -> 563/279/90 (500 ticks) still holds — no new
+ * retirement-chain entry, no re-pin. No 0.6.6 figure is relabelled: every
+ * existing observation stays 0.6.6, and any observed-event figure (event-time
+ * `lim`, binding pools, shortfall) belongs to 0.6.7 and must be
+ * source-qualified as such.
  *
  * 0.6.6 adds O2 behaviour WHEN ITS KNOB IS SET: `phenoMineralRescue` injects
  * the forgone accepted remainder from an exogenous donor at the suppressed
@@ -4503,15 +4765,19 @@ __def("world/version.js", function(require, exports, module){/**
  * All figures recorded under 0.4.1 describe the DEFECTIVE semantics and are
  * provenance only. See REPORT.md.
  */
-const WORLD_ENGINE_VERSION = 'ts-evo-poc/0.6.6';
+// 0.6.8 repairs L2 measurement attribution: distinct IDs/cells and binding
+// counts now distinguish all eligible events from lim<=0.90 events. Biology,
+// RNG and default pins are unchanged. Original 0.6.7 archives retain identity.
+const WORLD_ENGINE_VERSION = 'ts-evo-poc/0.6.8';
 /**
  * Identifier for the credibility-check suite. G30 (per-pool nutrient cap on
  * return paths) shipped with gates/0.4.0; G31 and G32 (the book-level checks)
  * with gates/0.5.0; G33 (phenotype-partitioned mineralization books) with
  * gates/0.6.0; G34 (O1 phenotype-class suppression) with gates/0.7.0;
- * G35 (O2 exogenous replacement) with gates/0.8.0.
+ * G35 (O2 exogenous replacement) with gates/0.8.0; G36 (L2 photosynthesis-site
+ * observer purity) with gates/0.9.0.
  */
-const GATE_SUITE_VERSION = 'gates/0.8.0';
+const GATE_SUITE_VERSION = 'gates/0.9.0';
 
 exports.WORLD_ENGINE_VERSION = WORLD_ENGINE_VERSION;
 exports.GATE_SUITE_VERSION = GATE_SUITE_VERSION;
@@ -4563,6 +4829,7 @@ const { resolveConfig } = require("./config.js");
 const { Ledger } = require("./ledger.js");
 const { AbioticDriver, emptyModifiers } = require("./disturbances.js");
 const { WorldHistory } = require("./history.js");
+const { PhotoObserver } = require("./photoObserver.js");
 /** Damage at or above which an organism dies. */
 const FATAL_DAMAGE = 100;
 /**
@@ -4798,6 +5065,14 @@ class World {
     reproSurplus = REPRO_SURPLUS_TICKS;
     /** Monotonic id allocator. */
     nextId = 1;
+    /**
+     * L2 photosynthesis-site observer (issue #15, Owner decision 2026-10-18).
+     * Null when `photoObserver` is unset/false — the declared, byte-identical
+     * default. When enabled, it only AGGREGATES event-time Liebig data; it is
+     * never read by engine logic and is excluded from `hashState` (G36 asserts
+     * on/off parity).
+     */
+    photoObs = null;
     // --- Per-tick scratch, allocated once. -----------------------------------
     neighbourScratch;
     preyTarget;
@@ -5035,6 +5310,19 @@ class World {
      * `T` is `number[][]` for excretion (guild x pool) and `number[][][]` for
      * biotic mineralisation (guild x pool x source).
      */
+    /**
+     * The L2 photosynthesis-site observer's serializable aggregate (per declared
+     * window: eligible events, limited events at lim <= 0.90, demand totals,
+     * per-pool desired/present/uptake/binding, unique organism/cell counts and a
+     * fixed-size diagnostic sample, plus the out-of-window count). Null when the
+     * opt-in `photoObserver` knob is unset — the declared default. Pure read of
+     * the diagnostic store; the engine never reads this data back, so it cannot
+     * alter any outcome, and it is excluded from `hashState` (G36 proves on/off
+     * parity).
+     */
+    getPhotoObserverSnapshot() {
+        return this.photoObs ? this.photoObs.snapshot() : null;
+    }
     getFluxSnapshot() {
         const photoUptake = [];
         const excretionReturns = {
@@ -5638,6 +5926,15 @@ class World {
                 }
             }
         }
+        // L2 photosynthesis-site observer: null = off (declared), true = on.
+        // Strict boolean or null only — a truthy number or string throws, so an
+        // "on" that means "on" today cannot become an ambiguous dose tomorrow.
+        const po = cfg.photoObserver;
+        if (po !== null && po !== undefined && typeof po !== 'boolean') {
+            throw new Error(`bad photoObserver: ${JSON.stringify(po)} (want boolean or null; null = off, declared behaviour)`);
+        }
+        // Observer ONLY when opted in (null/false = null field, declared default).
+        this.photoObs = cfg.photoObserver === true ? new PhotoObserver() : null;
         this.reproSurplus = resolveReproSurplusTicks(cfg);
         this.rng = new Rng(cfg.seed);
         this.store = new OrganismStore({ capacity: Math.max(1024, cfg.founders * 2), label: 'organisms' });
@@ -7131,11 +7428,22 @@ class World {
                         lim = Math.min(lim, nutC[ci] / wC);
                     if (lim > 1)
                         lim = 1;
+                    // L2 observer capture point: this event's Liebig data is observable
+                    // AFTER the consumption blocks below have run, because the per-pool
+                    // `actualTake` values are produced there; the recorded PRE-supply
+                    // (present[]) below is read right here, before consumption. Every
+                    // recorded quantity is a plain local read; nothing here writes state,
+                    // draws RNG or changes any engine decision. Aggregate allocation is
+                    // observer-side only and has no effect on simulation semantics.
+                    const obsA = nutA[ci], obsB = nutB[ci], obsC = nutC[ci];
+                    const obsOn = this.photoObs !== null && this.photoObs !== undefined;
                     // Consume from each pool, capped by what is present.
+                    let actualTakeA = 0, actualTakeB = 0, actualTakeC = 0;
                     if (affA > 1e-4) {
                         const take = wA * lim;
                         const actualTake = take < nutA[ci] ? take : nutA[ci];
                         nutA[ci] -= actualTake;
+                        actualTakeA = actualTake;
                         // Flux measurement: photosynthesis uptake per guild per pool
                         const g = this.roleOf(slot).trophic;
                         this.photoUptakeGuildPool[g * NUTRIENT_COUNT + 0] += actualTake;
@@ -7144,6 +7452,7 @@ class World {
                         const take = wB * lim;
                         const actualTake = take < nutB[ci] ? take : nutB[ci];
                         nutB[ci] -= actualTake;
+                        actualTakeB = actualTake;
                         const g = this.roleOf(slot).trophic;
                         this.photoUptakeGuildPool[g * NUTRIENT_COUNT + 1] += actualTake;
                     }
@@ -7151,8 +7460,38 @@ class World {
                         const take = wC * lim;
                         const actualTake = take < nutC[ci] ? take : nutC[ci];
                         nutC[ci] -= actualTake;
+                        actualTakeC = actualTake;
                         const g = this.roleOf(slot).trophic;
                         this.photoUptakeGuildPool[g * NUTRIENT_COUNT + 2] += actualTake;
+                    }
+                    // L2 observer: emit the eligible event (photo>0.02 and ci>=0 hold by
+                    // the enclosing guard; demand>0 holds here; at least one affinity
+                    // above the eligibility threshold is required to constitute an
+                    // eligible photo event — a zero-affinity organism takes nothing and
+                    // is NOT a nutrient-limitation observation).
+                    if (obsOn) {
+                        const displayedGuild = this.roleOf(slot).trophic;
+                        // Binding pool: an affinity-eligible pool whose present/desired
+                        // ratio equals (within dust) the realized Liebig minimum.
+                        const bindA = affA > 1e-4 && obsA / wA <= lim + 1e-9;
+                        const bindB = affB > 1e-4 && obsB / wB <= lim + 1e-9;
+                        const bindC = affC > 1e-4 && obsC / wC <= lim + 1e-9;
+                        if (affA > 1e-4 || affB > 1e-4 || affC > 1e-4) {
+                            this.photoObs.record({
+                                tick: this.tick,
+                                cell: ci,
+                                organismId: store.id[slot],
+                                displayedGuild,
+                                demand,
+                                affinity: [affA, affB, affC],
+                                desired: [wA, wB, wC],
+                                present: [obsA, obsB, obsC],
+                                lim,
+                                binding: [bindA, bindB, bindC],
+                                uptake: [actualTakeA, actualTakeB, actualTakeC],
+                                shortfall: demand * (1 - lim),
+                            });
+                        }
                     }
                     // Energy fixed is proportional to what was actually obtained.
                     const yieldFactor = 0.45 + efficiency * 0.6;

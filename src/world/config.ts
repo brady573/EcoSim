@@ -709,6 +709,17 @@ export interface WorldConfig {
    */
   phenoMineralRescue: { carrionOnly: boolean; recalcOnly: boolean; dual: boolean } | null;
 
+  /**
+   * Diagnostic: opt-in, strictly observational photosynthesis-site observer
+   * (L2, issue #15). `null` (default) = OFF, byte-identical to unset: no
+   * field write, no RNG draw, no iteration-order change, no hashState
+   * contribution. When true, records event-time Liebig data at the
+   * photosynthesis computation site (before consumption) into bounded
+   * aggregators keyed by declared time window. Measurement only; never
+   * affects biology. See World.getPhotoObserverSnapshot().
+   */
+  photoObserver: boolean | null;
+
   /** Fraction of basal metabolism excreted back into the local substrate. */
   excretionRate: number;
 
@@ -876,6 +887,8 @@ export const DEFAULT_CONFIG: WorldConfig = {
   phenoMineralReturn: null,
   // O2 exogenous rescue flags (see field comment). null = no rescue.
   phenoMineralRescue: null,
+  // L2 photosynthesis-site observer (see field comment). null = off.
+  photoObserver: null,
   nutrientFloor: 0,
   sporeDispersal: null,
   dormantSenescence: null,
