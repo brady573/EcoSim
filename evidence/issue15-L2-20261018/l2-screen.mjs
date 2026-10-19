@@ -4,7 +4,7 @@
  * docs/issue15-L2-preregistration.md, which was committed BEFORE this script
  * was run and before any L2 candidate outcome was observed.
  *
- * Engine: ts-evo-poc/0.6.7 (branch issue15/l2-observer-rescue, successor to
+ * Corrected engine: ts-evo-poc/0.6.8 (original archive was 0.6.7), successor to
  * merged main 06be7da / 0.6.6). Replay on a clean checkout:
  *   npm install && npm run view:build
  *   node evidence/issue15-L2-20261018/l2-screen.mjs
@@ -157,7 +157,7 @@ for (const seed of SEEDS) r1[seed] = frameR1(seed, A[seed]);
 const r1Met = SEEDS.some((s) => r1[s].met);
 const r1Unmeasurable = SEEDS.every((s) => r1[s].unmeasurable);
 
-const out = { prereg: 'docs/issue15-L2-preregistration.md', engine: 'ts-evo-poc/0.6.7', candidate: L2, seeds: {}, R1: r1, arms: {} };
+const out = { prereg: 'docs/issue15-L2-preregistration.md', engine: WORLD_ENGINE_VERSION, candidate: L2, seeds: {}, R1: r1, arms: {} };
 out.engine = WORLD_ENGINE_VERSION;
 out.sourceSHA = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
 out.command = 'node evidence/issue15-L2-20261018/l2-screen.mjs';

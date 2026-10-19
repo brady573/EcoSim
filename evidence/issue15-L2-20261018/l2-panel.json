@@ -1,6 +1,6 @@
 {
  "prereg": "docs/issue15-L2-preregistration.md",
- "engine": "ts-evo-poc/0.6.7",
+ "engine": "ts-evo-poc/0.6.8",
  "candidate": {
   "producerCaptureScale": 1,
   "nutrientFloor": 0,
@@ -21,6 +21,13 @@
      "eventsBelow100": false,
      "uniqueOrganisms": 1231,
      "uniqueCells": 872,
+     "limitedUniqueOrganisms": 277,
+     "limitedUniqueCells": 58,
+     "limitedBoundPools": [
+      2509,
+      8591,
+      7108
+     ],
      "avgLim": 0.882016,
      "sumShortfall": 5149.74267,
      "limZeroEvents": 0,
@@ -49,6 +56,13 @@
      "eventsBelow100": false,
      "uniqueOrganisms": 1303,
      "uniqueCells": 1138,
+     "limitedUniqueOrganisms": 314,
+     "limitedUniqueCells": 129,
+     "limitedBoundPools": [
+      4358,
+      12030,
+      9826
+     ],
      "avgLim": 0.854759,
      "sumShortfall": 6033.141672,
      "limZeroEvents": 0,
@@ -84,6 +98,13 @@
      "eventsBelow100": false,
      "uniqueOrganisms": 908,
      "uniqueCells": 541,
+     "limitedUniqueOrganisms": 170,
+     "limitedUniqueCells": 33,
+     "limitedBoundPools": [
+      21,
+      2632,
+      7674
+     ],
      "avgLim": 0.907297,
      "sumShortfall": 2914.02098,
      "limZeroEvents": 0,
@@ -112,6 +133,13 @@
      "eventsBelow100": false,
      "uniqueOrganisms": 972,
      "uniqueCells": 564,
+     "limitedUniqueOrganisms": 260,
+     "limitedUniqueCells": 48,
+     "limitedBoundPools": [
+      82,
+      2109,
+      14852
+     ],
      "avgLim": 0.864253,
      "sumShortfall": 3885.195964,
      "limZeroEvents": 0,
@@ -612,6 +640,13 @@
        ],
        "uniqueOrganisms": 300,
        "uniqueCells": 594,
+       "limitedUniqueOrganisms": 0,
+       "limitedUniqueCells": 0,
+       "limitedBindingByPool": [
+        0,
+        0,
+        0
+       ],
        "sample": [
         {
          "tick": 1,
@@ -2804,7 +2839,14 @@
           0
          ],
          "uniqueOrganisms": 300,
-         "uniqueCells": 594
+         "uniqueCells": 594,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -2819,7 +2861,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -2834,7 +2883,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         }
        ]
       },
@@ -2869,6 +2925,13 @@
        ],
        "uniqueOrganisms": 464,
        "uniqueCells": 745,
+       "limitedUniqueOrganisms": 6,
+       "limitedUniqueCells": 1,
+       "limitedBindingByPool": [
+        0,
+        0,
+        448
+       ],
        "sample": [
         {
          "tick": 101,
@@ -5061,7 +5124,14 @@
           461
          ],
          "uniqueOrganisms": 464,
-         "uniqueCells": 745
+         "uniqueCells": 745,
+         "limitedUniqueOrganisms": 6,
+         "limitedUniqueCells": 1,
+         "limitedBindingByPool": [
+          0,
+          0,
+          448
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -5076,7 +5146,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -5091,7 +5168,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         }
        ]
       },
@@ -5126,6 +5210,13 @@
        ],
        "uniqueOrganisms": 1031,
        "uniqueCells": 1009,
+       "limitedUniqueOrganisms": 149,
+       "limitedUniqueCells": 24,
+       "limitedBindingByPool": [
+        605,
+        2902,
+        6711
+       ],
        "sample": [
         {
          "tick": 251,
@@ -7318,7 +7409,14 @@
           6854
          ],
          "uniqueOrganisms": 1031,
-         "uniqueCells": 1009
+         "uniqueCells": 1009,
+         "limitedUniqueOrganisms": 149,
+         "limitedUniqueCells": 24,
+         "limitedBindingByPool": [
+          605,
+          2902,
+          6711
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -7333,7 +7431,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -7348,7 +7453,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         }
        ]
       },
@@ -7383,6 +7495,13 @@
        ],
        "uniqueOrganisms": 1231,
        "uniqueCells": 872,
+       "limitedUniqueOrganisms": 277,
+       "limitedUniqueCells": 58,
+       "limitedBindingByPool": [
+        2509,
+        8591,
+        7108
+       ],
        "sample": [
         {
          "tick": 501,
@@ -9575,7 +9694,14 @@
           7405
          ],
          "uniqueOrganisms": 1231,
-         "uniqueCells": 872
+         "uniqueCells": 872,
+         "limitedUniqueOrganisms": 277,
+         "limitedUniqueCells": 58,
+         "limitedBindingByPool": [
+          2509,
+          8591,
+          7108
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -9590,7 +9716,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -9605,7 +9738,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         }
        ]
       },
@@ -9640,6 +9780,13 @@
        ],
        "uniqueOrganisms": 1303,
        "uniqueCells": 1138,
+       "limitedUniqueOrganisms": 314,
+       "limitedUniqueCells": 129,
+       "limitedBindingByPool": [
+        4358,
+        12030,
+        9826
+       ],
        "sample": [
         {
          "tick": 626,
@@ -11832,7 +11979,14 @@
           10280
          ],
          "uniqueOrganisms": 1303,
-         "uniqueCells": 1138
+         "uniqueCells": 1138,
+         "limitedUniqueOrganisms": 314,
+         "limitedUniqueCells": 129,
+         "limitedBindingByPool": [
+          4358,
+          12030,
+          9826
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -11847,7 +12001,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -11862,7 +12023,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         }
        ]
       }
@@ -12344,6 +12512,13 @@
        ],
        "uniqueOrganisms": 285,
        "uniqueCells": 533,
+       "limitedUniqueOrganisms": 0,
+       "limitedUniqueCells": 0,
+       "limitedBindingByPool": [
+        0,
+        0,
+        0
+       ],
        "sample": [
         {
          "tick": 1,
@@ -14536,7 +14711,14 @@
           0
          ],
          "uniqueOrganisms": 285,
-         "uniqueCells": 533
+         "uniqueCells": 533,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -14551,7 +14733,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -14566,7 +14755,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         }
        ]
       },
@@ -14601,6 +14797,13 @@
        ],
        "uniqueOrganisms": 391,
        "uniqueCells": 643,
+       "limitedUniqueOrganisms": 0,
+       "limitedUniqueCells": 0,
+       "limitedBindingByPool": [
+        0,
+        0,
+        0
+       ],
        "sample": [
         {
          "tick": 101,
@@ -16793,7 +16996,14 @@
           0
          ],
          "uniqueOrganisms": 391,
-         "uniqueCells": 643
+         "uniqueCells": 643,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -16808,7 +17018,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -16823,7 +17040,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         }
        ]
       },
@@ -16858,6 +17082,13 @@
        ],
        "uniqueOrganisms": 769,
        "uniqueCells": 853,
+       "limitedUniqueOrganisms": 99,
+       "limitedUniqueCells": 15,
+       "limitedBindingByPool": [
+        0,
+        3300,
+        5756
+       ],
        "sample": [
         {
          "tick": 251,
@@ -19050,7 +19281,14 @@
           5870
          ],
          "uniqueOrganisms": 769,
-         "uniqueCells": 853
+         "uniqueCells": 853,
+         "limitedUniqueOrganisms": 99,
+         "limitedUniqueCells": 15,
+         "limitedBindingByPool": [
+          0,
+          3300,
+          5756
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -19065,7 +19303,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -19080,7 +19325,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         }
        ]
       },
@@ -19115,6 +19367,13 @@
        ],
        "uniqueOrganisms": 908,
        "uniqueCells": 541,
+       "limitedUniqueOrganisms": 170,
+       "limitedUniqueCells": 33,
+       "limitedBindingByPool": [
+        21,
+        2632,
+        7674
+       ],
        "sample": [
         {
          "tick": 501,
@@ -21307,7 +21566,14 @@
           7900
          ],
          "uniqueOrganisms": 908,
-         "uniqueCells": 541
+         "uniqueCells": 541,
+         "limitedUniqueOrganisms": 170,
+         "limitedUniqueCells": 33,
+         "limitedBindingByPool": [
+          21,
+          2632,
+          7674
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -21322,7 +21588,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -21337,7 +21610,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         }
        ]
       },
@@ -21372,6 +21652,13 @@
        ],
        "uniqueOrganisms": 972,
        "uniqueCells": 564,
+       "limitedUniqueOrganisms": 260,
+       "limitedUniqueCells": 48,
+       "limitedBindingByPool": [
+        82,
+        2109,
+        14852
+       ],
        "sample": [
         {
          "tick": 626,
@@ -23564,7 +23851,14 @@
           15314
          ],
          "uniqueOrganisms": 972,
-         "uniqueCells": 564
+         "uniqueCells": 564,
+         "limitedUniqueOrganisms": 260,
+         "limitedUniqueCells": 48,
+         "limitedBindingByPool": [
+          82,
+          2109,
+          14852
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -23579,7 +23873,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -23594,7 +23895,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         }
        ]
       }
@@ -24078,6 +24386,13 @@
        ],
        "uniqueOrganisms": 300,
        "uniqueCells": 613,
+       "limitedUniqueOrganisms": 0,
+       "limitedUniqueCells": 0,
+       "limitedBindingByPool": [
+        0,
+        0,
+        0
+       ],
        "sample": [
         {
          "tick": 1,
@@ -26270,7 +26585,14 @@
           0
          ],
          "uniqueOrganisms": 300,
-         "uniqueCells": 613
+         "uniqueCells": 613,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -26285,7 +26607,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -26300,7 +26629,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         }
        ]
       },
@@ -26335,6 +26671,13 @@
        ],
        "uniqueOrganisms": 438,
        "uniqueCells": 741,
+       "limitedUniqueOrganisms": 0,
+       "limitedUniqueCells": 0,
+       "limitedBindingByPool": [
+        0,
+        0,
+        0
+       ],
        "sample": [
         {
          "tick": 101,
@@ -28527,7 +28870,14 @@
           0
          ],
          "uniqueOrganisms": 438,
-         "uniqueCells": 741
+         "uniqueCells": 741,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -28542,7 +28892,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -28557,7 +28914,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         }
        ]
       },
@@ -28592,6 +28956,13 @@
        ],
        "uniqueOrganisms": 970,
        "uniqueCells": 929,
+       "limitedUniqueOrganisms": 113,
+       "limitedUniqueCells": 21,
+       "limitedBindingByPool": [
+        461,
+        2463,
+        3175
+       ],
        "sample": [
         {
          "tick": 251,
@@ -30784,7 +31155,14 @@
           3267
          ],
          "uniqueOrganisms": 970,
-         "uniqueCells": 929
+         "uniqueCells": 929,
+         "limitedUniqueOrganisms": 113,
+         "limitedUniqueCells": 21,
+         "limitedBindingByPool": [
+          461,
+          2463,
+          3175
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -30799,7 +31177,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -30814,7 +31199,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         }
        ]
       },
@@ -30849,6 +31241,13 @@
        ],
        "uniqueOrganisms": 1199,
        "uniqueCells": 729,
+       "limitedUniqueOrganisms": 306,
+       "limitedUniqueCells": 106,
+       "limitedBindingByPool": [
+        2200,
+        10482,
+        7965
+       ],
        "sample": [
         {
          "tick": 501,
@@ -33041,7 +33440,14 @@
           8229
          ],
          "uniqueOrganisms": 1199,
-         "uniqueCells": 729
+         "uniqueCells": 729,
+         "limitedUniqueOrganisms": 306,
+         "limitedUniqueCells": 106,
+         "limitedBindingByPool": [
+          2200,
+          10482,
+          7965
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -33056,7 +33462,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -33071,7 +33484,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         }
        ]
       },
@@ -33106,6 +33526,13 @@
        ],
        "uniqueOrganisms": 1294,
        "uniqueCells": 900,
+       "limitedUniqueOrganisms": 328,
+       "limitedUniqueCells": 132,
+       "limitedBindingByPool": [
+        3354,
+        12916,
+        11915
+       ],
        "sample": [
         {
          "tick": 626,
@@ -35298,7 +35725,14 @@
           12202
          ],
          "uniqueOrganisms": 1294,
-         "uniqueCells": 900
+         "uniqueCells": 900,
+         "limitedUniqueOrganisms": 328,
+         "limitedUniqueCells": 132,
+         "limitedBindingByPool": [
+          3354,
+          12916,
+          11915
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -35313,7 +35747,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -35328,7 +35769,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         }
        ]
       }
@@ -35810,6 +36258,13 @@
        ],
        "uniqueOrganisms": 285,
        "uniqueCells": 538,
+       "limitedUniqueOrganisms": 0,
+       "limitedUniqueCells": 0,
+       "limitedBindingByPool": [
+        0,
+        0,
+        0
+       ],
        "sample": [
         {
          "tick": 1,
@@ -38002,7 +38457,14 @@
           0
          ],
          "uniqueOrganisms": 285,
-         "uniqueCells": 538
+         "uniqueCells": 538,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -38017,7 +38479,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -38032,7 +38501,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         }
        ]
       },
@@ -38067,6 +38543,13 @@
        ],
        "uniqueOrganisms": 389,
        "uniqueCells": 612,
+       "limitedUniqueOrganisms": 1,
+       "limitedUniqueCells": 1,
+       "limitedBindingByPool": [
+        0,
+        10,
+        0
+       ],
        "sample": [
         {
          "tick": 101,
@@ -40259,7 +40742,14 @@
           0
          ],
          "uniqueOrganisms": 389,
-         "uniqueCells": 612
+         "uniqueCells": 612,
+         "limitedUniqueOrganisms": 1,
+         "limitedUniqueCells": 1,
+         "limitedBindingByPool": [
+          0,
+          10,
+          0
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -40274,7 +40764,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -40289,7 +40786,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         }
        ]
       },
@@ -40324,6 +40828,13 @@
        ],
        "uniqueOrganisms": 781,
        "uniqueCells": 835,
+       "limitedUniqueOrganisms": 87,
+       "limitedUniqueCells": 15,
+       "limitedBindingByPool": [
+        0,
+        2898,
+        3400
+       ],
        "sample": [
         {
          "tick": 251,
@@ -42516,7 +43027,14 @@
           3491
          ],
          "uniqueOrganisms": 781,
-         "uniqueCells": 835
+         "uniqueCells": 835,
+         "limitedUniqueOrganisms": 87,
+         "limitedUniqueCells": 15,
+         "limitedBindingByPool": [
+          0,
+          2898,
+          3400
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -42531,7 +43049,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -42546,7 +43071,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         }
        ]
       },
@@ -42581,6 +43113,13 @@
        ],
        "uniqueOrganisms": 952,
        "uniqueCells": 622,
+       "limitedUniqueOrganisms": 222,
+       "limitedUniqueCells": 37,
+       "limitedBindingByPool": [
+        0,
+        3373,
+        10109
+       ],
        "sample": [
         {
          "tick": 501,
@@ -44773,7 +45312,14 @@
           10320
          ],
          "uniqueOrganisms": 952,
-         "uniqueCells": 622
+         "uniqueCells": 622,
+         "limitedUniqueOrganisms": 222,
+         "limitedUniqueCells": 37,
+         "limitedBindingByPool": [
+          0,
+          3373,
+          10109
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -44788,7 +45334,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -44803,7 +45356,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         }
        ]
       },
@@ -44838,6 +45398,13 @@
        ],
        "uniqueOrganisms": 981,
        "uniqueCells": 563,
+       "limitedUniqueOrganisms": 273,
+       "limitedUniqueCells": 57,
+       "limitedBindingByPool": [
+        0,
+        4695,
+        15886
+       ],
        "sample": [
         {
          "tick": 626,
@@ -47030,7 +47597,14 @@
           16453
          ],
          "uniqueOrganisms": 981,
-         "uniqueCells": 563
+         "uniqueCells": 563,
+         "limitedUniqueOrganisms": 273,
+         "limitedUniqueCells": 57,
+         "limitedBindingByPool": [
+          0,
+          4695,
+          15886
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -47045,7 +47619,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -47060,7 +47641,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         }
        ]
       }
@@ -47544,6 +48132,13 @@
        ],
        "uniqueOrganisms": 304,
        "uniqueCells": 611,
+       "limitedUniqueOrganisms": 0,
+       "limitedUniqueCells": 0,
+       "limitedBindingByPool": [
+        0,
+        0,
+        0
+       ],
        "sample": [
         {
          "tick": 1,
@@ -49736,7 +50331,14 @@
           0
          ],
          "uniqueOrganisms": 304,
-         "uniqueCells": 611
+         "uniqueCells": 611,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -49751,7 +50353,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -49766,7 +50375,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         }
        ]
       },
@@ -49801,6 +50417,13 @@
        ],
        "uniqueOrganisms": 469,
        "uniqueCells": 764,
+       "limitedUniqueOrganisms": 0,
+       "limitedUniqueCells": 0,
+       "limitedBindingByPool": [
+        0,
+        0,
+        0
+       ],
        "sample": [
         {
          "tick": 101,
@@ -51993,7 +52616,14 @@
           0
          ],
          "uniqueOrganisms": 469,
-         "uniqueCells": 764
+         "uniqueCells": 764,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -52008,7 +52638,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -52023,7 +52660,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         }
        ]
       },
@@ -52058,6 +52702,13 @@
        ],
        "uniqueOrganisms": 1021,
        "uniqueCells": 962,
+       "limitedUniqueOrganisms": 122,
+       "limitedUniqueCells": 18,
+       "limitedBindingByPool": [
+        445,
+        2196,
+        5954
+       ],
        "sample": [
         {
          "tick": 251,
@@ -54250,7 +54901,14 @@
           6081
          ],
          "uniqueOrganisms": 1021,
-         "uniqueCells": 962
+         "uniqueCells": 962,
+         "limitedUniqueOrganisms": 122,
+         "limitedUniqueCells": 18,
+         "limitedBindingByPool": [
+          445,
+          2196,
+          5954
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -54265,7 +54923,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -54280,7 +54945,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         }
        ]
       },
@@ -54315,6 +54987,13 @@
        ],
        "uniqueOrganisms": 1198,
        "uniqueCells": 795,
+       "limitedUniqueOrganisms": 278,
+       "limitedUniqueCells": 97,
+       "limitedBindingByPool": [
+        3720,
+        10734,
+        5469
+       ],
        "sample": [
         {
          "tick": 501,
@@ -56507,7 +57186,14 @@
           5725
          ],
          "uniqueOrganisms": 1198,
-         "uniqueCells": 795
+         "uniqueCells": 795,
+         "limitedUniqueOrganisms": 278,
+         "limitedUniqueCells": 97,
+         "limitedBindingByPool": [
+          3720,
+          10734,
+          5469
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -56522,7 +57208,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -56537,7 +57230,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         }
        ]
       },
@@ -56572,6 +57272,13 @@
        ],
        "uniqueOrganisms": 1279,
        "uniqueCells": 914,
+       "limitedUniqueOrganisms": 363,
+       "limitedUniqueCells": 144,
+       "limitedBindingByPool": [
+        3602,
+        14864,
+        9021
+       ],
        "sample": [
         {
          "tick": 626,
@@ -58764,7 +59471,14 @@
           9344
          ],
          "uniqueOrganisms": 1279,
-         "uniqueCells": 914
+         "uniqueCells": 914,
+         "limitedUniqueOrganisms": 363,
+         "limitedUniqueCells": 144,
+         "limitedBindingByPool": [
+          3602,
+          14864,
+          9021
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -58779,7 +59493,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -58794,7 +59515,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         }
        ]
       }
@@ -59276,6 +60004,13 @@
        ],
        "uniqueOrganisms": 285,
        "uniqueCells": 529,
+       "limitedUniqueOrganisms": 0,
+       "limitedUniqueCells": 0,
+       "limitedBindingByPool": [
+        0,
+        0,
+        0
+       ],
        "sample": [
         {
          "tick": 1,
@@ -61468,7 +62203,14 @@
           0
          ],
          "uniqueOrganisms": 285,
-         "uniqueCells": 529
+         "uniqueCells": 529,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -61483,7 +62225,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -61498,7 +62247,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         }
        ]
       },
@@ -61533,6 +62289,13 @@
        ],
        "uniqueOrganisms": 402,
        "uniqueCells": 616,
+       "limitedUniqueOrganisms": 4,
+       "limitedUniqueCells": 2,
+       "limitedBindingByPool": [
+        0,
+        33,
+        3
+       ],
        "sample": [
         {
          "tick": 101,
@@ -63725,7 +64488,14 @@
           3
          ],
          "uniqueOrganisms": 402,
-         "uniqueCells": 616
+         "uniqueCells": 616,
+         "limitedUniqueOrganisms": 4,
+         "limitedUniqueCells": 2,
+         "limitedBindingByPool": [
+          0,
+          33,
+          3
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -63740,7 +64510,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -63755,7 +64532,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         }
        ]
       },
@@ -63790,6 +64574,13 @@
        ],
        "uniqueOrganisms": 729,
        "uniqueCells": 910,
+       "limitedUniqueOrganisms": 58,
+       "limitedUniqueCells": 12,
+       "limitedBindingByPool": [
+        0,
+        1705,
+        3715
+       ],
        "sample": [
         {
          "tick": 251,
@@ -65982,7 +66773,14 @@
           3796
          ],
          "uniqueOrganisms": 729,
-         "uniqueCells": 910
+         "uniqueCells": 910,
+         "limitedUniqueOrganisms": 58,
+         "limitedUniqueCells": 12,
+         "limitedBindingByPool": [
+          0,
+          1705,
+          3715
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -65997,7 +66795,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -66012,7 +66817,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         }
        ]
       },
@@ -66047,6 +66859,13 @@
        ],
        "uniqueOrganisms": 869,
        "uniqueCells": 640,
+       "limitedUniqueOrganisms": 184,
+       "limitedUniqueCells": 26,
+       "limitedBindingByPool": [
+        193,
+        1666,
+        8180
+       ],
        "sample": [
         {
          "tick": 501,
@@ -68239,7 +69058,14 @@
           8424
          ],
          "uniqueOrganisms": 869,
-         "uniqueCells": 640
+         "uniqueCells": 640,
+         "limitedUniqueOrganisms": 184,
+         "limitedUniqueCells": 26,
+         "limitedBindingByPool": [
+          193,
+          1666,
+          8180
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -68254,7 +69080,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -68269,7 +69102,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         }
        ]
       },
@@ -68304,6 +69144,13 @@
        ],
        "uniqueOrganisms": 972,
        "uniqueCells": 610,
+       "limitedUniqueOrganisms": 259,
+       "limitedUniqueCells": 42,
+       "limitedBindingByPool": [
+        195,
+        2290,
+        16220
+       ],
        "sample": [
         {
          "tick": 626,
@@ -70496,7 +71343,14 @@
           16552
          ],
          "uniqueOrganisms": 972,
-         "uniqueCells": 610
+         "uniqueCells": 610,
+         "limitedUniqueOrganisms": 259,
+         "limitedUniqueCells": 42,
+         "limitedBindingByPool": [
+          195,
+          2290,
+          16220
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -70511,7 +71365,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         },
         {
          "eligibleEvents": 0,
@@ -70526,7 +71387,14 @@
           0
          ],
          "uniqueOrganisms": 0,
-         "uniqueCells": 0
+         "uniqueCells": 0,
+         "limitedUniqueOrganisms": 0,
+         "limitedUniqueCells": 0,
+         "limitedBindingByPool": [
+          0,
+          0,
+          0
+         ]
         }
        ]
       }
@@ -70534,6 +71402,177 @@
      "outOfWindowEvents": 0
     }
    }
+  }
+ },
+ "sourceSHA": "37d01a45f4f645ed3b5a320fa0cbe654792ad55c",
+ "command": "node evidence/issue15-L2-20261018/l2-screen.mjs",
+ "resolvedConfigs": {
+  "517": {
+   "worldW": 2400,
+   "worldH": 2400,
+   "fieldCell": 40,
+   "spatialCell": 42,
+   "founders": 400,
+   "abioticPeriod": 1,
+   "baseLight": 1.05,
+   "lightAmplitude": 0.22,
+   "abioticCycle": 900,
+   "baseTemp": 18,
+   "tempAmplitude": 9,
+   "nutrientDiffusivity": 0.11,
+   "nutrientDecay": 0.0001,
+   "nutrientPerCell": 26,
+   "shadeExtinction": 0.034,
+   "shadeGrain": 4,
+   "nutrientCapacity": [
+    1,
+    0.78,
+    0.62
+   ],
+   "sedimentPerCell": 5.5,
+   "sedimentDecay": 0.0000016,
+   "detritusDiffusivity": 0.09,
+   "detritusDecay": 0.000007,
+   "recyclingRate": 0.02,
+   "energyPerFood": 5.2,
+   "basalFoodPerCell": 0.01,
+   "locomotionCostScale": 1,
+   "stressMutagenesis": 1,
+   "radiation": null,
+   "pioneerBonus": null,
+   "foodDisease": 0.15,
+   "meatYieldPerMass": 0,
+   "plantYieldPerMass": 0,
+   "metapopulationPatches": 4,
+   "immigrationWeight": 1,
+   "litterPerCell": 2,
+   "litterDecay": 0.0000024,
+   "litterFraction": 0.1,
+   "litterRainShare": 0.06,
+   "energyPerCarrion": 3.1,
+   "reproThresholdInit": null,
+   "asexualRateInit": null,
+   "clutchSizeInit": null,
+   "reproActCostScale": null,
+   "birthTransferScale": null,
+   "predationYieldScale": null,
+   "grazeYieldScale": 1,
+   "consumerPhotoScale": 0,
+   "decomposerPhotoScale": 0,
+   "consumerBasalScale": 0.25,
+   "producerCaptureScale": 1,
+   "decomposerFounders": 0.25,
+   "decomposerDormancy": 0.05,
+   "dormantThreatBlind": null,
+   "reproSurplusTicks": 30,
+   "mixotrophyCarbon": null,
+   "mixotrophySaturation": 1,
+   "nutrientCyclic": true,
+   "genomeV2": null,
+   "phenoMineralReturn": null,
+   "phenoMineralRescue": null,
+   "photoObserver": true,
+   "nutrientFloor": 0,
+   "sporeDispersal": 1,
+   "dormantSenescence": null,
+   "birthCostFactor": 0.42,
+   "disturbanceInterval": 260,
+   "disturbanceChance": 0.55,
+   "maxPopulation": 60000,
+   "nutrientRegen": 0.0002,
+   "bioticMineralisation": 0.45,
+   "excretionRate": 0.06,
+   "label": "default",
+   "seed": 517
+  },
+  "41001": {
+   "worldW": 2400,
+   "worldH": 2400,
+   "fieldCell": 40,
+   "spatialCell": 42,
+   "founders": 400,
+   "abioticPeriod": 1,
+   "baseLight": 1.05,
+   "lightAmplitude": 0.22,
+   "abioticCycle": 900,
+   "baseTemp": 18,
+   "tempAmplitude": 9,
+   "nutrientDiffusivity": 0.11,
+   "nutrientDecay": 0.0001,
+   "nutrientPerCell": 26,
+   "shadeExtinction": 0.034,
+   "shadeGrain": 4,
+   "nutrientCapacity": [
+    1,
+    0.78,
+    0.62
+   ],
+   "sedimentPerCell": 5.5,
+   "sedimentDecay": 0.0000016,
+   "detritusDiffusivity": 0.09,
+   "detritusDecay": 0.000007,
+   "recyclingRate": 0.02,
+   "energyPerFood": 5.2,
+   "basalFoodPerCell": 0.01,
+   "locomotionCostScale": 1,
+   "stressMutagenesis": 1,
+   "radiation": null,
+   "pioneerBonus": null,
+   "foodDisease": 0.15,
+   "meatYieldPerMass": 0,
+   "plantYieldPerMass": 0,
+   "metapopulationPatches": 4,
+   "immigrationWeight": 1,
+   "litterPerCell": 2,
+   "litterDecay": 0.0000024,
+   "litterFraction": 0.1,
+   "litterRainShare": 0.06,
+   "energyPerCarrion": 3.1,
+   "reproThresholdInit": null,
+   "asexualRateInit": null,
+   "clutchSizeInit": null,
+   "reproActCostScale": null,
+   "birthTransferScale": null,
+   "predationYieldScale": null,
+   "grazeYieldScale": 1,
+   "consumerPhotoScale": 0,
+   "decomposerPhotoScale": 0,
+   "consumerBasalScale": 0.25,
+   "producerCaptureScale": 1,
+   "decomposerFounders": 0.25,
+   "decomposerDormancy": 0.05,
+   "dormantThreatBlind": null,
+   "reproSurplusTicks": 30,
+   "mixotrophyCarbon": null,
+   "mixotrophySaturation": 1,
+   "nutrientCyclic": true,
+   "genomeV2": null,
+   "phenoMineralReturn": null,
+   "phenoMineralRescue": null,
+   "photoObserver": true,
+   "nutrientFloor": 0,
+   "sporeDispersal": 1,
+   "dormantSenescence": null,
+   "birthCostFactor": 0.42,
+   "disturbanceInterval": 260,
+   "disturbanceChance": 0.55,
+   "maxPopulation": 60000,
+   "nutrientRegen": 0.0002,
+   "bioticMineralisation": 0.45,
+   "excretionRate": 0.06,
+   "label": "default",
+   "seed": 41001
+  }
+ },
+ "R2": {
+  "met": true,
+  "passingSeeds": [
+   "517",
+   "41001"
+  ],
+  "lostBySeed": {
+   "517": 1128.107102,
+   "41001": 2458.57904
   }
  }
 }
