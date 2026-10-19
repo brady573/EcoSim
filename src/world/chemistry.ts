@@ -238,7 +238,16 @@ export const POOL_NAMES: readonly string[] = [
   'OC', 'ON', 'OP', 'OS', 'OFe',
   'LC', 'LN', 'LP', 'LS',
   'SC', 'SN', 'SP', 'SS', 'SFe',
+  'H2O',
 ];
+
+// POOL_NAMES must name every pool exactly once: it is the loop bound evidence
+// collectors use for gross and net substrate books, and the 24-name/25-pool
+// mismatch once truncated the water column of a recorded gross book (review
+// finding F1, 2026-10-18). A silent shortfall must not recur.
+if (POOL_NAMES.length !== POOL_COUNT || new Set(POOL_NAMES).size !== POOL_COUNT) {
+  throw new Error(`POOL_NAMES must name all ${POOL_COUNT} pools exactly once`);
+}
 
 export function poolElement(p: POOL): E {
   return POOL_ELEMENT_RT[p];

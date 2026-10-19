@@ -35,7 +35,7 @@ import { TROPHIC_COUNT } from './bio/role.js';
 import type { Phenotype } from './bio/phenotype.js';
 import { Rng } from './core/rng.js';
 import { INTENT } from './world/world.js';
-import { REACTIONS, CAP, CAP_COUNT, reactionExtent } from './bio/metabolism.js';
+import { REACTIONS, CAP, CAP_COUNT, RX_COUNT, ISOLATED_REACTIONS, reactionExtent } from './bio/metabolism.js';
 
 import { runIdentity, CHEMISTRY_ENGINE_VERSION } from './world/version.js';
 import { E_RUNTIME_COUNT, E } from './bio/elements.js';
@@ -1553,6 +1553,11 @@ function gate22(): void {
  * by a model that balances at runtime for the wrong reason, and it catches a
  * mis-declared coefficient before a single tick runs. Its live counterpart is
  * G53, which pushes the same closure through the real reaction machinery.
+ *
+ * The closed set is the LIVE network (12 reactions since chem/0.8.1).
+ * Nitrification is isolated, not exempt: it is absent from REACTIONS and
+ * declared in ISOLATED_REACTIONS precisely because it cannot close, and G54
+ * witnesses that it never executes.
  */
 function gate26(): void {
   const NAME = ['C', 'H', 'O', 'N', 'P', 'S', 'Fe'];
@@ -3503,6 +3508,67 @@ function gate53(): void {
     + `${corrupt.residual[E.O].toExponential(2)} visible=${corruptVisible}`);
 }
 
+/**
+ * G54 — nitrification is ISOLATED, not silently gated.
+ *
+ * The Owner review of 2026-10-18 found chem/0.8.0 kept this pathway's energy
+ * income while replacing its oxygen bookkeeping with a presence gate: an
+ * oxygen-consuming reaction oxidising no declared oxidant. Under the
+ * composition vocabulary the pathway cannot be balanced honestly (NH4 and NO3
+ * are single-element nitrogen carriers; both balancing alternatives break a
+ * live mechanism), so the accepted fallback is isolation: the reaction is
+ * absent from the live network and preserved in ISOLATED_REACTIONS, and its
+ * retained omission selector is a declared no-op whose contrast is VACUOUS.
+ *
+ * This gate is the LIVE witness, not the declaration:
+ *   - a cell holding NH4 and O2 with a NITRIFY-capable organism books no
+ *     extent, no energy income and no transfer, and moves neither NH4 nor O2;
+ *   - a live world run with and without `chemistryReactionOmit ===
+ *     'nitrification'` is state-for-state identical at every tick.
+ *
+ * A declaration alone was exactly the failure mode here: the chem/0.8.0
+ * correction was named, documented and closed on paper while the running
+ * reaction still earned energy. Anything claimed about the isolation must be
+ * observed in a running world.
+ */
+function gate54(): void {
+  const parts: string[] = [];
+  const live = REACTIONS.some((r) => r.name === 'nitrification');
+  const declared = ISOLATED_REACTIONS.filter((r) => r.name === 'nitrification');
+  const overlap = ISOLATED_REACTIONS.filter((d) => REACTIONS.some((r) => r.name === d.name));
+  parts.push(`live=${live ? 'PRESENT' : 'absent'} declared=${declared.length} overlap=${overlap.length}`);
+
+  const chem = new Chemistry(1, 1, 1, { ...DEFAULT_CHEMISTRY });
+  chem.fields[POOL.NH4].data[0] = 0.004;
+  chem.fields[POOL.O2].data[0] = 1;
+  const st = newChemStores(1);
+  st.capMask[0] = CAP.NITRIFY; st.capStrength.fill(1); st.light[0] = 1;
+  const out = new Float64Array(POOL_COUNT);
+  const extent = new Float64Array(RX_COUNT);
+  const income = runMetabolism(chem, st, 0, 0, { ...DEFAULT_CHEM_CONFIG, enabled: true }, out, extent);
+  const extentSum = Array.from(extent).reduce((a, v) => a + Math.abs(v), 0);
+  const transfer = Array.from(out).reduce((a, v) => a + Math.abs(v), 0);
+  const nh4 = chem.remaining(POOL.NH4, 0);
+  const o2 = chem.remaining(POOL.O2, 0);
+  const cellOk = !live && declared.length === 1 && overlap.length === 0
+    && extentSum === 0 && income === 0 && transfer === 0
+    && Math.abs(nh4 - 0.004) < 1e-12 && Math.abs(o2 - 1) < 1e-12;
+  parts.push(`cell extent=${extentSum} income=${income} transfer=${transfer} NH4=${nh4} O2=${o2}`);
+
+  const cfg = { seed: 517, founders: 400, genomeV2: true, chemistry: true } as const;
+  const a = new World({ config: cfg as never });
+  const b = new World({ config: { ...cfg, chemistryReactionOmit: 'nitrification' } as never });
+  let identical = true;
+  for (let i = 0; i < 120; i++) {
+    a.step(); b.step();
+    if (a.hashState() !== b.hashState()) { identical = false; break; }
+  }
+  parts.push(`world identity over 120 ticks: ${identical}`);
+
+  record('G54', 'the isolated nitrification pathway books nothing and its omission is a no-op',
+    cellOk && identical, parts.join(' | '));
+}
+
 function main(): void {
   console.log(`=== credibility gates :: ${WORLD_ENGINE_VERSION} ===`);
   console.log(`scenario: founders=${SMALL.founders} world=${SMALL.worldW}x${SMALL.worldH} ticks=${TICKS} seed=${SMALL.seed}\n`);
@@ -3553,11 +3619,12 @@ function main(): void {
   gate46();
   gate52();
   gate53();
+  gate54();
   for (const [id, name, test] of [
     ['G48', 'D1 growth preserves every element at the limiting carbon quantity', chemicalGrowthCases],
     ['G49', 'D2 N/P demand is linear; carbon/cofactor boundaries stay explicit', chemicalReproductionCases],
     ['G50', 'D1 live tissue/store/energy charges agree with realized growth', chemicalLiveGrowthCases],
-    ['G51', 'research omissions isolate reactions without disabling organism uptake', reactionOmissionCases],
+    ['G51', 'research omissions isolate live reactions; the isolated pathway is a declared no-op', reactionOmissionCases],
   ] as const) {
     try {
       const cases = test();

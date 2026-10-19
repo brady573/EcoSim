@@ -62,7 +62,7 @@ writeFileSync(`${out}/protocol.json`, JSON.stringify({
     + 'failure per element; all reproductive events consumed losslessly into the retained actual birth graph.',
   limits: 'Exploratory; no held-out inference, no biology repair, no merge authority. Old panels are immutable '
     + 'provenance and were not retroactively certified.',
-  reactionDefects: defects, pools: [...POOL_NAMES, 'H2O'],
+  reactionDefects: defects, pools: POOL_NAMES,
   poolComposition: Array.from(POOL_COMPOSITION),
 }, null, 2));
 writeFileSync(`${out}/one-cell-controls.json`, JSON.stringify(choContractCases(), null, 2));

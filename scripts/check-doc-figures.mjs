@@ -33,6 +33,11 @@ const expectedIdentity = `${worldV}+${chemV}`;
 // and is provenance now: the multielement contract superseded it, and a later
 // bump must not relabel its evidence or re-read its explanations.
 const priorIdentity = 'ts-evo-poc/0.8.0+chem/0.7.8';
+// Recorded identity of the chem/0.8.0 contract panel. It was live when
+// recorded; chem/0.8.1 superseded its nitrification semantics (the pathway was
+// isolated as unsupported). The panel stays verified as recorded and is never
+// relabelled — only its identity binding moves from LIVE to RECORDED.
+const panel080Identity = 'ts-evo-poc/0.8.0+chem/0.8.0';
 // Retired 0.7.8 targeted qualification, verified as recorded.
 {
   const doc = read(join(root, 'CHEM-078-CORRECTIONS.md'));
@@ -86,13 +91,15 @@ const priorIdentity = 'ts-evo-poc/0.8.0+chem/0.7.8';
   }
 }
 // ---------------------------------------------------------------------------
-// CURRENT identity — the chem/0.8.0 contract re-measurement.
+// RECORDED (superseded) identity — the chem/0.8.0 contract re-measurement.
 //
-// This panel is live: it must carry the engine's current identity, its figures
-// must be present in this raw archive, and the archive must be internally
-// consistent (the terminal JSONL row must reconstruct the summary it claims).
-// The closure prediction is NOT asserted here: a falsified prediction is a
-// result, so the doc's stated failure count is pinned to the raw count instead.
+// Retained as the record of the 0.8.0 semantics: chem/0.8.1 isolated
+// nitrification and superseded this panel's nitrification claims. Its figures
+// remain as measured and are still verified against this raw archive; the
+// archive must be internally consistent (the terminal JSONL row must
+// reconstruct the summary it claims). The closure prediction is NOT asserted
+// here: a falsified prediction is a result, so the doc's stated failure count
+// is pinned to the raw count instead.
 // ---------------------------------------------------------------------------
 {
   const dir = join(root, 'evidence/cho-080-20261018');
@@ -102,7 +109,7 @@ const priorIdentity = 'ts-evo-poc/0.8.0+chem/0.7.8';
   const contrast = JSON.parse(read(join(dir, 'old-new-contrast.json')));
   const controls = JSON.parse(read(join(dir, 'one-cell-controls.json')));
   const doc = read(join(root, 'CHO-080-RESULTS.md'));
-  assert.ok(doc.includes(expectedIdentity), 'the re-measurement doc must name the current identity');
+  assert.ok(doc.includes(panel080Identity), 'the recorded re-measurement doc must name the 0.8.0 identity');
   assert.equal(protocol.seeds.length, 4);
   assert.deepEqual(protocol.discoveryReplays, [41001, 41002]);
   assert.deepEqual(protocol.newExploratorySeeds, [41003, 41004]);
@@ -113,7 +120,7 @@ const priorIdentity = 'ts-evo-poc/0.8.0+chem/0.7.8';
   assert.equal(summary.length, 8);
   for (const r of summary) {
     const suffix = r.omission ? `+rxomit/1/${r.omission}` : '';
-    assert.equal(r.identity, expectedIdentity + suffix);
+    assert.equal(r.identity, panel080Identity + suffix);
     assert.equal(r.observerExact, true);
     assert.equal(r.unreadLost, 0);
     assert.equal(r.descendants.status, 'COMPLETE');
@@ -128,7 +135,7 @@ const priorIdentity = 'ts-evo-poc/0.8.0+chem/0.7.8';
   assert.equal(contrast.length, 4);
   for (const c of contrast) {
     assert.equal(c.oldIdentity, priorIdentity);
-    assert.equal(c.newIdentity, expectedIdentity + (c.name.startsWith('nitrification') ? '+rxomit/1/nitrification' : ''));
+    assert.equal(c.newIdentity, panel080Identity + (c.name.startsWith('nitrification') ? '+rxomit/1/nitrification' : ''));
     assert.equal(c.hashChanged, true, 'the correction must be observable at every discovery replay');
     assert.deepEqual(c.oldFirstFailures, { H: 17, O: 17, C: 34 });
   }
@@ -145,7 +152,7 @@ const priorIdentity = 'ts-evo-poc/0.8.0+chem/0.7.8';
   }
   const nitr = controls.find(c => c.name === 'nitrification-correction');
   assert.ok(nitr && nitr.vector.every(v => Math.abs(v) < 1e-12) && nitr.minO2 > 0,
-    'nitrification must close by declaration with its oxygen gate intact');
+    'the recorded 0.8.0 controls must carry the named gate correction as recorded');
   // Verdict-document figures, against this raw panel. The doc's claim is
   // measured in RUNS, so the count must be runs-with-any-failure — summing
   // per-element failures would pin the wrong unit and look checked anyway.
@@ -164,8 +171,122 @@ const priorIdentity = 'ts-evo-poc/0.8.0+chem/0.7.8';
     .reduce((n, seed) => n + summary.find(r => r.seed === seed && r.omission === omission)[key], 0) / 4;
   assert.ok(doc.includes(`**${armMean(null, 'population')} → ${armMean('nitrification', 'population')}**`));
   assert.ok(doc.includes(`**${armMean(null, 'births')} → ${armMean('nitrification', 'births')}**`));
-  console.log(`chem/0.8.0 re-measurement: 8 runs, ${runsWithFailures} with any strict failure, `
+  console.log(`chem/0.8.0 re-measurement (recorded): 8 runs, ${runsWithFailures} with any strict failure, `
     + 'contrast and controls verified');
+}
+// ---------------------------------------------------------------------------
+// CURRENT identity — the chem/0.8.1 nitrification-isolation replay.
+//
+// The Owner review of 2026-10-18 found chem/0.8.0 kept the pathway live with
+// its oxygen reduced to a presence gate while it still earned energy and
+// converted NH4 -> NO3. The accepted correction isolates it: absent from the
+// live network, declared in ISOLATED_REACTIONS, its retained omission selector
+// a declared no-op. This preregistered replay must show (1) no nitrification
+// extent or energy anywhere, (2) null/omission arms identical in every
+// recorded field at every tick — the contrast is VACUOUS — (3) the corrected
+// null arm reproducing the recorded 0.8.0 OMISSION arm state-for-state, so
+// nothing else moved, and (4) diverging from the recorded 0.8.0 CONTROL arm,
+// which ran the gated pathway, so the isolation is operative. The verdict
+// figures quoted in CHO-081-RESULTS.md are pinned to this raw panel.
+// ---------------------------------------------------------------------------
+{
+  const dir = join(root, 'evidence/cho-081-20261019');
+  const protocol = JSON.parse(read(join(dir, 'protocol.json')));
+  const complete = JSON.parse(read(join(dir, 'complete.json')));
+  const summary = JSON.parse(read(join(dir, 'summary.json')));
+  const armIdentity = JSON.parse(read(join(dir, 'arm-identity.json')));
+  const contrast = JSON.parse(read(join(dir, 'cross-version-contrast.json')));
+  const controls = JSON.parse(read(join(dir, 'one-cell-controls.json')));
+  const witness = JSON.parse(read(join(dir, 'isolation-witness.json')));
+  const doc = read(join(root, 'CHO-081-RESULTS.md'));
+  assert.ok(doc.includes(expectedIdentity), 'the isolation replay doc must name the current identity');
+  assert.equal(protocol.tranche, 'chem/0.8.1 nitrification isolation correction');
+  assert.deepEqual(protocol.seeds, [41001, 41002]);
+  assert.deepEqual(protocol.arms, [null, 'nitrification']);
+  assert.equal(protocol.ticks, 1000);
+  assert.equal(protocol.founders, 400);
+  assert.equal(complete.uniqueRuns, 4);
+  assert.equal(complete.fullHorizonExecutions, 8);
+  assert.equal(complete.observerExact, true);
+  assert.equal(complete.armsIdentical, true);
+  assert.equal(complete.priorOmissionReproduced, true);
+  assert.equal(complete.controlDivergedFromGatedArm, true);
+  // (1) The pathway is not in the live network, its declaration preserves what
+  // was removed, and the cell witness books nothing with NH4 and O2 present.
+  assert.ok(!protocol.reactionDefects.some(r => r.name === 'nitrification'));
+  assert.ok(protocol.isolated?.length === 1 && protocol.isolated[0].name === 'nitrification');
+  const declared = protocol.isolated[0];
+  assert.ok(declared.energy > 0 && declared.minO2 > 0 && declared.substrates.some(s => s.pool === 2));
+  assert.equal(witness.live, false);
+  assert.equal(witness.omissionSelectorDifference, false);
+  assert.equal(witness.cell.income, 0);
+  assert.ok(witness.cell.extents.every(v => v === 0));
+  assert.ok(witness.cell.out.every(v => v === 0));
+  assert.ok(Math.abs(witness.cell.nh4 - 0.004) < 1e-12 && Math.abs(witness.cell.o2 - 1) < 1e-12);
+  // (2) VACUOUS contrast: the arms are identical at both seeds, every tick.
+  assert.equal(armIdentity.length, 2);
+  for (const row of armIdentity) {
+    assert.equal(row.rowsIdentical, true);
+    assert.equal(row.ticksCompared, 1000);
+    assert.equal(row.recordsCompared, 1000);
+    assert.equal(row.identityControl, expectedIdentity);
+    assert.equal(row.identityOmission, `${expectedIdentity}+rxomit/1/nitrification`);
+  }
+  assert.equal(summary.length, 4);
+  for (const r of summary) {
+    const suffix = r.omission ? `+rxomit/1/${r.omission}` : '';
+    assert.equal(r.identity, expectedIdentity + suffix);
+    assert.equal(r.observerExact, true);
+    assert.equal(r.unreadLost, 0);
+    assert.equal(r.descendants.status, 'COMPLETE');
+    assert.ok(!r.extentNames.includes('nitrification'), 'the isolated pathway must not be a live reaction');
+    assert.equal(Object.keys(r.firstFailures).length, 0, 'the isolation replay must be free of strict failures');
+    assert.equal(r.extents.length, 12);
+    const name = `${r.omission ?? 'control'}-${r.seed}`;
+    const lines = read(join(dir, `${name}-ticks.jsonl`)).trim().split('\n');
+    assert.equal(lines.length, 1000, `${name} must hold a full horizon`);
+    const last = JSON.parse(lines.at(-1));
+    assert.deepEqual(last.audit, r.audit, `${name}: terminal raw audit must reconstruct the summary`);
+    assert.equal(last.hash, r.hash);
+  }
+  // (3)/(4) Cross-version contrast: reproduce the recorded omission arm
+  // hash-for-hash, diverge from the recorded gated control.
+  assert.equal(contrast.length, 2);
+  for (const c of contrast) {
+    assert.equal(c.correctedControlHash, c.priorOmissionHash,
+      'the corrected control must reproduce the recorded 0.8.0 omission arm');
+    assert.ok(c.firstDivergenceTickVsPriorControl !== null,
+      'the corrected control must diverge from the recorded gated control arm');
+    assert.ok(c.priorNitrificationExtent > 0 && c.correctedNitrificationExtent === 0);
+    assert.notEqual(c.priorControlHash, c.correctedControlHash);
+  }
+  // Controls recorded with this panel: the isolation control replaces the
+  // retired "nitrification-correction" case; everything else is unchanged.
+  const near = (a, b) => Math.abs(a - b) <= 1e-12 * Math.max(1, Math.abs(b));
+  const clean = controls.find(c => c.name === 'burial-reservation' && c.unreserved === false);
+  const defect = controls.find(c => c.name === 'burial-reservation' && c.unreserved === true);
+  assert.ok(clean && near(clean.clamp, 0) && near(clean.carbonCreated, 0),
+    'the reservation path must not clamp or create carbon');
+  assert.ok(defect && defect.clamp > 0 && near(defect.clamp, defect.carbonCreated),
+    'the unreserved harness control must reproduce clamp-created carbon');
+  const iso = controls.find(c => c.name === 'nitrification-isolation');
+  assert.ok(iso && iso.live === false && iso.declared === true && iso.minO2 > 0 && iso.energy > 0,
+    'the panel must record the isolation control');
+  for (const c of controls.filter(c => ['photosynthesis', 'aerobic respiration',
+    'sulfur oxidation', 'iron oxidation'].includes(c.name))) {
+    assert.ok(c.strict.every(e => e.ok), `${c.name} must close under the contract`);
+  }
+  // Verdict-document figures, against this raw panel.
+  for (const c of contrast) {
+    assert.ok(doc.includes(`| ${c.seed} | ${c.priorControlHash} | ${c.correctedControlHash} | ${c.firstDivergenceTickVsPriorControl} |`),
+      `missing cross-version figure row for seed ${c.seed}`);
+    assert.ok(doc.includes(`| ${c.seed} | ${c.priorNitrificationExtent} |`),
+      `missing recorded nitrification extent for seed ${c.seed}`);
+  }
+  assert.ok(doc.includes('**VACUOUS**'), 'the doc must label the contrast VACUOUS');
+  console.log('chem/0.8.1 isolation replay: 4 runs, arms byte-identical at both seeds, '
+    + 'recorded 0.8.0 omission arm reproduced, gated control diverges at tick '
+    + contrast.map(c => c.firstDivergenceTickVsPriorControl).join('/'));
 }
 // Fixed identity of the reconciled investigation panels. A live chemistry bump
 // does not relabel archived cohorts or make their numbers current again.

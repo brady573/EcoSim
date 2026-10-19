@@ -1,0 +1,24 @@
+[
+  {
+    "seed": 41001,
+    "identityControl": "ts-evo-poc/0.8.0+chem/0.8.1",
+    "identityOmission": "ts-evo-poc/0.8.0+chem/0.8.1+rxomit/1/nitrification",
+    "ticksCompared": 1000,
+    "recordsCompared": 1000,
+    "rowsIdentical": true,
+    "finalPopulation": 30,
+    "finalBirths": 47,
+    "finalHash": "f940e23d"
+  },
+  {
+    "seed": 41002,
+    "identityControl": "ts-evo-poc/0.8.0+chem/0.8.1",
+    "identityOmission": "ts-evo-poc/0.8.0+chem/0.8.1+rxomit/1/nitrification",
+    "ticksCompared": 1000,
+    "recordsCompared": 1000,
+    "rowsIdentical": true,
+    "finalPopulation": 38,
+    "finalBirths": 58,
+    "finalHash": "79a758ce"
+  }
+]

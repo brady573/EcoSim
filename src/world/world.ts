@@ -1201,6 +1201,12 @@ export class World {
     }
     this.repro = opts.reproProbe ?? null;
     const cfg = resolveConfig(opts.config);
+    // 'nitrification' remains an accepted selector even though the pathway is
+    // ISOLATED since chem/0.8.1 (it is absent from REACTIONS and declared in
+    // ISOLATED_REACTIONS). The selector keeps recorded arm names resolvable
+    // and omitting it is a declared no-op: the arms are state-identical and
+    // the contrast is VACUOUS (G51/G54). Dropping the name would invalidate
+    // recorded identities without changing any simulation.
     if (cfg.chemistryReactionOmit != null && (!['nitrification', 'iron oxidation', 'iron uptake'].includes(cfg.chemistryReactionOmit)
       || cfg.chemistry !== true)) throw new Error('chemistryReactionOmit requires chemistry=true and exactly one supported reaction name');
     if (cfg.chemistryReproNutrientDemand != null

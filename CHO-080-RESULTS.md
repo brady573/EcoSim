@@ -5,6 +5,17 @@ any run of this panel started; the Results section was appended only after the
 raw archive existed on disk (`evidence/cho-080-20261018/`, complete.json
 written by the runner).
 
+> **Correction (2026-10-19).** The Owner review of PR #14 found that the
+> nitrification result in this panel was produced by a mechanism departure: at
+> `chem/0.8.0` the pathway stayed live with its oxygen reduced to a presence
+> gate while it still earned energy, and its null-versus-omission contrast is
+> **VACUOUS** as evidence about an oxygen-consuming nitrification pathway.
+> Under `chem/0.8.1` the pathway is isolated as unsupported and the corrected
+> arms are byte-identical. This document remains the record of the `chem/0.8.0`
+> panel as measured — figures unaltered — and its nitrification claims are
+> reinterpreted accordingly. See `CHO-081-RESULTS.md` and
+> `CHEM-080-CONTRACT.md` §3.1.
+
 ## What this panel is
 
 A small re-measurement for the Owner-directed `chem/0.8.0` multielement C/H/O
@@ -90,9 +101,12 @@ reclassified to make this true.
 nitrification 41001: 44 → 47; nitrification 41002: 60 → 58); control 41002
 kept 17 births while its state hash still changed.
 
-**3. Contrast survives — SUPPORTED.** The omission arm records zero
-nitrification extent in every run (runner assertion) while all other reactions
-remain live.
+**3. Contrast survives — SUPERSEDED (measured under `chem/0.8.0`; contrast
+VACUOUS under `chem/0.8.1`).** As recorded, the omission arm registered zero
+nitrification extent in every run while all other reactions remained live. The
+arm difference was produced by switching the gated reaction on and off; it is
+not evidence about an oxygen-consuming nitrification pathway, and under
+`chem/0.8.1` the same arm pair is byte-identical (`CHO-081-RESULTS.md`).
 
 ## Old-versus-new first-failure contrast (discovery replays)
 
@@ -118,14 +132,18 @@ either.
 
 Mean population **17.75 → 24.5**; mean births **30 → 44**. Four seeds is small:
 this records the direction of the recorded omission contrast under the new
-contract and nothing more.
+contract and nothing more. **Correction (2026-10-19):** this contrast measured
+the gated mechanism switching on and off; it is **VACUOUS** under `chem/0.8.1`,
+where the arms are byte-identical (`CHO-081-RESULTS.md`).
 
 ## Controls recorded with this panel
 
 `one-cell-controls.json`: five single-reaction closures (all seven elements
-ok, unexplained ≤ 1e-9), the nitrification correction (defect vector zero with
-`minO2` still positive), the declared denitrification N vent, and the burial
-pair — reservation path clamp 0 / created carbon 0; unreserved path
+ok, unexplained ≤ 1e-9), the nitrification correction as recorded under
+`chem/0.8.0` (defect vector zero with `minO2` still positive — superseded by
+the isolation control in `evidence/cho-081-20261019/`), the declared
+denitrification N vent, and the burial pair — reservation path clamp 0 /
+created carbon 0; unreserved path
 clamp = created carbon = the burial amount (8.999999999999406e-8). The
 unreserved arm is a harness mutation, never injected into a measured world.
 
@@ -133,5 +151,5 @@ unreserved arm is a harness mutation, never injected into a measured world.
 
 Four seeds, exploratory; the closure claim is a claim about the DECLARED books
 under this contract, not a claim that every modelled process is materially
-complete (see `CHEM-080-CONTRACT.md` §6, especially the nitrification gate and
-the predator energy-only link). No merge authority is implied.
+complete (see `CHEM-080-CONTRACT.md` §6, especially the isolated nitrification
+pathway and the predator energy-only link). No merge authority is implied.

@@ -1,5 +1,18 @@
 # Nitrification omission — confirmation proposal, awaiting Owner acceptance
 
+> **Status update (2026-10-19): SUPERSEDED by the isolation decision.** The
+> Owner review of PR #14 (2026-10-18) found that `chem/0.8.0`'s live
+> nitrification — a presence gate instead of a booked oxidant while energy was
+> still earned — is a material mechanism departure. Under the accepted
+> fallback the pathway is isolated as unsupported/disabled in `chem/0.8.1`
+> (`ISOLATED_REACTIONS`), and its omission selector is a declared no-op whose
+> contrast is VACUOUS (`CHO-081-RESULTS.md`). The confirmation panel proposed
+> here cannot be run against an isolated pathway: a future nitrification
+> mechanism requires an explicit Owner decision on vocabulary first
+> (`CHEM-080-CONTRACT.md` §3.1). This document is retained as the record of the
+> proposal and of the still-open registration choices it describes; nothing in
+> it is an accepted preregistration.
+
 Follow-up status: the Owner subsequently authorized bounded accounting
 attribution and up to eight exploratory matched pairs. Results and remaining
 repair decisions are in `CHO-ATTRIBUTION-ASSESSMENT.md`. This did not authorize

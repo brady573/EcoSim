@@ -60,6 +60,17 @@ Do not equate a broad `noNitrogenCycle` run with
 nitrification-only suppression. A research-only selective reaction suppression
 must retain N_ASSIM, have null-default parity and be explicitly declared.
 
+**Addendum (2026-10-19).** The Owner review of PR #14 found that the live
+`chem/0.8.0` pathway was a material mechanism departure (oxygen reduced to a
+presence gate while energy was still earned). Nitrification is therefore
+ISOLATED as unsupported/disabled in `chem/0.8.1`; the selective suppression
+described above is retained only as a declared no-op selector whose
+control/omission contrast is VACUOUS. The D3 direction — separating NH4 uptake
+from nitrification, with nitrate assimilation as a distinct costly evolvable
+option — remains OPEN, and now starts from an isolated pathway: re-enabling
+nitrification requires an Owner decision on vocabulary first
+(`CHEM-080-CONTRACT.md` §3.1, `CHO-081-RESULTS.md`).
+
 ### D4. What does iron uptake mean?
 
 The named reaction sends Fe2 to environmental OFE; the separate organism-side

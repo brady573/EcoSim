@@ -95,11 +95,24 @@ export const WORLD_ENGINE_VERSION = 'ts-evo-poc/0.8.0';
 // POOL_COMPOSITION becomes the authoritative inventory table (water is 2 H + 1
 // O, O2 is 2 O, bulk organic carbon carries its declared H/O ratio); burial
 // reserves its source through claim() instead of an unclaimed react(); eight
-// reaction stoichiometries are corrected, and nitrification's O2 becomes a
-// habitat gate rather than a booked substrate (a named correction — the
-// alternatives are documented in src/bio/metabolism.ts). Chemistry-UNSET
-// semantics and parity are unchanged; every chem/0.7.8 figure is historical.
-export const CHEMISTRY_ENGINE_VERSION = 'chem/0.8.0';
+// reaction stoichiometries are corrected. Chemistry-UNSET semantics and parity
+// are unchanged; every chem/0.7.8 figure is historical.
+//
+// chem/0.8.1, 2026-10-19: NITRIFICATION IS ISOLATED as unsupported/disabled.
+// At chem/0.8.0 the pathway was kept live with its oxygen reduced to a
+// presence gate while it still earned energy and converted NH4 -> NO3 — a
+// material mechanism departure with no accountable oxidant draw, found by the
+// Owner review of 2026-10-18. Under POOL_COMPOSITION the pathway cannot be
+// balanced (NH4 and NO3 are single-element carriers; the balancing
+// alternatives break denitrification or manufacture H in sediment release),
+// so the accepted fallback is isolation: the reaction leaves the live network
+// and is preserved in ISOLATED_REACTIONS. Its omission selector is retained
+// and is a declared no-op, so the control/omission contrast is VACUOUS
+// (G51/G54; CHEM-080-CONTRACT.md §3.1; CHO-081-RESULTS.md). All other
+// chem/0.8.0 corrections are unchanged; chemistry-UNSET semantics and parity
+// are unchanged; the chem/0.8.0 panel is provenance and its gated-pathway
+// trajectories are not comparable to chem/0.8.1.
+export const CHEMISTRY_ENGINE_VERSION = 'chem/0.8.1';
 
 /**
  * Whether the chemistry semantics themselves changed in the 0.7.0 correction.
@@ -119,6 +132,12 @@ export const CHEMISTRY_ENGINE_VERSION = 'chem/0.8.0';
  * A chemistry-enabled run is a DIFFERENT MODEL, not a configuration of the
  * pinned one, and is reported as such. Evidence produced under either string
  * cannot be silently compared against the other, because the strings differ.
+ *
+ * `nitrification` remains an accepted omission name even though the pathway
+ * has been ISOLATED (chem/0.8.1): the string still identifies the arm, and the
+ * omitted run is state-identical to the control — the contrast is VACUOUS by
+ * construction. The selector is retained so recorded arm names stay
+ * resolvable.
  */
 export function runIdentity(config: boolean | { chemistry?: boolean | null; chemistryReactionOmit?: string | null }): string {
   const chemistryEnabled = typeof config === 'boolean' ? config : config.chemistry === true;
@@ -146,6 +165,13 @@ export function runIdentity(config: boolean | { chemistry?: boolean | null; chem
  * C/H/O contract and G52 (burial reservation) and G53 (live reaction closure)
  * were added. A result recorded under gates/0.8.2 is not comparable without
  * re-running.
+ *
+ * gates/0.8.4, 2026-10-19: the nitrification isolation correction. G26/G53 now
+ * close the 12-reaction live network (the isolated pathway is declared, never
+ * live); G51 covers the isolated pathway as a declared no-op instead of a live
+ * reaction; G54 is added — the live witness that the isolated pathway books
+ * nothing and that its omission is state-identical to the control. A result
+ * recorded under gates/0.8.3 is not comparable without re-running.
  */
 // Combined chemistry and main validation suite, including G41-G47.
-export const GATE_SUITE_VERSION = 'gates/0.8.3';
+export const GATE_SUITE_VERSION = 'gates/0.8.4';

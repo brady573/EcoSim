@@ -19,12 +19,15 @@ evolutionary simulation. Single TypeScript tree. Engine version
 `ts-evo-poc/0.8.0` (main 0.6.3 reconciled with the canopy and chemistry branch).
 
 - **STATUS: EXPERIMENTAL. NOT PRODUCTION CODE.**
-- Current chemistry identity: `chem/0.8.0` (Owner-directed multielement C/H/O
-  contract, 2026-10-18; supersedes the Owner-accepted D1/D2 `chem/0.7.8`).
+- Current chemistry identity: `chem/0.8.1` (the Owner-directed multielement
+  C/H/O contract of 2026-10-18, with nitrification isolated as
+  unsupported/disabled; supersedes the Owner-accepted D1/D2 `chem/0.7.8`).
   Chemistry-unset parity and base `ts-evo-poc/0.8.0` are unchanged. All 0.7.x
-  chemistry figures below are historical, not current measurements; use
-  `CHEM-080-CONTRACT.md` for the contract and its qualified scope, and
-  `CHO-080-RESULTS.md` for the preregistered re-measurement.
+  and `chem/0.8.0` chemistry figures below are historical, not current
+  measurements; use `CHEM-080-CONTRACT.md` for the contract and its qualified
+  scope, `CHO-081-RESULTS.md` for the preregistered isolation replay, and
+  `CHO-080-RESULTS.md` for the recorded `chem/0.8.0` re-measurement (whose
+  nitrification contrast is VACUOUS under the isolation).
 - Judged on **reproducibility, honest accounting, emergence without forcing,
   and multi-seed method** — not on conformance to any product architecture.
 - The Project Owner is the sole product and design authority. The Coding Agent
@@ -397,15 +400,20 @@ the identity).
   reproduces the old unreserved-draw clamp). The configured fraction is
   domain-checked, never clamped: `chemistryBurial` is accepted only within
   `[0, MAX_BURIAL_FRACTION]` and anything else throws at construction.
-- **Nitrification's oxygen is a habitat gate, a NAMED correction.** Under the
+- **Nitrification is ISOLATED, not modelled — a NAMED correction.** Under the
   composition contract no product of NH4 → NO3 can receive a booked oxygen
-  draw, so the 1.8 O2 substrate that could not balance is no longer booked as
-  matter; `minO2` and the capability still require oxygen. The alternatives
-  (NO3 = N + 3 O; NH4 = N + 4 H) each break a live mechanism and are recorded,
-  with the measured size of the removed defect, in `CHEM-080-CONTRACT.md` §3.1.
-  This is the one reaction where the books deliberately do not claim to model
-  the full chemistry, and it is stated rather than implied.
-- **Energy is reconciled through the legacy causal ledger when chemistry is on.** Chemical reaction income and chemical growth expenditure are booked as `chemicalIncome` and `chemicalSpent` against the identity G3 enforces (G36). G3 itself still runs chemistry unset. Historical `chem/0.7.7` chemical income was **9.646%** by G33's income-only measure (flux versus `ledger.capture`), recorded in `evidence/reconciliation-080-gates-20261014.txt`; neither that figure nor the earlier 8.388% figure is a current `chem/0.8.0` measurement. See `CHEM-080-CONTRACT.md` and its gate evidence for the qualified current scope. Growth cost is treated as dissipation. Chemical growth biomass remains matter, not `Ledger.biomass()` (which sums `store.energy`); this is not full trophic integration.
+  draw, and a 1.8 O2 substrate cannot balance. At `chem/0.8.0` the pathway
+  stayed live with its oxygen reduced to a presence gate while it still earned
+  energy — the material mechanism departure found by the Owner review of PR #14
+  (2026-10-18). `chem/0.8.1` removes it from the live reaction network
+  (`ISOLATED_REACTIONS` preserves its stoichiometry; `CAP.NITRIFY` is heritable
+  but inert) and keeps its omission selector as a declared no-op whose
+  control/omission contrast is VACUOUS (G51/G54, `CHO-081-RESULTS.md`). The
+  alternatives (NO3 = N + 3 O; NH4 = N + 4 H) each break a live mechanism and
+  are recorded, with the measured size of the removed defect, in
+  `CHEM-080-CONTRACT.md` §3.1. This is one reaction the books deliberately do
+  not model, and it is stated rather than implied.
+- **Energy is reconciled through the legacy causal ledger when chemistry is on.** Chemical reaction income and chemical growth expenditure are booked as `chemicalIncome` and `chemicalSpent` against the identity G3 enforces (G36). G3 itself still runs chemistry unset. Historical `chem/0.7.7` chemical income was **9.646%** by G33's income-only measure (flux versus `ledger.capture`), recorded in `evidence/reconciliation-080-gates-20261014.txt`; neither that figure nor the earlier 8.388% figure is a current `chem/0.8.1` measurement. See `CHEM-080-CONTRACT.md` and its gate evidence for the qualified current scope. Growth cost is treated as dissipation. Chemical growth biomass remains matter, not `Ledger.biomass()` (which sums `store.energy`); this is not full trophic integration.
 - **Predation transfers energy but not matter.** The legacy predator/grazer
   interaction moves `store.energy` from prey to consumer with **no parallel
   elemental transfer** from prey tissue or stores. A chemical mass ledger that

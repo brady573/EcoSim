@@ -1,0 +1,85 @@
+{
+  "live": false,
+  "declared": {
+    "name": "nitrification",
+    "cap": 8,
+    "family": "nitrogen",
+    "substrates": [
+      {
+        "pool": 2,
+        "coeff": 1
+      }
+    ],
+    "products": [
+      {
+        "pool": 4,
+        "coeff": 1
+      }
+    ],
+    "energy": 0.1,
+    "vmax": 0.04,
+    "limits": [
+      2
+    ],
+    "minO2": 0.02,
+    "maxO2": 1000000000,
+    "note": "Oxidises ammonium to nitrate. Requires oxygen, so it happens at oxic interfaces. Nitrate is not directly usable by most of this ecosystem — it must be reduced again, which is what makes the anaerobic pathway valuable.",
+    "reason": "Cannot close under POOL_COMPOSITION: NH4 and NO3 are single-element nitrogen carriers, so the oxidant draw has no product to reach; changing either carrier breaks denitrification (its only consumer would need ~15 C per 2 NO3 to shed the oxygen) or the sediment-release path (H manufactured from nothing). At chem/0.8.0 the pathway was kept live with its oxygen reduced to a presence gate while still earning energy; the Owner review of 2026-10-18 found that a material mechanism departure and accepted isolation as the fallback. Recorded in CHO-081-RESULTS.md and CHEM-080-CONTRACT.md."
+  },
+  "cell": {
+    "income": 0,
+    "extents": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "out": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "stores": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "nh4": 0.004,
+    "o2": 1
+  },
+  "omissionSelectorDifference": false
+}

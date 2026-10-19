@@ -2646,7 +2646,15 @@ const POOL_NAMES = [
     'OC', 'ON', 'OP', 'OS', 'OFe',
     'LC', 'LN', 'LP', 'LS',
     'SC', 'SN', 'SP', 'SS', 'SFe',
+    'H2O',
 ];
+// POOL_NAMES must name every pool exactly once: it is the loop bound evidence
+// collectors use for gross and net substrate books, and the 24-name/25-pool
+// mismatch once truncated the water column of a recorded gross book (review
+// finding F1, 2026-10-18). A silent shortfall must not recur.
+if (POOL_NAMES.length !== POOL_COUNT || new Set(POOL_NAMES).size !== POOL_COUNT) {
+    throw new Error(`POOL_NAMES must name all ${POOL_COUNT} pools exactly once`);
+}
 function poolElement(p) {
     return POOL_ELEMENT_RT[p];
 }
@@ -3254,31 +3262,34 @@ const REACTIONS = [
         + 'between families 3, 4 and 6. H and O close as water (0.275) and H2 gas '
         + '(0.214 -> 0.428 H); sulfide brings its own two H.', [{ element: E.H, coeff: 0.428 }]),
     // --- Family 5: nitrogen ---------------------------------------------------
-    // THE ONE REACTION WHOSE O2 IS A GATE RATHER THAN A STOICHIOMETRIC SUBSTRATE.
+    // NITRIFICATION IS ISOLATED — ABSENT FROM THE LIVE NETWORK.
     //
-    // Under the composition contract, NH4 and NO3 are nitrogen carriers: no
-    // product of this reaction carries oxygen. A 1.8 O2 draw therefore cannot
-    // balance, and the two ways to make it balance are both worse than the
-    // correction taken here, because each breaks a mechanism with live
-    // dependants:
+    // The pathway cannot be balanced under POOL_COMPOSITION: NH4 and NO3 are
+    // single-element nitrogen carriers, so no product of this reaction can
+    // receive the oxygen it must consume, and both ways to make it balance
+    // break a mechanism with live dependants:
     //   (a) NO3 = N + 3 O forces denitrification — its only consumer — to shed
-    //       that oxygen through organic carbon at 15 C per 2 NO3: an absurd
+    //       that oxygen through organic carbon at ~15 C per 2 NO3: an absurd
     //       donor demand created by an accounting choice;
     //   (b) NH4 = N + 4 H makes that hydrogen appear from nowhere in every
     //       reaction that produces NH4 without a hydrogen source, sediment
     //       release above all, which would manufacture H at every step.
-    // The correction: oxygen remains a REQUIREMENT — the minO2 gate below, and
-    // CAP.NITRIFY is only expressed where O2 is present — but it is no longer
-    // booked as matter this reaction consumes, because in this vocabulary no
-    // product can receive it. The attribution measured the uncorrectable draw
-    // directly: it was the single largest oxygen defect in the network (3.6 O
-    // per unit extent). Named correction, with its alternatives and evidence,
-    // in CHEM-080-CONTRACT.md.
-    rx('nitrification', CAP.NITRIFY, 'nitrogen', [s(POOL.NH4, 1)], [s(POOL.NO3, 1)], // 1:1 in N; 0.98 silently destroyed 2% of every run
-    0.10, 0.040, [POOL.NH4], 0.02, 1e9, 'Oxidises ammonium to nitrate. Requires oxygen, so it happens at oxic '
-        + 'interfaces. Nitrate is not directly usable by most of this '
-        + 'ecosystem — it must be reduced again, which is what makes the '
-        + 'anaerobic pathway valuable.'),
+    //
+    // chem/0.8.0 kept the reaction alive with its oxygen reduced to a presence
+    // gate while it still earned energy and converted NH4 -> NO3. The Owner
+    // review of 2026-10-18 found that a material mechanism departure — an
+    // oxygen-consuming pathway drawing no oxidant — and accepted the isolation
+    // fallback: the pathway is declared unsupported/disabled below, out of the
+    // live array, with its historical stoichiometry preserved in
+    // ISOLATED_REACTIONS rather than rewritten with invented matter.
+    //
+    // CONSEQUENCES. The reaction executes in no arm: no extent, no energy
+    // income, no NH4 -> NO3 flux. `chemistryReactionOmit: 'nitrification'`
+    // remains an accepted, name-resolvable selector whose omission is a
+    // declared no-op, so the control/omission contrast is VACUOUS by
+    // construction (G51/G54; CHEM-080-CONTRACT.md §3.1; CHO-081-RESULTS.md).
+    // CAP.NITRIFY remains heritable but inert; a future pathway requires an
+    // Owner decision.
     // 2 NO3 -> 0.6 NH4 + 1.4 N2(gas). The 1.4 is a real atmospheric export and
     // must be booked, or the nitrogen books appear to leak.
     rx('denitrification', CAP.DENITRIFY, 'nitrogen', [s(POOL.NO3, 2)], [s(POOL.NH4, 0.6)], 0.12, 0.030, [POOL.NO3], 0, 0.015, 'NO3 -> N2 gas. The model\'s ONLY nitrogen export to atmosphere, and it '
@@ -3365,6 +3376,33 @@ const REACTIONS = [
         s(POOL.SC, 0.3), s(POOL.SP, 0.002)], 0.0, 0.0022, [POOL.SC], 0, 1e9, 'Weathering and burial turnover. Extremely slow, and the only route by '
         + 'which buried P returns. P limitation in this model is therefore '
         + 'partly a geological timescale problem.'),
+];
+const ISOLATED_REACTIONS = [
+    {
+        name: 'nitrification',
+        cap: CAP.NITRIFY,
+        family: 'nitrogen',
+        substrates: [s(POOL.NH4, 1)],
+        products: [s(POOL.NO3, 1)],
+        energy: 0.10,
+        vmax: 0.040,
+        limits: [POOL.NH4],
+        minO2: 0.02,
+        maxO2: 1e9,
+        note: 'Oxidises ammonium to nitrate. Requires oxygen, so it happens at '
+            + 'oxic interfaces. Nitrate is not directly usable by most of this '
+            + 'ecosystem — it must be reduced again, which is what makes the '
+            + 'anaerobic pathway valuable.',
+        reason: 'Cannot close under POOL_COMPOSITION: NH4 and NO3 are '
+            + 'single-element nitrogen carriers, so the oxidant draw has no product '
+            + 'to reach; changing either carrier breaks denitrification (its only '
+            + 'consumer would need ~15 C per 2 NO3 to shed the oxygen) or the '
+            + 'sediment-release path (H manufactured from nothing). At chem/0.8.0 '
+            + 'the pathway was kept live with its oxygen reduced to a presence gate '
+            + 'while still earning energy; the Owner review of 2026-10-18 found '
+            + 'that a material mechanism departure and accepted isolation as the '
+            + 'fallback. Recorded in CHO-081-RESULTS.md and CHEM-080-CONTRACT.md.',
+    },
 ];
 const RX_COUNT = REACTIONS.length;
 /**
@@ -3626,6 +3664,7 @@ function repertoireWidth(mask) {
 exports.CAP = CAP;
 exports.CAP_COUNT = CAP_COUNT;
 exports.REACTIONS = REACTIONS;
+exports.ISOLATED_REACTIONS = ISOLATED_REACTIONS;
 exports.RX_COUNT = RX_COUNT;
 exports.RX_BY_CAP = RX_BY_CAP;
 exports.newMetabolicEvidence = newMetabolicEvidence;
@@ -6740,11 +6779,24 @@ const WORLD_ENGINE_VERSION = 'ts-evo-poc/0.8.0';
 // POOL_COMPOSITION becomes the authoritative inventory table (water is 2 H + 1
 // O, O2 is 2 O, bulk organic carbon carries its declared H/O ratio); burial
 // reserves its source through claim() instead of an unclaimed react(); eight
-// reaction stoichiometries are corrected, and nitrification's O2 becomes a
-// habitat gate rather than a booked substrate (a named correction — the
-// alternatives are documented in src/bio/metabolism.ts). Chemistry-UNSET
-// semantics and parity are unchanged; every chem/0.7.8 figure is historical.
-const CHEMISTRY_ENGINE_VERSION = 'chem/0.8.0';
+// reaction stoichiometries are corrected. Chemistry-UNSET semantics and parity
+// are unchanged; every chem/0.7.8 figure is historical.
+//
+// chem/0.8.1, 2026-10-19: NITRIFICATION IS ISOLATED as unsupported/disabled.
+// At chem/0.8.0 the pathway was kept live with its oxygen reduced to a
+// presence gate while it still earned energy and converted NH4 -> NO3 — a
+// material mechanism departure with no accountable oxidant draw, found by the
+// Owner review of 2026-10-18. Under POOL_COMPOSITION the pathway cannot be
+// balanced (NH4 and NO3 are single-element carriers; the balancing
+// alternatives break denitrification or manufacture H in sediment release),
+// so the accepted fallback is isolation: the reaction leaves the live network
+// and is preserved in ISOLATED_REACTIONS. Its omission selector is retained
+// and is a declared no-op, so the control/omission contrast is VACUOUS
+// (G51/G54; CHEM-080-CONTRACT.md §3.1; CHO-081-RESULTS.md). All other
+// chem/0.8.0 corrections are unchanged; chemistry-UNSET semantics and parity
+// are unchanged; the chem/0.8.0 panel is provenance and its gated-pathway
+// trajectories are not comparable to chem/0.8.1.
+const CHEMISTRY_ENGINE_VERSION = 'chem/0.8.1';
 /**
  * Whether the chemistry semantics themselves changed in the 0.7.0 correction.
  *
@@ -6762,6 +6814,12 @@ const CHEMISTRY_ENGINE_VERSION = 'chem/0.8.0';
  * A chemistry-enabled run is a DIFFERENT MODEL, not a configuration of the
  * pinned one, and is reported as such. Evidence produced under either string
  * cannot be silently compared against the other, because the strings differ.
+ *
+ * `nitrification` remains an accepted omission name even though the pathway
+ * has been ISOLATED (chem/0.8.1): the string still identifies the arm, and the
+ * omitted run is state-identical to the control — the contrast is VACUOUS by
+ * construction. The selector is retained so recorded arm names stay
+ * resolvable.
  */
 function runIdentity(config) {
     const chemistryEnabled = typeof config === 'boolean' ? config : config.chemistry === true;
@@ -6789,9 +6847,16 @@ function runIdentity(config) {
  * C/H/O contract and G52 (burial reservation) and G53 (live reaction closure)
  * were added. A result recorded under gates/0.8.2 is not comparable without
  * re-running.
+ *
+ * gates/0.8.4, 2026-10-19: the nitrification isolation correction. G26/G53 now
+ * close the 12-reaction live network (the isolated pathway is declared, never
+ * live); G51 covers the isolated pathway as a declared no-op instead of a live
+ * reaction; G54 is added — the live witness that the isolated pathway books
+ * nothing and that its omission is state-identical to the control. A result
+ * recorded under gates/0.8.3 is not comparable without re-running.
  */
 // Combined chemistry and main validation suite, including G41-G47.
-const GATE_SUITE_VERSION = 'gates/0.8.3';
+const GATE_SUITE_VERSION = 'gates/0.8.4';
 
 exports.WORLD_ENGINE_VERSION = WORLD_ENGINE_VERSION;
 exports.CHEMISTRY_ENGINE_VERSION = CHEMISTRY_ENGINE_VERSION;
@@ -7829,6 +7894,12 @@ class World {
         }
         this.repro = opts.reproProbe ?? null;
         const cfg = resolveConfig(opts.config);
+        // 'nitrification' remains an accepted selector even though the pathway is
+        // ISOLATED since chem/0.8.1 (it is absent from REACTIONS and declared in
+        // ISOLATED_REACTIONS). The selector keeps recorded arm names resolvable
+        // and omitting it is a declared no-op: the arms are state-identical and
+        // the contrast is VACUOUS (G51/G54). Dropping the name would invalidate
+        // recorded identities without changing any simulation.
         if (cfg.chemistryReactionOmit != null && (!['nitrification', 'iron oxidation', 'iron uptake'].includes(cfg.chemistryReactionOmit)
             || cfg.chemistry !== true))
             throw new Error('chemistryReactionOmit requires chemistry=true and exactly one supported reaction name');

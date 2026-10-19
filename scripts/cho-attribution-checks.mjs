@@ -1,24 +1,26 @@
 /**
- * Discriminating engine controls under the POOL_COMPOSITION contract.
+ * Discriminating engine controls under the POOL_COMPOSITION contract
+ * (CURRENT: chem/0.8.1, where nitrification is isolated as unsupported).
  *
  * These are one-cell controls, not additional simulation executions: each case
  * drives the live chemistry machinery directly and records what the books did.
  * They are recorded with the new panels and verified by their checkers. The
  * retired 0.7.8 controls live in the archive itself and are verified there
- * under the frozen old convention (scripts/chem-attribution-078.mjs); this file
- * always speaks the CURRENT contract and never rewrites the old record.
+ * under the frozen old convention (scripts/chem-attribution-078.mjs); the
+ * recorded chem/0.8.0 controls stay there too, under their own identity. This
+ * file always speaks the CURRENT contract and never rewrites an old record.
  */
 import assert from 'node:assert/strict';
 import { pathToFileURL } from 'node:url';
 import { Chemistry, DEFAULT_CHEMISTRY, POOL_RT as P, POOL_COUNT, conservationReport } from '../build/world/chemistry.js';
-import { REACTIONS, reactionExtent } from '../build/bio/metabolism.js';
+import { REACTIONS, ISOLATED_REACTIONS, reactionExtent } from '../build/bio/metabolism.js';
 import { attributeResidual, reactionElementDefects } from './chem-residual-attribution.mjs';
 
 const TOL = (expected) => Number.EPSILON * Math.max(1, Math.abs(expected)) * 8;
 
 export function choContractCases() {
   const results = [];
-  for (const name of ['photosynthesis', 'aerobic respiration', 'nitrification', 'sulfur oxidation', 'iron oxidation']) {
+  for (const name of ['photosynthesis', 'aerobic respiration', 'sulfur oxidation', 'iron oxidation']) {
     const chem = new Chemistry(1, 1, 1, { ...DEFAULT_CHEMISTRY, diffusivity: 0, semiDiffusivity: 0 });
     const rx = REACTIONS.find(r => r.name === name);
     for (const field of chem.fields) field.data.fill(10);
@@ -62,16 +64,23 @@ export function choContractCases() {
       waterInput: chem.flux.waterInput, strict, attributed });
   }
   {
-    // The nitrification correction, stated as a control: the old books charged
-    // this reaction 1.8 O it never booked as a substrate (and manufactured
-    // 1.8 H on the product side). Both are gone; O2 remains a HABITAT gate
-    // (minO2 on the reaction), not a booked substrate.
-    const nitrification = reactionElementDefects().find(r => r.name === 'nitrification').vector;
-    for (let e = 0; e < 7; e++) assert.ok(Math.abs(nitrification[e]) < 1e-12,
-      `nitrification must close by declaration under the correction, got ${nitrification}`);
-    const rx = REACTIONS.find(r => r.name === 'nitrification');
-    assert.ok(rx.minO2 > 0, 'nitrification must still require oxygen as a habitat gate');
-    results.push({ name: 'nitrification-correction', vector: nitrification, minO2: rx.minO2 });
+    // chem/0.8.1: nitrification is ISOLATED, not gated. At chem/0.8.0 this
+    // control asserted a "correction" whose defect vector was zero only
+    // because the oxygen had been reduced to a presence gate while the
+    // reaction still earned energy and converted NH4 -> NO3; the Owner review
+    // of 2026-10-18 found that a material mechanism departure. The pathway is
+    // now absent from the live network and declared in ISOLATED_REACTIONS,
+    // with its retained omission selector a declared no-op — the
+    // control/omission contrast is VACUOUS (CHO-081-RESULTS.md).
+    assert.ok(!REACTIONS.some(r => r.name === 'nitrification'), 'the isolated pathway must not be live');
+    assert.ok(!reactionElementDefects().some(r => r.name === 'nitrification'),
+      'the live defect table must not carry an isolated pathway');
+    const declared = ISOLATED_REACTIONS.filter(r => r.name === 'nitrification');
+    assert.equal(declared.length, 1, 'the isolated pathway must remain declared exactly once');
+    assert.ok(declared[0].energy > 0 && declared[0].minO2 > 0,
+      'the declaration must preserve the removed pathway, its energy and its oxygen requirement included');
+    results.push({ name: 'nitrification-isolation', live: false, declared: true,
+      energy: declared[0].energy, minO2: declared[0].minO2, reason: declared[0].reason });
   }
   {
     const chem = new Chemistry(1, 1, 1, { ...DEFAULT_CHEMISTRY, diffusivity: 0, semiDiffusivity: 0 });

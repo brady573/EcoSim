@@ -1,0 +1,32 @@
+[
+  {
+    "seed": 41001,
+    "priorControlIdentity": "ts-evo-poc/0.8.0+chem/0.8.0",
+    "priorOmissionIdentity": "ts-evo-poc/0.8.0+chem/0.8.0+rxomit/1/nitrification",
+    "correctedIdentity": "ts-evo-poc/0.8.0+chem/0.8.1",
+    "correctedControlHash": "f940e23d",
+    "priorOmissionHash": "f940e23d",
+    "recordsIdenticalToPriorOmission": true,
+    "firstDivergenceTickVsPriorControl": 17,
+    "priorControlHash": "68ad4253",
+    "priorNitrificationExtent": 1145.8289832197681,
+    "priorNitrificationEnergyCredit": 114.58289832197681,
+    "correctedNitrificationExtent": 0,
+    "correctedNitrificationEnergyCredit": 0
+  },
+  {
+    "seed": 41002,
+    "priorControlIdentity": "ts-evo-poc/0.8.0+chem/0.8.0",
+    "priorOmissionIdentity": "ts-evo-poc/0.8.0+chem/0.8.0+rxomit/1/nitrification",
+    "correctedIdentity": "ts-evo-poc/0.8.0+chem/0.8.1",
+    "correctedControlHash": "79a758ce",
+    "priorOmissionHash": "79a758ce",
+    "recordsIdenticalToPriorOmission": true,
+    "firstDivergenceTickVsPriorControl": 17,
+    "priorControlHash": "1a78252d",
+    "priorNitrificationExtent": 1142.6191269948672,
+    "priorNitrificationEnergyCredit": 114.26191269948673,
+    "correctedNitrificationExtent": 0,
+    "correctedNitrificationEnergyCredit": 0
+  }
+]

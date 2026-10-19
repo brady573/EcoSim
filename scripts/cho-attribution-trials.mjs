@@ -31,7 +31,7 @@ writeFileSync(`${out}/protocol.json`, JSON.stringify({
   founders: 400, arms: [null, 'nitrification'], observerTwins: true,
   records: 'All per-tick raw audit, extent/clamp totals, state hashes and demography; full chemistry at first strict failure per element; all reproductive events consumed losslessly into retained actual birth graph and proposal counts.',
   limits: 'No full chemical life histories, no held-out inference, no biology repair; explained defects remain failed strict audits.',
-  reactionDefects: reactionElementDefects(), pools: [...POOL_NAMES, 'H2O'],
+  reactionDefects: reactionElementDefects(), pools: POOL_NAMES,
 }, null, 2));
 const results = [];
 for (const seed of seeds) for (const omission of [null, 'nitrification']) {

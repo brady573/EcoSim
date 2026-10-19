@@ -1,11 +1,19 @@
-# Multielement C/H/O contract — chemistry `chem/0.8.0`
+# Multielement C/H/O contract — chemistry `chem/0.8.1`
 
-> **Identity:** `ts-evo-poc/0.8.0+chem/0.8.0`, gate suite `gates/0.8.3`.
-> Replaces the retired `ts-evo-poc/0.8.0+chem/0.7.8` for chemistry-enabled runs.
+> **Identity:** `ts-evo-poc/0.8.0+chem/0.8.1`, gate suite `gates/0.8.4`.
+> Replaces `ts-evo-poc/0.8.0+chem/0.8.0` for chemistry-enabled runs — and,
+> with it, the retired `ts-evo-poc/0.8.0+chem/0.7.8`.
+> `chem/0.8.1` is the nitrification-isolation correction (§3.1): the pathway
+> was kept live at `chem/0.8.0` with its oxygen reduced to a presence gate
+> while it still earned energy — a material mechanism departure found by the
+> Owner review of PR #14 (2026-10-18) — and is now isolated as
+> unsupported/disabled. Nothing else in the `chem/0.8.0` contract changed.
 > Chemistry-unset base parity is unchanged (`517 → 503/126/69`,
-> `24601 → 337/119/95` at 500 ticks). Every `chem/0.7.8` figure is historical
-> provenance; nothing was relabelled and no old strict-audit failure was
-> reclassified.
+> `24601 → 337/119/95` at 500 ticks). Every `chem/0.8.0` and `chem/0.7.8`
+> figure is historical provenance; nothing was relabelled and no old
+> strict-audit failure was reclassified. The `chem/0.8.0` panel remains the
+> record of those semantics; its nitrification contrast is **VACUOUS** under
+> this correction (`CHO-081-RESULTS.md`).
 
 Authority: the Owner's resolution on PR #14 (comment `6252645667`). That
 resolution supersedes the alternatives sketched in
@@ -110,13 +118,18 @@ or energy.
 | denitrification | N2 export moved from a hard-coded booking into a declared `gas` field | 2 NO3 → 0.6 NH4 + 1.4 N2: the atmospheric export is real and must be booked; declaring it as a reaction vent makes the closure equation and the world's gas loop read the same quantity |
 | photosynthesis, aerobic respiration, iron uptake, sediment release | unchanged | already balanced under the contract |
 
-### 3.1 Nitrification — a NAMED correction
+### 3.1 Nitrification — ISOLATED (not exempt)
 
-Nitrification is the one reaction whose O2 is a **habitat gate, not a booked
-substrate**. Under the contract NH4 and NO3 are nitrogen carriers: no product
-of this reaction can receive oxygen, and a 1.8 O2 draw cannot balance. The two
-alternatives were considered and rejected because each breaks a live
-mechanism:
+At `chem/0.8.0` this reaction was kept live with its O2 reduced to a **habitat
+gate, not a booked substrate**: under the contract NH4 and NO3 are
+single-element nitrogen carriers, so no product of NH4 → NO3 can receive
+oxygen and a 1.8 O2 draw cannot balance. The Owner review of PR #14
+(2026-10-18) found that a material mechanism departure: an oxygen-consuming
+pathway earned energy and converted NH4 → NO3 while booking no oxidant, and a
+presence gate does not make that honest.
+
+The two alternatives that could make the oxygen bookable were re-examined and
+remain rejected because each breaks a live mechanism:
 
 - **NO3 = N + 3 O** forces denitrification — its only consumer — to shed that
   oxygen through organic carbon at ~15 C per 2 NO3: an absurd donor demand
@@ -125,12 +138,25 @@ mechanism:
   produces NH4 without a hydrogen source — sediment release above all —
   manufacturing H at every step.
 
-The correction keeps oxygen a requirement (`minO2` window; `CAP.NITRIFY` is
-only expressed where O2 is present) and stops booking it as matter this
-reaction consumes, because in this vocabulary no product can receive it. The
-attribution measured the uncorrectable draw directly: it was the single
-largest oxygen defect in the network (3.6 O per unit extent, recorded in
+Under the accepted fallback the pathway is therefore **isolated as
+unsupported/disabled** (`chem/0.8.1`): it is absent from the live reaction
+network (`REACTIONS`, now 12 reactions) and preserved in
+`ISOLATED_REACTIONS` with its historical stoichiometry and the stated reason.
+`CAP.NITRIFY` remains heritable but inert. The retained
+`chemistryReactionOmit: 'nitrification'` selector is a declared no-op — the
+control and omission arms are state-for-state identical and their contrast is
+**VACUOUS** — kept so recorded arm identities stay resolvable. The attribution
+measured the uncorrectable draw before isolation: it was the single largest
+oxygen defect in the network (3.6 O per unit extent, recorded in
 `CHO-ATTRIBUTION-ASSESSMENT.md`).
+
+Measured under `chem/0.8.1` (G54; `CHO-081-RESULTS.md` and
+`evidence/cho-081-20261019/`): a NITRIFY-capable organism in NH4-rich, oxic
+water books zero extent, zero energy and no transfer, and moves neither NH4
+nor O2; the corrected null arm reproduces the recorded `chem/0.8.0` omission
+arm hash-for-hash at every tick and diverges from the recorded gated control
+from tick 17. A future nitrification pathway requires an explicit Owner
+decision on vocabulary — not a relaxed gate.
 
 ## 4. Other contract touchpoints
 
@@ -154,19 +180,32 @@ largest oxygen defect in the network (3.6 O per unit extent, recorded in
 
 ## 5. Validation
 
-- **G26** all 13 reactions close across all seven elements, no exemptions.
+- **G26** all 12 live reactions close across all seven elements, no
+  exemptions; nitrification is isolated, not exempt.
 - **G27** elemental conservation holds in a running 300-tick world, H and O
   included (0.0000% residual).
 - **G38/G39** subsidy scope and the OC-carried H/O with a water-untouched
   control.
+- **G51** the retained `nitrification` omission selector is a declared no-op:
+  a NITRIFY-capable cell books nothing, and the omitted arm is state-identical
+  to the control (VACUOUS contrast).
 - **G52** burial reservation: pure-burial exact split, no-burial control,
   tight multi-organism world with zero clamp and nonzero built carbon, roomy
   world, mutation control that reproduces the defect, domain rejection.
-- **G53** every reaction executed through the live `reactionExtent` machinery
-  with non-zero extent, no element residual, plus a corruption control.
-- `scripts/cho-attribution-checks.mjs` — one-cell controls (nine cases,
-  including the reserve-vs-unreserved burial pair).
-- Preregistered re-measurement: `CHO-080-RESULTS.md` and its raw archive.
+- **G53** every live reaction executed through the live `reactionExtent`
+  machinery with non-zero extent, no element residual, plus a corruption
+  control.
+- **G54** live witness of the isolation: the isolated pathway is absent from
+  `REACTIONS` and declared once in `ISOLATED_REACTIONS`; a NITRIFY-capable
+  cell in NH4-rich oxic water books zero extent, zero income and no transfer;
+  a 120-tick world pair with and without the retained selector is
+  hash-identical every tick.
+- `scripts/cho-attribution-checks.mjs` — one-cell controls (eight cases,
+  including the `nitrification-isolation` control and the
+  reserve-vs-unreserved burial pair).
+- Preregistered re-measurement: `CHO-080-RESULTS.md` and its raw archive
+  (recorded `chem/0.8.0` semantics), plus the isolation replay
+  `CHO-081-RESULTS.md` and `evidence/cho-081-20261019/`.
 
 ## 6. Declared limits (limits, not claims)
 
@@ -185,8 +224,12 @@ largest oxygen defect in the network (3.6 O per unit extent, recorded in
 - **One gross per-cell substrate budget per tick** still governs reaction and
   uptake reservations (G37); fixed `REACTIONS` order is the declared priority
   rule.
-- **A habitat gate is not a substrate.** Nitrification consumes oxygen in
-  reality; this contract does not book that oxygen, and does not pretend to.
-  The blocked booking is stated, with both alternatives, above.
+- **Nitrification is isolated, not modelled.** The pathway is declared
+  unsupported and absent from the live network; this vocabulary cannot carry
+  an oxygen-consuming NH4 → NO3 honestly, and the alternatives break other
+  mechanisms. Its omission selector is a declared no-op (VACUOUS contrast).
+  This states a limit of the vocabulary, not a claim that the modelled
+  ecosystem has no nitrifiers; re-enabling requires an Owner decision on
+  vocabulary (§3.1).
 - This remains an experimental, non-production repository. No merge authority
   is implied by anything in this document.
