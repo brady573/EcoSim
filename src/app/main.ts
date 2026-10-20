@@ -16,6 +16,31 @@
 import { World } from '../world/world.js';
 import { TROPHIC, TROPHIC_COUNT } from '../bio/role.js';
 import { renderWorld, PIXEL_SIZE } from '../trace/pixels.js';
+import { cellAt, inspectCell } from './inspection.js';
+
+export function inspectionGrid(handle: RunHandle) {
+  const w = handle.world;
+  return { columns: w.nutrients[0].cols, rows: w.nutrients[0].rows };
+}
+
+/** Normalized canvas coordinates map to authoritative committed world cells. */
+export function hitInspectionCell(handle: RunHandle, nx: number, ny: number): number {
+  return cellAt(handle.world, nx * handle.world.config.worldW, ny * handle.world.config.worldH);
+}
+
+export function inspectRunCell(handle: RunHandle, cell: number) {
+  return inspectCell(handle.world, cell);
+}
+
+/** Flat normalized field for the selected pool; ratios may exceed one. */
+export function inspectionHeatmap(handle: RunHandle, pool: number): number[] {
+  if (!Number.isInteger(pool) || pool < 0 || pool > 2) throw new Error('Invalid nutrient pool');
+  const w = handle.world;
+  return Array.from(w.nutrients[pool].data, (amount, cell) => {
+    const cap = w.nutrientCapAt(pool, cell);
+    return cap > 0 ? amount / cap : 0;
+  });
+}
 
 export interface RunConfig {
   seed: number;

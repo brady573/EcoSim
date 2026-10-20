@@ -132,7 +132,7 @@ jobs:
 
       # The kit reads the engine out of the HTML sitting beside it.
       - name: Stage engine HTML for the kit
-        run: cp evidence/app/evo-sim-poc.html tools/diagnostics/evo-sim-poc.html
+        run: cp build/legacy-viewer.html tools/diagnostics/evo-sim-poc.html
 
       # Presence check, not just parity. Parity proves defaults behave; it
       # cannot detect that an intended config key is missing from the built

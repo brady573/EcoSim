@@ -127,7 +127,11 @@
 // 0.6.12 (headroom), and 0.6.13 (digest). Historical observations stay attached
 // to those source states; the changed default biology requires new live pins.
 // Unmerged PR20/inspector work and unpaid-basal correction are NOT included.
-export const WORLD_ENGINE_VERSION = 'ts-evo-poc/0.6.14';
+// 0.6.16: idempotent slot release with O(1) free-membership flags, reset on
+// reuse and grown with the store. world-state/3 includes those flags. Normal
+// World.deathPhase already guards duplicate deaths; valid-path pins remain
+// those of merged0.6.14. Separate unpaid-basal0.6.15 work is NOT included.
+export const WORLD_ENGINE_VERSION = 'ts-evo-poc/0.6.16';
 
 /**
  * Identifier for the credibility-check suite. G30 (per-pool nutrient cap on
@@ -137,6 +141,7 @@ export const WORLD_ENGINE_VERSION = 'ts-evo-poc/0.6.14';
  * G35 (O2 exogenous replacement) with gates/0.8.0; this branch adds G38
  * (post-feeding starvation) at gates/0.11.0, G39 (current storage headroom)
  * at gates/0.12.0, G40 (authoritative digest sensitivity) at gates/0.13.0,
- * and G41 (scaled contested-transfer spill) at gates/0.14.0.
+ * G41 (scaled contested-transfer spill) at gates/0.14.0, and G43
+ * (idempotent slot release) at gates/0.16.0.
  */
-export const GATE_SUITE_VERSION = 'gates/0.14.0';
+export const GATE_SUITE_VERSION = 'gates/0.16.0';

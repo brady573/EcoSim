@@ -96,6 +96,11 @@ jobs:
       - name: Contract checks
         run: npm run contract
 
+      - name: Inspector read-only and legacy-shell interaction checks
+        run: |
+          node scripts/inspection-checks.mjs
+          node scripts/inspection-ui-checks.mjs
+
       # Evidence-integrity fixtures for the workflow layer: the ladder runner,
       # the cohort verifier, the seed planner, the manifest summariser, and the
       # workflows' own shell-safety. Every fixture is a way this repository
@@ -114,5 +119,5 @@ jobs:
         uses: actions/upload-artifact@v5
         with:
           name: engine-on-failure
-          path: evidence/app/evo-sim-poc.html
+          path: build/legacy-viewer.html
           if-no-files-found: ignore

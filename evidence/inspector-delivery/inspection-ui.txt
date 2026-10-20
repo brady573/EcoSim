@@ -1,0 +1,1 @@
+PASS shipped bundle UI: pointer/touch handler, arrows, numeric selection, export, heatmap, paused tick stability and +100 refresh.

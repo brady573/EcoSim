@@ -18,7 +18,8 @@
 
 const FNV_OFFSET = 0x811c9dc5;
 const FNV_PRIME = 0x01000193;
-export const WORLD_STATE_DIGEST_VERSION = 'world-state/2';
+// v3 includes allocation's duplicate-release membership flags.
+export const WORLD_STATE_DIGEST_VERSION = 'world-state/3';
 
 export class StateHasher {
   private h = FNV_OFFSET;

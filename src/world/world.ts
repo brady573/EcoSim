@@ -1655,7 +1655,7 @@ export class World {
    *      exceed even the flat cap. Left untouched: it is far below any ceiling
    *      at declared recycling rates, and capping it is a separate decision.
    */
-  private nutrientCapAt(nIdx: number, ci: number): number {
+  nutrientCapAt(nIdx: number, ci: number): number {
     return this.config.nutrientPerCell
       * this.habitat.fertility.data[ci]
       * (this.config.nutrientCapacity[nIdx] ?? 1);

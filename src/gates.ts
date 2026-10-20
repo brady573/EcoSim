@@ -34,6 +34,7 @@ import { OrganismStore, NUTRIENT_COUNT } from './core/soa.js';
 import { TROPHIC_COUNT, MINERAL_PHENO_CLASS_COUNT, MINERAL_PHENO, deriveRole, classifyMineralPheno } from './bio/role.js';
 import type { Phenotype } from './bio/phenotype.js';
 import { Rng } from './core/rng.js';
+import { RollingDigest, WORLD_STATE_DIGEST_VERSION } from './core/hash.js';
 import { INTENT } from './world/world.js';
 import { REPRO_GATE, type ReproProbe } from './trace/reproprobe.js';
 
@@ -3050,7 +3051,8 @@ function gate40(): void {
   const diagnosticExcluded = before === w.hashState();
   w.abiotic.history.pop();
   record('G40', 'versioned digest detects individual authoritative mutations',
-    failed.length === 0 && diagnosticExcluded && /^world-state\/2:[0-9a-f]{8}$/.test(before),
+    failed.length === 0 && diagnosticExcluded
+      && before.startsWith(WORLD_STATE_DIGEST_VERSION + ':') && /:[0-9a-f]{8}$/.test(before),
     `${checks} independent negative controls; failures=[${failed.join('; ')}]; ` +
     `Float64 changes below Float32 resolution detected; profiling excluded=${diagnosticExcluded}. ` +
     `Tick-boundary 32-bit change detector, not collision-free certification.`);
@@ -3098,6 +3100,62 @@ function gate41(): void {
     `${cases} cases, 1e-4 float32 tolerance: ${details.join('; ')}`);
 }
 
+function gate43(): void {
+  const store = new OrganismStore({ capacity: 1, label: 'release-idempotence' });
+  const first = store.allocate();
+  store.release(first); store.release(first);
+  const freeOnce = store.freeSlots === 1 && store.population === 0;
+  const reused = store.allocate();
+  store.energy[reused] = 7;
+  const second = store.allocate(); // Forces growth from capacity1.
+  const distinct = reused === first && second !== reused && store.energy[reused] === 7
+    && store.population === 2 && store.freeSlots === 0;
+  // A reallocated slot is occupied again and must accept a later release.
+  store.release(reused); store.release(reused);
+  const reusableAgain = store.freeSlots === 1 && store.allocate() === reused;
+  store.release(second); store.release(second);
+  const grownFlagWorks = store.freeSlots === 1 && store.allocate() === second;
+  const digest = () => { const h = new RollingDigest(); store.hashAllocationState(h); return h.digest(); };
+  const membership = store as unknown as { released: Uint8Array };
+  const originalDigest = digest();
+  membership.released[second] = 1;
+  const membershipHashed = digest() !== originalDigest;
+  membership.released[second] = 0;
+  const membershipRestored = digest() === originalDigest;
+  // Normal allocate() consumes free slots before growing, so a nonzero free
+  // flag cannot survive into automatic growth. Test the growth helper directly
+  // to prove its copy contract with a deliberately populated free marker.
+  const growStore = new OrganismStore({ capacity: 2, label: 'free-marker-growth' });
+  const freeCandidate = growStore.allocate();
+  const occupied = growStore.allocate();
+  growStore.energy[occupied] = 17;
+  growStore.release(freeCandidate);
+  const allocationDigest = () => { const h = new RollingDigest(); growStore.hashAllocationState(h); return h.digest(); };
+  const beforeGrowth = allocationDigest();
+  const growth = growStore as unknown as { grow: (capacity: number) => boolean; released: Uint8Array };
+  const grown = growth.grow(4);
+  const preservedFreeMarker = grown && growth.released.length === 4
+    && growth.released[freeCandidate] === 1 && allocationDigest() === beforeGrowth;
+  growStore.release(freeCandidate);
+  const growthLifecycle = growStore.freeSlots === 1
+    && growStore.allocate() === freeCandidate && growStore.allocate() === 2
+    && growStore.energy[occupied] === 17;
+  const beforeInvalid = store.population;
+  let rejected = 0;
+  for (const invalid of [-1, 0.5, NaN, Infinity, store.count]) {
+    try { store.release(invalid); } catch (e) { if (e instanceof RangeError) rejected++; }
+  }
+  record('G43', 'slot release is idempotent until reallocation',
+    freeOnce && distinct && reusableAgain && grownFlagWorks && membershipHashed
+      && membershipRestored && preservedFreeMarker && growthLifecycle && rejected === 5
+      && store.population === beforeInvalid,
+    `release-release-allocate-allocate: reused=${reused}, second=${second}, ` +
+    `distinct=${distinct}, reallocation reset=${reusableAgain}, growth=${grownFlagWorks}, ` +
+    `membership hashed/restored=${membershipHashed}/${membershipRestored}, ` +
+    `nonzero marker preserved through helper growth=${preservedFreeMarker}, ` +
+    `post-growth lifecycle=${growthLifecycle}, invalid rejected=${rejected}/5.`);
+}
+
 function main(): void {
   console.log(`=== credibility gates :: ${WORLD_ENGINE_VERSION} ===`);
   console.log(`scenario: founders=${SMALL.founders} world=${SMALL.worldW}x${SMALL.worldH} ticks=${TICKS} seed=${SMALL.seed}\n`);
@@ -3138,6 +3196,7 @@ function main(): void {
   gate39();
   gate40();
   gate41();
+  gate43();
 
   const failed = results.filter((r) => !r.pass);
   console.log(`\n${results.length - failed.length}/${results.length} checks passed`);

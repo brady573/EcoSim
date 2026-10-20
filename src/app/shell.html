@@ -27,7 +27,7 @@
 </head>
 <body>
 <h1>evo sim poc</h1>
-<div id="stage"><canvas id="cv" width="600" height="600"></canvas></div>
+<div id="stage"><canvas id="cv" width="600" height="600" tabindex="0" aria-label="Simulation. In inspect mode tap a cell or use arrow keys to select a cell."></canvas></div>
 <div id="readout">t<b>0</b> · <span class="p">P–</span> <span class="c">C–</span> <span class="d">D–</span> · pop –</div>
 <div id="controls">
   <input id="seed" type="number" value="517" min="1" max="999999">
@@ -45,6 +45,16 @@
     <option value="base">baseline setup</option>
   </select>
 </div>
+<fieldset id="inspector" style="width:min(96vw,600px);padding:8px;margin:6px 0;border:1px solid #444">
+  <legend>Ecology inspector — read only</legend>
+  <label><input id="inspectmode" type="checkbox"> Inspect cell (tap/click or arrow keys)</label>
+  <label>Heatmap <select id="pool"><option value="-1">off</option><option value="0">A</option><option value="1">B</option><option value="2">C</option></select></label>
+  <div><label>Column <input id="cellx" type="number" min="0" value="0" style="width:80px"></label>
+  <label>Row <input id="celly" type="number" min="0" value="0" style="width:80px"></label>
+  <button id="selectcell" disabled>Select cell</button><button id="exportcell" disabled>Export cell JSON</button></div>
+  <p id="poollegend">Heatmap: amount / actual local capacity; black=0, blue=50%, yellow=100% or more. Display saturates at 100%; numerical inspection does not. Engine nutrient units, not energy.</p>
+  <pre id="cellreadout" style="white-space:pre-wrap;font-size:12px;margin:6px 0" role="status" aria-live="polite">Start a run, then select a cell. Low nutrients alone do not prove service failure.</pre>
+</fieldset>
 <div id="dump"><div>run data — long-press, select all, copy, paste to chat:</div><textarea id="dumptext" readonly></textarea></div>
 <div id="legend"><span class="p">■ producers</span> · <span class="c">■ consumers</span> · <span class="d">■ decomposers</span> · <span style="color:#888">■ dormant</span></div>
 <div id="note">same engine build as the lab runs — same seed gives the same world.<br>balanced setup: boosted photosynthesis + hibernation + spore spread.</div>
@@ -72,6 +82,90 @@ var batchInterval = 16.6;   // rolling estimate of ms between batch completions
 var framesSinceStep = 0;    // frames since last sim batch (for slow-tick spreading)
 var lastHud = 0;
 var frameCount = 0, fpsT0 = 0, fpsShown = 0;
+var selectedCell = null, inspectionData = null, inspectorTick = -1, lastInspection = -Infinity;
+var inspectMode = document.getElementById('inspectmode');
+var poolEl = document.getElementById('pool');
+var cellX = document.getElementById('cellx'), cellY = document.getElementById('celly');
+var heatCanvas = document.createElement('canvas'), heatContext = heatCanvas.getContext('2d');
+var heatReady = false;
+
+function refreshInspection(force) {
+  if (!handle) return;
+  var now = performance.now();
+  var tick = SimApp.readRun(handle).tick;
+  if (!force && (tick === inspectorTick || now - lastInspection < 250)) return;
+  inspectorTick = tick; lastInspection = now;
+  var grid = SimApp.inspectionGrid(handle);
+  cellX.max = grid.columns - 1; cellY.max = grid.rows - 1;
+  heatReady = Number(poolEl.value) >= 0;
+  if (heatReady) {
+    heatCanvas.width = grid.columns; heatCanvas.height = grid.rows;
+    var pixels = heatContext.createImageData(grid.columns, grid.rows);
+    var ratios = SimApp.inspectionHeatmap(handle, Number(poolEl.value));
+    for (var i=0;i<ratios.length;i++) {
+      var v = Math.max(0, Math.min(1, ratios[i]));
+      pixels.data[i*4] = Math.round(255*Math.max(0,2*v-1));
+      pixels.data[i*4+1] = Math.round(255*Math.max(0,2*v-1));
+      pixels.data[i*4+2] = Math.round(255*(v<=0.5?2*v:2*(1-v)));
+      pixels.data[i*4+3] = 255;
+    }
+    heatContext.putImageData(pixels,0,0);
+  }
+  if (selectedCell === null) return;
+  inspectionData = SimApp.inspectRunCell(handle, selectedCell);
+  if (document.activeElement !== cellX) cellX.value = String(inspectionData.column);
+  if (document.activeElement !== cellY) cellY.value = String(inspectionData.row);
+  var d=inspectionData, g=d.displayedGuilds, c=d.expressedCapabilities;
+  document.getElementById('cellreadout').textContent =
+    'Tick '+d.tick+' · grid ('+d.column+', '+d.row+') · cell '+d.cell+'\n'+
+    'World origin ('+d.worldBounds.x.toFixed(1)+', '+d.worldBounds.y.toFixed(1)+')\n'+
+    d.nutrients.map(function(n){return n.pool+': '+n.amount.toFixed(4)+' / capacity '+n.capacity.toFixed(4);}).join('\n')+'\n'+
+    'Living displayed guilds P/C/D: '+[g.producers,g.consumers,g.decomposers].join('/')+'\n'+
+    'Expressed carrionOnly/recalcOnly/dual/neither: '+[c.carrionOnly,c.recalcOnly,c.dual,c.neither].join('/')+'\n'+
+    ((g.producers+g.consumers+g.decomposers)===0?'No living organisms in this cell.\n':'')+
+    'Event-time photosynthesis limitation: not observed.\nLow nutrients alone do not prove service failure.';
+  document.getElementById('exportcell').disabled=false;
+}
+function drawInspection() {
+  if (!handle) return;
+  if (heatReady) {ctx.save();ctx.globalAlpha=0.45;ctx.imageSmoothingEnabled=false;ctx.drawImage(heatCanvas,0,0,cv.width,cv.height);ctx.restore();}
+  if (selectedCell !== null) {
+    var grid=SimApp.inspectionGrid(handle), cw=cv.width/grid.columns, ch=cv.height/grid.rows;
+    ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.strokeRect((selectedCell%grid.columns)*cw,Math.floor(selectedCell/grid.columns)*ch,cw,ch);
+  }
+}
+function redrawInspection() {
+  if (!handle) return;
+  refreshInspection(true); SimApp.renderLerp(handle,1,rgbBuf); blit(rgbBuf);
+}
+function selectCell(cell) {selectedCell=cell;redrawInspection();}
+cv.onpointerdown=function(e){
+  if(!handle || !inspectMode.checked)return;
+  var rect=cv.getBoundingClientRect();
+  selectCell(SimApp.hitInspectionCell(handle,(e.clientX-rect.left)/rect.width,(e.clientY-rect.top)/rect.height));
+};
+cv.onkeydown=function(e){
+  if(!handle || !inspectMode.checked || ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].indexOf(e.key)<0)return;
+  e.preventDefault();var grid=SimApp.inspectionGrid(handle),cell=selectedCell===null?0:selectedCell;
+  var x=cell%grid.columns,y=Math.floor(cell/grid.columns);
+  if(e.key==='ArrowLeft')x--;if(e.key==='ArrowRight')x++;if(e.key==='ArrowUp')y--;if(e.key==='ArrowDown')y++;
+  selectCell(Math.max(0,Math.min(grid.columns-1,x))+Math.max(0,Math.min(grid.rows-1,y))*grid.columns);
+};
+document.getElementById('selectcell').onclick=function(){
+  if(!handle)return;var grid=SimApp.inspectionGrid(handle),x=Number(cellX.value),y=Number(cellY.value);
+  if(cellX.value.trim()===''||cellY.value.trim()===''||!Number.isInteger(x)||!Number.isInteger(y)||x<0||y<0||x>=grid.columns||y>=grid.rows){
+    document.getElementById('cellreadout').textContent='Choose an integer column/row inside the grid.';return;
+  }selectCell(y*grid.columns+x);
+};
+poolEl.onchange=redrawInspection;
+document.getElementById('exportcell').onclick=function(){
+  if(!handle||selectedCell===null)return;
+  // Fresh snapshot of committed state, not the throttled visual cache. No step/pause.
+  var text=JSON.stringify(SimApp.inspectRunCell(handle,selectedCell),null,2);
+  var blob=new Blob([text],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download='ecosim-cell-'+selectedCell+'.json';a.click();setTimeout(function(){URL.revokeObjectURL(url);},1000);
+  document.getElementById('dump').style.display='block';document.getElementById('dumptext').value=text;
+};
 
 function blit(rgb) {
   var d = img.data;
@@ -79,6 +173,7 @@ function blit(rgb) {
     d[j] = rgb[i]; d[j+1] = rgb[i+1]; d[j+2] = rgb[i+2]; d[j+3] = 255;
   }
   ctx.putImageData(img, 0, 0);
+  drawInspection();
 }
 function hud() {
   var r = SimApp.readRun(handle);
@@ -118,6 +213,7 @@ function frame(now) {
   if (alpha > 1) alpha = 1;
   if (alpha < 0) alpha = 0;
   SimApp.renderLerp(handle, alpha, rgbBuf);
+  if (stepped) refreshInspection(false);
   blit(rgbBuf);
   // HUD is O(population): refresh on steps or 4x/sec, not every frame.
   if (stepped || now - lastHud > 250) {
@@ -132,6 +228,11 @@ runBtn.onclick = function() {
   var seed = Math.max(1, Math.floor(Number(seedEl.value) || 517));
   seedEl.value = seed;
   handle = SimApp.createRun(seed, modeEl.value === 'base');
+  selectedCell=null;inspectionData=null;inspectorTick=-1;heatReady=false;
+  document.getElementById('exportcell').disabled=true;
+  document.getElementById('selectcell').disabled=false;
+  document.getElementById('cellreadout').textContent='Select a cell. Event-time limitation: not observed.';
+  refreshInspection(true);
   playing = true;
   pauseBtn.disabled = false;
   stepBtn.disabled = false;
@@ -152,6 +253,7 @@ pauseBtn.onclick = function() {
   playing = !playing;
   pauseBtn.textContent = playing ? 'pause' : 'resume';
   if (!playing && rafId) { cancelAnimationFrame(rafId); rafId = 0; }
+  if (!playing) redrawInspection();
   if (playing) { lastCommit = performance.now(); rafId = requestAnimationFrame(frame); }
 };
 document.getElementById('export').onclick = function() {
@@ -178,6 +280,7 @@ stepBtn.onclick = function() {
   SimApp.stepRun(handle, 100);
   SimApp.commitPositions(handle);
   SimApp.renderLerp(handle, 1, rgbBuf);
+  refreshInspection(true);
   blit(rgbBuf);
   hud();
 };

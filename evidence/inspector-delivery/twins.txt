@@ -1,0 +1,2 @@
+{"config":{"founders":400,"worldW":2400,"worldH":2400,"seed":517},"ticks":500,"twinsEqual":true,"digest":"world-state/3:ba600113"}
+{"config":{"founders":400,"worldW":2400,"worldH":2400,"seed":24601},"ticks":500,"twinsEqual":true,"digest":"world-state/3:649d5d4d"}
