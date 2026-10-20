@@ -23,6 +23,11 @@ export function inspectionGrid(handle: RunHandle) {
   return { columns: w.nutrients[0].cols, rows: w.nutrients[0].rows };
 }
 
+/** Constant-time tick read; unlike readRun(), this performs no census scans. */
+export function readRunTick(handle: RunHandle): number {
+  return handle.world.tick;
+}
+
 /** Normalized canvas coordinates map to authoritative committed world cells. */
 export function hitInspectionCell(handle: RunHandle, nx: number, ny: number): number {
   return cellAt(handle.world, nx * handle.world.config.worldW, ny * handle.world.config.worldH);

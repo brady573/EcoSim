@@ -36,7 +36,9 @@ workflows154/154 pass on this
 main-derived branch. The browser bundle was freshly generated, not hand-edited.
 
 Manual browser reproduction (real-browser evidence still required):
-1. Open evidence/app/evo-sim-poc.html directly via file://; run seed517.
+1. Run `npm run build:app`, then open `build/legacy-viewer.html` directly via
+   file://; run seed517. For archive fidelity only, use the immutable snapshot
+   `evidence/archive/legacy-viewer/evo-sim-poc-0.6.16.html` (not the latest UI).
 2. Pause; enable Inspect cell; tap an edge/corner cell. Verify coordinates,
    per-pool amount/capacity and honest no-observer text.
 3. Focus canvas; use arrows. Alternatively enter column/row and Select cell.

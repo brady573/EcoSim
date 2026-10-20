@@ -1,0 +1,1 @@
+PASS shipped bundle UI: pointer/keyboard/export/pause/step plus live census-throttling, inactive fast path and interpolation preservation.

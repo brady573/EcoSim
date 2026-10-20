@@ -80,6 +80,7 @@ var msPerTick = 2;          // rolling estimate, starts optimistic
 var lastCommit = 0;         // performance.now() of last commitPositions
 var batchInterval = 16.6;   // rolling estimate of ms between batch completions
 var framesSinceStep = 0;    // frames since last sim batch (for slow-tick spreading)
+var displayAlpha = 1;      // last rendered interpolation state, preserved by live inspection
 var lastHud = 0;
 var frameCount = 0, fpsT0 = 0, fpsShown = 0;
 var selectedCell = null, inspectionData = null, inspectorTick = -1, lastInspection = -Infinity;
@@ -91,9 +92,14 @@ var heatReady = false;
 
 function refreshInspection(force) {
   if (!handle) return;
+  if (selectedCell === null && Number(poolEl.value) < 0) {
+    heatReady = false;
+    return;
+  }
   var now = performance.now();
-  var tick = SimApp.readRun(handle).tick;
-  if (!force && (tick === inspectorTick || now - lastInspection < 250)) return;
+  if (!force && now - lastInspection < 250) return;
+  var tick = SimApp.readRunTick(handle);
+  if (!force && tick === inspectorTick) return;
   inspectorTick = tick; lastInspection = now;
   var grid = SimApp.inspectionGrid(handle);
   cellX.max = grid.columns - 1; cellY.max = grid.rows - 1;
@@ -136,7 +142,9 @@ function drawInspection() {
 }
 function redrawInspection() {
   if (!handle) return;
-  refreshInspection(true); SimApp.renderLerp(handle,1,rgbBuf); blit(rgbBuf);
+  refreshInspection(true);
+  if (!playing) displayAlpha = 1;
+  SimApp.renderLerp(handle,displayAlpha,rgbBuf); blit(rgbBuf);
 }
 function selectCell(cell) {selectedCell=cell;redrawInspection();}
 cv.onpointerdown=function(e){
@@ -212,6 +220,7 @@ function frame(now) {
   var alpha = (now - lastCommit) / batchInterval;
   if (alpha > 1) alpha = 1;
   if (alpha < 0) alpha = 0;
+  displayAlpha = alpha;
   SimApp.renderLerp(handle, alpha, rgbBuf);
   if (stepped) refreshInspection(false);
   blit(rgbBuf);
@@ -229,6 +238,9 @@ runBtn.onclick = function() {
   seedEl.value = seed;
   handle = SimApp.createRun(seed, modeEl.value === 'base');
   selectedCell=null;inspectionData=null;inspectorTick=-1;heatReady=false;
+  displayAlpha=1;
+  var grid=SimApp.inspectionGrid(handle);
+  cellX.max=grid.columns-1;cellY.max=grid.rows-1;
   document.getElementById('exportcell').disabled=true;
   document.getElementById('selectcell').disabled=false;
   document.getElementById('cellreadout').textContent='Select a cell. Event-time limitation: not observed.';
