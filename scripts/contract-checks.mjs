@@ -110,7 +110,7 @@ function probeArgs(over = {}) {
 }
 
 /**
- * Current branch pins: 0.6.14 (current-energy fixes plus prey-local spill),
+ * Current branch pins: 0.6.16 (slot-release API safety; same valid-world biology as0.6.14),
  * 517 -> 840/173/81, 24601 -> 606/241/63. The account below describes the
  * retired 0.6.6 pair; other unmerged corrections are not included here.
  *
@@ -169,8 +169,8 @@ if (!hasBuild) {
     const got = lastRow(runProbe(probeArgs({ seed: p.seed, ticks: 500 })));
     const ok = got !== null && got.prod === p.want[0] && got.cons === p.want[1] && got.dec === p.want[2];
     check('C1', `parity seed ${p.seed} (knobs unset)`, ok,
-      ok ? `P${got.prod}/C${got.cons}/D${got.dec} matches pinned (0.6.14 prey-local spill and current-energy fixes; retired ${p.retired})`
-         : `expected P${p.want[0]}/C${p.want[1]}/D${p.want[2]} (0.6.14), got ${fmt(got)}`);
+      ok ? `P${got.prod}/C${got.cons}/D${got.dec} matches pinned (0.6.16 slot safety, same0.6.14 population pins; retired ${p.retired})`
+         : `expected P${p.want[0]}/C${p.want[1]}/D${p.want[2]} (0.6.16), got ${fmt(got)}`);
   }
 }
 
@@ -263,9 +263,9 @@ if (!existsSync(bundlePath)) {
 // identically when unset. This check is the direct guard against shipping a
 // stale bundle, which is exactly what happened once.
 // ---------------------------------------------------------------------------
-const htmlPath = join(root, 'evidence', 'app', 'evo-sim-poc.html');
+const htmlPath = join(root, 'build', 'legacy-viewer.html');
 if (!existsSync(htmlPath)) {
-  check('C5', 'built engine contains new config keys', false, 'no evidence/app/evo-sim-poc.html');
+  check('C5', 'built engine contains new config keys', false, 'no build/legacy-viewer.html — run build:app');
 } else {
   const html = readFileSync(htmlPath, 'utf8');
   const required = ['reproSurplusTicks', 'mixotrophyCarbon', 'nutrientCyclic', 'nutrientFloor', 'dormantThreatBlind', 'pioneerBonus', 'decomposerPhotoScale', 'phenoMineralReturn', 'phenoMineralRescue'];
@@ -275,16 +275,16 @@ if (!existsSync(htmlPath)) {
 }
 
 // ---------------------------------------------------------------------------
-// C6 — delivered viewer is self-contained.
+// C6 — legacy offline viewer is self-contained (not a claim about index.html).
 // ---------------------------------------------------------------------------
 if (!existsSync(htmlPath)) {
-  check('C6', 'viewer is self-contained', false, 'no evidence/app/evo-sim-poc.html');
+  check('C6', 'legacy offline viewer is self-contained', false, 'no build/legacy-viewer.html — run build:app');
 } else {
   const html = readFileSync(htmlPath, 'utf8');
   const external = (html.match(/(?:src|href)="https?:\/\/[^"]*"/g) ?? []);
   const markerLeft = html.includes('/*__BUNDLE__*/');
   const raf = html.includes('requestAnimationFrame');
-  check('C6', 'viewer is self-contained', external.length === 0 && !markerLeft && raf,
+  check('C6', 'legacy offline viewer is self-contained', external.length === 0 && !markerLeft && raf,
     `externalRefs=${external.length} bundleMarkerLeft=${markerLeft} rAF=${raf}`);
 }
 

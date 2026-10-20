@@ -8246,3 +8246,21 @@ PR20's unmerged observer, the browser inspector and the unpaid-basal excretion
 correction are NOT included. No ecological-balance or reliance claim follows
 from these fixes. Detailed regression evidence and validation receipts are in
 evidence/current-energy-fixes/ and the focused fix records beside it.
+
+## Inspector branch0.6.16 — slot safety and legacy viewer archival
+
+On merged main dd3440e, OrganismStore.release now ignores duplicates while a
+slot remains free, rejects invalid indices and resets membership on reuse.
+The one-byte-per-capacity-slot marker is grown and included in world-state/3.
+G43 tests distinct allocation, counts, invalid input, repeat reuse, nonzero
+marker copy during helper growth and exact digest restoration. Existing
+normal-world population pins remain840/173/81 and606/241/63; no re-pin.
+
+The old standalone HTML is preserved byte-for-byte in
+evidence/archive/legacy-viewer/evo-sim-poc-0.6.16.html. Legacy rebuilds now
+write build/legacy-viewer.html, with matching contract/CI/diagnostic staging
+paths. Active viewer remains src/view/index.html. Inspector UI work in the
+legacy shell and its read-only module are included as a DRAFT: not yet
+ported to index.html and not physically browser-validated. No claim of a
+complete active-viewer feature, ecological balance, or source-observer
+integration. The paid-basal0.6.15 branch and PR20 remain separate.

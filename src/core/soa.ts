@@ -187,6 +187,8 @@ export class OrganismStore {
   // --- Bookkeeping ----------------------------------------------------------
   private freeList: Int32Array;
   private freeTop = 0;
+  /** One byte per slot: duplicate releases must not duplicate stack entries. */
+  private released: Uint8Array;
   /** Count of phenotype derivations performed, for overhead profiling. */
   phenotypeDerivations = 0;
 
@@ -233,6 +235,7 @@ export class OrganismStore {
     this.role = new Uint8Array(cap * ROLE_STRIDE);
 
     this.freeList = new Int32Array(cap);
+    this.released = new Uint8Array(cap);
   }
 
   /**
@@ -258,6 +261,7 @@ export class OrganismStore {
   hashAllocationState(h: RollingDigest): void {
     h.mixInt(this.freeTop);
     for (let i = 0; i < this.freeTop; i++) h.mixInt(this.freeList[i]);
+    h.mixBytes(this.released.subarray(0, this.count));
   }
 
   /**
@@ -267,6 +271,7 @@ export class OrganismStore {
   allocate(): number {
     if (this.freeTop > 0) {
       const slot = this.freeList[--this.freeTop];
+      this.released[slot] = 0;
       this.phen[slot] = null;
       return slot;
     }
@@ -276,8 +281,13 @@ export class OrganismStore {
     return this.count++;
   }
 
-  /** Return a slot to the free list. Idempotent per slot within a tick. */
+  /** Idempotent while free; allocating it again starts a new occupied lifetime. */
   release(slot: number): void {
+    if (!Number.isInteger(slot) || slot < 0 || slot >= this.count) {
+      throw new RangeError(`Cannot release unallocated slot: ${slot}`);
+    }
+    if (this.released[slot] === 1) return;
+    this.released[slot] = 1;
     this.phen[slot] = null;
     this.freeList[this.freeTop++] = slot;
   }
@@ -321,6 +331,7 @@ export class OrganismStore {
     this.modules = growInt32(this.modules, cap);
     this.role = growUint8(this.role, cap * ROLE_STRIDE);
     this.freeList = growInt32(this.freeList, cap);
+    this.released = growUint8(this.released, cap);
 
     const phen = new Array(cap).fill(null);
     for (let i = 0; i < this.capacity; i++) phen[i] = this.phen[i];
@@ -374,7 +385,8 @@ export class OrganismStore {
       this.maxStep.byteLength +
       this.modules.byteLength +
       this.role.byteLength +
-      this.freeList.byteLength;
+      this.freeList.byteLength +
+      this.released.byteLength;
     // Phenotype objects and their geometry arrays dominate the rest.
     let objects = 0;
     for (let i = 0; i < this.count; i++) if (this.phen[i]) objects++;

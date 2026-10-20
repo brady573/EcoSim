@@ -1,0 +1,1 @@
+PASS inspection: boundaries, caps, empty/no-observer, capability vs guild, pause/step, detached export, state/RNG parity.

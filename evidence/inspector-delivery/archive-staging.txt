@@ -1,0 +1,2 @@
+evo-sim-poc-0.6.16.html: OK
+PASS retired path absent, archive unchanged, diagnostics staging/key checks

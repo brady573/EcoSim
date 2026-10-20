@@ -16,9 +16,9 @@ This file governs repository practice only.
 
 `ts-evolution-poc` — a disposable, evidence-driven experiment in whole-ecosystem
 evolutionary simulation. Single TypeScript tree. Engine version
-`ts-evo-poc/0.6.14` (world-state/2 digest, current-energy corrections and
-prey-local contested spill) on the isolated correction branch, based on
-main06be7da. Unmerged observer/dual-accounting/inspector branches are excluded.
+`ts-evo-poc/0.6.16` on the inspector branch, based on merged main dd3440e
+(0.6.14). Includes slot-release safety and world-state/3 allocation digest;
+the unpaid-basal correction and PR20 observer are separate, not included.
 
 - **STATUS: EXPERIMENTAL. NOT PRODUCTION CODE.**
 - Judged on **reproducibility, honest accounting, emergence without forcing,
@@ -105,7 +105,8 @@ Required before a change is considered done:
 2. **Gates pass** (`src/gates.ts`).
 3. **Knobs-unset parity exact** against pinned values — currently seed 517 →
    `P840 C173 D81` and 24601 → `P606 C241 D63` at 500 ticks, engine
-   `ts-evo-poc/0.6.14` (starvation/headroom and prey-local spill corrections).
+   `ts-evo-poc/0.6.16` (same valid-path pins as merged0.6.14; idempotent slot
+   release and world-state/3 must not change guarded death/allocation behavior).
    Isolated 0.6.12–0.6.13 pins were 796/167/67 and 576/295/75.
    Isolated 0.6.11 starvation-only pins were 833/178/76 and 563/353/117. Retired main
    values were P882/C170/D65 and P563/C279/D90 under cached-energy starvation;

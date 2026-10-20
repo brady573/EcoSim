@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { runInNewContext } from 'node:vm';
 import assert from 'node:assert/strict';
 import { World } from '../build/world/world.js';
-import { RollingDigest } from '../build/core/hash.js';
+import { RollingDigest, WORLD_STATE_DIGEST_VERSION } from '../build/core/hash.js';
 import { TRAIT_COUNT } from '../build/bio/genome.js';
 const source=execFileSync('git',['show','06be7da:src/world/world.ts'],{encoding:'utf8'});
 const start=source.indexOf('  hashState(): string {');
@@ -24,5 +24,5 @@ for(const [name,target] of [
  assert.equal(oldHash.call(w),oldBefore,`historical hash should miss ${name}`);
  assert.notEqual(w.hashState(),newBefore,`new hash must detect ${name}`);
  target[0]=saved;assert.equal(w.hashState(),newBefore);
- console.log(`PASS ${name}: old digest falsely equal; world-state/2 detects mutation and exact restoration`);
+ console.log(`PASS ${name}: old digest falsely equal; ${WORLD_STATE_DIGEST_VERSION} detects mutation and exact restoration`);
 }
