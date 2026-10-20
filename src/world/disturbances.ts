@@ -18,6 +18,7 @@
  */
 
 import type { Rng } from '../core/rng.js';
+import type { RollingDigest } from '../core/hash.js';
 
 export const DISTURBANCE = {
   /** Nutrient upwelling: boosts producer capture over a region. */
@@ -73,6 +74,17 @@ export function emptyModifiers(): AbioticModifiers {
  * Tracks the slow abiotic axis and generates discrete disturbances.
  */
 export class AbioticDriver {
+  /** Only persistent forcing authority, not diagnostic history or clocks. */
+  hashStateInto(h: RollingDigest): void {
+    h.mixInt(this.cycleTicks); h.mixInt(this.interval); h.mixF64(this.chance);
+    h.mixInt(this.active.length);
+    for (const e of this.active) {
+      h.mixInt(e.tick); h.mixInt(e.kind);
+      for (const v of [e.x, e.y, e.radius, e.magnitude, e.remaining]) h.mixF64(v);
+    }
+    for (const v of this.lifetime) h.mixF64(v);
+    for (const v of this.decay) h.mixF64(v);
+  }
   /** Current phase of the light/temperature cycle, 0..1. */
   phase = 0;
   /** Long-period drift multiplier, slowly wandering. */

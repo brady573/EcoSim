@@ -110,9 +110,11 @@ function probeArgs(over = {}) {
 }
 
 /**
- * Knobs-unset parity, live pin for engine ts-evo-poc/0.6.6.
+ * Current branch pins: 0.6.14 (current-energy fixes plus prey-local spill),
+ * 517 -> 840/173/81, 24601 -> 606/241/63. The account below describes the
+ * retired 0.6.6 pair; other unmerged corrections are not included here.
  *
- * Under 0.6.6 the live pair is UNCHANGED and was NOT re-pinned. Relative to
+ * Historically under 0.6.6 the pair was unchanged and was NOT re-pinned. Relative to
  * the reviewed head, nutrient-write arithmetic is unchanged; the four-book
  * instrumentation does not change biology. The earlier per-pool cap fix was
  * made on source snapshots still labelled 0.6.2; 0.6.3 identifies the corrected
@@ -155,8 +157,8 @@ function probeArgs(over = {}) {
  * per-pool-cap-corrected returns engine).
  */
 const PINNED = [
-  { seed: 517, want: [882, 170, 65], retired: '813/135/81 @ 0.6.1; 808/159/58 @ 0.6.0; 881/187/73 @ 0.4.1; 778/169/63 @ 0.5.0 pre-P0-1' },
-  { seed: 24601, want: [563, 279, 90], retired: '542/234/109 @ 0.6.1; 558/290/96 @ 0.6.0; 658/280/98 @ 0.4.1; 597/246/103 @ 0.5.0 pre-P0-1' },
+  { seed: 517, want: [840, 173, 81], retired: '796/167/67 @ isolated0.6.12–0.6.13 before spill fix; 833/178/76 @ isolated0.6.11 starvation-only; 882/170/65 @ main0.6.6 cached-starvation semantics; 813/135/81 @ 0.6.1; 808/159/58 @ 0.6.0; 881/187/73 @ 0.4.1; 778/169/63 @ 0.5.0 pre-P0-1' },
+  { seed: 24601, want: [606, 241, 63], retired: '576/295/75 @ isolated0.6.12–0.6.13 before spill fix; 563/353/117 @ isolated0.6.11 starvation-only; 563/279/90 @ main0.6.6 cached-starvation semantics; 542/234/109 @ 0.6.1; 558/290/96 @ 0.6.0; 658/280/98 @ 0.4.1; 597/246/103 @ 0.5.0 pre-P0-1' },
 ];
 
 if (!hasBuild) {
@@ -167,8 +169,8 @@ if (!hasBuild) {
     const got = lastRow(runProbe(probeArgs({ seed: p.seed, ticks: 500 })));
     const ok = got !== null && got.prod === p.want[0] && got.cons === p.want[1] && got.dec === p.want[2];
     check('C1', `parity seed ${p.seed} (knobs unset)`, ok,
-      ok ? `P${got.prod}/C${got.cons}/D${got.dec} matches pinned (0.6.6: same pair as 0.6.5/0.6.4/0.6.3/0.6.2 — O2 instrument null adds no biology; retired ${p.retired})`
-         : `expected P${p.want.join('/C')}/D${p.want[2]} (0.6.6), got ${fmt(got)}`);
+      ok ? `P${got.prod}/C${got.cons}/D${got.dec} matches pinned (0.6.14 prey-local spill and current-energy fixes; retired ${p.retired})`
+         : `expected P${p.want[0]}/C${p.want[1]}/D${p.want[2]} (0.6.14), got ${fmt(got)}`);
   }
 }
 

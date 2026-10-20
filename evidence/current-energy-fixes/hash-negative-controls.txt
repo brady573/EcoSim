@@ -1,0 +1,5 @@
+PASS fatigue: old digest falsely equal; world-state/2 detects mutation and exact restoration
+PASS geneModules: old digest falsely equal; world-state/2 detects mutation and exact restoration
+PASS pioneerTicks: old digest falsely equal; world-state/2 detects mutation and exact restoration
+PASS pioneerVoid: old digest falsely equal; world-state/2 detects mutation and exact restoration
+PASS mineralisedCell: old digest falsely equal; world-state/2 detects mutation and exact restoration

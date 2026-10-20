@@ -23,7 +23,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { World } from './world/world.js';
 import { WORLD_ENGINE_VERSION } from './world/version.js';
-import { INTERACTION, InteractionQueue } from './bio/interactions.js';
+import { INTERACTION, OUTCOME, InteractionQueue, type ResolutionRecord } from './bio/interactions.js';
 import { TRAIT, TRAIT_COUNT, TRAITS, BODY_GENE_COUNT } from './bio/genome.js';
 import {
   GENE_MODULE, GENE_MODULE_COUNT, MAX_MODULES, MODULE_SPECS, MODULE_STRIDE, MODULE_STRIDE_GATE,
@@ -2900,6 +2900,204 @@ function gate35(): void {
     `no mediation claim.`);
 }
 
+// Isolate the real act-phase sequence: charge upkeep, feed, then starve.
+// Controlled initial state is a test fixture, not a biological probe.
+function gate38(): void {
+  const run = (food: boolean, initialEnergy: number) => {
+    const w = new World({ config: { founders: 1, worldW: 800, worldH: 800,
+      seed: 517, foodDisease: null, bioticMineralisation: 0, excretionRate: 0,
+      decomposerDormancy: null } });
+    const s = w.store;
+    const set = (trait: number, value: number) => { s.physical[trait] = value; };
+    set(TRAIT.SIZE, 1); set(TRAIT.BASAL_COST, 0.1); set(TRAIT.MASS_COST, 0);
+    set(TRAIT.PHOTOSYNTHETIC_RATE, 0); set(TRAIT.DIGESTION_RATE, 1);
+    set(TRAIT.METABOLIC_EFFICIENCY, 1); set(TRAIT.FEEDING_APPETITE, 1);
+    set(TRAIT.DETRITIVORY, 1); set(TRAIT.REGENERATION, 0);
+    set(TRAIT.LIFESPAN, 10000); set(TRAIT.THERMAL_TOLERANCE, 1);
+    s.maxStep[0] = 0; s.energy[0] = initialEnergy; s.damage[0] = 0;
+    s.energyIngested[0] = 0;
+    s.starveDamage[0] = 0; s.hunger[0] = 0; s.age[0] = 0;
+    w.sediment.data.fill(food ? 100 : 0); w.detritus.data.fill(0); w.litter.data.fill(0);
+    const fixture = w as unknown as { actPhase: () => void; starveStreak: Uint16Array };
+    fixture.starveStreak[0] = 3;
+    fixture.actPhase();
+    return { energy: s.energy[0], ingested: s.energyIngested[0],
+      starveDamage: s.starveDamage[0], streak: fixture.starveStreak[0] };
+  };
+  const fed = run(true, 0);
+  const unfed = run(false, 0);
+  const depleted = run(false, 0.11);
+  record('G38', 'starvation uses current post-feeding reserves',
+    fed.ingested > 0 && fed.energy >= 0.1 && fed.starveDamage === 0 && fed.streak === 0
+      && unfed.starveDamage > 0 && unfed.streak === 4
+      && depleted.energy < 0.1 && depleted.starveDamage > 0,
+    `fed=${JSON.stringify(fed)}, unfed=${JSON.stringify(unfed)}, cost-depleted=${JSON.stringify(depleted)}; ` +
+    `successful feeding must clear deficit; unmet current upkeep must still starve.`);
+}
+
+function gate39(): void {
+  let ok = true;
+  const details: string[] = [];
+  for (const scale of [1, 100]) {
+    const w = new World({ config: { founders: 1, worldW: 800, worldH: 800,
+      seed: 517, foodDisease: null, excretionRate: 0,
+      producerCaptureScale: scale, consumerPhotoScale: scale, decomposerPhotoScale: scale } });
+    const s = w.store;
+    const set = (trait: number, value: number) => { s.physical[trait] = value; };
+    set(TRAIT.SIZE, 1); set(TRAIT.BASAL_COST, 1); set(TRAIT.MASS_COST, 0);
+    set(TRAIT.PHOTOSYNTHETIC_RATE, 1); set(TRAIT.DIGESTION_RATE, 0);
+    set(TRAIT.RECALCITRANT_DIGESTION, 0); set(TRAIT.REGENERATION, 0);
+    set(TRAIT.LIFESPAN, 10000); set(TRAIT.METABOLIC_EFFICIENCY, 1);
+    s.maxStep[0] = 0; s.damage[0] = 0; s.age[0] = 0; s.energyIngested[0] = 0;
+    const fixture = w as unknown as { actPhase: () => void; capacityOf: (slot: number) => number };
+    const capacity = fixture.capacityOf(0);
+    s.energy[0] = capacity;
+    const initialEnergy = s.energy[0];
+    w.sediment.data.fill(0); w.detritus.data.fill(0); w.litter.data.fill(0);
+    w.nutrients.forEach(f => f.data.fill(1000));
+    const spentBefore = w.ledger.totalDissipated();
+    const capturedBefore = w.ledger.capture;
+    const spilledBefore = w.ledger.spilled;
+    fixture.actPhase();
+    const charged = w.ledger.totalDissipated() - spentBefore;
+    const captured = w.ledger.capture - capturedBefore;
+    const expectedRetained = Math.min(captured, Math.max(0, capacity - initialEnergy + charged));
+    const retained = s.energyIngested[0];
+    const overflow = w.detritus.total();
+    const tol = 1e-4;
+    ok = ok && charged > 0 && captured > 0 && retained > 0
+      && Math.abs(retained-expectedRetained) < tol
+      && Math.abs(captured-retained-overflow) < tol
+      && Math.abs((w.ledger.spilled-spilledBefore)-overflow) < tol
+      && s.energy[0] <= capacity + tol
+      && Math.abs(s.energy[0]-(initialEnergy-charged+retained)) < tol
+      && (scale === 1 ? overflow < tol : overflow > 0);
+    details.push(JSON.stringify({ scale, charged, captured, retained, expectedRetained, overflow }));
+  }
+  record('G39', 'photosynthesis uses storage freed by current-tick expenditure', ok,
+    details.join('; ') + '; small capture retained, large capture capped with real overflow; 1e-4 float32 tolerance.');
+}
+
+function gate40(): void {
+  const w = new World({ config: { founders: 4, seed: 517, worldW: 800, worldH: 800,
+    genomeV2: true, nutrientCyclic: true, pioneerBonus: { grace: 20, discount: 0.5 } } });
+  const s = w.store;
+  // Explicit private access is test-only: mutate ONE authoritative field,
+  // demand sensitivity, then restore and demand exact original digest.
+  const privateState = w as unknown as Record<string, unknown>;
+  let checks = 0;
+  const failed: string[] = [];
+  const mutate = (name: string, target: { [index: number]: number }, index: number, value: number) => {
+    const before = w.hashState(), old = target[index];
+    target[index] = value;
+    if (w.hashState() === before) failed.push(name + ': insensitive');
+    target[index] = old;
+    if (w.hashState() !== before) failed.push(name + ': failed restoration');
+    checks++;
+  };
+  for (const [name, array] of [
+    ['fatigue', s.fatigue], ['moduleCount', s.moduleCount], ['procSeed', s.procSeed],
+    ['individualSeed', s.individualSeed], ['bornTick', s.bornTick],
+    ['physical', s.physical], ['role', s.role], ['senseRadius', s.senseRadius],
+    ['maxStep', s.maxStep], ['hitRadius', s.hitRadius], ['modules', s.modules],
+    ['starveDamage', s.starveDamage],
+  ] as const) mutate(name, array, 0, array[0] + 1);
+  // Modular founders have real active modules, not just unused block padding.
+  if (s.moduleCount[0] === 0) failed.push('no active modules in fixture');
+  mutate('geneModules', s.geneModules, 0, s.geneModules[0] + 1);
+  for (const name of ['pioneerTicks', 'pioneerVoid', 'dormant', 'dormantSleep',
+    'senesceDamage', 'diseaseDamage', 'bioticMineraliser'] as const) {
+    const array = privateState[name] as { [index: number]: number };
+    mutate(name, array, 0, array[0] + 1);
+  }
+  const mineralised = privateState.mineralisedCell as Float64Array;
+  const oldMineral = mineralised[0];
+  mineralised[0] = 1;
+  mutate('mineralisedCell Float64 precision', mineralised, 0, 1 + 2 ** -40);
+  mineralised[0] = oldMineral;
+  const idLookup = privateState.idToSlot as Int32Array;
+  mutate('stable ID lookup', idLookup, s.id[0], -1);
+  mutate('habitat shade', w.habitat.shade.data, 0, w.habitat.shade.data[0]+0.25);
+  mutate('habitat drainage', w.habitat.drainage.data, 0, w.habitat.drainage.data[0]+0.25);
+  const configHash = w.hashState(), oldRegen = w.config.nutrientRegen;
+  w.config.nutrientRegen += 0.001;
+  if (w.hashState() === configHash) failed.push('config insensitive');
+  w.config.nutrientRegen = oldRegen; checks++;
+  // Allocation order is authoritative even when the live-organism view agrees.
+  const allocation = s as unknown as { freeTop: number; freeList: Int32Array };
+  const oldTop = allocation.freeTop, oldFree = allocation.freeList.slice(0, 2);
+  allocation.freeTop = 2; allocation.freeList[0] = 2; allocation.freeList[1] = 3;
+  const allocationHash = w.hashState();
+  allocation.freeList[0] = 3; allocation.freeList[1] = 2;
+  if (w.hashState() === allocationHash) failed.push('allocation order insensitive');
+  allocation.freeTop = oldTop; allocation.freeList.set(oldFree); checks++;
+  // Active forcing contents, not just history length, affect the next tick.
+  const abiotic = w.abiotic as unknown as { active: Array<{ tick: number; kind: number;
+    name: string; x: number; y: number; radius: number; magnitude: number; remaining: number }> };
+  const oldActive = abiotic.active;
+  abiotic.active = [{ tick: 0, kind: 0, name: 'fixture', x: 100, y: 100, radius: 50, magnitude: 1, remaining: 10 }];
+  const forcingHash = w.hashState(); abiotic.active[0].magnitude += 2 ** -40;
+  if (w.hashState() === forcingHash) failed.push('active forcing precision insensitive');
+  abiotic.active = oldActive; checks++;
+  const before = w.hashState();
+  w.timings.act += 1; w.totals.act += 1;
+  // Scratch values are overwritten by modifiersAt before the next read.
+  const mods = privateState.localMods as { metabolismMul: number };
+  mods.metabolismMul = 999;
+  const historyEntry = { tick: 0, kind: 0, name: 'diagnostic only', x: 0, y: 0,
+    radius: 1, magnitude: 1, remaining: 1 };
+  w.abiotic.history.push(historyEntry);
+  const diagnosticExcluded = before === w.hashState();
+  w.abiotic.history.pop();
+  record('G40', 'versioned digest detects individual authoritative mutations',
+    failed.length === 0 && diagnosticExcluded && /^world-state\/2:[0-9a-f]{8}$/.test(before),
+    `${checks} independent negative controls; failures=[${failed.join('; ')}]; ` +
+    `Float64 changes below Float32 resolution detected; profiling excluded=${diagnosticExcluded}. ` +
+    `Tick-boundary 32-bit change detector, not collision-free certification.`);
+}
+
+function gate41(): void {
+  let ok = true, cases = 0;
+  const details: string[] = [];
+  for (const kind of [INTERACTION.GRAZE, INTERACTION.PREDATE]) {
+    for (const [scale, room, prey, repeats] of [[4, 8, 32, 1], [4, 1, 5, 1],
+      [4, 8, 64, 2], [1, 8, 32, 1]]) {
+      const w = new World({ config: { founders: 2, worldW: 800, worldH: 800, seed: 517,
+        foodDisease: null, grazeYieldScale: scale, predationYieldScale: scale } });
+      const s = w.store;
+      const fixture = w as unknown as { capacityOf: (slot: number) => number; resolveContests: () => void;
+        interactions: { resolve: () => void; peekRecords: () => ResolutionRecord[]; resolutionCount: () => number } };
+      s.x[0] = 100; s.y[0] = 100; s.x[1] = 700; s.y[1] = 700;
+      s.energy[0] = fixture.capacityOf(0) - room; s.energy[1] = prey;
+      w.detritus.data.fill(0);
+      const initialAttacker = s.energy[0], initialPrey = s.energy[1];
+      const input = w.ledger.totalInput(), dissipated = w.ledger.totalDissipated();
+      const records: ResolutionRecord[] = Array.from({ length: repeats }, () => ({
+        attackerId: s.id[0], defenderId: s.id[1], kind, outcome: OUTCOME.ATTACKER_WINS,
+        delta: 8, attackerDamage: 0, defenderDamage: 0.1 }));
+      fixture.interactions.resolve = () => {};
+      fixture.interactions.peekRecords = () => records;
+      fixture.interactions.resolutionCount = () => records.length;
+      fixture.resolveContests();
+      const removed = initialPrey - s.energy[1], gained = s.energy[0] - initialAttacker;
+      const expectedRemoved = Math.min(prey, 8 * scale * repeats);
+      const spill = removed - gained, deposit = w.detritus.total(), tol = 1e-4;
+      const ci = Math.floor(700 / (800 / w.detritus.cols))
+        + Math.floor(700 / (800 / w.detritus.rows)) * w.detritus.cols;
+      ok = ok && Math.abs(removed - expectedRemoved) < tol
+        && Math.abs(gained - Math.min(room, expectedRemoved)) < tol
+        && Math.abs(deposit - spill) < tol && Math.abs(w.ledger.spilled - deposit) < tol
+        && w.detritus.data.every((value, index) => index === ci || value === 0)
+        && Math.abs(initialAttacker + initialPrey - s.energy[0] - s.energy[1] - deposit) < tol
+        && w.ledger.totalInput() === input && w.ledger.totalDissipated() === dissipated;
+      details.push(JSON.stringify({kind,scale,room,prey,repeats,removed,gained,deposit}));
+      cases++;
+    }
+  }
+  record('G41', 'scaled contested transfers deposit actual overflow once at prey', ok,
+    `${cases} cases, 1e-4 float32 tolerance: ${details.join('; ')}`);
+}
+
 function main(): void {
   console.log(`=== credibility gates :: ${WORLD_ENGINE_VERSION} ===`);
   console.log(`scenario: founders=${SMALL.founders} world=${SMALL.worldW}x${SMALL.worldH} ticks=${TICKS} seed=${SMALL.seed}\n`);
@@ -2936,6 +3134,10 @@ function main(): void {
   gate33();
   gate34();
   gate35();
+  gate38();
+  gate39();
+  gate40();
+  gate41();
 
   const failed = results.filter((r) => !r.pass);
   console.log(`\n${results.length - failed.length}/${results.length} checks passed`);

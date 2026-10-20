@@ -10,7 +10,7 @@
  *  - STABILITY: the hash must not depend on anything incidental — wall-clock
  *    time, memory addresses, iteration order of a hash map, or the identity of
  *    the process. Organisms are hashed in slot order with their stable ids
- *    included, so slot recycling is visible but vacant-slot bookkeeping is not.
+ *    included; the world digest also includes vacant-slot allocation order.
  *
  * Floats are folded in via their IEEE-754 bit patterns rather than their
  * numeric value, so -0 vs +0 and NaN payloads cannot alias.
@@ -18,6 +18,7 @@
 
 const FNV_OFFSET = 0x811c9dc5;
 const FNV_PRIME = 0x01000193;
+export const WORLD_STATE_DIGEST_VERSION = 'world-state/2';
 
 export class StateHasher {
   private h = FNV_OFFSET;
@@ -77,6 +78,7 @@ export function floatToBits(v: number): number {
 }
 
 const F32 = new DataView(new ArrayBuffer(4));
+const F64 = new DataView(new ArrayBuffer(8));
 
 /**
  * A rolling digest that can be sampled cheaply at intervals.
@@ -99,6 +101,38 @@ export class RollingDigest {
 
   mixF32(v: number): void {
     this.h = mix32(this.h, floatToBits(v)) >>> 0;
+  }
+
+  /** Preserve double-precision state; Float32 conversion would hide changes. */
+  mixF64(v: number): void {
+    F64.setFloat64(0, v, true);
+    this.mixU32(F64.getUint32(0, true));
+    this.mixU32(F64.getUint32(4, true));
+  }
+
+  mixString(value: string): void {
+    this.mixInt(value.length);
+    for (let i = 0; i < value.length; i++) this.mixInt(value.charCodeAt(i));
+  }
+
+  /** Canonical plain configuration/state values; object insertion order is irrelevant. */
+  mixValue(value: unknown): void {
+    if (value === null) { this.mixString('null'); return; }
+    this.mixString(typeof value);
+    if (typeof value === 'number') { this.mixF64(value); return; }
+    if (typeof value === 'string') { this.mixString(value); return; }
+    if (typeof value === 'boolean') { this.mixInt(value ? 1 : 0); return; }
+    if (value === undefined) return;
+    if (Array.isArray(value)) {
+      this.mixString('array'); this.mixInt(value.length);
+      for (const item of value) this.mixValue(item);
+      return;
+    }
+    if (typeof value !== 'object') throw new Error('Unsupported authoritative hash value');
+    const object = value as Record<string, unknown>;
+    const keys = Object.keys(object).sort();
+    this.mixInt(keys.length);
+    for (const key of keys) { this.mixString(key); this.mixValue(object[key]); }
   }
 
   /** Fold a whole float array, or a subarray view of one. */

@@ -16,8 +16,9 @@ This file governs repository practice only.
 
 `ts-evolution-poc` — a disposable, evidence-driven experiment in whole-ecosystem
 evolutionary simulation. Single TypeScript tree. Engine version
-`ts-evo-poc/0.6.6` (0.6.5 plus the O2 exogenous-replacement instrument;
-same parity pins when unconfigured).
+`ts-evo-poc/0.6.14` (world-state/2 digest, current-energy corrections and
+prey-local contested spill) on the isolated correction branch, based on
+main06be7da. Unmerged observer/dual-accounting/inspector branches are excluded.
 
 - **STATUS: EXPERIMENTAL. NOT PRODUCTION CODE.**
 - Judged on **reproducibility, honest accounting, emergence without forcing,
@@ -103,8 +104,12 @@ Required before a change is considered done:
 1. **Typecheck clean.**
 2. **Gates pass** (`src/gates.ts`).
 3. **Knobs-unset parity exact** against pinned values — currently seed 517 →
-   `P882 C170 D65` and 24601 → `P563 C279 D90` at 500 ticks, engine
-   `ts-evo-poc/0.6.6` (same pair as 0.6.5/0.6.4/0.6.3/0.6.2; no re-pin). A change that alters these with no knob set has changed
+   `P840 C173 D81` and 24601 → `P606 C241 D63` at 500 ticks, engine
+   `ts-evo-poc/0.6.14` (starvation/headroom and prey-local spill corrections).
+   Isolated 0.6.12–0.6.13 pins were 796/167/67 and 576/295/75.
+   Isolated 0.6.11 starvation-only pins were 833/178/76 and 563/353/117. Retired main
+   values were P882/C170/D65 and P563/C279/D90 under cached-energy starvation;
+   their logs remain historical. A change that alters these with no knob set has changed
    declared behaviour.
 
    The exogenous-replacement instrument (O2, G35, gates/0.8.0) landed under

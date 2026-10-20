@@ -1500,6 +1500,12 @@ class OrganismStore {
     get freeSlots() {
         return this.freeTop;
     }
+    /** Allocation order affects which future organism occupies each slot. */
+    hashAllocationState(h) {
+        h.mixInt(this.freeTop);
+        for (let i = 0; i < this.freeTop; i++)
+            h.mixInt(this.freeList[i]);
+    }
     /**
      * Reserve a slot. Reuses a freed slot deterministically, otherwise grows.
      * Returns -1 only if capacity growth itself fails.
@@ -1659,13 +1665,14 @@ __def("core/hash.js", function(require, exports, module){/**
  *  - STABILITY: the hash must not depend on anything incidental — wall-clock
  *    time, memory addresses, iteration order of a hash map, or the identity of
  *    the process. Organisms are hashed in slot order with their stable ids
- *    included, so slot recycling is visible but vacant-slot bookkeeping is not.
+ *    included; the world digest also includes vacant-slot allocation order.
  *
  * Floats are folded in via their IEEE-754 bit patterns rather than their
  * numeric value, so -0 vs +0 and NaN payloads cannot alias.
  */
 const FNV_OFFSET = 0x811c9dc5;
 const FNV_PRIME = 0x01000193;
+const WORLD_STATE_DIGEST_VERSION = 'world-state/2';
 class StateHasher {
     h = FNV_OFFSET;
     reset() {
@@ -1716,6 +1723,7 @@ function floatToBits(v) {
     return F32.getUint32(0);
 }
 const F32 = new DataView(new ArrayBuffer(4));
+const F64 = new DataView(new ArrayBuffer(8));
 /**
  * A rolling digest that can be sampled cheaply at intervals.
  * Cheap enough to run every tick at production population sizes.
@@ -1733,6 +1741,55 @@ class RollingDigest {
     }
     mixF32(v) {
         this.h = mix32(this.h, floatToBits(v)) >>> 0;
+    }
+    /** Preserve double-precision state; Float32 conversion would hide changes. */
+    mixF64(v) {
+        F64.setFloat64(0, v, true);
+        this.mixU32(F64.getUint32(0, true));
+        this.mixU32(F64.getUint32(4, true));
+    }
+    mixString(value) {
+        this.mixInt(value.length);
+        for (let i = 0; i < value.length; i++)
+            this.mixInt(value.charCodeAt(i));
+    }
+    /** Canonical plain configuration/state values; object insertion order is irrelevant. */
+    mixValue(value) {
+        if (value === null) {
+            this.mixString('null');
+            return;
+        }
+        this.mixString(typeof value);
+        if (typeof value === 'number') {
+            this.mixF64(value);
+            return;
+        }
+        if (typeof value === 'string') {
+            this.mixString(value);
+            return;
+        }
+        if (typeof value === 'boolean') {
+            this.mixInt(value ? 1 : 0);
+            return;
+        }
+        if (value === undefined)
+            return;
+        if (Array.isArray(value)) {
+            this.mixString('array');
+            this.mixInt(value.length);
+            for (const item of value)
+                this.mixValue(item);
+            return;
+        }
+        if (typeof value !== 'object')
+            throw new Error('Unsupported authoritative hash value');
+        const object = value;
+        const keys = Object.keys(object).sort();
+        this.mixInt(keys.length);
+        for (const key of keys) {
+            this.mixString(key);
+            this.mixValue(object[key]);
+        }
     }
     /** Fold a whole float array, or a subarray view of one. */
     mixF32Array(a) {
@@ -1782,6 +1839,7 @@ function mix32(h, v) {
     return h >>> 0;
 }
 
+exports.WORLD_STATE_DIGEST_VERSION = WORLD_STATE_DIGEST_VERSION;
 exports.StateHasher = StateHasher;
 exports.floatToBits = floatToBits;
 exports.RollingDigest = RollingDigest;
@@ -3886,6 +3944,23 @@ class AbioticDriver {
     cycleTicks;
     interval;
     chance;
+    /** Only persistent forcing authority, not diagnostic history or clocks. */
+    hashStateInto(h) {
+        h.mixInt(this.cycleTicks);
+        h.mixInt(this.interval);
+        h.mixF64(this.chance);
+        h.mixInt(this.active.length);
+        for (const e of this.active) {
+            h.mixInt(e.tick);
+            h.mixInt(e.kind);
+            for (const v of [e.x, e.y, e.radius, e.magnitude, e.remaining])
+                h.mixF64(v);
+        }
+        for (const v of this.lifetime)
+            h.mixF64(v);
+        for (const v of this.decay)
+            h.mixF64(v);
+    }
     /** Current phase of the light/temperature cycle, 0..1. */
     phase = 0;
     /** Long-period drift multiplier, slowly wandering. */
@@ -4503,15 +4578,25 @@ __def("world/version.js", function(require, exports, module){/**
  * All figures recorded under 0.4.1 describe the DEFECTIVE semantics and are
  * provenance only. See REPORT.md.
  */
-const WORLD_ENGINE_VERSION = 'ts-evo-poc/0.6.6';
+// 0.6.14 identifies main06be7da plus four corrections: post-feeding starvation,
+// current photosynthetic storage headroom, world-state/2 authoritative digest,
+// and actual contested-transfer overflow deposited into prey-local detritus.
+// Source-only intermediate identities on this branch were 0.6.11 (starvation),
+// 0.6.12 (headroom), and 0.6.13 (digest). Historical observations stay attached
+// to those source states; the changed default biology requires new live pins.
+// Unmerged PR20/inspector work and unpaid-basal correction are NOT included.
+const WORLD_ENGINE_VERSION = 'ts-evo-poc/0.6.14';
 /**
  * Identifier for the credibility-check suite. G30 (per-pool nutrient cap on
  * return paths) shipped with gates/0.4.0; G31 and G32 (the book-level checks)
  * with gates/0.5.0; G33 (phenotype-partitioned mineralization books) with
  * gates/0.6.0; G34 (O1 phenotype-class suppression) with gates/0.7.0;
- * G35 (O2 exogenous replacement) with gates/0.8.0.
+ * G35 (O2 exogenous replacement) with gates/0.8.0; this branch adds G38
+ * (post-feeding starvation) at gates/0.11.0, G39 (current storage headroom)
+ * at gates/0.12.0, G40 (authoritative digest sensitivity) at gates/0.13.0,
+ * and G41 (scaled contested-transfer spill) at gates/0.14.0.
  */
-const GATE_SUITE_VERSION = 'gates/0.8.0';
+const GATE_SUITE_VERSION = 'gates/0.14.0';
 
 exports.WORLD_ENGINE_VERSION = WORLD_ENGINE_VERSION;
 exports.GATE_SUITE_VERSION = GATE_SUITE_VERSION;
@@ -4551,7 +4636,7 @@ const { Rng } = require("../core/rng.js");
 const { ScalarField } = require("../core/field.js");
 const { SpatialGrid } = require("../core/spatial.js");
 const { OrganismStore, BODY_GENE_COUNT, ROLE_STRIDE, NUTRIENT_COUNT } = require("../core/soa.js");
-const { RollingDigest } = require("../core/hash.js");
+const { RollingDigest, WORLD_STATE_DIGEST_VERSION } = require("../core/hash.js");
 const { TRAIT, TRAITS, BODY_GENES, TRAIT_COUNT } = require("../bio/genome.js");
 const { Phenotype, resolveCapacity } = require("../bio/phenotype.js");
 const { HabitatMap } = require("../bio/habitat.js");
@@ -7157,7 +7242,7 @@ class World {
                     // Energy fixed is proportional to what was actually obtained.
                     const yieldFactor = 0.45 + efficiency * 0.6;
                     const gained = demand * lim * yieldFactor;
-                    const room = capacity - energy;
+                    const room = capacity - store.energy[slot];
                     const take = gained < room ? gained : Math.max(0, room);
                     if (take > 0) {
                         store.energy[slot] += take;
@@ -7414,8 +7499,11 @@ class World {
             // Dormant organisms do not accrue starvation damage: waiting is not dying.
             // Only reachable when the knob is set (dormant[] otherwise always zero).
             const isDormant = this.dormant[slot] === 1 && this.config.decomposerDormancy !== null;
-            if (!isDormant && upkeep > 0 && energy < upkeep) {
-                const deficit = (upkeep - energy) / upkeep; // 0..1
+            // Feeding and costs have changed reserves since behaviour arbitration.
+            // Use the current value for BOTH the decision and deficit magnitude.
+            const starvationEnergy = store.energy[slot];
+            if (!isDormant && upkeep > 0 && starvationEnergy < upkeep) {
+                const deficit = (upkeep - starvationEnergy) / upkeep; // 0..1
                 // Fasting tolerance (Owner constraint 2026-10-12: body reserves buffer
                 // brief deficits; wasting begins after reserves deplete). The streak
                 // counts CONSECUTIVE deficit ticks; damage ramps 0 -> full over
@@ -7760,8 +7848,12 @@ class World {
                         this.grazeRequested += scaledDelta;
                     }
                     const overflow = removed - gained;
-                    if (overflow > 0)
+                    if (overflow > 0) {
+                        // The prey supplied this energy: leave unretained material at its
+                        // location. recordSpill is bookkeeping, not an environmental write.
+                        this.detritus.add(store.x[ds], store.y[ds], fieldW, fieldH, overflow);
                         this.ledger.recordSpill(overflow);
+                    }
                     if (gained > 0)
                         store.hunger[as] = 0;
                 }
@@ -8702,15 +8794,41 @@ class World {
     /**
      * Order-sensitive digest of everything that can influence future evolution.
      *
-     * Scoped deliberately to LIVE slots in slot order plus their stable ids. That
-     * means slot recycling is detected (it changes who occupies the population)
-     * while vacant-slot bookkeeping is not, and the digest never depends on
-     * memory layout, wall-clock time, or process identity.
+     * Tick-boundary authority: live slots in slot order, allocation order,
+     * persistent forcing and configuration. Derived caches read before refresh
+     * are included; scratch overwritten in step() is not. Trace/profiling and
+     * observer books remain diagnostic-only. This is a versioned 32-bit change
+     * detector, not a cryptographic equality proof or a mid-phase checkpoint.
      */
     hashState() {
         const store = this.store;
         const h = new RollingDigest();
         h.reset();
+        h.mixString(WORLD_STATE_DIGEST_VERSION);
+        // A scenario label does not govern biology.
+        const config = { ...this.config };
+        delete config.label;
+        h.mixValue(config);
+        store.hashAllocationState(h);
+        this.abiotic.hashStateInto(h);
+        h.mixValue(this.senescence);
+        h.mixF64(this.reproSurplus);
+        h.mixF64(this.dormantFrac);
+        h.mixInt(this.nextLineageIndex);
+        h.mixInt(this.lineageIndex.size);
+        for (const [key, value] of [...this.lineageIndex].sort((a, b) => a[0] - b[0])) {
+            h.mixInt(key);
+            h.mixInt(value);
+        }
+        h.mixInt(this.lineageKeys.length);
+        for (const key of this.lineageKeys)
+            h.mixInt(key);
+        h.mixInt(this.pendingBirths);
+        for (let i = 0; i < this.pendingBirths; i++) {
+            for (const queue of [this.birthParentSlot, this.birthParentId, this.birthMateSlot,
+                this.birthMateId, this.birthCount, this.birthLineage])
+                h.mixInt(queue[i]);
+        }
         h.mixInt(this.tick);
         h.mixInt(this.nextId);
         h.mixInt(store.count);
@@ -8732,7 +8850,6 @@ class World {
         h.mixF32(this.ledger.unassimilated);
         h.mixF32(this.abiotic.phase);
         h.mixF32(this.abiotic.drift);
-        h.mixInt(this.abiotic.history.length);
         // Substrate fields are authoritative state: they determine who eats next.
         for (const f of this.nutrients)
             h.mixF32Array(f.data);
@@ -8743,10 +8860,38 @@ class World {
         h.mixF32Array(this.sediment.data);
         h.mixF32Array(this.litter.data);
         h.mixF32Array(this.habitat.fertility.data);
+        h.mixF32Array(this.habitat.shade.data);
+        h.mixF32Array(this.habitat.drainage.data);
+        h.mixInt(this.mineralisedCell.length);
+        for (const value of this.mineralisedCell)
+            h.mixF64(value);
         for (let slot = 0; slot < store.count; slot++) {
+            h.mixInt(this.live[slot]);
             if (this.live[slot] !== 1)
                 continue;
+            h.mixF32(store.fatigue[slot]);
+            h.mixInt(this.pioneerTicks[slot]);
+            h.mixF32(this.pioneerVoid[slot]);
+            h.mixInt(this.dormant[slot]);
+            h.mixF32(this.senesceDamage[slot]);
+            h.mixF32(this.diseaseDamage[slot]);
+            h.mixF32(store.starveDamage[slot]);
+            h.mixU32(store.individualSeed[slot]);
+            h.mixU32(store.procSeed[slot]);
+            h.mixInt(store.bornTick[slot]);
+            h.mixF32(store.hitRadius[slot]);
+            h.mixF32(store.senseRadius[slot]);
+            h.mixF32(store.maxStep[slot]);
+            h.mixInt(store.modules[slot]);
+            h.mixInt(this.bioticMineraliser[slot]);
+            h.mixF64(this.capacityOf(slot));
+            h.mixF32Array(store.physical.subarray(slot * TRAIT_COUNT, (slot + 1) * TRAIT_COUNT));
+            h.mixBytes(store.role.subarray(slot * ROLE_STRIDE, (slot + 1) * ROLE_STRIDE));
+            h.mixInt(store.moduleCount[slot]);
+            const mb = slot * MAX_MODULES * MODULE_STRIDE;
+            h.mixF32Array(store.geneModules.subarray(mb, mb + store.moduleCount[slot] * MODULE_STRIDE));
             h.mixInt(store.id[slot]);
+            h.mixInt(this.idToSlot[store.id[slot]] ?? -1);
             h.mixInt(store.lineage[slot]);
             h.mixInt(store.parentId[slot]);
             h.mixInt(store.generationDepth[slot]);
@@ -8755,7 +8900,6 @@ class World {
             h.mixInt(this.starveStreak[slot]);
             h.mixInt(store.reproCooldown[slot]);
             h.mixInt(this.dormantSleep[slot]);
-            h.mixF32(this.dormantFrac);
             h.mixF32(store.energy[slot]);
             h.mixF32(store.damage[slot]);
             h.mixF32(store.x[slot]);
@@ -8764,9 +8908,9 @@ class World {
             h.mixF32(store.energyIngested[slot]);
             h.mixF32(store.energySpent[slot]);
             h.mixF32Array(store.genome.subarray(slot * TRAIT_COUNT, (slot + 1) * TRAIT_COUNT));
-            h.mixBytes(store.bodyGenes.subarray(slot * 12, (slot + 1) * 12));
+            h.mixBytes(store.bodyGenes.subarray(slot * BODY_GENE_COUNT, (slot + 1) * BODY_GENE_COUNT));
         }
-        return h.digest();
+        return `${WORLD_STATE_DIGEST_VERSION}:${h.digest()}`;
     }
     /** Deaths broken down by proximate cause, for demographic history. */
     deathReasons() {
