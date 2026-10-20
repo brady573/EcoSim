@@ -1,0 +1,1 @@
+PASS: tsc -p tsconfig.json --noEmit --pretty false (exit 0)

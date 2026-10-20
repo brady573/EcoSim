@@ -120,13 +120,23 @@
  * All figures recorded under 0.4.1 describe the DEFECTIVE semantics and are
  * provenance only. See REPORT.md.
  */
-export const WORLD_ENGINE_VERSION = 'ts-evo-poc/0.6.6';
+// 0.6.14 identifies main06be7da plus four corrections: post-feeding starvation,
+// current photosynthetic storage headroom, world-state/2 authoritative digest,
+// and actual contested-transfer overflow deposited into prey-local detritus.
+// Source-only intermediate identities on this branch were 0.6.11 (starvation),
+// 0.6.12 (headroom), and 0.6.13 (digest). Historical observations stay attached
+// to those source states; the changed default biology requires new live pins.
+// Unmerged PR20/inspector work and unpaid-basal correction are NOT included.
+export const WORLD_ENGINE_VERSION = 'ts-evo-poc/0.6.14';
 
 /**
  * Identifier for the credibility-check suite. G30 (per-pool nutrient cap on
  * return paths) shipped with gates/0.4.0; G31 and G32 (the book-level checks)
  * with gates/0.5.0; G33 (phenotype-partitioned mineralization books) with
  * gates/0.6.0; G34 (O1 phenotype-class suppression) with gates/0.7.0;
- * G35 (O2 exogenous replacement) with gates/0.8.0.
+ * G35 (O2 exogenous replacement) with gates/0.8.0; this branch adds G38
+ * (post-feeding starvation) at gates/0.11.0, G39 (current storage headroom)
+ * at gates/0.12.0, G40 (authoritative digest sensitivity) at gates/0.13.0,
+ * and G41 (scaled contested-transfer spill) at gates/0.14.0.
  */
-export const GATE_SUITE_VERSION = 'gates/0.8.0';
+export const GATE_SUITE_VERSION = 'gates/0.14.0';

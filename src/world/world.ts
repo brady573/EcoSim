@@ -35,7 +35,7 @@ import { Rng } from '../core/rng.js';
 import { ScalarField } from '../core/field.js';
 import { SpatialGrid } from '../core/spatial.js';
 import { OrganismStore, BODY_GENE_COUNT, ROLE_STRIDE, NUTRIENT_COUNT } from '../core/soa.js';
-import { RollingDigest } from '../core/hash.js';
+import { RollingDigest, WORLD_STATE_DIGEST_VERSION } from '../core/hash.js';
 import { TRAIT, TRAITS, BODY_GENES, TRAIT_COUNT, type TraitSpec } from '../bio/genome.js';
 import { Phenotype, resolveCapacity } from '../bio/phenotype.js';
 import { HabitatMap } from '../bio/habitat.js';
@@ -2865,7 +2865,7 @@ export class World {
           // Energy fixed is proportional to what was actually obtained.
           const yieldFactor = 0.45 + efficiency * 0.6;
           const gained = demand * lim * yieldFactor;
-          const room = capacity - energy;
+          const room = capacity - store.energy[slot];
           const take = gained < room ? gained : Math.max(0, room);
           if (take > 0) {
             store.energy[slot] += take;
@@ -3120,8 +3120,11 @@ export class World {
       // Dormant organisms do not accrue starvation damage: waiting is not dying.
       // Only reachable when the knob is set (dormant[] otherwise always zero).
       const isDormant = this.dormant[slot] === 1 && this.config.decomposerDormancy !== null;
-      if (!isDormant && upkeep > 0 && energy < upkeep) {
-        const deficit = (upkeep - energy) / upkeep; // 0..1
+      // Feeding and costs have changed reserves since behaviour arbitration.
+      // Use the current value for BOTH the decision and deficit magnitude.
+      const starvationEnergy = store.energy[slot];
+      if (!isDormant && upkeep > 0 && starvationEnergy < upkeep) {
+        const deficit = (upkeep - starvationEnergy) / upkeep; // 0..1
         // Fasting tolerance (Owner constraint 2026-10-12: body reserves buffer
         // brief deficits; wasting begins after reserves deplete). The streak
         // counts CONSECUTIVE deficit ticks; damage ramps 0 -> full over
@@ -3474,7 +3477,12 @@ export class World {
             this.grazeRequested += scaledDelta;
           }
           const overflow = removed - gained;
-          if (overflow > 0) this.ledger.recordSpill(overflow);
+          if (overflow > 0) {
+            // The prey supplied this energy: leave unretained material at its
+            // location. recordSpill is bookkeeping, not an environmental write.
+            this.detritus.add(store.x[ds], store.y[ds], fieldW, fieldH, overflow);
+            this.ledger.recordSpill(overflow);
+          }
           if (gained > 0) store.hunger[as] = 0;
         }
       }
@@ -4475,15 +4483,37 @@ export class World {
   /**
    * Order-sensitive digest of everything that can influence future evolution.
    *
-   * Scoped deliberately to LIVE slots in slot order plus their stable ids. That
-   * means slot recycling is detected (it changes who occupies the population)
-   * while vacant-slot bookkeeping is not, and the digest never depends on
-   * memory layout, wall-clock time, or process identity.
+   * Tick-boundary authority: live slots in slot order, allocation order,
+   * persistent forcing and configuration. Derived caches read before refresh
+   * are included; scratch overwritten in step() is not. Trace/profiling and
+   * observer books remain diagnostic-only. This is a versioned 32-bit change
+   * detector, not a cryptographic equality proof or a mid-phase checkpoint.
    */
   hashState(): string {
     const store = this.store;
     const h = new RollingDigest();
     h.reset();
+    h.mixString(WORLD_STATE_DIGEST_VERSION);
+    // A scenario label does not govern biology.
+    const config = { ...this.config } as Record<string, unknown>;
+    delete config.label;
+    h.mixValue(config);
+    store.hashAllocationState(h);
+    this.abiotic.hashStateInto(h);
+    h.mixValue(this.senescence); h.mixF64(this.reproSurplus);
+    h.mixF64(this.dormantFrac);
+    h.mixInt(this.nextLineageIndex);
+    h.mixInt(this.lineageIndex.size);
+    for (const [key, value] of [...this.lineageIndex].sort((a, b) => a[0] - b[0])) {
+      h.mixInt(key); h.mixInt(value);
+    }
+    h.mixInt(this.lineageKeys.length);
+    for (const key of this.lineageKeys) h.mixInt(key);
+    h.mixInt(this.pendingBirths);
+    for (let i = 0; i < this.pendingBirths; i++) {
+      for (const queue of [this.birthParentSlot, this.birthParentId, this.birthMateSlot,
+        this.birthMateId, this.birthCount, this.birthLineage]) h.mixInt(queue[i]);
+    }
     h.mixInt(this.tick);
     h.mixInt(this.nextId);
     h.mixInt(store.count);
@@ -4505,7 +4535,6 @@ export class World {
     h.mixF32(this.ledger.unassimilated);
     h.mixF32(this.abiotic.phase);
     h.mixF32(this.abiotic.drift);
-    h.mixInt(this.abiotic.history.length);
     // Substrate fields are authoritative state: they determine who eats next.
     for (const f of this.nutrients) h.mixF32Array(f.data);
     h.mixF32Array(this.detritus.data);
@@ -4515,9 +4544,30 @@ export class World {
     h.mixF32Array(this.sediment.data);
     h.mixF32Array(this.litter.data);
     h.mixF32Array(this.habitat.fertility.data);
+    h.mixF32Array(this.habitat.shade.data);
+    h.mixF32Array(this.habitat.drainage.data);
+    h.mixInt(this.mineralisedCell.length);
+    for (const value of this.mineralisedCell) h.mixF64(value);
     for (let slot = 0; slot < store.count; slot++) {
+      h.mixInt(this.live[slot]);
       if (this.live[slot] !== 1) continue;
+      h.mixF32(store.fatigue[slot]);
+      h.mixInt(this.pioneerTicks[slot]); h.mixF32(this.pioneerVoid[slot]);
+      h.mixInt(this.dormant[slot]);
+      h.mixF32(this.senesceDamage[slot]); h.mixF32(this.diseaseDamage[slot]);
+      h.mixF32(store.starveDamage[slot]);
+      h.mixU32(store.individualSeed[slot]); h.mixU32(store.procSeed[slot]);
+      h.mixInt(store.bornTick[slot]);
+      h.mixF32(store.hitRadius[slot]); h.mixF32(store.senseRadius[slot]); h.mixF32(store.maxStep[slot]);
+      h.mixInt(store.modules[slot]); h.mixInt(this.bioticMineraliser[slot]);
+      h.mixF64(this.capacityOf(slot));
+      h.mixF32Array(store.physical.subarray(slot * TRAIT_COUNT, (slot + 1) * TRAIT_COUNT));
+      h.mixBytes(store.role.subarray(slot * ROLE_STRIDE, (slot + 1) * ROLE_STRIDE));
+      h.mixInt(store.moduleCount[slot]);
+      const mb = slot * MAX_MODULES * MODULE_STRIDE;
+      h.mixF32Array(store.geneModules.subarray(mb, mb + store.moduleCount[slot] * MODULE_STRIDE));
       h.mixInt(store.id[slot]);
+      h.mixInt(this.idToSlot[store.id[slot]] ?? -1);
       h.mixInt(store.lineage[slot]);
       h.mixInt(store.parentId[slot]);
       h.mixInt(store.generationDepth[slot]);
@@ -4526,7 +4576,6 @@ export class World {
       h.mixInt(this.starveStreak[slot]);
       h.mixInt(store.reproCooldown[slot]);
       h.mixInt(this.dormantSleep[slot]);
-      h.mixF32(this.dormantFrac);
       h.mixF32(store.energy[slot]);
       h.mixF32(store.damage[slot]);
       h.mixF32(store.x[slot]);
@@ -4535,9 +4584,9 @@ export class World {
       h.mixF32(store.energyIngested[slot]);
       h.mixF32(store.energySpent[slot]);
       h.mixF32Array(store.genome.subarray(slot * TRAIT_COUNT, (slot + 1) * TRAIT_COUNT));
-      h.mixBytes(store.bodyGenes.subarray(slot * 12, (slot + 1) * 12));
+      h.mixBytes(store.bodyGenes.subarray(slot * BODY_GENE_COUNT, (slot + 1) * BODY_GENE_COUNT));
     }
-    return h.digest();
+    return `${WORLD_STATE_DIGEST_VERSION}:${h.digest()}`;
   }
 
   /** Deaths broken down by proximate cause, for demographic history. */

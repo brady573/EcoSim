@@ -1,0 +1,98 @@
+=== credibility gates :: ts-evo-poc/0.6.13 ===
+scenario: founders=300 world=2000x2000 ticks=250 seed=4242
+
+[PASS] G1 seeded repeatability
+         ts-evo-poc/0.6.13: same seed -> identical digests [world-state/2:47d966da,world-state/2:3ba04130,world-state/2:6410218f,world-state/2:61137b2d,world-state/2:a63fceec,world-state/2:72cd57d2,world-state/2:72cd57d2]; different seed -> diverged (expected). Scope: same engine version + same Node/V8 build. Not a cross-platform claim.
+[PASS] G2 finite / valid state
+         77,631 organism-states and 625,000 field-cells checked, 0 violations
+[PASS] G3 causal resource accounting
+         identity capture+organic+founding == biomass+detritus+dissipated. Worst |residual| = 0.04504% at tick 121 (tolerance 0.5%). Final: capture=7988.2 organicInput=0.0 founding=28034.3 => totalInput=36022.5; biomass=5766.5 detritus=32.1 dissipated=17076.4 => accounted=22875.0. Dissipation split: basal=12327 move=246 sense=1574 contest=1 repro=96 mineralised=10 spoiled=10 unassimilated=2812
+[PASS] G4 consistent births and deaths
+         population == founders(300) + births(119) - deaths(58) == 361 at every one of 250 ticks
+[PASS] G4b death cause attribution
+         causes sum to deaths: damage=0 age=1 starve=57 total=58 vs deaths=58
+[PASS] G5 deterministic contested resolution
+         18 resolved contests over 250 ticks (predation=4 territorial=0 mating=0 scavenge=0 undefined=NaN); 0 abandoned (participant died first); 0 duplicate pairs (must be 0). Replay digest 997d11f1 vs 997d11f1 -> identical. INTERACTION.PREDATE=0 is the contested class.
+[PASS] G5b contests are not vacuous
+         predation contests resolved: 52 over the extended 1000-tick window on seed 4242 (0 inside the 250-tick determinism window under fasting tolerance). A run with zero contested interactions would make this gate meaningless, so zero is treated as a failure.
+[PASS] G6a horizontal nutrient gradient steers due east
+         purely eastward field -> 0.0 deg, want 0.0 (due east).
+[PASS] G6b vertical nutrient gradient steers due north
+         purely northward field -> 270.0 deg, want 270.0 (due north).
+[PASS] G6c diagonal gradient splits the two axes
+         equal east+north rise -> 315.0 deg, want 315.0 (north-east). This is the discriminating case: comparing north against east, or probing east on the diagonal, collapses it toward due north instead.
+[PASS] G6d flat field preserves heading
+         flat field -> heading 0.750000, want the passed-in 0.75 (no spurious steering).
+[PASS] G6e detritus gradient matches nutrient gradient
+         detritus: east=0.0 deg (want 0.0), north=270.0 deg (want 270.0), diagonal=315.0 deg (want 315.0). Same axis sampling as the nutrient path; the two functions are separate and each needs its own guard.
+[PASS] G7 predation assimilation applied once, not squared
+         predator gained 0.5167; once=0.5167 (rel err 0.0000), twice=0.4108. Must match the single-application model and NOT the squared one. Herbivory has always been single-application; parity between the two paths is the intent.
+[PASS] G8a mutual intent matures a mating
+         both MATE -> 1 mating(s), want 1.
+[PASS] G8b one-sided intent does not mature a mating
+         A=MATE/B=FLEE -> 0 (want 0); A=GRAZE/B=MATE -> 0 (want 0). One-sided selection is not consent.
+[PASS] G8c a mutually-recorded pair matures exactly once
+         same pair staged from both sides -> 1 mating(s), want 1. Resolving twice would double-charge onMate() and double the offspring.
+[PASS] G8d mating requires MUTUAL selection, not just mutual intent
+         A=MATE with B, B=MATE with a THIRD organism -> 0 mating(s), want 0. Both being in MATE intent is not enough; B must have selected A back. Without this check the slot-order filter decides the outcome by slot index rather than by biology.
+[PASS] G9 recycled nutrient is actually written and grid-size invariant
+         coarse(256 cells): mineralised=0.0020 applied=0.0000 expected=0.0000 ratio=1.000000; fine(4096 cells): mineralised=0.0525 applied=0.0005 expected=0.0005 ratio=1.000000. Applied is summed inside the delivery loop, so deleting that loop or dropping the nCells division both fail this. Totals are NOT compared across resolutions: those runs mineralise different amounts.
+[PASS] G10 the --zero preset actually zeroes every guild capture
+         scenesprobe: ZEROED sets it=true (required), ZERO_LIFTABLE lifts it=true (also required — a preset you cannot override is not a knob); senesprobe: ZEROED sets it=true (required). The P0-2 leak was the entry being in ZERO_LIFTABLE ONLY, which left the baseline ungated while making it look controllable. Asserted on BOTH probe entry points so --zero cannot mean different things per probe.
+[PASS] G12 nutrientCyclic reads a non-zero biotic flux (not a kill-switch)
+         cyclic flux observed with nutrientCyclic on=1.434158, off=0.000000 (want >0 and exactly 0). Zero while ON means the flux is cleared before it is read, and the knob suppresses regeneration instead of coupling it.
+[PASS] G13 module genome expresses into real traits, not just appearance
+         7 modules -> 16 of 42 traits shifted: storageCapacity, digestionRate, basalCost, photosyntheticRate, carrionAffinity, visionRange, nutrientSense, threatSense.... A genome that moved only body genes would be v1 with extra steps.
+[PASS] G14 every module carries a maintenance cost
+         upkeep per unit magnitude: segment=0.03 lightCapture=0.022 locomotor=0.02 sensory=0.014 anchor=0.01 defense=0.024 trophic=0.018. 0 module(s) with no cost — a free capability is selected for unconditionally and evolution has nothing to choose between.
+[PASS] G15 the same genome expresses different structure at different life stages
+         structure expressed: juvenile=0.3591 adult=3.8033. Identical values would mean onset is decorative and development is not real.
+[PASS] G16 a gated module is expressed conditionally, not only by age
+         gated DEFENSE at 90% reserve -> 1.000; at 20% reserve -> 0.000. A gate that ignored condition would express both, which is an age timer wearing a gate.
+[PASS] G17 duplication and deletion change genome length (structural evolution)
+         parent=6 modules -> duplication=12 -> deletion=0. Point mutation alone cannot change body PLAN; only these operators can.
+[PASS] G18 recombination draws modules from both parents
+         40/40 children carried modules from BOTH parents; 0/40 carried none from B. Parents hold disjoint module vocabularies, so a B-only kind in a child can only have come from B.
+[PASS] G19 genomeV2 is inert when unset and active when set (no dead knob)
+         genomeV2=null -> pop=361 sizeSum=2051.2609 modules=0; genomeV2=true -> pop=303 sizeSum=2043.1574 modules=1535. Unset must carry no modules at all and reproduce declared behaviour exactly; set must actually change the world, or the knob is decorative.
+[PASS] G20 module upkeep is actually CHARGED to basal cost, not double-booked away
+         net basal-cost delta vs declared upkeep: segment=0.0300/0.03 lightCapture=0.0220/0.022 locomotor=0.0200/0.02 sensory=0.0140/0.014 anchor=0.0100/0.01 defense=0.0240/0.024 trophic=0.0180/0.018. 0 module(s) mismatch — a cost that cancels algebraically is a capability the organism is never charged for.
+[PASS] G21 module structure develops in the live world (not only in the helper)
+         organism slot 0 (born age 1, 7 modules) departed from its unexpressed birth state: armor 0.15402 -> 0.30840 (peak at age 161, deviation 0.15438), hitRadius 1.4979 -> 1.8896 (deviation 0.3917). Unchanged values mean phenotypes are frozen at birth and development is inert.
+[PASS] G22 a zero-module child resets stale module state on slot reuse
+         slot 0 reused by a zero-module child: moduleCount now 0 (want 0). A non-zero value means the previous occupant's genome is still readable and would be inherited.
+[PASS] G23 module expression is shed under energy stress in the live world
+         conditional regulation observed in-engine: slot 4: armor 0.30927 -> 0.20371 while energy fell 24.73 -> 24.67. A module's upkeep is only paid while the organism can afford it, so expressed traits fall back toward the unexpressed baseline as energy declines.
+[PASS] G24 a live mating produces module DNA from BOTH parents
+         parent slot 0 [0,1,2,3,4,5,6] x parent slot 105 [0,0,1,2,3,4,5] -> child slot 177 [0,1,1,2,3,4,5] = first 2 module(s) of the first parent + modules 2.. of the second. The parents disagree at 1 position(s) resolved for the first parent and 5 for the second, none foreign, and the child is a clone of neither. (1 mating(s) attempted through the real birth queue; 0 produced a pure single-parent clone and were excluded)
+[PASS] G25 module structure reaches the body plan and its derived geometry
+         slot 0: segments 2->4, eyeCount 2->6, shell 1->3, spines 0->0; hitRadius 1.4979->1.8896, senseRadius 66.67->159.72. Inherited genotype UNCHANGED. Unchanged structure means modules build traits but no body, and the geometry derived from structure never moves.
+[PASS] G26 radiationMultiplier couples only excess over 1x to dormant share (incl. boundaries)
+         tick=50 scheduled=1.3195 zero=1.0000 half=1.1598 full=1.3195 over=1.3195 | noRad=1.0000 preOnset=1.0000 uncoupledZero=1.3195 uncoupledFull=1.3195 scheduledUnc=1.3195
+[PASS] G27 successfulMating flag gates asexual fallback (A no-candidate, B no-reciprocal, C failed-surplus, D passed-surplus)
+         A: reached(a=true,b=true) flags(0,0) sexualQ=0 asexBirth=true | B: submittedDelta=true reached(a=true,b=true) sexualQ=0 asexBirth=true | C: mated=false aReached=true bReached=false sexualQ=0 asexBirthA=true | D: flags(1,1) sexualQ=2(pre=2) skipped(a=true,b=true) reached(a=false,b=false) asexFrom(a=0,b=0)
+[PASS] G28 successfulMating array grows with organism capacity
+         initialLiveLen=1024 grownLiveLen=2048 successfulMating.length=2048 (grew: true)
+[PASS] G29 high-slot mating pair suppresses asexual (integration)
+         mated=true sexualQueued=true noAsexReached=true sexualSkipped=true slots=(1500,1501)
+[PASS] G30 per-pool nutrient cap holds on every return path (Task 6 pin)
+         peak excess above per-pool cap — saturation vs diffusion baseline. A: 0.216164/0.216163 (x1.00), B: 0.168608/0.168608 (x1.00), C: 0.134022/0.134021 (x1.00). All must be <= x2.00. Pool A (mod 1.0) is the built-in control: its per-pool cap EQUALS the flat cap, so it cannot discriminate and must sit near baseline either way. Teeth verified by reverting nutrientCapAt to the flat cap: B -> x8.38, C -> x10.16, A unchanged at x1.00 (FAIL, as required).
+[PASS] G31 flux books are a real measurement, not a self-consistent tally
+         writer-isolated world (no diffusion / regen / decay / broadcast / floor): pool totals moved -190.374508; the books predict -190.374449 = accepted 2804.802244 - photo 2995.176597 - eviction 9.694e-5. Relative residual 1.02e-8, limit 1e-4 (float32 field rounding). Eviction 9.694e-5 vs envelope 1.337e-3; the current run's ceiling exercise is tracked as capLoss=134.043087. Accepted must be > 0, else no return ran and this proves nothing.
+[PASS] G32 return books partition exactly at every (guild, pool, source)
+         saturation arm with diffusion, 120 ticks: attempted 3500.797399 == accepted 1484.170554 + capLoss 2016.626845; worst per-cell residual 4.09e-12, limit 1e-6 x max(1, attempted). 3 negative cells, limit -1e-12 x max(1, attempted); worst: excretion.capLoss[guild 2][pool 0][source -1] = -8.223456637868054e-15. Eviction total 2029.927570 — the bounded over-cap event; it must be > 0 or the ceiling never bit and the identity was only tested on its trivial branch.
+[PASS] G33 phenotype books partition guild books at every (class, guild, pool, source)
+         saturation arm (G32 verbatim + phenotype mirror), 120 ticks: per book-cell guild==sum(classes) worst residual 1.49e-13, limit 1e-6 x max(1, attempted=268.5). Worst negative pheno cell: pheno.capLoss[class 0][guild 2][pool 1][source 2] = -6.966649479522857e-15 (limit -1e-12 x max(1, attempted)). Non-neither accepted 80.356 (> 0 required); neither accepted 0.000 (share 0.00%, REPORTED not asserted — stale flag / trait-drift events classify here). Pheno eviction total 1.190e-5 (> 0 required, ceiling bit). Twin-run new-book mismatches 0 (must be 0); trajectory digests equal (must be equal). Classifier fixtures 10/10 exact (strict thresholds + boundaries); deriveRole cross-check mismatches 0 (must be 0). Live coverage: class attempted [46.6, 221.9, 0.0, 0.0], source attempted [42.8, 220.5, 5.3] (classes 0+1 and all 3 writers must fire). genomeV2 arm: partition worst 1.07e-14 (must close), dual attempted 5.98 (> 0 required — drift reaches DUAL through the real path), neither share 0.00% reported.
+[PASS] G34 phenotype-class suppression zeroes the named class return only
+         saturation arm, 120 ticks, suppress recalcOnly=0: recalc accepted 0.000 (must be exactly 0) vs null-arm 56.619 (deficit 56.619); carrionOnly accepted 23.737 (> 0 required — untargeted classes continue). Null knob digest equals unset (must equal). genomeV2 suppress dual=0: dual accepted 0.000 (must be 0) vs null-arm 5.978 (deficit 5.978), recalc accepted 47.439 (> 0 required). Bad knobs threw 6/6 (must all throw). Twins: book mismatches 0, digests equal. Cyclic feedback (reported, trajectory-mediated here — coupling measured in the viability demonstration): abioticRegen null-arm 11712.263 vs suppressed-arm 11755.543 — recorded distinctly, no direction asserted. Alive: null-arm 303, suppressed-arm 303 (> 0 required — suppression is not extinction). Shadow==actual null-arm mismatches 0 (must be 0); suppressed-arm untargeted mismatches 0 (must be 0), shadow recalc accepted 67.148 (> 0 required — a dose exists to replace). Over-cap: field untouched, eviction delta 0.00e+0 (must be 0), class-1 attempted delta 0.00e+0 (must be 0); legacy zero-offer clamp preserved (eviction > 0).
+[PASS] G35 exogenous replacement matches forgone accepted flow per book cell
+         saturation arm + recalcOnly suppression + rescue, 120 ticks: exogenous attempted==accepted+capLoss worst residual 0.00e+0 (limit 1e-6 x max(1, attempted)), actual+exogenous==shadow on rescued class inside the same bound; worst negative exogenous cell none; exogenous capLoss+eviction total 0.00e+0 (limit 1e-9 x max(1, attempted) — H+A0+R==H+S<=cap per event, so only float dust is possible here). Non-rescued-class nonzero cells 0 (must be 0). Null-rescue digest equals rescue-absent (must equal), null exogenous total 0 (must be 0). Bad knobs threw 4/4. Twins: accepted mismatches 0, digests equal. Alive on rescue arm 303 (> 0 required). Delivery exactness only — no mediation claim.
+[PASS] G38 starvation uses current post-feeding reserves
+         fed={"energy":3.9886727333068848,"ingested":3.9886727333068848,"starveDamage":0,"streak":0}, unfed={"energy":0,"ingested":0,"starveDamage":0.6000000238418579,"streak":4}, cost-depleted={"energy":0,"ingested":0,"starveDamage":0.6000000238418579,"streak":4}; successful feeding must clear deficit; unmet current upkeep must still starve.
+[PASS] G39 photosynthesis uses storage freed by current-tick expenditure
+         {"scale":1,"charged":1.0270493914672147,"captured":0.18053800767660141,"retained":0.18053801357746124,"expectedRetained":0.18053800767660141,"overflow":0}; {"scale":100,"charged":1.0270493914672147,"captured":18.053800767660142,"retained":1.0270493030548096,"expectedRetained":1.027049572726862,"overflow":17.026752471923828}; small capture retained, large capture capped with real overflow; 1e-4 float32 tolerance.
+[PASS] G40 versioned digest detects individual authoritative mutations
+         27 independent negative controls; failures=[]; Float64 changes below Float32 resolution detected; profiling excluded=true. Tick-boundary 32-bit change detector, not collision-free certification.
+
+46/46 checks passed
+ALL GATES PASS

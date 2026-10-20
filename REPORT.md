@@ -8221,3 +8221,28 @@ bit-identical; rescue runs carry the new behavior identity). Evidence:
 `evidence/o2-rescue-20261016/` (viability A/B/C mediation observation with
 direct-vs-cyclic separation, reported without direction claims). Delivery
 exactness only — no rescue-efficacy verdict.
+
+## 0.6.14 — current-energy, state-digest and feeding-overflow corrections
+
+Isolated successor of merged main06be7da. Starvation now evaluates current
+post-feeding reserves for both decision and deficit. Photosynthetic intake
+uses storage headroom after costs. Contested grazing/predation deposits
+actual removed-minus-retained overflow once into prey-local suspended
+detritus, then books spill. These are biological corrections, not tuning.
+
+The digest is explicitly world-state/2 and covers persistent state including
+fatigue, active module instructions, pioneer grace/void, Float64 cyclic lag,
+live stable-ID lookup, allocation order, expressed caches and active forcing.
+Diagnostic history/profiling and reset-before-use scratch are excluded.
+It remains a32-bit change detector, not a collision-free equality proof.
+
+G38–G41 supply world-level regressions and27 independent hash mutation
+controls. Live500tick pins on this combined source:517 P840/C173/D81;
+24601 P606/C241/D63. Prior source-state pins/logs are retained as historical
+evidence; they do not certify the corrected engine. Source-only intermediate
+identities0.6.11–0.6.13 describe subsets of these corrections.
+
+PR20's unmerged observer, the browser inspector and the unpaid-basal excretion
+correction are NOT included. No ecological-balance or reliance claim follows
+from these fixes. Detailed regression evidence and validation receipts are in
+evidence/current-energy-fixes/ and the focused fix records beside it.

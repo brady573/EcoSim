@@ -29,6 +29,7 @@
  */
 import { TRAIT_COUNT as TC, BODY_GENE_COUNT as BGC } from '../bio/genome.js';
 import { MAX_MODULES as MM, MODULE_STRIDE as MS } from '../bio/modgenome.js';
+import type { RollingDigest } from './hash.js';
 
 /** Re-exported so every module has exactly one definition of the layout. */
 export const TRAIT_COUNT = TC;
@@ -251,6 +252,12 @@ export class OrganismStore {
   /** Vacant slots currently on the free list. */
   get freeSlots(): number {
     return this.freeTop;
+  }
+
+  /** Allocation order affects which future organism occupies each slot. */
+  hashAllocationState(h: RollingDigest): void {
+    h.mixInt(this.freeTop);
+    for (let i = 0; i < this.freeTop; i++) h.mixInt(this.freeList[i]);
   }
 
   /**
